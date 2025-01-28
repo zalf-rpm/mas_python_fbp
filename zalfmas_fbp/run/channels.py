@@ -42,9 +42,13 @@ def start_first_channel(path_to_channel, name=None):
     return chan, first_reader_sr, first_writer_sr
 
 
-def start_channel(path_to_channel, writer_sr, name=None, verbose=False):
-    return sp.Popen([
-        path_to_channel, 
-        f"--name=chan_{name if name else str(uuid.uuid4())}",
-        f"--startup_info_writer_sr={writer_sr}",
-    ] + (["--verbose"] if verbose else []))
+def start_channel(path_to_channel, startup_info_writer_sr, name=None,
+                  verbose=False, host=None, port=None, reader_srts=None, writer_srts=None):
+    return sp.Popen([path_to_channel,
+                     f"--name=chan_{name if name else str(uuid.uuid4())}",
+                     f"--startup_info_writer_sr={startup_info_writer_sr}",
+                     ] + (["--verbose"] if verbose else [])
+                    + ([f"--host={host}"] if host else [])
+                    + ([f"--port={port}"] if port else [])
+                    + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
+                    + ([f"--writer_srts={writer_srts}"] if writer_srts else []))
