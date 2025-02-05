@@ -18,7 +18,7 @@ import capnp
 import os
 import sys
 from zalfmas_common import common
-from zalfmas_common import fbp
+from zalfmas_fbp.run.ports import connect_ports
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import common_capnp
@@ -27,12 +27,11 @@ import fbp_capnp
 config = {
     "in_sr": "capnp://_VcNoyHw5kwHS62qx_uIHqrnhYXUPEmfegbtIY9rf4I@10.10.25.19:9922/r_out",  # string
 }
-
 async def main(config: dict):
     common.update_config(config, sys.argv, print_config=True,
                          allow_new_keys=False)
     cm = common.ConnectionManager()
-    ports, close_out_ports = await fbp.connect_ports(config, cm)
+    ports, close_out_ports = await connect_ports(config, cm)
 
     while ports["in"]:
         try:

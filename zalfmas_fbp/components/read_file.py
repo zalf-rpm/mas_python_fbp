@@ -18,7 +18,7 @@ import capnp
 import os
 import sys
 from zalfmas_common import common
-from zalfmas_common import fbp
+from zalfmas_fbp.run.ports import connect_ports
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
@@ -36,7 +36,7 @@ async def main(config: dict):
     common.update_config(config, sys.argv, print_config=True,
                          allow_new_keys=False)
     cm = common.ConnectionManager()
-    ports, close_out_ports = await fbp.connect_ports(config, cm)
+    ports, close_out_ports = await connect_ports(config, cm)
     skip_lines = int(config["skip_lines"])
 
     if config["file"]:
