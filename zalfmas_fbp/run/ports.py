@@ -13,20 +13,11 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-# remote debugging via commandline
-# -m ptvsd --host 0.0.0.0 --port 14000 --wait
-
 import asyncio
-from stringprep import in_table_a1
-
 import capnp
-from collections import deque, defaultdict
-import json
 import os
-from pathlib import Path
 import sys
 import tomli
-#import tomlkit
 import uuid
 from zalfmas_common import common
 import zalfmas_capnp_schemas
@@ -111,41 +102,34 @@ async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, connec
         connection_manager = common.ConnectionManager()
 
     try:
-        pis_reader = await connection_manager.try_connect(port_infos_reader_sr, cast_as=fbp_capnp.Channel.Reader,
-                                                             retry_secs=1)
+        pis_reader = await connection_manager.try_connect(port_infos_reader_sr,
+                                                          cast_as=fbp_capnp.Channel.Reader,
+                                                          retry_secs=1)
         pis = (await pis_reader.read()).value.as_struct(fbp_capnp.PortInfos)
-
         in_ports = {}
-
-
+        for n2sr in pis.inPorts:
+            if len(n2sr.name) > 0:
+                port_name = n2sr.name
+                if n2sr.which() == "sr" and len(n2sr.sr) > 0:
+                    in_ports[port_name] = await connection_manager.try_connect(n2sr.sr,
+                                                                               cast_as=fbp_capnp.Channel.Reader,
+                                                                               retry_secs=1)
 
         out_ports = {}
-
-        for port_name, data in toml_config["ports"]["in"].items():
-            sr = data.get("sr", None)
-            sr = None if sr == "" else sr
-            in_ports[port_name] = sr
-            if sr:
-                in_ports[port_name] = await connection_manager.try_connect(sr, cast_as=fbp_capnp.Channel.Reader,
-                                                                           retry_secs=1)
-
-        for port_name, data in toml_config["ports"]["out"].items():
-            if isinstance(data, list):
-                out_ports[port_name] = []
-                for d in data:
-                    sr = d.get("sr", None)
-                    sr = None if sr == "" else sr
-                    out_ports[port_name].append(sr)
-                    if sr:
-                        out_ports[port_name][-1] = await connection_manager.try_connect(sr, cast_as=fbp_capnp.Channel.Writer,
-                                                                                        retry_secs=1)
-            else:
-                sr = data.get("sr", None)
-                sr = None if sr == "" else sr
-                out_ports[port_name] = sr
-                if sr:
-                    out_ports[port_name] = await connection_manager.try_connect(sr, cast_as=fbp_capnp.Channel.Writer,
-                                                                                retry_secs=1)
+        for n2sr in pis.outPorts:
+            if len(n2sr.name) > 0:
+                port_name = n2sr.name
+                if n2sr.which() == "sr" and len(n2sr.sr) > 0:
+                    in_ports[port_name] = await connection_manager.try_connect(n2sr.sr,
+                                                                               cast_as=fbp_capnp.Channel.Reader,
+                                                                               retry_secs=1)
+                elif len(n2sr.srs) > 0:
+                    out_ports[port_name] = []
+                    for sr in n2sr.srs:
+                        if len(sr) > 0:
+                            out_ports[port_name].append(await connection_manager.try_connect(sr,
+                                                                                             cast_as=fbp_capnp.Channel.Writer,
+                                                                                             retry_secs=1))
 
         async def close_ports(print_info=False, print_exception=True):
             for name, ps in out_ports.items():
