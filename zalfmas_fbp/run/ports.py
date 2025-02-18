@@ -91,13 +91,14 @@ async def connect_ports_from_cmd_config(config: dict, connection_manager=None):
                         if print_exception:
                             print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
-        return in_ports, out_ports, close_ports
+        return in_ports, out_ports, close_ports, connection_manager
     except Exception as e:
         print(f"{os.path.basename(__file__)}: Exception connecting to ports via CMD config:\n{config}\n Exception: {e}")
 
-    return None, None, None
+    return None, None, None, None
 
-async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, connection_manager=None):
+async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, ins=None, outs=None,
+                                               connection_manager=None):
     if not connection_manager:
         connection_manager = common.ConnectionManager()
 
@@ -106,7 +107,7 @@ async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, connec
                                                           cast_as=fbp_capnp.Channel.Reader,
                                                           retry_secs=1)
         pis = (await pis_reader.read()).value.as_struct(fbp_capnp.PortInfos)
-        in_ports = {}
+        in_ports = {n: None for n in ins} if ins else {}
         for n2sr in pis.inPorts:
             if len(n2sr.name) > 0:
                 port_name = n2sr.name
@@ -115,14 +116,14 @@ async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, connec
                                                                                cast_as=fbp_capnp.Channel.Reader,
                                                                                retry_secs=1)
 
-        out_ports = {}
+        out_ports = {n: None for n in outs} if outs else {}
         for n2sr in pis.outPorts:
             if len(n2sr.name) > 0:
                 port_name = n2sr.name
                 if n2sr.which() == "sr" and len(n2sr.sr) > 0:
-                    in_ports[port_name] = await connection_manager.try_connect(n2sr.sr,
-                                                                               cast_as=fbp_capnp.Channel.Reader,
-                                                                               retry_secs=1)
+                    out_ports[port_name] = await connection_manager.try_connect(n2sr.sr,
+                                                                                cast_as=fbp_capnp.Channel.Writer,
+                                                                                retry_secs=1)
                 elif len(n2sr.srs) > 0:
                     out_ports[port_name] = []
                     for sr in n2sr.srs:
@@ -155,11 +156,11 @@ async def connect_ports_from_port_infos_reader(port_infos_reader_sr: str, connec
                             if print_exception:
                                 print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
-        return in_ports, out_ports, close_ports
+        return in_ports, out_ports, close_ports, connection_manager
     except Exception as e:
         print(f"{os.path.basename(__file__)}: Exception connecting to ports via port infos reader SR:\n{port_infos_reader_sr}\n Exception: {e}")
 
-    return None, None, None
+    return None, None, None, None
 
 
 async def connect_ports_from_toml_str(config_toml_str: str, connection_manager=None):
@@ -222,11 +223,11 @@ async def connect_ports_from_toml_str(config_toml_str: str, connection_manager=N
                             if print_exception:
                                 print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
-        return in_ports, out_ports, close_ports
+        return in_ports, out_ports, close_ports, connection_manager
     except Exception as e:
         print(f"{os.path.basename(__file__)}: Exception connecting to ports via toml:\n{toml_config}\n Exception: {e}")
 
-    return None, None, None
+    return None, None, None, None
 
 
 async def connect_ports_from_reader_sr(config_reader_sr: str, connection_manager=None):
@@ -240,4 +241,4 @@ async def connect_ports_from_reader_sr(config_reader_sr: str, connection_manager
     except Exception as e:
         print(f"{os.path.basename(__file__)}: Exception connecting to config reader via sr ({config_reader_sr}): {e}")
 
-    return None, None, None
+    return None, None, None, None

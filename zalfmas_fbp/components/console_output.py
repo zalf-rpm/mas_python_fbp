@@ -17,35 +17,33 @@ import asyncio
 import capnp
 import os
 import sys
-from zalfmas_common import common
-from zalfmas_fbp.run.ports import connect_ports
+from zalfmas_fbp.run.ports import connect_ports_from_port_infos_reader as connect_ports
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
 import fbp_capnp
 
-config = {
-    "in_sr": "capnp://_VcNoyHw5kwHS62qx_uIHqrnhYXUPEmfegbtIY9rf4I@10.10.25.19:9922/r_out",  # string
-}
-async def main(config: dict):
-    common.update_config(config, sys.argv, print_config=True,
-                         allow_new_keys=False)
-    cm = common.ConnectionManager()
-    ports, close_out_ports = await connect_ports(config, cm)
+async def main(port_infos_reader_sr: str = None):
+    port_infos_reader_sr = port_infos_reader_sr or (sys.argv[1] if len(sys.argv) > 1 else None)
+    if not port_infos_reader_sr:
+        print("Usage: console_output.py <port_infos_reader_sr>")
+        sys.exit(1)
 
-    while ports["in"]:
-        try:
-            in_msg = await ports["in"].read()
+    ins, outs, close_out_ports, con_man = await connect_ports(port_infos_reader_sr, ins=["in"])
+
+    try:
+        while ins["in"]:
+            in_msg = await ins["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                ins["in"] = None
                 continue
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             print(in_ip.content.as_text())
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+    except Exception as e:
+        ins["in"] = None
+        print(f"{os.path.basename(__file__)} Exception:", e)
 
     await close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 if __name__ == '__main__':
-    asyncio.run(capnp.run(main(config)))
+    asyncio.run(capnp.run(main()))
