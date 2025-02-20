@@ -17,7 +17,7 @@ import asyncio
 import capnp
 import os
 import sys
-from zalfmas_fbp.run.ports import connect_ports_from_port_infos_reader as connect_ports
+from zalfmas_fbp.run.ports import PortConnector
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
@@ -28,21 +28,21 @@ async def main(port_infos_reader_sr: str = None):
         print("Usage: console_output.py <port_infos_reader_sr>")
         sys.exit(1)
 
-    ins, outs, close_out_ports, con_man = await connect_ports(port_infos_reader_sr, ins=["in"])
+    ports = await PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
 
     try:
-        while ins["in"]:
-            in_msg = await ins["in"].read()
+        while ports["in"]:
+            in_msg = await ports["in"].read()
             if in_msg.which() == "done":
-                ins["in"] = None
+                ports["in"] = None
                 continue
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             print(in_ip.content.as_text())
     except Exception as e:
-        ins["in"] = None
+        ports["in"] = None
         print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await close_out_ports()
+    await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 if __name__ == '__main__':

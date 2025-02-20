@@ -19,7 +19,7 @@ import os
 import sys
 import tomli
 from zalfmas_common import common
-from zalfmas_fbp.run.ports import connect_ports_from_port_infos_reader as connect_ports
+from zalfmas_fbp.run.ports import PortConnector
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
@@ -30,7 +30,7 @@ async def main(port_infos_reader_sr: str = None):
         print("Usage: read_file.py <port_infos_reader_sr>")
         sys.exit(1)
 
-    ins, outs, close_out_ports, con_man = await connect_ports(port_infos_reader_sr,
+    ports = await PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
                                                               ins=["conf", "attr"], outs=["out"])
 
     config = {
@@ -39,9 +39,9 @@ async def main(port_infos_reader_sr: str = None):
         "lines_mode": True,  # send lines
         "skip_lines": 0,  # skip # lines in lines_mode=True
     }
-    if ins["conf"]:
+    if ports["conf"]:
         try:
-            conf_msg = await ins["conf"].read()
+            conf_msg = await ports["conf"].read()
             if conf_msg.which() != "done":
                 conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
                 conf_toml_str = conf_ip.content
@@ -54,13 +54,13 @@ async def main(port_infos_reader_sr: str = None):
     if config["file"]:
         try:
             attr = None
-            if ins["attr"]:
-                attr_msg = await ins["attr"].read()
+            if ports["attr"]:
+                attr_msg = await ports["attr"].read()
                 if attr_msg.which() != "done":
                     attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
                     attr = attr_ip.content
 
-            if outs["out"]:
+            if ports["out"]:
                 with open(config["file"]) as _:
                     if config["lines_mode"]:
                         for line in _.readlines():
@@ -71,17 +71,17 @@ async def main(port_infos_reader_sr: str = None):
                             out_ip = fbp_capnp.IP.new_message(content=line)
                             if attr and config["to_attr"]:
                                 out_ip.attributes = [{"key": config["to_attr"], "value": attr}]
-                            await outs["out"].write(value=out_ip)
+                            await ports["out"].write(value=out_ip)
                     else:
                         file_content = _.read()
                         out_ip = fbp_capnp.IP.new_message(content=file_content)
                         if attr and config["to_attr"]:
                             out_ip.attributes = [{"key": config["to_attr"], "value": attr}]
-                        await outs["out"].write(value=out_ip)
+                        await ports["out"].write(value=out_ip)
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await close_out_ports()
+    await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 if __name__ == '__main__':
