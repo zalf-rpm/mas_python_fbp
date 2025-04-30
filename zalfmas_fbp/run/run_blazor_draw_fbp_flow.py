@@ -135,7 +135,7 @@ async def main(config: dict):
                 out_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["out_ports"].items()])
                 port_infos_msg.inPorts = in_ports
                 port_infos_msg.outPorts = out_ports
-                config_srs = config_chans.pop(process_id)
+                config_srs = config_chans.pop()
                 for i in range(process_id_to_parallel_count.get(process_id, 1)):
                     process_id_to_process[process_id] = sp.Popen(
                         process_id_to_Popen_args[process_id] + [config_srs["readerSR"]])
@@ -147,20 +147,19 @@ async def main(config: dict):
                     del port_infos_writer
 
         # collect channel sturdy refs to start components
-        while True:
+        no_of_startup_infos_still_to_be_received = no_of_components + len(links)
+        while no_of_startup_infos_still_to_be_received > 0:
             p = (await first_reader.read()).value.as_struct(common_capnp.Pair)
             chan_id = p.fst.as_text()
             info = p.snd.as_struct(fbp_capnp.Channel.StartupInfo)
+            no_of_startup_infos_still_to_be_received -= 1
             if chan_id == config_chan_id:
+                out_process_id = None
                 config_chans.append({"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]})
             else:
                 out_process_and_port, in_process_and_port = chan_id.split("->")
                 out_process_id, out_port_name = out_process_and_port.split(".")
                 in_process_id, in_port_name = in_process_and_port.split(".")
-
-            # there should be code to start the components
-            if ((out_process_id in process_id_to_Popen_args or out_process_id in iip_process_ids)
-                    and in_process_id in process_id_to_Popen_args):
 
                 if out_process_id in iip_process_ids:
                     out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
@@ -176,17 +175,38 @@ async def main(config: dict):
                     process_id_to_process_srs[out_process_id]["out_ports"][out_port_name] = info.writerSRs[0]
                 process_id_to_process_srs[in_process_id]["in_ports"][in_port_name] = info.readerSRs[0]
 
-                # sturdy refs for all ports of a start component are available
-                # check for a non IIP process_id if the process can be started
-                if out_process_id not in iip_process_ids:
-                    await check_and_run_process(out_process_id)
+        for process_id in process_id_to_Popen_args.keys():
+            await check_and_run_process(process_id)
 
-                # sturdy refs for all ports of an end component are available
-                await check_and_run_process(in_process_id)
-
-                # exit loop if we started all components in the flow
-                if len(process_id_to_process) == len(process_id_to_process_srs):
-                    break
+            # # there should be code to start the components
+            # if ((out_process_id in process_id_to_Popen_args or out_process_id in iip_process_ids)
+            #         and in_process_id in process_id_to_Popen_args):
+            #
+            #     if out_process_id in iip_process_ids:
+            #         out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
+            #         content = node_id_to_node[out_process_id]["data"]["content"]
+            #         out_ip = fbp_capnp.IP.new_message(content=content)
+            #         await out_writer.write(value=out_ip)
+            #         await out_writer.write(done=None)
+            #         await out_writer.close()
+            #         del out_writer
+            #         # not needed anymore since we sent the IIP
+            #         del process_id_to_process_srs[out_process_id]
+            #     else:
+            #         process_id_to_process_srs[out_process_id]["out_ports"][out_port_name] = info.writerSRs[0]
+            #     process_id_to_process_srs[in_process_id]["in_ports"][in_port_name] = info.readerSRs[0]
+            #
+            #     # sturdy refs for all ports of a start component are available
+            #     # check for a non IIP process_id if the process can be started
+            #     if out_process_id not in iip_process_ids:
+            #         await check_and_run_process(out_process_id)
+            #
+            #     # sturdy refs for all ports of an end component are available
+            #     await check_and_run_process(in_process_id)
+            #
+            #     # exit loop if we started all components in the flow
+            #     if len(process_id_to_process) == len(process_id_to_process_srs):
+            #         break
 
         for process in process_id_to_process.values():
             process.wait()
