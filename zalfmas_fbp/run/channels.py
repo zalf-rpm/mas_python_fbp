@@ -19,8 +19,6 @@ from pathlib import Path
 import subprocess as sp
 import sys
 import uuid
-from zalfmas_common import common
-from zalfmas_common import service as serv
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
@@ -36,20 +34,25 @@ def start_first_channel(path_to_channel, name=None):
     while True:
         s = chan.stdout.readline().split("=", maxsplit=1)
         id, sr = s if len(s) == 2 else (None, None)
-        if id and id == "readerSR":
+        if id and id.strip() == "readerSR":
             first_reader_sr = sr.strip()
-        elif id and id == "writerSR":
+        elif id and id.strip() == "writerSR":
             first_writer_sr = sr.strip()
         if first_reader_sr and first_writer_sr:
             break
     return chan, first_reader_sr, first_writer_sr
 
 
-def start_channel(path_to_channel, startup_info_writer_sr, name=None,
-                  verbose=False, host=None, port=None, reader_srts=None, writer_srts=None):
+def start_channel(path_to_channel, startup_info_id, startup_info_writer_sr, name=None,
+                  verbose=False, host=None, port=None, no_of_channels=1, no_of_readers=1, no_of_writers=1,
+                  reader_srts=None, writer_srts=None):
     return sp.Popen([path_to_channel,
                      f"--name=chan_{name if name else str(uuid.uuid4())}",
+                     f"--startup_info_id={startup_info_id}",
                      f"--startup_info_writer_sr={startup_info_writer_sr}",
+                     f"--no_of_channels={no_of_channels}",
+                     f"--no_of_readers={no_of_readers}",
+                     f"--no_of_writers={no_of_writers}",
                      ] + (["--verbose"] if verbose else [])
                     + ([f"--host={host}"] if host else [])
                     + ([f"--port={port}"] if port else [])
