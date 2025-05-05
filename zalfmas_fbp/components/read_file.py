@@ -15,30 +15,22 @@
 
 import asyncio
 import capnp
+import click
+import io
 import os
 import sys
 import tomli
+import tomlkit as tk
 from zalfmas_common import common
 from zalfmas_fbp.run.ports import PortConnector
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
-async def main(port_infos_reader_sr: str = None):
-    port_infos_reader_sr = port_infos_reader_sr or (sys.argv[1] if len(sys.argv) > 1 else None)
-    if not port_infos_reader_sr:
-        print("Usage: read_file.py <port_infos_reader_sr>")
-        sys.exit(1)
-
+async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
                                                               ins=["conf", "attr"], outs=["out"])
 
-    config = {
-        "to_attr": "setup",
-        "file": "/home/berg/Desktop/bahareh/run_cmd.txt",
-        "lines_mode": True,  # send lines
-        "skip_lines": 0,  # skip # lines in lines_mode=True
-    }
     if ports["conf"]:
         try:
             conf_msg = await ports["conf"].read()
@@ -84,5 +76,23 @@ async def main(port_infos_reader_sr: str = None):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+config = {
+    "to_attr": "setup",
+    "file": "/home/berg/Desktop/bahareh/run_cmd.txt",
+    "lines_mode": (True, "send lines"),
+    "skip_lines": (0, "skip no of lines lines in lines_mode=true"),
+}
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.version_option(version='0.1.0')
+@click.argument("port_infos_reader_sr", type=str, required=True)
+@click.option("-w", "--write_toml_config", default="config.toml", show_default=True,
+              is_eager=True, callback=lambda ctx, p, v: common.output_toml_config_click_callback(config, ctx, p, v),
+              help="Create a config.toml template file in the current directory")
+@click.option("-o", "--output_toml_config", is_flag=True, default=False,
+              is_eager=True, callback=lambda ctx, p, v: common.output_toml_config_click_callback(config, ctx, p, v),
+              help="Output TOML config at commandline")
+def main(port_infos_reader_sr, **kwargs):
+    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
 if __name__ == '__main__':
-    asyncio.run(capnp.run(main()))
+    main()
