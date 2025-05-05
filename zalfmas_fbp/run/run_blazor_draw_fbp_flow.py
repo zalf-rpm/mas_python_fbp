@@ -38,7 +38,7 @@ standalone_config = {
     "path_to_channel": "/home/berg/GitHub/monica/_cmake_debug/common/channel",
     "path_to_out_dir": "/home/berg/GitHub/mas_python_fbp/out/",
 }
-async def main(config: dict):
+async def start_flow_via_port_infos_sr(config: dict):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
 
     #use_infiniband = config["use_infiniband"]
@@ -178,36 +178,6 @@ async def main(config: dict):
         for process_id in process_id_to_Popen_args.keys():
             await check_and_run_process(process_id)
 
-            # # there should be code to start the components
-            # if ((out_process_id in process_id_to_Popen_args or out_process_id in iip_process_ids)
-            #         and in_process_id in process_id_to_Popen_args):
-            #
-            #     if out_process_id in iip_process_ids:
-            #         out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
-            #         content = node_id_to_node[out_process_id]["data"]["content"]
-            #         out_ip = fbp_capnp.IP.new_message(content=content)
-            #         await out_writer.write(value=out_ip)
-            #         await out_writer.write(done=None)
-            #         await out_writer.close()
-            #         del out_writer
-            #         # not needed anymore since we sent the IIP
-            #         del process_id_to_process_srs[out_process_id]
-            #     else:
-            #         process_id_to_process_srs[out_process_id]["out_ports"][out_port_name] = info.writerSRs[0]
-            #     process_id_to_process_srs[in_process_id]["in_ports"][in_port_name] = info.readerSRs[0]
-            #
-            #     # sturdy refs for all ports of a start component are available
-            #     # check for a non IIP process_id if the process can be started
-            #     if out_process_id not in iip_process_ids:
-            #         await check_and_run_process(out_process_id)
-            #
-            #     # sturdy refs for all ports of an end component are available
-            #     await check_and_run_process(in_process_id)
-            #
-            #     # exit loop if we started all components in the flow
-            #     if len(process_id_to_process) == len(process_id_to_process_srs):
-            #         break
-
         for process in process_id_to_process.values():
             process.wait()
 
@@ -226,8 +196,8 @@ async def main(config: dict):
 
         print(f"exception terminated {os.path.basename(__file__)} early. Exception:", e)
 
-
-async def old_main(config: dict):
+# deprecated
+async def start_flow_via_args(config: dict):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
 
     #use_infiniband = config["use_infiniband"]
@@ -376,4 +346,4 @@ async def old_main(config: dict):
         print(f"exception terminated {os.path.basename(__file__)} early. Exception:", e)
 
 if __name__ == '__main__':
-    asyncio.run(capnp.run(main(standalone_config)))
+    asyncio.run(capnp.run(start_flow_via_port_infos_sr(standalone_config)))
