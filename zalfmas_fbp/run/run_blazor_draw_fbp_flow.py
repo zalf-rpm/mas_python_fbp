@@ -34,7 +34,7 @@ import common_capnp
 standalone_config = {
     "hpc": False,
     "use_infiniband": False,
-    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/test_flow.json",
+    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/test_flow2.json",
     "path_to_channel": "/home/berg/GitHub/monica/_cmake_debug/common/channel",
     "path_to_out_dir": "/home/berg/GitHub/mas_python_fbp/out/",
 }
@@ -89,11 +89,7 @@ async def start_flow_via_port_infos_sr(config: dict):
             process_id_to_parallel_count[node_id] = node["parallel_processes"]
         # args
         args = []
-        if "interpreter" in component and len(component["interpreter"]) > 0:
-            args.append(component["interpreter"])
-        args.extend(component["path"].split(" "))
-        for k, v in node["data"]["cmd_params"].items():
-            args.append(f"--{k}={v}")
+        args.extend(component["cmd"].split(" "))
         process_id_to_Popen_args[node_id] = args
 
     process_id_to_process = {}
@@ -163,7 +159,7 @@ async def start_flow_via_port_infos_sr(config: dict):
 
                 if out_process_id in iip_process_ids:
                     out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
-                    content = node_id_to_node[out_process_id]["data"]["content"]
+                    content = node_id_to_node[out_process_id]["content"]
                     out_ip = fbp_capnp.IP.new_message(content=content)
                     await out_writer.write(value=out_ip)
                     await out_writer.write(done=None)
