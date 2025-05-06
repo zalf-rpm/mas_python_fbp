@@ -15,32 +15,18 @@
 
 import asyncio
 import capnp
-import click
-import io
 import os
 import sys
-import tomli
-import tomlkit as tk
-from zalfmas_common import common
-from zalfmas_fbp.run.ports import PortConnector
+import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
                                                               ins=["conf", "attr"], outs=["out"])
-
-    if ports["conf"]:
-        try:
-            conf_msg = await ports["conf"].read()
-            if conf_msg.which() != "done":
-                conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-                conf_toml_str = conf_ip.content
-                toml_config = tomli.loads(conf_toml_str)
-                config.update(toml_config)
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+    await p.update_config_from_port(config, ports["conf"])
 
     skip_lines = int(config["skip_lines"])
     if config["file"]:
@@ -76,22 +62,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
-config = {
+default_config = {
     "to_attr": "setup",
     "file": "/home/berg/Desktop/bahareh/run_cmd.txt",
-    "lines_mode": (True, "send lines"),
-    "skip_lines": (0, "skip no of lines lines in lines_mode=true"),
+    "lines_mode": True, # "send lines"
+    "skip_lines": 0, # "skip no of lines in lines_mode=true"
+    "opt:to_attr": "[string] -> store received content from connected 'attr' port under this name in attributes section of IP",
+    "opt:file": "[string] -> path to file to read",
+    "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
+    "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
+    "port:conf": "[TOML string] -> component configuration",
+    "port:attr": "[anypointer] -> arbitrary content to store as attached attribute with name 'to_attr'",
+    "port:out": "[string] -> lines or whole file read",
 }
-@click.command(context_settings=dict(help_option_names=['-h', '--help']))
-@click.version_option(version='0.1.0')
-@click.argument("port_infos_reader_sr", type=str, required=True)
-@click.option("-w", "--write_toml_config", default="config.toml", show_default=True,
-              is_eager=True, callback=lambda ctx, p, v: common.output_toml_config_click_callback(config, ctx, p, v),
-              help="Create a config.toml template file in the current directory")
-@click.option("-o", "--output_toml_config", is_flag=True, default=False,
-              is_eager=True, callback=lambda ctx, p, v: common.output_toml_config_click_callback(config, ctx, p, v),
-              help="Output TOML config at commandline")
-def main(port_infos_reader_sr, **kwargs):
+def main():
+    parser = c.create_default_fbp_component_args_parser("Read a file FBP component")
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
 if __name__ == '__main__':

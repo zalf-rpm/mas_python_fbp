@@ -17,18 +17,14 @@ import asyncio
 import capnp
 import os
 import sys
-from zalfmas_fbp.run.ports import PortConnector
+import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
-async def main(port_infos_reader_sr: str = None):
-    port_infos_reader_sr = port_infos_reader_sr or (sys.argv[1] if len(sys.argv) > 1 else None)
-    if not port_infos_reader_sr:
-        print("Usage: console_output.py <port_infos_reader_sr>")
-        sys.exit(1)
-
-    ports = await PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
+async def run_component(port_infos_reader_sr: str):
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
 
     try:
         while ports["in"]:
@@ -37,7 +33,7 @@ async def main(port_infos_reader_sr: str = None):
                 ports["in"] = None
                 continue
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            print(in_ip.content.as_text())
+            print(in_ip.content)#.as_text())
     except Exception as e:
         ports["in"] = None
         print(f"{os.path.basename(__file__)} Exception:", e)
@@ -45,5 +41,11 @@ async def main(port_infos_reader_sr: str = None):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
+def main():
+    parser = c.create_default_fbp_component_args_parser("Output text on console FBP component")
+    port_infos_reader_sr, _, args = c.handle_default_fpb_component_args(parser)
+    asyncio.run(capnp.run(run_component(port_infos_reader_sr)))
+
 if __name__ == '__main__':
-    asyncio.run(capnp.run(main()))
+    main()
