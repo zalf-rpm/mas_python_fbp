@@ -76,7 +76,7 @@ default_config = {
     "port:out": "[string] -> lines or whole file read",
 }
 def main():
-    parser = c.create_default_fbp_component_args_parser("Read a file FBP component")
+    parser = c.create_default_fbp_component_args_parser("Read a text file")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 

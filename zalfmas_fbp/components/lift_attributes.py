@@ -72,7 +72,7 @@ default_config = {
     "port:conf": "[TOML string] -> component configuration",
 }
 def main():
-    parser = c.create_default_fbp_component_args_parser("Lift fields out of in message attributes FBP component")
+    parser = c.create_default_fbp_component_args_parser("Lift fields out of in message attributes")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 

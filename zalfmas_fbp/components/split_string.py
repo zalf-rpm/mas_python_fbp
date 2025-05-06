@@ -18,9 +18,7 @@
 import asyncio
 import capnp
 import os
-import string
 import sys
-import tomli
 import zalfmas_fbp.run.ports as p
 import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
@@ -80,7 +78,7 @@ default_config = {
     "port:out": "[list[text | float | int]] -> output split list cast to cast_to type"
 }
 def main():
-    parser = c.create_default_fbp_component_args_parser("Split a string FBP component")
+    parser = c.create_default_fbp_component_args_parser("Split a string.")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
