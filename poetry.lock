@@ -556,14 +556,14 @@ files = [
 
 [[package]]
 name = "zalfmas-common"
-version = "0.1.13"
+version = "0.1.16"
 description = "Common code for ZALF MAS projects"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "zalfmas_common-0.1.13-py3-none-any.whl", hash = "sha256:063223f73b291c405469b99a3a30dea74663982f955c190b59f5c8a49240d626"},
-    {file = "zalfmas_common-0.1.13.tar.gz", hash = "sha256:36e36346135e4c36c5165a585023a2b39f1280c43b70e0f3c108a20f5327af43"},
+    {file = "zalfmas_common-0.1.16-py3-none-any.whl", hash = "sha256:95f2af99f8986e24db17f6b911f1b6bc354504c27283c7dbabbccd9f8864073b"},
+    {file = "zalfmas_common-0.1.16.tar.gz", hash = "sha256:f3f5994e5c6b9d29473124715a1e8cc2dbee213423961c6e5164eb6c4499215e"},
 ]
 
 [package.dependencies]
@@ -579,4 +579,4 @@ zalfmas-capnp-schemas = ">=0.1.14,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "0241fc6bdf18c179323ee81d89829761dc3e2f802c1be0e547bd044a46678070"
+content-hash = "808ba89d059e5112d524e1413e3b78d981ffbe9881ec533dd3b039a0fa7a365d"
