@@ -24,6 +24,19 @@ import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
+
+async def update_config_from_port(config, port):
+    if port:
+        try:
+            conf_msg = await port.read()
+            if conf_msg.which() != "done":
+                conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
+                conf_toml_str = conf_ip.content.as_text()
+                toml_config = tomli.loads(conf_toml_str)
+                config.update(toml_config)
+        except Exception as e:
+            print(f"{os.path.basename(__file__)} Exception:", e)
+
 class PortConnector:
 
     def __init__(self, ins = None, outs = None, connection_manager=None):
