@@ -54,6 +54,10 @@ class PortConnector:
     def outs(self):
         return self.out_ports
 
+    @property
+    def connection_manager(self):
+        return self.con_man
+
     def __getitem__(self, key):
         if key in self.in_ports and key in self.out_ports:
             return {"in": self.in_ports[key], "out": self.out_ports[key]}
