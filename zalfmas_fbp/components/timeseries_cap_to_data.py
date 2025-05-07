@@ -109,6 +109,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip.content = tsd
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {}))
             await ports["out"].write(value=out_ip)
+
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
