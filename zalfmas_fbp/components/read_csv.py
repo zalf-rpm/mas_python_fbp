@@ -88,10 +88,11 @@ default_config = {
     "file": "sim_setups_bgr_flow.csv",
     "path_to_capnp_struct": "bgr.capnp:Setup", #"bla.capnp:MyType",
     "to_attr": None,
+
     "opt:send_ids": "[None | 1,2,3] -> None = all",
     "opt:path_to_capnp_struct": "[string (capnp_file.capnp:MyType)]",
+
     "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> string to split",
     "port:out": "[list[text | float | int]] -> output split list cast to cast_to type"
 }
 def main():

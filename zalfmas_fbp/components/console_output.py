@@ -26,17 +26,21 @@ import fbp_capnp
 async def run_component(port_infos_reader_sr: str):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
 
-    try:
-        while ports["in"]:
+    while ports["in"]:
+        try:
             in_msg = await ports["in"].read()
             if in_msg.which() == "done":
                 ports["in"] = None
                 continue
+
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            print(in_ip.content)#.as_text())
-    except Exception as e:
-        ports["in"] = None
-        print(f"{os.path.basename(__file__)} Exception:", e)
+            try:
+                print(in_ip.content.as_text())
+            except Exception:
+                print(in_ip.content)
+
+        except Exception as e:
+            print(f"{os.path.basename(__file__)} Exception:", e)
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")

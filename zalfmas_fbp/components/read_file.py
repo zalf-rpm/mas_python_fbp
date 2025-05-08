@@ -65,12 +65,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 default_config = {
     "to_attr": "setup",
     "file": "/home/berg/Desktop/bahareh/run_cmd.txt",
-    "lines_mode": True, # "send lines"
-    "skip_lines": 0, # "skip no of lines in lines_mode=true"
+    "lines_mode": True,
+    "skip_lines": 0,
+
     "opt:to_attr": "[string] -> store received content from connected 'attr' port under this name in attributes section of IP",
     "opt:file": "[string] -> path to file to read",
     "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
     "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
+
     "port:conf": "[TOML string] -> component configuration",
     "port:attr": "[anypointer] -> arbitrary content to store as attached attribute with name 'to_attr'",
     "port:out": "[string] -> lines or whole file read",

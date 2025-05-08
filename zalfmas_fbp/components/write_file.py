@@ -26,7 +26,7 @@ import fbp_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
-                                                                ins=["conf", "attr"], outs=[])
+                                                                ins=["conf", "in"])
     await p.update_config_from_port(config, ports["conf"])
 
     count = 0
@@ -64,12 +64,14 @@ default_config = {
     "path_to_out_dir": "/home/berg/GitHub/mas-infrastructure/src/python/fbp/out/",
     "append": False,
     "debug": False,
+
     "opt:from_attr": "[name:string] -> get file content from attibute set in 'from_attr'",
     "opt:append": "[true | false] -> open file to be written in append mode or overwrite mode ",
     "opt:debug": "[true | false] -> if true output filepath to console",
     "opt:file": "[string] -> path to file to read",
+
     "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[] -> ",
+    "port:in": "[string] -> write string to file",
 }
 def main():
     parser = c.create_default_fbp_component_args_parser("Write a text file")

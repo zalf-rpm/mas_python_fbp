@@ -27,7 +27,7 @@ import geo_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
-                                                                ins=["conf", "attr"], outs=[])
+                                                                ins=["conf", "vals"], outs=["coord"])
     await p.update_config_from_port(config, ports["conf"])
 
     to_instance = geo.name_to_struct_instance(config["to_name"])
@@ -65,10 +65,10 @@ default_config = {
     "opt:list_type": "float", # float | int
 
     "port:vals": "[list[float | int] -> values to convert into coord",
-    "port:coord": "[geo.LatLonCoord | geo.UTMCoord | geo.GKCoord] -> coord to output",
+    "port:coord": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> coord to output",
 }
 def main():
-    parser = c.create_default_fbp_component_args_parser("Write a text file")
+    parser = c.create_default_fbp_component_args_parser("Read array (pair) of values and convert into geo coord")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 

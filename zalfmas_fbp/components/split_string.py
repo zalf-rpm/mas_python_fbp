@@ -70,7 +70,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 default_config = {
     "split_at": ",",
     "cast_to": "text",
+
     "opt:cast_to": "[text | float | int] -> cast text elements to these types",
+
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[string] -> string to split",
     "port:out": "[list[text | float | int]] -> output split list cast to cast_to type"

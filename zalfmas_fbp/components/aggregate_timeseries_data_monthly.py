@@ -93,6 +93,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
 default_config = {
     "to_attr": None,
     "from_attr": None,
@@ -104,10 +105,8 @@ default_config = {
     "port:in": "[climate_capnp.TimeSeriesData]-> data to aggregate",
     "port:out": "[string (csv)] -> send a timeseries as CSV string",
 }
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Write timeseries data to CSV file")
+    parser = c.create_default_fbp_component_args_parser("Aggregate timeseries data to monthly values and send CSV string")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
