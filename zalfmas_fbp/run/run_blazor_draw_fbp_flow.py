@@ -123,12 +123,16 @@ async def start_flow_via_port_infos_sr(config: dict):
         channels.append(chans.start_channel(config["path_to_channel"], config_chan_id, first_writer_sr,
                                             no_of_channels=no_of_components, name=config_chan_id))
         config_chans = []
+        port_infos_writers = []
+        sink_process_ids = []
         async def check_and_run_process(process_id):
             io_to_srs = process_id_to_process_srs[process_id]
             if len(config_chans) > 0 and all([sr is not None for srs in io_to_srs.values() for _, sr in srs.items()]):
                 port_infos_msg = fbp_capnp.PortInfos.new_message()
                 in_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["in_ports"].items()])
                 out_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["out_ports"].items()])
+                if len(out_ports) == 0:
+                    sink_process_ids.append(process_id)
                 port_infos_msg.inPorts = in_ports
                 port_infos_msg.outPorts = out_ports
                 config_srs = config_chans.pop()
@@ -139,8 +143,9 @@ async def start_flow_via_port_infos_sr(config: dict):
                     port_infos_writer = await con_man.try_connect(config_srs["writerSR"],
                                                                   cast_as=fbp_capnp.Channel.Writer)
                     await port_infos_writer.write(value=port_infos_msg)
-                    await port_infos_writer.close()
-                    del port_infos_writer
+                    port_infos_writers.append(port_infos_writer)
+                    #await port_infos_writer.close()
+                    #del port_infos_writer
 
         # collect channel sturdy refs to start components
         no_of_startup_infos_still_to_be_received = no_of_components + len(links)
@@ -174,8 +179,12 @@ async def start_flow_via_port_infos_sr(config: dict):
         for process_id in process_id_to_Popen_args.keys():
             await check_and_run_process(process_id)
 
-        for process in process_id_to_process.values():
-            process.wait()
+        for process_id in sink_process_ids: #process_id_to_process.values():
+            p = process_id_to_process.pop(process_id)
+            p.wait()
+
+        for piw in port_infos_writers:
+            piw.close()
 
         print(f"{os.path.basename(__file__)}: all components finished")
 
