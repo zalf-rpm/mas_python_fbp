@@ -27,6 +27,7 @@ import fbp_capnp
 
 async def update_config_from_port(config, port):
     if port:
+        toml_config = {}
         try:
             conf_msg = await port.read()
             if conf_msg.which() != "done":
@@ -35,7 +36,7 @@ async def update_config_from_port(config, port):
                 toml_config = tomli.loads(conf_toml_str)
                 config.update(toml_config)
         except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+            print(f"{os.path.basename(__file__)} update_config_from_port: toml_config: {toml_config} Exception:", e)
 
 class PortConnector:
 
@@ -43,6 +44,7 @@ class PortConnector:
         self.in_ports = {n: None for n in ins} if ins else {}
         self.out_ports = {n: None for n in outs} if outs else {}
         self.con_man = connection_manager if connection_manager else common.ConnectionManager()
+        self.port_infos_reader = None
 
     # make in_ports a property
     @property
@@ -77,7 +79,7 @@ class PortConnector:
         if key in self.out_ports:
             self.out_ports[key] = value
 
-    async def close_out_ports(self, print_info=False, print_exception=True):
+    async def close_out_ports(self, print_info=False, print_exception=True, wait_for_port_infos_reader_done=True):
         for name, ps in self.out_ports.items():
             # is an array out port
             if isinstance(ps, list):
@@ -99,6 +101,11 @@ class PortConnector:
                 except Exception as e:
                     if print_exception:
                         print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
+
+        if wait_for_port_infos_reader_done:
+            msg = await self.port_infos_reader.read()
+            #if msg.which() == "done":
+            #  pass
 
     @staticmethod
     async def create_from_cmd_config(config: dict, ins=None, outs=None, connection_manager=None):
@@ -155,10 +162,10 @@ class PortConnector:
 
     async def connect_from_port_infos_reader(self, port_infos_reader_sr: str):
         try:
-            pis_reader = await self.con_man.try_connect(port_infos_reader_sr,
+            self.port_infos_reader = await self.con_man.try_connect(port_infos_reader_sr,
                                                         cast_as=fbp_capnp.Channel.Reader,
                                                         retry_secs=1)
-            pis = (await pis_reader.read()).value.as_struct(fbp_capnp.PortInfos)
+            pis = (await self.port_infos_reader.read()).value.as_struct(fbp_capnp.PortInfos)
             for n2sr in pis.inPorts:
                 if len(n2sr.name) > 0:
                     port_name = n2sr.name
