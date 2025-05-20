@@ -23,6 +23,7 @@ import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 import climate_capnp
+import geo_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
@@ -62,20 +63,20 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             if config["continue_after_location_id"]:
-                callback_prom = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
+                callback = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
             else:
-                callback_prom = dataset.streamLocations().locationsCallback
+                callback = dataset.streamLocations().locationsCallback
             info = await dataset.info()
-            callback = await callback_prom
+            #callback = await callback_prom
 
             if config["create_substream"]:
-                ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
+                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             while True:
                 ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
                     break
                 for l in ls:
-                    rc = l.customData[0].value
+                    rc = l.customData[0].value.as_struct(geo_capnp.RowCol)
                     attrs = [{"key": "id", "value": "row-{}_col-{}".format(rc.row, rc.col)}]
                     if config["to_attr"]:
                         attrs.append({"key": config["to_attr"], "value": l.timeSeries})
@@ -84,7 +85,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         out_ip.content = l.timeSeries
                     await ports["ts"].write(value=out_ip)
             if config["create_substream"]:
-                ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
+                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)

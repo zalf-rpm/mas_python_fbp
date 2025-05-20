@@ -33,15 +33,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                                                 ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
+    def py_date(capnp_date):
+        return date(year=capnp_date.year, month=capnp_date.month, day=capnp_date.day)
+
     def data_to_csv(header: list, data: list[list[float]], start_date: date):
         csv_buffer = io.StringIO()
         h_str = ",".join([str(h) for h in header])
         csv_buffer.write(h_str + "\n")
         for i, line in enumerate(data):
-            current_date = start_date + timedelta(days=i)
+            current_date = py_date(start_date) + timedelta(days=i)
             d_str = ",".join([str(d) for d in line])
             csv_buffer.write(current_date.strftime("%Y-%m-%d") + "," + d_str + "\n")
-        return csv_buffer
+        return csv_buffer.getvalue()
 
     while ports["in"] and ports["out"]:
         try:

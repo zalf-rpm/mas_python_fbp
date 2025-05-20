@@ -32,12 +32,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                                                 ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
-    def create_capnp_date(isodate):
-        py_date = date.fromisoformat(isodate)
+    def create_capnp_date(py_date):#isodate):
+        #py_date = date.fromisoformat(isodate)
         return {"year": py_date.year, "month": py_date.month, "day": py_date.day}
 
-    def set_capnp_date(capnp_date, isodate):
-        py_date = date.fromisoformat(isodate)
+    def set_capnp_date(capnp_date, py_date):#isodate):
+        #py_date = date.fromisoformat(isodate)
         capnp_date.year = py_date.year
         capnp_date.month = py_date.month
         capnp_date.day = py_date.day
@@ -67,9 +67,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
             except Exception:
                 try:
-                    timeseries = ports.connection_manager.try_connect(cap_or_sr.as_text(), cast_as=climate_capnp.TimeSeries, retry_secs=1)
+                    timeseries = await ports.connection_manager.try_connect(cap_or_sr.as_text(), cast_as=climate_capnp.TimeSeries, retry_secs=1)
                 except Exception as e:
-                    print("Error: Couldn't connect to timeseries. Exception:", cap_or_sr)
+                    print("Error: Couldn't connect to timeseries.", cap_or_sr, "Exception:", e)
                     continue
             if timeseries is None:
                 continue
@@ -80,21 +80,23 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if config["subheader"]:
                 subheader = config["subheader"].split(",")
                 timeseries = timeseries.subheader(subheader).timeSeries
-            header = timeseries.header().wait().header
+            header = (await timeseries.header()).header
 
             if config["subrange_start"] or config["subrange_to"]:
-                sr_req = timeseries.subrange_request()
+                #sr_req = timeseries.subrange_request()
                 #timeseries = timeseries.subrange(
-                #    ({"from": create_capnp_date(config["subrange_start"])} if config["subrange_start"] else {}) |
+                #    ({"from": create_capnp_date(config["subrange_start"])} if config["subrange_start"] else {}),
                 #    ({"to": create_capnp_date(config["subrange_end"])} if config["subrange_end"] else {})).timeSeries
-                #timeseries = timeseries.subrange(create_capnp_date(config["subrange_start"]), create_capnp_date(config["subrange_end"])).timeSeries
-                if config["subrange_start"]:
-                    set_capnp_date(sr_req.start, config["subrange_start"])
-                if config["subrange_end"]:
-                    set_capnp_date(sr_req.end, config["subrange_end"])
-                timeseries = (await sr_req.send()).timeSeries
+                timeseries = timeseries.subrange(create_capnp_date(config["subrange_start"]),
+                                                 create_capnp_date(config["subrange_end"])).timeSeries
+                #if config["subrange_start"]:
+                #    set_capnp_date(sr_req.start, config["subrange_start"])
+                #if config["subrange_end"]:
+                #    set_capnp_date(sr_req.end, config["subrange_end"])
+                #timeseries = (await sr_req.send()).timeSeries
 
-            resolution_prom = timeseries.resolution()
+            #resolution_prom = timeseries.resolution()
+            resolution = timeseries.resolution()
             se_date_prom = timeseries.range()
             header_size = len(header)
             ds = (await timeseries.dataT()).data if tsd.isTransposed else (await timeseries.data()).data
@@ -103,10 +105,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 l = tsd.data.init(i, header_size)
                 for j in range(header_size):
                     l[j] = ds[i][j]
-            se_date = se_date_prom.wait()
+            se_date = await se_date_prom
             tsd.startDate = se_date.startDate
             tsd.endDate = se_date.endDate
-            tsd.resolution = resolution_prom.wait().resolution
+            tsd.resolution = (await resolution).resolution
+            #tsd.resolution = resolution_prom.resolution
             h = tsd.init("header", len(header))
             for i in range(len(header)):
                 h[i] = header[i]
