@@ -42,7 +42,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         capnp_date.month = py_date.month
         capnp_date.day = py_date.day
 
-    in_type = config["in_type"]
     while ports["in"] and ports["out"]:
         try:
             in_msg = await ports["in"].read()
@@ -51,16 +50,26 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+
+            # pass through brackets as we just want to preserve structure for downstream components
+            if in_ip.type == "openBracket":
+                if config["maintain_substreams"]:
+                    await ports["out"].write(in_ip)
+                continue
+            elif in_ip.type == "closeBracket":
+                if config["maintain_substreams"]:
+                    await ports["out"].write(in_ip)
+
             attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            obj = attr if attr else in_ip.content
+            cap_or_sr = attr if attr else in_ip.content
             timeseries = None
-            if in_type == "capability":
-                timeseries = obj.as_interface(climate_capnp.TimeSeries)
-            elif in_type == "sturdyref":
+            try:
+                timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
+            except Exception:
                 try:
-                    timeseries = ports.connection_manager.try_connect(obj.as_text(), cast_as=climate_capnp.TimeSeries, retry_secs=1)
+                    timeseries = ports.connection_manager.try_connect(cap_or_sr.as_text(), cast_as=climate_capnp.TimeSeries, retry_secs=1)
                 except Exception as e:
-                    print("Error: Couldn't connect to sturdyref:", obj.as_text())
+                    print("Error: Couldn't connect to timeseries. Exception:", cap_or_sr)
                     continue
             if timeseries is None:
                 continue
@@ -115,21 +124,21 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 default_config = {
-    "in_type": "sturdyref",
     "to_attr": None,
     "from_attr": None,
     "subrange_start": None,
     "subrange_end": None,
     "subheader": None,
     "transposed": "false",
+    "maintain_substreams": False,
 
-    "opt:in_type": "[sturdyref | capability] -> what type the incoming capability is",
     "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
     "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
     "opt:subrange_start": "[None | iso-date string] -> start timeseries at that day",
     "opt:subrange_end": "[None | iso-date string] -> end timeseries at that day",
     "opt:subheader": "[None | list[string] (precip,globrad,tavg,...)] -> select all (None) or just listed climate elements in dataset",
     "opt:transposed": "[true | false] -> get data transposed (timeseries of each climate element instead of timeseries of all climate elements each day",
+    "opt:maintain_substreams": "[true | false] -> if false, ignore bracket IPs and thus flatten substreams",
 
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[string (sturdy ref) to climate.capnp:TimeSeries | climate.capnp:TimeSeries] -> ",

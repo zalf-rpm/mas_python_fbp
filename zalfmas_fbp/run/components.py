@@ -54,37 +54,41 @@ def create_default_fbp_component_args_parser(component_description):
 def handle_default_fpb_component_args(parser, config: dict=None):
     args = parser.parse_args()
 
-    doc = tk.document()
-    doc.add(tk.comment(f"{parser.prog} FBP component configuration (data and documentation)"))
-    doc.add(tk.comment("The 'defaults' section shows the configuration settings in TOML format which can be send to the config port of the component."))
-    defaults = tk.table()
-    ports = tk.table()
-    options = tk.table()
     remove_keys = []
-    if config:
-        for k, v in config.items():
-            if "port:" in k:
-                ports.add(k[5:], v)
-                remove_keys.append(k)
-            elif "opt:" in k:
-                options.add(k[4:], v)
-                remove_keys.append(k)
-            else:
-                defaults.add(k, v)
-    if len(defaults) > 0:
-        doc.add("defaults", defaults)
-    if len(options) > 0:
-        doc.add("options", options)
-    if len(ports) > 0:
-        doc.add("ports", ports)
+    def create_toml():
+        doc = tk.document()
+        doc.add(tk.comment(f"{parser.prog} FBP component configuration (data and documentation)"))
+        doc.add(tk.comment("The 'defaults' section shows the configuration settings in TOML format which can be send to the config port of the component."))
+        defaults = tk.table()
+        ports = tk.table()
+        options = tk.table()
+        if config:
+            for k, v in config.items():
+                if v is None:
+                    continue
+                if "port:" in k:
+                    ports.add(k[5:], v)
+                    remove_keys.append(k)
+                elif "opt:" in k:
+                    options.add(k[4:], v)
+                    remove_keys.append(k)
+                else:
+                    defaults.add(k, v)
+        if len(defaults) > 0:
+            doc.add("defaults", defaults)
+        if len(options) > 0:
+            doc.add("options", options)
+        if len(ports) > 0:
+            doc.add("ports", ports)
+        return doc
 
     port_infos_reader_sr = None
     if args.output_toml_config:
-        print(tk.dumps(doc))
+        print(tk.dumps(create_toml()))
         exit(0)
     elif args.write_toml_config:
         with open(args.write_toml_config, "w") as _:
-            tk.dump(doc, _)
+            tk.dump(create_toml(), _)
             exit(0)
     elif args.port_infos_reader_sr is not None:
         port_infos_reader_sr = args.port_infos_reader_sr

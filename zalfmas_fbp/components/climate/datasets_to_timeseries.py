@@ -37,6 +37,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             ds_ip = ds_msg.value.as_struct(fbp_capnp.IP)
+
+            # pass through brackets as we just want to preserve structure for downstream components
+            if ds_ip.type == "openBracket":
+                if config["maintain_incoming_substreams"]:
+                    await ports["ts"].write(ds_ip)
+                continue
+            elif ds_ip.type == "closeBracket":
+                if config["maintain_incoming_substreams"]:
+                    await ports["ts"].write(ds_ip)
+
             dataset = None
             try:
                 dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
@@ -52,11 +62,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             if config["continue_after_location_id"]:
-                callback = (await dataset.streamLocations(config["continue_after_location_id"])).locationsCallback
+                callback_prom = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
             else:
-                callback = (await dataset.streamLocations()).locationsCallback
+                callback_prom = dataset.streamLocations().locationsCallback
+            info = await dataset.info()
+            callback = await callback_prom
 
-            ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket"))
+            if config["create_substream"]:
+                ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             while True:
                 ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
@@ -70,7 +83,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     if not config["to_attr"]:
                         out_ip.content = l.timeSeries
                     await ports["ts"].write(value=out_ip)
-            ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket"))
+            if config["create_substream"]:
+                ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
@@ -82,11 +96,15 @@ default_config = {
     "no_of_locations_at_once": "10",
     "continue_after_location_id": None,
     "to_attr": None,
+    "create_substream": False,
+    "maintain_incoming_substreams": False,
 
     "opt:no_of_locations_at_once": "[int] -> number of locations to send at once",
     "opt:continue_after_location_id": "[string] -> continue after a particular location id",
     #"opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
     "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
+    "opt:create_substream": "[true | false] -> create a substream for each datasets' timeseries",
+    "opt:maintain_incoming_substreams": "[true | false] -> if false, ignore bracket IPs thus flatten incoming substreams",
 
     "port:conf": "[TOML string] -> component configuration",
     "port:ds": "[climate_capnp.Dataset]-> ",
