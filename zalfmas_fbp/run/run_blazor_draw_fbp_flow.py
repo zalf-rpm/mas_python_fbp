@@ -165,7 +165,8 @@ async def start_flow_via_port_infos_sr(config: dict):
                 if out_process_id in iip_process_ids:
                     out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
                     content = node_id_to_node[out_process_id]["content"]
-                    out_ip = fbp_capnp.IP.new_message(content=content)
+                    out_ip = fbp_capnp.IP.new_message(content=common_capnp.StructuredText.new_message(value=content,
+                                                                                                      structure="toml"))
                     await out_writer.write(value=out_ip)
                     await out_writer.write(done=None)
                     await out_writer.close()
