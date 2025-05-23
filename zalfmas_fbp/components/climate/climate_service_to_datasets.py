@@ -20,7 +20,6 @@ import sys
 import zalfmas_fbp.run.ports as p
 import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
-
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 import climate_capnp
