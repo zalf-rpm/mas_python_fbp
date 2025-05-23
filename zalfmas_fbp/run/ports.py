@@ -23,7 +23,7 @@ from zalfmas_common import common
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
-
+import common_capnp
 
 async def update_config_from_port(config, port):
     if port:
@@ -32,7 +32,8 @@ async def update_config_from_port(config, port):
             conf_msg = await port.read()
             if conf_msg.which() != "done":
                 conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-                conf_toml_str = conf_ip.content.as_text()
+                st = conf_ip.content.as_struct(common_capnp.StructuredText)
+                conf_toml_str = conf_ip.content.as_struct(common_capnp.StructuredText).value
                 toml_config = tomli.loads(conf_toml_str)
                 config.update(toml_config)
         except Exception as e:
