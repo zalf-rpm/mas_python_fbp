@@ -32,8 +32,8 @@ async def update_config_from_port(config, port):
             conf_msg = await port.read()
             if conf_msg.which() != "done":
                 conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-                st = conf_ip.content.as_struct(common_capnp.StructuredText)
-                conf_toml_str = conf_ip.content.as_struct(common_capnp.StructuredText).value
+                # assume it's toml
+                conf_toml_str = conf_ip.content.as_text()
                 toml_config = tomli.loads(conf_toml_str)
                 config.update(toml_config)
         except Exception as e:
