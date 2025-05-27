@@ -21,9 +21,30 @@ import sys
 import uuid
 from zalfmas_common import common
 from zalfmas_common import service as serv
+import run.components as comp
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
+
+
+class Component(fbp_capnp.Component.Runnable.Server, common.Identifiable):
+    def __init__(self, path_to_executable, id=None, name=None, description=None, admin=None, restorer=None):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.path_to_executable = path_to_executable
+        self.proc = None
+
+    async def start_context(self, context):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
+        port_infos_reader_sr = context.params.portInfosReaderSr
+        self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr)
+        context.results.success = self.proc.poll() is None
+
+    async def stop_context(self, context):  # stop @0 () -> (success :Bool);
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            rt = self.proc.returncode == 0
+            self.proc = None
+            context.results.success = rt
+        context.results.success = False
 
 
 class Service(fbp_capnp.ComponentService.Server, common.Identifiable, common.Persistable):
@@ -35,6 +56,13 @@ class Service(fbp_capnp.ComponentService.Server, common.Identifiable, common.Per
 
         self._components = components
         self._cmds = cmds
+
+        for c in [e["component"] for e in self._components["entries"]]:
+            info = c["info"]
+            c_id = info["id"]
+            if c_id in self._cmds:
+                c["run"] = Component(self._cmds[c_id], c_id, info.get("name", None), info.get("description", None))
+
 
     async def categories_context(self, context):  # categories  @2 () -> (categories :List(Common.IdInformation));
         r = context.results
@@ -59,7 +87,6 @@ class Service(fbp_capnp.ComponentService.Server, common.Identifiable, common.Per
         if len(comps) == 0:
             return
         r.comp = comps[0]["component"]
-
 
 
 default_config = {
