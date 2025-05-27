@@ -516,26 +516,26 @@ files = [
 
 [[package]]
 name = "zalfmas-capnp-schemas"
-version = "0.1.16"
+version = "0.1.18"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "zalfmas_capnp_schemas-0.1.16-py3-none-any.whl", hash = "sha256:421651348b6dff1e7b4217c2d98d333c279ee1719cce7c1e960690ddfa2ed39b"},
-    {file = "zalfmas_capnp_schemas-0.1.16.tar.gz", hash = "sha256:2b74e8e05fd52898a3e0ba0fd282a99b43f0af1ec390a0345f18631cf6c74c32"},
+    {file = "zalfmas_capnp_schemas-0.1.18-py3-none-any.whl", hash = "sha256:4f87972629551fc95a279bd3bfd9c39904051870b4efa69ff4fc1e2f89972355"},
+    {file = "zalfmas_capnp_schemas-0.1.18.tar.gz", hash = "sha256:11613bdb268a04f62458f3436929d4f1ca9e9ffbf5720f51df63edf9f250d525"},
 ]
 
 [[package]]
 name = "zalfmas-common"
-version = "0.1.18"
+version = "0.1.19"
 description = "Common code for ZALF MAS projects"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "zalfmas_common-0.1.18-py3-none-any.whl", hash = "sha256:6d6a897c28730e422693e496b8df13e398583e7129947a0497d431e04424f800"},
-    {file = "zalfmas_common-0.1.18.tar.gz", hash = "sha256:9f75566ed572dd66142ef922c4813058911f3cdd126266f5d9b7b007960b8d62"},
+    {file = "zalfmas_common-0.1.19-py3-none-any.whl", hash = "sha256:0650fc7721ce5c0eef8ee21169cc1f7e72db628e666ca4b3caf99bc29cc3e7df"},
+    {file = "zalfmas_common-0.1.19.tar.gz", hash = "sha256:083ae719f87b010336ec653a7a5452470262137d8652414531c57504378b5c3c"},
 ]
 
 [package.dependencies]
@@ -546,9 +546,9 @@ pyproj = ">=3.6.1,<4.0.0"
 pysodium = ">=0.7.17,<0.8.0"
 scipy = ">=1.13.1,<2.0.0"
 tomlkit = ">=0.13.2,<0.14.0"
-zalfmas-capnp-schemas = ">=0.1.14,<0.2.0"
+zalfmas-capnp-schemas = ">=0.1.18,<0.2.0"
 
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "d9ab813c16408a3ed4a1bf4fa4840b81d7e979ff5d954c4751156d9a933a42c8"
+content-hash = "0107f378f80b007fb4ce39cdecba35842a53bf60e8c295a76709096496ec2bba"

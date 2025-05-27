@@ -1,0 +1,9 @@
+{
+  "id": "some id",
+  "name": "local debuggable python execution",
+  "ce4749cc-abab-4830-9eb3-1c44c9d451ce":  "python -m zalfmas_fbp.components.climate.datasets_to_timeseries",
+  "b510d603-8f2a-4fbd-ac24-634362b4b0f4": "python -m zalfmas_fbp.components.climate.timeseries_cap_to_data",
+  "6b11cf2a-08bb-43f9-964a-1d4ed248cce9": "python -m zalfmas_fbp.components.climate.timeseries_data_to_csv",
+  "2de9c491-d8a6-4b36-84de-db7f4a312731":  "python -m zalfmas_fbp.components.console.console_output",
+  "79723094-0972-48ec-b219-030dae730063": "python -m zalfmas_fbp.components.climate.climate_service_to_datasets"
+}
