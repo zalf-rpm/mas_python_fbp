@@ -1,39 +1,9 @@
 {
   "categories": [
-    {"id": "generic", "name": "generic"}
+    {"id": "climate", "name": "Climate"},
+    {"id": "console", "name": "Console"}
   ],
   "entries": [
-    {
-      "categoryId": "generic",
-      "component": {
-        "info": {
-          "id": "e3bb60de-d284-4ee2-ab1b-453c47661038",
-          "name": "IIP",
-          "description": "Initial Information Packet"
-        },
-        "type": "iip",
-        "inPorts": [
-          {"name": "out", "contentType": "common.capnp:StructuredText"}
-        ]
-      }
-    },
-    {
-      "categoryId": "generic",
-      "component": {
-        "info": {
-          "id": "33f7a8e3-4962-4f85-bcb4-0722776fd4cb",
-          "name": "generic component",
-          "description": "Generic component"
-        },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}
-        ],
-        "outPorts": [
-          {"name": "out"}
-        ]
-      }
-    },
     {
       "categoryId": "climate",
       "component": {
