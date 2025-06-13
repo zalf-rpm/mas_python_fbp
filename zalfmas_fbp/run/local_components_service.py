@@ -15,6 +15,7 @@
 
 import asyncio
 import capnp
+from collections import defaultdict
 import json
 import os
 import sys
@@ -25,9 +26,9 @@ import run.components as comp
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
+import registry_capnp
 
-
-class Component(fbp_capnp.Component.Runnable.Server, common.Identifiable):
+class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
     def __init__(self, path_to_executable, id=None, name=None, description=None, admin=None, restorer=None):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -47,7 +48,7 @@ class Component(fbp_capnp.Component.Runnable.Server, common.Identifiable):
         context.results.success = False
 
 
-class Service(fbp_capnp.ComponentService.Server, common.Identifiable, common.Persistable):
+class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
 
     def __init__(self, components: dict, cmds: dict,
                  id=None, name=None, description=None, restorer=None):
@@ -55,39 +56,47 @@ class Service(fbp_capnp.ComponentService.Server, common.Identifiable, common.Per
         common.Identifiable.__init__(self, id, name, description)
 
         self._components = components
+        self._cat_id_to_component_holders = defaultdict(list)
         self._cmds = cmds
 
-        for c in [e["component"] for e in self._components["entries"]]:
+        for e in self._components["entries"]:
+            c = e["component"]
             info = c["info"]
             c_id = info["id"]
             if c_id in self._cmds:
-                c["run"] = Component(self._cmds[c_id], c_id, info.get("name", None), info.get("description", None))
+                c["run"] = Runnable(self._cmds[c_id], c_id, info.get("name", None), info.get("description", None))
+            self._cat_id_to_component_holders[e["categoryId"]].append(registry_capnp.Registry.Entry.new_message(
+                categoryId=e["categoryId"],
+                ref=common.IdentifiableHolder(fbp_capnp.Component.new_message(**c)),
+                id=c_id,
+                name=info.get("name", c_id)
+            ))
 
+    async def supportedCategories_context(self, context):  # supportedCategories @0 () -> (cats :List(IdInformation));
+        context.results.cats = self._components["categories"]
 
-    async def categories_context(self, context):  # categories  @2 () -> (categories :List(Common.IdInformation));
+    async def categoryInfo_context(self, context):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
+        cat_id = context.params.categoryId
         r = context.results
-        cats = self._components["categories"]
-        r.init("categories", len(cats))
-        for i, c in enumerate(cats):
-            r.categories[i] = c
+        for c in self._components["categories"]:
+            if c["id"] == cat_id:
+                r.id = c["id"]
+                r.name = c.get("name", r.id)
+                if "description" in c:
+                    r.description = c["description"]
 
-    async def list_context(self, context):  # list @0 () -> (entries :List(Entry));
+    async def entries_context(self, context):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
+        cat_id = context.params.categoryId
         r = context.results
-        entries = self._components["entries"]
-        r.init("entries", len(entries))
-        for i, e in enumerate(entries):
-            r.entries[i] = e
-
-    async def component_context(self, context):  # component @1 (id :Text) -> Component;
-        comp_id = context.params.id
-        if not comp_id:
-            return
-        r = context.results
-        comps = [e for e in self._components["entries"] if e["component"]["info"]["id"] == comp_id]
-        if len(comps) == 0:
-            return
-        r.comp = comps[0]["component"]
-
+        if cat_id in self._cat_id_to_component_holders:
+            chs = self._cat_id_to_component_holders[cat_id]
+        else:
+            chs = []
+            for _, v in self._cat_id_to_component_holders.items():
+                chs.extend(v)
+        r.init("entries", len(chs))
+        for i, ch in enumerate(chs):
+            r.entries[i] = ch
 
 default_config = {
     "id": str(uuid.uuid4()),
