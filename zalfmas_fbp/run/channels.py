@@ -11,17 +11,19 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-from collections import deque
-
+from collections import defaultdict
 import capnp
 import os
 from pathlib import Path
 import subprocess as sp
 import sys
 import uuid
+from zalfmas_common import common
+from zalfmas_common import service as serv
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
+import common_capnp
 
 def start_first_channel(path_to_channel, name=None):
     chan = sp.Popen([
@@ -31,7 +33,7 @@ def start_first_channel(path_to_channel, name=None):
     ], stdout=sp.PIPE, text=True)
     first_reader_sr = None
     first_writer_sr = None
-    while True:
+    while chan.poll() is None:
         s = chan.stdout.readline().split("=", maxsplit=1)
         id, sr = s if len(s) == 2 else (None, None)
         if id and id.strip() == "readerSR":
@@ -45,19 +47,129 @@ def start_first_channel(path_to_channel, name=None):
 
 def start_channel(path_to_channel, startup_info_id, startup_info_writer_sr, name=None,
                   verbose=False, host=None, port=None, no_of_channels=1, no_of_readers=1, no_of_writers=1,
-                  reader_srts=None, writer_srts=None):
+                  reader_srts=None, writer_srts=None, buffer_size=1):
     return sp.Popen([path_to_channel,
-                     f"--name=chan_{name if name else str(uuid.uuid4())}",
+                     f"--name=chan_{name if name and len(name) > 0 else str(uuid.uuid4())}",
                      f"--startup_info_id={startup_info_id}",
                      f"--startup_info_writer_sr={startup_info_writer_sr}",
                      f"--no_of_channels={no_of_channels}",
                      f"--no_of_readers={no_of_readers}",
                      f"--no_of_writers={no_of_writers}",
+                     f"--buffer_size={buffer_size}",
                      ] + (["--verbose"] if verbose else [])
                     + ([f"--host={host}"] if host else [])
                     + ([f"--port={port}"] if port else [])
                     + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
                     + ([f"--writer_srts={writer_srts}"] if writer_srts else []))
+
+
+class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
+    def __init__(self, con_man, path_to_channel, id=None, name=None, description=None, admin=None, restorer=None):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.con_man = con_man
+        self.path_to_channel = path_to_channel
+        self.startup_info_id = str(uuid.uuid4())
+        self.proc = None
+        self.channels = []
+        self.first_reader = None
+        self.first_writer_sr = None
+        self.chan_id_to_info = defaultdict(list)
+
+    def __del__(self):
+        for chan in self.channels:
+            chan.terminate()
+
+    async def create_startup_info_channel(self):
+        first_chan, first_reader_sr, self.first_writer_sr = start_first_channel(self.path_to_channel)
+        self.channels.append(first_chan)
+        self.first_reader = await self.con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
+
+    async def get_start_infos(self, chan, chan_id, no_of_chans):
+        if chan_id in self.chan_id_to_info:
+            return self.chan_id_to_info.pop(chan_id)
+        start_infos = []
+        received_infos = 0
+        while chan.poll() is None and received_infos < no_of_chans:
+            p = (await self.first_reader.read()).value.as_struct(common_capnp.Pair)
+            msg_chan_id = p.fst.as_text()
+            info = p.snd.as_struct(fbp_capnp.Channel.StartupInfo)
+            if chan_id == msg_chan_id:
+                received_infos += 1
+                start_infos.append(info)
+            else:
+                self.chan_id_to_info[msg_chan_id].append(info)
+        return start_infos
+
+
+    #struct Params {
+    #    name            @0 :Text;       # name of channel
+    #    noOfChannels    @1 :UInt16 = 1; # how many channels to create
+    #    noOfReaders     @2 :UInt16 = 1; # no of readers to create per channel
+    #    noOfWriters     @3 :UInt16 = 1; # no of writers to create per channel
+    #    readerSrts      @4 :List(Text); # fixed sturdy ref tokens per reader
+    #    writerSrts      @5 :List(Text); # fixed sturdy ref tokens per writer
+    #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
+    #}
+    async def create_context(self, context):  # create @0 Params -> (startupInfos :List(Channel.StartupInfo));
+        if self.first_reader is None:
+            await self.create_startup_info_channel()
+        ps = context.params
+        config_chan_id = str(uuid.uuid4())
+        reader_srts = ",".join(ps.readerSrts) if ps._has("readerSrts") else None
+        writer_srts = ",".join(ps.writerSrts) if ps._has("writerSrts") else None
+        chan = start_channel(self.path_to_channel, config_chan_id, self.first_writer_sr,
+                             name=ps.name,
+                             no_of_channels=ps.noOfChannels,
+                             no_of_readers=ps.noOfReaders,
+                             no_of_writers=ps.noOfWriters,
+                             buffer_size=ps.bufferSize,
+                             reader_srts=reader_srts,
+                             writer_srts=writer_srts)
+        self.channels.append(chan)
+        context.results.startupInfos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
+
+
+default_config = {
+    "id": str(uuid.uuid4()),
+    "name": "local start channels service",
+    "description": None,
+    "path_to_channel": "path to channel executable here",
+    "host": None,
+    "port": None,
+    "serve_bootstrap": True,
+    "fixed_sturdy_ref_token": None,
+    "reg_sturdy_ref": None,
+    "reg_category": None,
+
+    "opt:id": "ID of the service",
+    "opt:name": "local FBP components service",
+    "opt:description": "Serves locally startable components",
+    "opt:path_to_channel": "[string (path)] -> Path to JSON containing the mapping of component id to commandline execution",
+    "opt:host": "[string (IP/hostname)] -> Use this host (e.g. localhost)",
+    "opt:port": "[int] -> Use this port (missing = default = choose random free port)",
+    "opt:serve_bootstrap": "[true | false] -> Is the service reachable directly via its restorer interface",
+    "opt:fixed_sturdy_ref_token": "[string] -> Use this token as the sturdy ref token of this service",
+    "opt:reg_sturdy_ref": "[string (sturdy ref)] -> Connect to registry using this sturdy ref",
+    "opt:reg_category": "[string] -> Connect to registry using this category",
+}
+async def main():
+    parser = serv.create_default_args_parser("local start channels service")
+    config, args = serv.handle_default_service_args(parser, default_config)
+
+    restorer = common.Restorer()
+    con_man = common.ConnectionManager(restorer)
+    service = StartChannelsService(con_man, config["path_to_channel"],
+                      id=config["id"], name=config["name"], description=config["description"],
+                      restorer=restorer)
+    await service.create_startup_info_channel()
+    await serv.init_and_run_service({"service": service},
+                                    config["host"], config["port"],
+                                    serve_bootstrap=config["serve_bootstrap"],
+                                    name_to_service_srs={"service": config["fixed_sturdy_ref_token"]},
+                                    restorer=restorer)
+
+if __name__ == '__main__':
+    asyncio.run(capnp.run(main()))
 
 
 # class Channel(fbp_capnp.Channel.Server, common.Identifiable, common.Persistable, serv.AdministrableService):
