@@ -156,6 +156,8 @@ async def start_flow_via_port_infos_sr(config: dict):
                     port_infos_writer = await con_man.try_connect(config_srs["writerSR"],
                                                                   cast_as=fbp_capnp.Channel.Writer)
                     await port_infos_writer.write(value=port_infos_msg)
+                    # don't close port infos writer channel, but use it as signal for letting
+                    # the component close down, because it has to stay alive to forward cap calls
                     port_infos_writers.append(port_infos_writer)
                     #await port_infos_writer.close()
                     #del port_infos_writer
