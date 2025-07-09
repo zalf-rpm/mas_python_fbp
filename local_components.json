@@ -1,7 +1,9 @@
 {
   "categories": [
     {"id": "climate", "name": "Climate"},
-    {"id": "console", "name": "Console"}
+    {"id": "console", "name": "Console"},
+    {"id": "string", "name": "String"},
+    {"id": "file", "name": "File"}
   ],
   "entries": [
     {
@@ -83,6 +85,62 @@
         "type": "standard",
         "inPorts": [
           {"name": "in"}
+        ],
+        "outPorts": []
+      }
+    },
+    {
+      "categoryId": "string",
+      "component": {
+        "info": {
+          "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+          "name": "split string",
+          "description": "splits a string along delimiter"
+        },
+        "type": "standard",
+        "inPorts": [
+          {"name": "in"}, {"name": "conf"}
+        ],
+        "outPorts": [{"name":  "out"}]
+      }
+    },
+    {
+      "categoryId": "file",
+      "component": {
+        "info": {
+          "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
+          "name": "read csv",
+          "description": "read a csv file"
+        },
+        "type": "standard",
+        "inPorts": [{"name": "conf"}],
+        "outPorts": [{"name":  "out"}]
+      }
+    },
+    {
+      "categoryId": "file",
+      "component": {
+        "info": {
+          "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+          "name": "read file",
+          "description": "read a file"
+        },
+        "type": "standard",
+        "inPorts": [{"name": "conf"}],
+        "outPorts": [{"name": "attr"},{"name":  "out"}]
+      }
+    },
+    {
+      "categoryId": "file",
+      "component": {
+        "info": {
+          "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
+          "name": "write file",
+          "description": "write a file"
+        },
+        "type": "standard",
+        "inPorts": [
+          {"name": "in"}, {"name": "conf"}
         ],
         "outPorts": []
       }
