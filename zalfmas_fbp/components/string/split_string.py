@@ -26,19 +26,10 @@ import fbp_capnp
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
                                                               ins=["conf", "in"], outs=["out"])
+    print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
     await p.update_config_from_port(config, ports["conf"])
-
-    cast_to = None
-    if config["cast_to"] == "float":
-        cast_to = lambda v: float(v)
-    elif config["cast_to"] == "int":
-        cast_to = lambda v: int(v)
-
-    init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Text), len_)
-    if config["cast_to"] == "float":
-        init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Float64), len_)
-    elif config["cast_to"] == "int":
-        init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Int64), len_)
+    if ports["conf"]:
+        print(f"{os.path.basename(__file__)}: {config['name']} updated config from config port")
 
     while ports["in"] and ports["out"]:
         try:
@@ -48,30 +39,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             s : str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
+            print(f"{os.path.basename(__file__)}: {config['name']} received:", s)
             s = s.rstrip()
             vals = s.split(config["split_at"])
-            if cast_to:
-                vals = list(map(cast_to, vals))
-            #print("split_string vals:", vals)
 
-            req = ports["out"].write_request()
-            l = init_list(req.value.as_struct(fbp_capnp.IP).content, len(vals))
-            for i, val in enumerate(vals):
-                l[i] = val
-            await req.send()
-            #await ports["out"].write(value=vals)
+            for val in vals:
+                out_ip = fbp_capnp.IP.new_message(content=val)
+                await ports["out"].write(value=out_ip)
+                print(f"{os.path.basename(__file__)}: {config['name']} sent:", val)
 
         except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+            print(f"{os.path.basename(__file__)}: {config['name']} Exception:", e)
 
     await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    print(f"{os.path.basename(__file__)}: {config['name']} process finished")
 
 default_config = {
+    "name": "split_string",
     "split_at": ",",
-    "cast_to": "text",
-
-    "opt:cast_to": "[text | float | int] -> cast text elements to these types",
 
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[string] -> string to split",
