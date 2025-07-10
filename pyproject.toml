@@ -7,9 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-zalfmas-common = "^0.1.20"
+zalfmas-common = "^0.1.22"
 #zalfmas-common = {path = "../mas_python_common", develop = true}
-zalfmas-capnp-schemas = "^0.1.21"
+zalfmas-capnp-schemas = "^0.1.23"
 tomli = "^2.2.1"
 tomli-w = "^1.2.0"
 
