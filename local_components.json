@@ -105,6 +105,36 @@
       }
     },
     {
+      "categoryId": "string",
+      "component": {
+        "info": {
+          "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
+          "name": "split string -> array",
+          "description": "splits a string along delimiter and adds them into an array"
+        },
+        "type": "standard",
+        "inPorts": [
+          {"name": "in"}, {"name": "conf"}
+        ],
+        "outPorts": [{"name":  "out"}]
+      }
+    },
+    {
+      "categoryId": "string",
+      "component": {
+        "info": {
+          "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+          "name": "into array",
+          "description": "collects values into an array"
+        },
+        "type": "standard",
+        "inPorts": [
+          {"name": "in"}, {"name": "conf"}
+        ],
+        "outPorts": [{"name":  "out"}]
+      }
+    },
+    {
       "categoryId": "file",
       "component": {
         "info": {
