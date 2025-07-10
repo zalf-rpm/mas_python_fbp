@@ -49,11 +49,18 @@ def create_default_fbp_component_args_parser(component_description):
         type=str,
         help="Create a TOML configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
     )
+    parser.add_argument(
+        "--name",
+        "-n",
+        type=str,
+        help="Name of process to be started.",
+    )
     return parser
 
 def handle_default_fpb_component_args(parser, config: dict=None):
     args = parser.parse_args()
-
+    if config is None:
+        config = {}
     remove_keys = []
     def create_toml():
         doc = tk.document()
@@ -82,6 +89,9 @@ def handle_default_fpb_component_args(parser, config: dict=None):
             doc.add("ports", ports)
         return doc
 
+    if args.name is not None:
+        config["name"] = args.name
+
     port_infos_reader_sr = None
     if args.output_toml_config:
         print(tk.dumps(create_toml()))
@@ -100,8 +110,10 @@ def handle_default_fpb_component_args(parser, config: dict=None):
     return port_infos_reader_sr, config, args
 
 
-def start_local_component(path_to_executable, port_infos_reader_sr):
-    proc = sp.Popen(list(path_to_executable.split(" ")) + [port_infos_reader_sr],
+def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
+    proc = sp.Popen(list(path_to_executable.split(" "))
+                    + [port_infos_reader_sr]
+                    + ([f"--name=\"{name}\""] if name else []),
                     #stdout=sp.PIPE, stderr=sp.STDOUT,
                     text=True)
     return proc
