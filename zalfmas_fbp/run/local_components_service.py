@@ -36,7 +36,8 @@ class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
 
     async def start_context(self, context):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
         port_infos_reader_sr = context.params.portInfosReaderSr
-        self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr)
+        name = context.params.name
+        self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr, name)
         context.results.success = self.proc.poll() is None
 
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
