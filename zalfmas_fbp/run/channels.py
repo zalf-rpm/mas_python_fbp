@@ -24,6 +24,7 @@ import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 import common_capnp
+import service_capnp
 
 def start_first_channel(path_to_channel, name=None):
     chan = sp.Popen([
@@ -60,28 +61,44 @@ def start_channel(path_to_channel, startup_info_id, startup_info_writer_sr, name
                     + ([f"--host={host}"] if host else [])
                     + ([f"--port={port}"] if port else [])
                     + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
-                    + ([f"--writer_srts={writer_srts}"] if writer_srts else []))
+                    + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
+                    #stdout=sp.PIPE, stderr=sp.STDOUT
+                    )
+
+class StopChannelProcess(service_capnp.Stoppable.Server):
+    def __init__(self, proc, remove_from_service=None):
+        self.proc = proc
+        self.remove_from_service = remove_from_service
+
+    async def stop_context(self, context):  # stop @0 () -> (success :Bool);
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            rt = self.proc.returncode == 0
+            self.proc = None
+            if self.remove_from_service: self.remove_from_service()
+            context.results.success = rt
+        context.results.success = False
 
 
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
-    def __init__(self, con_man, path_to_channel, id=None, name=None, description=None, admin=None, restorer=None):
+    def __init__(self, con_man, path_to_channel, id=None, name=None, description=None, verbose=False, admin=None, restorer=None):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.con_man = con_man
         self.path_to_channel = path_to_channel
         self.startup_info_id = str(uuid.uuid4())
-        self.proc = None
-        self.channels = []
+        self.channels = {}
         self.first_reader = None
         self.first_writer_sr = None
         self.chan_id_to_info = defaultdict(list)
+        self.verbose = verbose
 
     def __del__(self):
-        for chan in self.channels:
+        for _, (chan, _) in self.channels.items():
             chan.terminate()
 
     async def create_startup_info_channel(self):
         first_chan, first_reader_sr, self.first_writer_sr = start_first_channel(self.path_to_channel)
-        self.channels.append(first_chan)
+        self.channels[self.startup_info_id] = (first_chan, StopChannelProcess(first_chan))
         self.first_reader = await self.con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
 
     async def get_start_infos(self, chan, chan_id, no_of_chans):
@@ -110,7 +127,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     #    writerSrts      @5 :List(Text); # fixed sturdy ref tokens per writer
     #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
     #}
-    async def create_context(self, context):  # create @0 Params -> (startupInfos :List(Channel.StartupInfo));
+    async def start_context(self, context):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
         ps = context.params
@@ -124,9 +141,12 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
                              no_of_writers=ps.noOfWriters,
                              buffer_size=ps.bufferSize,
                              reader_srts=reader_srts,
-                             writer_srts=writer_srts)
-        self.channels.append(chan)
+                             writer_srts=writer_srts,
+                             verbose=self.verbose)
+        stop = StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None))
+        self.channels[config_chan_id] = (chan, StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None)))
         context.results.startupInfos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
+        context.results.stop = stop
 
 
 default_config = {
@@ -140,6 +160,7 @@ default_config = {
     "fixed_sturdy_ref_token": None,
     "reg_sturdy_ref": None,
     "reg_category": None,
+    "verbose": False,
 
     "opt:id": "ID of the service",
     "opt:name": "local FBP components service",

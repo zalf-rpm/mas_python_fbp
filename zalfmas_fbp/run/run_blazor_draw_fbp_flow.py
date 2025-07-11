@@ -32,7 +32,7 @@ import common_capnp
 standalone_config = {
     "hpc": False,
     "use_infiniband": False,
-    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/test_flow3.json",
+    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/test_flow5.json",
     "path_to_channel": "/home/berg/GitHub/monica/_cmake_debug/common/channel",
     "path_to_out_dir": "/home/berg/GitHub/mas_python_fbp/out/",
 }

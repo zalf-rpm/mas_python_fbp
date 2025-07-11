@@ -104,7 +104,8 @@ class PortConnector:
                         print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
         if wait_for_port_infos_reader_done:
-            msg = await self.port_infos_reader.read()
+            if self.port_infos_reader:
+                msg = await self.port_infos_reader.read()
             #if msg.which() == "done":
             #  pass
 
