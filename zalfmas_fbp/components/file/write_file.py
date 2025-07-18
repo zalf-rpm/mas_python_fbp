@@ -51,6 +51,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if config["debug"]:
                 print("wrote", filepath)
 
+        except capnp.KjException as e:
+            print(f"{os.path.basename(__file__)}: {config['name']} RPC Exception:", e.description)
+            if e.type in ["DISCONNECTED"]:
+                break
+
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 

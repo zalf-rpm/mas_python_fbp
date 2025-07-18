@@ -64,8 +64,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 l[i] = val
             await req.send()
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except capnp.KjException as e:
+            print(f"{os.path.basename(__file__)}: {config['name']} RPC Exception:", e.description)
+            if e.type in ["DISCONNECTED"]:
+                break
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")

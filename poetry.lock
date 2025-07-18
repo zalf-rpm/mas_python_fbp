@@ -2,14 +2,14 @@
 
 [[package]]
 name = "certifi"
-version = "2025.7.9"
+version = "2025.7.14"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "certifi-2025.7.9-py3-none-any.whl", hash = "sha256:d842783a14f8fdd646895ac26f719a061408834473cfc10203f6a575beb15d39"},
-    {file = "certifi-2025.7.9.tar.gz", hash = "sha256:c1d2ec05395148ee10cf672ffc28cd37ea0ab0d99f9cc74c43e588cbd111b079"},
+    {file = "certifi-2025.7.14-py3-none-any.whl", hash = "sha256:6b31f564a415d79ee77df69d757bb49a5bb53bd9f756cbbe24394ffd6fc1f4b2"},
+    {file = "certifi-2025.7.14.tar.gz", hash = "sha256:8ea99dbdfaaf2ba2f9bac77b9249ef62ec5218e7c2b2e903378ed5fccf765995"},
 ]
 
 [[package]]
@@ -636,14 +636,14 @@ files = [
 
 [[package]]
 name = "zalfmas-capnp-schemas"
-version = "0.1.26"
+version = "0.1.27"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "zalfmas_capnp_schemas-0.1.26-py3-none-any.whl", hash = "sha256:4706706119b66253b193a0d5791aea32b3e8b251bfee7dd6a1bc826ff8d7c8c2"},
-    {file = "zalfmas_capnp_schemas-0.1.26.tar.gz", hash = "sha256:91bc55a4b64a5f4afdbe6e4cb2527611c8341ff60e836e705e6a61070dc943c2"},
+    {file = "zalfmas_capnp_schemas-0.1.27-py3-none-any.whl", hash = "sha256:4c9c7a4997a7ddf6416b2126d7d8024d91b5fde367d1b12875335df3093eef82"},
+    {file = "zalfmas_capnp_schemas-0.1.27.tar.gz", hash = "sha256:5778b4df0c1fdb9faebae4ddb5490eeb1f98eadcb3cd3194a1298d613fed83bc"},
 ]
 
 [[package]]
@@ -671,4 +671,4 @@ zalfmas-capnp-schemas = ">=0.1.23,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "79f7b8810354963da858498d9e3fdfbc0d5522d8389dc9595670e193f0d38abd"
+content-hash = "30d0278e6f98e8dfeae509f61874515766663f72c0fab083b5dfa1b3533e7479"
