@@ -1,0 +1,80 @@
+{
+  "version": "0.3",
+  "name": "",
+  "components": "/home/berg/GitHub/mas_python_fbp/local_components.json",
+  "cmds": "/home/berg/GitHub/mas_python_fbp/local_cmds.json",
+  "nodes": [
+    {
+      "node_id": "2759bd68-cd69-439a-be99-dff3678e45c1",
+      "process_name": "console_output 0",
+      "location": {
+        "x": 1015.515625,
+        "y": 408.0
+      },
+      "editable": false,
+      "parallel_processes": 1,
+      "component_id": "2de9c491-d8a6-4b36-84de-db7f4a312731"
+    },
+    {
+      "node_id": "d011a460-ce8f-4778-b700-bbfeb0709218",
+      "component_id": "iip",
+      "location": {
+        "x": 157.515625,
+        "y": 193.0
+      },
+      "content": "split_at=\";\""
+    },
+    {
+      "node_id": "ec971ec2-8e96-495a-b307-77fa8973ca3d",
+      "component_id": "iip",
+      "location": {
+        "x": 68.515625,
+        "y": 572.0
+      },
+      "content": "aaaa;bbbb;ccccc;dddd"
+    },
+    {
+      "node_id": "44218bcc-6169-4af8-9a57-7c9bea3fd699",
+      "process_name": "split string 1",
+      "location": {
+        "x": 435.515625,
+        "y": 504.0
+      },
+      "editable": false,
+      "parallel_processes": 1,
+      "component_id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c"
+    }
+  ],
+  "links": [
+    {
+      "source": {
+        "node_id": "44218bcc-6169-4af8-9a57-7c9bea3fd699",
+        "port": "out"
+      },
+      "target": {
+        "node_id": "2759bd68-cd69-439a-be99-dff3678e45c1",
+        "port": "in"
+      }
+    },
+    {
+      "source": {
+        "node_id": "d011a460-ce8f-4778-b700-bbfeb0709218",
+        "port": "Bottom"
+      },
+      "target": {
+        "node_id": "44218bcc-6169-4af8-9a57-7c9bea3fd699",
+        "port": "conf"
+      }
+    },
+    {
+      "source": {
+        "node_id": "ec971ec2-8e96-495a-b307-77fa8973ca3d",
+        "port": "Right"
+      },
+      "target": {
+        "node_id": "44218bcc-6169-4af8-9a57-7c9bea3fd699",
+        "port": "in"
+      }
+    }
+  ]
+}

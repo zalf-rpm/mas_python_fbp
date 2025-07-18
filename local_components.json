@@ -11,8 +11,8 @@
       "component": {
         "info": {
           "id": "79723094-0972-48ec-b219-030dae730063",
-          "name": "climate_service_to_dataset",
-          "description": ""
+          "name": "climate service -> dataset",
+          "description": "Send capabilities to the datasets available at climate service downstream."
         },
         "type": "standard",
         "inPorts": [
@@ -28,8 +28,8 @@
       "component": {
         "info": {
           "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
-          "name": "datasets_to_timeseries",
-          "description": ""
+          "name": "datasets -> timeseries",
+          "description": "Get timeseries capabilties from a dataset."
         },
         "type": "standard",
         "inPorts": [
@@ -45,8 +45,8 @@
       "component": {
         "info": {
           "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
-          "name": "timeseries_cap_data",
-          "description": ""
+          "name": "timeseries capability -> data",
+          "description": "Get the actual data from a timeseries capability."
         },
         "type": "standard",
         "inPorts": [
@@ -62,8 +62,8 @@
       "component": {
         "info": {
           "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
-          "name": "timeseries_data_to_csv",
-          "description": ""
+          "name": "timeseries data -> csv",
+          "description": "Create CSV string out of timeseries data."
         },
         "type": "standard",
         "inPorts": [
@@ -79,8 +79,8 @@
       "component": {
         "info": {
           "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
-          "name": "console_output",
-          "description": ""
+          "name": "output to console",
+          "description": "Output input to console."
         },
         "type": "standard",
         "inPorts": [
@@ -95,7 +95,7 @@
         "info": {
           "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
           "name": "split string",
-          "description": "splits a string along delimiter"
+          "description": "Splits a string along delimiter."
         },
         "type": "standard",
         "inPorts": [
@@ -110,7 +110,7 @@
         "info": {
           "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
           "name": "split string -> array",
-          "description": "splits a string along delimiter and adds them into an array"
+          "description": "Splits a string along delimiter and adds them into an array."
         },
         "type": "standard",
         "inPorts": [
@@ -125,7 +125,7 @@
         "info": {
           "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
           "name": "into array",
-          "description": "collects values into an array"
+          "description": "Collects values into an array."
         },
         "type": "standard",
         "inPorts": [
@@ -140,7 +140,7 @@
         "info": {
           "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
           "name": "read csv",
-          "description": "read a csv file"
+          "description": "Read a csv file and send content as string downstream."
         },
         "type": "standard",
         "inPorts": [{"name": "conf"}],
@@ -153,7 +153,7 @@
         "info": {
           "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
           "name": "read file",
-          "description": "read a file"
+          "description": "Read a file and send full string or lines downstream."
         },
         "type": "standard",
         "inPorts": [{"name": "conf"}],
@@ -166,7 +166,7 @@
         "info": {
           "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
           "name": "write file",
-          "description": "write a file"
+          "description": "Write input into a file."
         },
         "type": "standard",
         "inPorts": [
