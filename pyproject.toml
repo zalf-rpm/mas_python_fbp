@@ -19,6 +19,10 @@ build-backend = "poetry.core.masonry.api"
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+libsodium = ">=1.0.20,<2"
+
 # Referencing local packages in editable mode for pixi
 # [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
