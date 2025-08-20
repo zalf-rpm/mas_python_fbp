@@ -13,6 +13,9 @@ dependencies = [
     # Referencing local package examples:
     # "zalfmas-common @ file:///home/<user>/Zalf/zalf-rpm/mas/mas_python_common",
     # "zalfmas-capnp-schemas @ file:///home/<user>/Zalf/zalf-rpm/mas/mas_capnproto_schemas",
+    # Or git repositories
+    # "zalfmas-common @ git+https://github.com/zalf-rpm/mas_python_common.git",
+    # "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas.git"
 ]
 
 [build-system]
