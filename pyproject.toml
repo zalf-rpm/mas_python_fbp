@@ -10,14 +10,13 @@ dependencies = [
     "tomli-w>=1.2.0,<2",
     "zalfmas-common (>=0.1.22,<0.2.0)",
     "zalfmas-capnp-schemas (>=0.1.29,<0.2.0)",
-    # Referencing local package examples:
-    # "zalfmas-common @ file:///home/<user>/Zalf/zalf-rpm/mas/mas_python_common",
-    # "zalfmas-capnp-schemas @ file:///home/<user>/Zalf/zalf-rpm/mas/mas_capnproto_schemas",
-    # Or git repositories
-    # "zalfmas-common @ git+https://github.com/zalf-rpm/mas_python_common.git",
-    # "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas.git"
 ]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# Referencing local packages in editable mode
+# [tool.poetry.dependencies]
+# zalfmas-common = { path = "../mas_python_common", develop = true }
+# zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }

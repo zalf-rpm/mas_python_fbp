@@ -639,12 +639,16 @@ name = "zalfmas-capnp-schemas"
 version = "0.1.29"
 description = ""
 optional = false
-python-versions = "<4.0,>=3.10"
+python-versions = "^3.10"
 groups = ["main"]
-files = [
-    {file = "zalfmas_capnp_schemas-0.1.29-py3-none-any.whl", hash = "sha256:a88227dd5fa8243d2e2d9c6eb28c1ef4d8af1e4bd8a91b406c10802e6e14a586"},
-    {file = "zalfmas_capnp_schemas-0.1.29.tar.gz", hash = "sha256:2a1098a3c5fa865cb340473994b89e979972f105cf2d3ab7a6b30f6d96c83e23"},
-]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/zalf-rpm/mas_capnproto_schemas.git"
+reference = "HEAD"
+resolved_reference = "cd75d19dce033208bc2ac6f78b71964eeeb8cb00"
 
 [[package]]
 name = "zalfmas-common"
