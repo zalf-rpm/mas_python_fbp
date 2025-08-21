@@ -11,12 +11,11 @@ target "mas_python_fbp" {
   dockerfile = "Dockerfile"
   tags       = ["zalfrpm/mas_python_fbp:${TAG}", "zalfrpm/mas_python_fbp:latest"]
   target     = "prod"
-
-  labels = {
-    "org.opencontainers.image.title"          = "mas_python_fbp"
-    "org.opencontainers.image.description"    = "Utilities for the ZALF MAS Python FBP project"
-    "org.opencontainers.image.url"            = "https://hub.docker.com/r/zalfrpm/mas_python_fbp"
-    "org.opencontainers.image.source"         = "https://github.com/zalf-rpm/mas_python_fbp"
-    "org.opencontainers.image.documentation"  = "https://github.com/zalf-rpm/mas_python_fbp/blob/docker/README.md"
-  }
+  annotations = [
+    "org.opencontainers.image.title=mas_python_fbp",
+    "org.opencontainers.image.description=Utilities for the ZALF MAS Python FBP project",
+    "org.opencontainers.image.url=https://hub.docker.com/r/zalfrpm/mas_python_fbp",
+    "org.opencontainers.image.source=https://github.com/zalf-rpm/mas_python_fbp",
+    "org.opencontainers.image.documentation=https://github.com/zalf-rpm/mas_python_fbp/blob/docker/README.md"
+  ]
 }
