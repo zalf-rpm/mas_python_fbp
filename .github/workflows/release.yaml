@@ -16,7 +16,7 @@ jobs:
     if: ${{ needs['release-please'].outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      # Build + publish Python package to TestPyPI on release
+      # Build + publish Python package to TestPyPI on release (change to pypi later)
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up Python
