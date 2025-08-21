@@ -174,7 +174,9 @@ default_config = {
     "opt:reg_category": "[string] -> Connect to registry using this category",
 }
 async def main():
-    parser = serv.create_default_args_parser("local start channels service")
+    parser = serv.create_default_args_parser(
+        "local start channels service", "./configs/channel_starter_service.toml"
+    )
     config, args = serv.handle_default_service_args(parser, default_config)
 
     restorer = common.Restorer()
