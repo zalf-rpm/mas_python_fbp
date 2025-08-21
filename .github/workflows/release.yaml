@@ -13,7 +13,7 @@ jobs:
     secrets: inherit
   after-release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs['release-please'].outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     steps:
       # Build + publish Python package to TestPyPI on release
