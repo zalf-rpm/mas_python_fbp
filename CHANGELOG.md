@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.15](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.14...v0.2.15) (2025-08-21)
+
+
+### Bug Fixes
+
+* explicitly set DOCKERHUB_TOKEN ([ab45670](https://github.com/zalf-rpm/mas_python_fbp/commit/ab4567069fdca250a17920d1138532c1568fc01b))
+* lets try again might have use a 0 instead of O in secret definition ([772b6d1](https://github.com/zalf-rpm/mas_python_fbp/commit/772b6d182dd8d61fa01927ac80672b7dabd75ed7))
+
 ## [0.2.14](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.13...v0.2.14) (2025-08-21)
 
 
