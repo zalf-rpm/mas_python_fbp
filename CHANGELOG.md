@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.11...v0.2.12) (2025-08-21)
+
+
+### Bug Fixes
+
+* switch to non reusable workflow as trusted publishing is not supported ([fb46525](https://github.com/zalf-rpm/mas_python_fbp/commit/fb4652583ac92db25f6ffa8220f9716575d46152))
+
 ## [0.2.11](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.10...v0.2.11) (2025-08-21)
 
 
