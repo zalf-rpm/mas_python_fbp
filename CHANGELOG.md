@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.13...v0.2.14) (2025-08-21)
+
+
+### Bug Fixes
+
+* use different accesssor ([43bae75](https://github.com/zalf-rpm/mas_python_fbp/commit/43bae755594e06c389cfca41e1bdf0bd2d6250b7))
+
 ## [0.2.13](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.12...v0.2.13) (2025-08-21)
 
 
