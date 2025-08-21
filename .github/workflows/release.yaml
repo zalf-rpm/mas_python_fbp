@@ -1,0 +1,12 @@
+name: Release Mas Python FBP
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  release-please:
+    uses: dakispro/.github/.github/workflows/release.yml@main
+    secrets: inherit
