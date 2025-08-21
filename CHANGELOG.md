@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.12...v0.2.13) (2025-08-21)
+
+
+### Bug Fixes
+
+* properly reference the needs selector cleanup if statements ([404d8cc](https://github.com/zalf-rpm/mas_python_fbp/commit/404d8cc4d616f9d8c577d91b3791e3fce9a508a7))
+
 ## [0.2.12](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.11...v0.2.12) (2025-08-21)
 
 
