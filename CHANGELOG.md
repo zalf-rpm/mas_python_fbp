@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.10...v0.2.11) (2025-08-21)
+
+
+### Features
+
+* try out publish to test.pypi ([536834e](https://github.com/zalf-rpm/mas_python_fbp/commit/536834e3fac04a7abcddbb46ad901c3f375eaaf5))
+
 ## [0.2.10](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.9...v0.2.10) (2025-08-21)
 
 
