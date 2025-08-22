@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.10...v0.2.11) (2025-08-22)
+
+
+### Features
+
+* switch to trusted publishing on pypi ([319300e](https://github.com/zalf-rpm/mas_python_fbp/commit/319300eb9cbdd7d907eae72db5b99222d3cba44a))
+
 ## [0.2.10](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.9...v0.2.10) (2025-08-21)
 
 
