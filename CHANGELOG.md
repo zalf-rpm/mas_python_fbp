@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.12...v0.2.13) (2025-08-25)
+
+
+### Bug Fixes
+
+* import of components ([486f744](https://github.com/zalf-rpm/mas_python_fbp/commit/486f744ebf20996e10074b33de58df09bb45bc3f))
+
 ## [0.2.12](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.11...v0.2.12) (2025-08-25)
 
 
