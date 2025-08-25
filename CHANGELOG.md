@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.13...v0.2.14) (2025-08-25)
+
+
+### Bug Fixes
+
+* move other configs to config_dir ([ab5b0d1](https://github.com/zalf-rpm/mas_python_fbp/commit/ab5b0d1fab20bfc3a9e4ee2c4b278eb457ba9663))
+
 ## [0.2.13](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.12...v0.2.13) (2025-08-25)
 
 
