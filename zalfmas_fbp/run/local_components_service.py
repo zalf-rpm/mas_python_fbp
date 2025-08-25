@@ -22,7 +22,7 @@ import sys
 import uuid
 from zalfmas_common import common
 from zalfmas_common import service as serv
-import run.components as comp
+import zalfmas_fbp.run.components as comp
 import zalfmas_capnp_schemas
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
