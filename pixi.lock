@@ -4,6 +4,7 @@ environments:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
+    - https://test.pypi.org/simple
     - https://pypi.org/simple
     packages:
       linux-64:
@@ -32,13 +33,13 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025b-h78e105d_0.conda
       - pypi: https://files.pythonhosted.org/packages/e5/48/1549795ba7742c948d2ad169c1c8cdbae65bc450d6cd753d124b17c8cd32/certifi-2025.8.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/59/ef/f96536f1df42c668cbacb727a8c6da7afc9c05ece6d558927fb1722693e1/numpy-2.3.2-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/da/01/e383018feba0a1ead6cf5fe8728e5d767fee02f06a3d800e82c489e5daaf/pandas-2.3.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/d3/a4/f7edcfa47e0a88cda0be8b068a5bae710bf264f867edfdf7b71584ace362/pandas-2.3.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d2/f1/fb218aebd29bca5c506230201c346881ae9b43de7bbb21a68dc648e972b3/poetry_core-2.1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9c/39/0f88a830a1c8a3aba27fededc642da37613c57cbff143412e3536f89784f/psutil-6.1.1-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c8/55/867595f575eb6cb3662e9a0b50a24b4be42df86f2938003e586f6c81606f/pycapnp-2.0.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b8/be/212882c450bba74fc8d7d35cbd57e4af84792f0a56194819d98106b075af/pyproj-3.7.2-cp312-cp312-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d7/a5/bcb82a6056bc8ad0dbfdb0956ae1ff3b8eb9dd76c187723e82a3c5678982/pysodium-0.7.18.tar.gz
-      - pypi: https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl
+      - pypi: https://test-files.pythonhosted.org/packages/e0/0b/d5d878af576ff1fe68ca7ab6d70b471f2cf5cc76a84b0ab330fe2f93c63d/python_dateutil-3.9.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/51/1e/79023ca3bbb13a015d7d2757ecca3b81293c663694c35d6541b4dca53e98/scipy-1.16.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
@@ -46,8 +47,8 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/75/8539d011f6be8e29f339c42e633aae3cb73bffa95dd0f9adec09b9c58e85/tomlkit-0.13.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/42/a2/675eb0864bd89a7295cf4ddf2a13cc968572906c85dce6b4d32329cad0e6/zalfmas_capnp_schemas-0.1.30-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4a/0f/1b78c004e9541c35568c47acd29a7f43b6a8c625eaddc53d9bd8ddea90e5/zalfmas_common-0.1.22-py3-none-any.whl
+      - pypi: https://test-files.pythonhosted.org/packages/04/5c/5000ee99af9c33541732eca4392d899e877e9a94cf1ccf23bd6c84cb31cd/zalfmas_capnp_schemas-0.1.32-py3-none-any.whl
+      - pypi: https://test-files.pythonhosted.org/packages/b1/c5/6d3302a00226f8f705956d1478e16afce6f88f2f84c4bbf88b1b9429f77c/zalfmas_common-0.1.26-py3-none-any.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
@@ -267,10 +268,10 @@ packages:
   purls: []
   size: 3128847
   timestamp: 1754465526100
-- pypi: https://files.pythonhosted.org/packages/da/01/e383018feba0a1ead6cf5fe8728e5d767fee02f06a3d800e82c489e5daaf/pandas-2.3.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+- pypi: https://files.pythonhosted.org/packages/d3/a4/f7edcfa47e0a88cda0be8b068a5bae710bf264f867edfdf7b71584ace362/pandas-2.3.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   name: pandas
-  version: 2.3.1
-  sha256: 7dcb79bf373a47d2a40cf7232928eb7540155abbc460925c2c96d2d30b006eb4
+  version: 2.3.2
+  sha256: 96d31a6b4354e3b9b8a2c848af75d31da390657e3ac6f30c05c82068b9ed79b9
   requires_dist:
   - numpy>=1.22.4 ; python_full_version < '3.11'
   - numpy>=1.23.2 ; python_full_version == '3.11.*'
@@ -434,10 +435,10 @@ packages:
   purls: []
   size: 31445023
   timestamp: 1749050216615
-- pypi: https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl
+- pypi: https://test-files.pythonhosted.org/packages/e0/0b/d5d878af576ff1fe68ca7ab6d70b471f2cf5cc76a84b0ab330fe2f93c63d/python_dateutil-3.9.0-py2.py3-none-any.whl
   name: python-dateutil
-  version: 2.9.0.post0
-  sha256: a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+  version: 3.9.0
+  sha256: 971787138d3cb47d927800e544872edc9e49f33ad1335adc139c409aa5e6a9a8
   requires_dist:
   - six>=1.5
   requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*'
@@ -544,17 +545,17 @@ packages:
   purls: []
   size: 122968
   timestamp: 1742727099393
-- pypi: https://files.pythonhosted.org/packages/42/a2/675eb0864bd89a7295cf4ddf2a13cc968572906c85dce6b4d32329cad0e6/zalfmas_capnp_schemas-0.1.30-py3-none-any.whl
+- pypi: https://test-files.pythonhosted.org/packages/04/5c/5000ee99af9c33541732eca4392d899e877e9a94cf1ccf23bd6c84cb31cd/zalfmas_capnp_schemas-0.1.32-py3-none-any.whl
   name: zalfmas-capnp-schemas
-  version: 0.1.30
-  sha256: a04bc156f340b70250c74e452dd7ba46555deb0a01baa4f95654a1746a93f04b
+  version: 0.1.32
+  sha256: 3b16f3287346f45321385fb96170262250b4fe233fa1be4251a4f275b0e7bfd3
   requires_dist:
   - poetry-core>=2.0.0
   requires_python: '>=3.10,<4.0'
-- pypi: https://files.pythonhosted.org/packages/4a/0f/1b78c004e9541c35568c47acd29a7f43b6a8c625eaddc53d9bd8ddea90e5/zalfmas_common-0.1.22-py3-none-any.whl
+- pypi: https://test-files.pythonhosted.org/packages/b1/c5/6d3302a00226f8f705956d1478e16afce6f88f2f84c4bbf88b1b9429f77c/zalfmas_common-0.1.26-py3-none-any.whl
   name: zalfmas-common
-  version: 0.1.22
-  sha256: e081e4bee2cc27ad59055e04ebec8d0849ce27180dccf6e42ff36e2aff7c7685
+  version: 0.1.26
+  sha256: 1eef470be56b57b9c545b5a374efa1836ad5a4ae59b8068e911873e984099440
   requires_dist:
   - pandas>=2.2.2,<3.0.0
   - psutil>=6.1.0,<7.0.0
@@ -563,5 +564,5 @@ packages:
   - pysodium>=0.7.17,<0.8.0
   - scipy>=1.13.1,<2.0.0
   - tomlkit>=0.13.2,<0.14.0
-  - zalfmas-capnp-schemas>=0.1.23,<0.2.0
-  requires_python: '>=3.10,<4.0'
+  - zalfmas-capnp-schemas>=0.1.29,<0.2.0
+  requires_python: '>=3.10,<3.13'
