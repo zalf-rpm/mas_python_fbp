@@ -25,6 +25,7 @@ import uuid
 from zalfmas_common import common
 from zalfmas_common import service as serv
 import zalfmas_capnp_schemas
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
@@ -57,15 +58,25 @@ def create_default_fbp_component_args_parser(component_description):
     )
     return parser
 
-def handle_default_fpb_component_args(parser, config: dict=None):
+
+def handle_default_fpb_component_args(parser, config: dict = None):
     args = parser.parse_args()
     if config is None:
         config = {}
     remove_keys = []
+
     def create_toml():
         doc = tk.document()
-        doc.add(tk.comment(f"{parser.prog} FBP component configuration (data and documentation)"))
-        doc.add(tk.comment("The 'defaults' section shows the configuration settings in TOML format which can be send to the config port of the component."))
+        doc.add(
+            tk.comment(
+                f"{parser.prog} FBP component configuration (data and documentation)"
+            )
+        )
+        doc.add(
+            tk.comment(
+                "The 'defaults' section shows the configuration settings in TOML format which can be send to the config port of the component."
+            )
+        )
         defaults = tk.table()
         ports = tk.table()
         options = tk.table()
@@ -111,9 +122,11 @@ def handle_default_fpb_component_args(parser, config: dict=None):
 
 
 def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
-    proc = sp.Popen(list(path_to_executable.split(" "))
-                    + [port_infos_reader_sr]
-                    + ([f"--name=\"{name}\""] if name else []),
-                    #stdout=sp.PIPE, stderr=sp.STDOUT,
-                    text=True)
+    proc = sp.Popen(
+        list(path_to_executable.split(" "))
+        + [port_infos_reader_sr]
+        + ([f'--name="{name}"'] if name else []),
+        # stdout=sp.PIPE, stderr=sp.STDOUT,
+        text=True,
+    )
     return proc

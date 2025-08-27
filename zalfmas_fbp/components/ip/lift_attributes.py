@@ -21,12 +21,15 @@ from zalfmas_common import common
 import zalfmas_fbp.run.ports as p
 import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
+
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
-                                                                ins=["conf", "in"], outs=["out"])
+    ports = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
+    )
     await p.update_config_from_port(config, ports["conf"])
 
     lift_from_type = common.load_capnp_module(config["lift_from_type"])
@@ -41,7 +44,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            lift_from_attr = common.get_fbp_attr(in_ip, config["lift_from_attr"]).as_struct(lift_from_type)
+            lift_from_attr = common.get_fbp_attr(
+                in_ip, config["lift_from_attr"]
+            ).as_struct(lift_from_type)
 
             out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
             lifted_attrs = config["lifted_attrs"].split(",")
@@ -51,7 +56,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if lift_from_attr:
                 for l_attr_name in lifted_attrs:
                     if l_attr_name in lft_fieldnames:
-                        attrs.append({"key": l_attr_name, "value": lift_from_attr.__getattr__(l_attr_name)})
+                        attrs.append(
+                            {
+                                "key": l_attr_name,
+                                "value": lift_from_attr.__getattr__(l_attr_name),
+                            }
+                        )
             out_ip.attributes = attrs
             await ports["out"].write(value=out_ip)
 
@@ -66,20 +76,24 @@ default_config = {
     "lift_from_attr": "name",
     "lift_from_type": "schema.capnp:Type",
     "lifted_attrs": "attr1,attr2,attr3",
-
     "opt:lift_from_attr": "[string (name)] -> attribute to read",
     "opt:lift_from_type": "[struct_capnp:Type] -> capnp struct type to read from attribute",
     "opt:lifted_attrs": "[string (attr1,attr2,attr3,...)] -> which attributes of struct to lift one level up out of struct into metadata",
-
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[]",
     "port:out": "[]",
-
 }
+
+
 def main():
-    parser = c.create_default_fbp_component_args_parser("Lift fields out of in message attributes")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
+    parser = c.create_default_fbp_component_args_parser(
+        "Lift fields out of in message attributes"
+    )
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
+        parser, default_config
+    )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

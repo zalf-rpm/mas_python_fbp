@@ -10,6 +10,7 @@ dependencies = [
     "tomli-w>=1.2.0,<2",
     "zalfmas-common (>=0.1.22,<0.2.0)",
     "zalfmas-capnp-schemas (>=0.1.29,<0.2.0)",
+    "poetry-core (>=2.0.0)",
 ]
 
 [build-system]
@@ -20,3 +21,7 @@ build-backend = "poetry.core.masonry.api"
 # [tool.poetry.dependencies]
 # zalfmas-common = { path = "../mas_python_common", develop = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.12.10"
+

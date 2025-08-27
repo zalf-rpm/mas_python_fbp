@@ -21,13 +21,16 @@ from zalfmas_common import geo
 import zalfmas_fbp.run.ports as p
 import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 import geo_capnp
 
+
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr,
-                                                                ins=["conf", "vals"], outs=["coord"])
+    ports = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr, ins=["conf", "vals"], outs=["coord"]
+    )
     await p.update_config_from_port(config, ports["conf"])
 
     to_instance = geo.name_to_struct_instance(config["to_name"])
@@ -43,36 +46,51 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 ports["in"] = None
                 continue
 
-            vals = in_msg.value.as_struct(fbp_capnp.IP).content.as_list(list_schema_type)
+            vals = in_msg.value.as_struct(fbp_capnp.IP).content.as_list(
+                list_schema_type
+            )
             if len(vals) > 1:
                 to_coord = to_instance.copy()
                 geo.set_xy(to_coord, vals[0], vals[1])
-                await ports["out"].write(value=fbp_capnp.IP.new_message(content=to_coord))
+                await ports["out"].write(
+                    value=fbp_capnp.IP.new_message(content=to_coord)
+                )
             else:
-                raise Exception("Not enough values in list. Need at least two for a coordinate.")
+                raise Exception(
+                    "Not enough values in list. Need at least two for a coordinate."
+                )
 
         except capnp.KjException as e:
-            print(f"{os.path.basename(__file__)}: {config['name']} RPC Exception:", e.description)
+            print(
+                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
+                e.description,
+            )
             if e.type in ["DISCONNECTED"]:
                 break
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
 default_config = {
     "to_name": "wgs84",
     "list_type": "float",
-
     "opt:to_name": "wgs84",
-    "opt:list_type": "float", # float | int
-
+    "opt:list_type": "float",  # float | int
     "port:vals": "[list[float | int] -> values to convert into coord",
     "port:coord": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> coord to output",
 }
+
+
 def main():
-    parser = c.create_default_fbp_component_args_parser("Read array (pair) of values and convert into geo coord")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
+    parser = c.create_default_fbp_component_args_parser(
+        "Read array (pair) of values and convert into geo coord"
+    )
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
+        parser, default_config
+    )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

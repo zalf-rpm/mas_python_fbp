@@ -1,4 +1,4 @@
-﻿#!/usr/bin/python
+#!/usr/bin/python
 # -*- coding: UTF-8
 
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,11 +20,15 @@ import sys
 import zalfmas_fbp.run.ports as p
 import zalfmas_fbp.run.components as c
 import zalfmas_capnp_schemas
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
 
+
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
+    ports = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr, ins=["in"]
+    )
     print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
 
     while ports["in"]:
@@ -41,7 +45,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 print(in_ip.content)
 
         except capnp.KjException as e:
-            print(f"{os.path.basename(__file__)}: {config['name']} RPC Exception:", e.description)
+            print(
+                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
+                e.description,
+            )
             if e.type in ["DISCONNECTED"]:
                 break
 
@@ -50,9 +57,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Output text on console FBP component")
+    parser = c.create_default_fbp_component_args_parser(
+        "Output text on console FBP component"
+    )
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
