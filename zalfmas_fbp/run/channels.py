@@ -11,20 +11,20 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-from collections import defaultdict
-import capnp
 import os
-from pathlib import Path
 import subprocess as sp
 import sys
 import uuid
+from collections import defaultdict
+
+import capnp
+import zalfmas_capnp_schemas
 from zalfmas_common import common
 from zalfmas_common import service as serv
-import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 import common_capnp
+import fbp_capnp
 import service_capnp
 
 
@@ -32,7 +32,7 @@ def start_first_channel(path_to_channel, name=None):
     chan = sp.Popen(
         [
             path_to_channel,
-            "--name=chan_{}".format(name if name else str(uuid.uuid4())),
+            f"--name=chan_{name if name else str(uuid.uuid4())}",
             "--output_srs",
         ],
         stdout=sp.PIPE,

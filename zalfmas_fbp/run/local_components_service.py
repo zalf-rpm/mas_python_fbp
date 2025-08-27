@@ -165,9 +165,9 @@ async def main():
     parser = serv.create_default_args_parser("local FBP component start service")
     config, args = serv.handle_default_service_args(parser, default_config)
 
-    with open(config["path_to_components_json"], "r") as f:
+    with open(config["path_to_components_json"]) as f:
         components = json.load(f)
-    with open(config["path_to_cmds_json"], "r") as f:
+    with open(config["path_to_cmds_json"]) as f:
         cmds = json.load(f)
 
     restorer = common.Restorer()

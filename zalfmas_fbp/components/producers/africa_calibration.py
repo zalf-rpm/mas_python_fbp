@@ -14,19 +14,21 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
-from datetime import date, timedelta, datetime
 import json
-from netCDF4 import Dataset
-import numpy as np
 import os
 import sys
 import time
-from zalfmas_common.model import monica_io
+from datetime import date, datetime, timedelta
+
+import capnp
+import numpy as np
+import zalfmas_capnp_schemas
+from netCDF4 import Dataset
 from zalfmas_common import csv
+from zalfmas_common.model import monica_io
+
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import common_capnp
@@ -549,12 +551,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             ] = setup["EmergenceFloodingControlOn"]
 
             env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
-            hist_sub_path = "isimip/3b_v1.1_CMIP6/csvs/{gcm}/historical/{ensmem}/row-{crow}/col-{ccol}.csv.gz".format(
-                gcm=gcm, ensmem=ensmem, crow=c_row, ccol=c_col
-            )
-            sub_path = "isimip/3b_v1.1_CMIP6/csvs/{gcm}/{scenario}/{ensmem}/row-{crow}/col-{ccol}.csv.gz".format(
-                gcm=gcm, scenario=scenario, ensmem=ensmem, crow=c_row, ccol=c_col
-            )
+            hist_sub_path = f"isimip/3b_v1.1_CMIP6/csvs/{gcm}/historical/{ensmem}/row-{c_row}/col-{c_col}.csv.gz"
+            sub_path = f"isimip/3b_v1.1_CMIP6/csvs/{gcm}/{scenario}/{ensmem}/row-{c_row}/col-{c_col}.csv.gz"
             if setup["incl_historical"] and scenario != "historical":
                 climate_data_paths = [
                     paths["monica-path-to-climate-dir"] + hist_sub_path,
