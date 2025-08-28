@@ -14,16 +14,18 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
-from collections import defaultdict
 import json
 import os
 import sys
 import uuid
+from collections import defaultdict
+
+import capnp
+import zalfmas_capnp_schemas
 from zalfmas_common import common
 from zalfmas_common import service as serv
+
 import zalfmas_fbp.run.components as comp
-import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp

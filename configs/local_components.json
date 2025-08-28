@@ -1,179 +1,565 @@
 {
-  "categories": [
-    {"id": "climate", "name": "Climate"},
-    {"id": "console", "name": "Console"},
-    {"id": "string", "name": "String"},
-    {"id": "file", "name": "File"}
-  ],
-  "entries": [
-    {
-      "categoryId": "climate",
-      "component": {
-        "info": {
-          "id": "79723094-0972-48ec-b219-030dae730063",
-          "name": "climate service -> dataset",
-          "description": "Send capabilities to the datasets available at climate service downstream."
+    "categories": [
+        {
+            "id": "climate",
+            "name": "Climate"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "cs"}
-        ],
-        "outPorts": [
-          {"name": "ds"}
-        ]
-      }
-    },
-    {
-      "categoryId": "climate",
-      "component": {
-        "info": {
-          "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
-          "name": "datasets -> timeseries",
-          "description": "Get timeseries capabilties from a dataset."
+        {
+            "id": "console",
+            "name": "Console"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "ds"}
-        ],
-        "outPorts": [
-          {"name": "ts"}
-        ]
-      }
-    },
-    {
-      "categoryId": "climate",
-      "component": {
-        "info": {
-          "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
-          "name": "timeseries capability -> data",
-          "description": "Get the actual data from a timeseries capability."
+        {
+            "id": "string",
+            "name": "String"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}, {"name": "conf"}
-        ],
-        "outPorts": [
-          {"name": "out"}
-        ]
-      }
-    },
-    {
-      "categoryId": "climate",
-      "component": {
-        "info": {
-          "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
-          "name": "timeseries data -> csv",
-          "description": "Create CSV string out of timeseries data."
+        {
+            "id": "file",
+            "name": "File"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}
-        ],
-        "outPorts": [
-          {"name": "out"}
-        ]
-      }
-    },
-    {
-      "categoryId": "console",
-      "component": {
-        "info": {
-          "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
-          "name": "output to console",
-          "description": "Output input to console."
+        {
+            "id": "consumers",
+            "name": "Consumers"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}
-        ],
-        "outPorts": []
-      }
-    },
-    {
-      "categoryId": "string",
-      "component": {
-        "info": {
-          "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
-          "name": "split string",
-          "description": "Splits a string along delimiter."
+        {
+            "id": "producers",
+            "name": "Producers"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}, {"name": "conf"}
-        ],
-        "outPorts": [{"name":  "out"}]
-      }
-    },
-    {
-      "categoryId": "string",
-      "component": {
-        "info": {
-          "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
-          "name": "split string -> array",
-          "description": "Splits a string along delimiter and adds them into an array."
+        {
+            "id": "data-transform",
+            "name": "Data/Transform"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}, {"name": "conf"}
-        ],
-        "outPorts": [{"name":  "out"}]
-      }
-    },
-    {
-      "categoryId": "string",
-      "component": {
-        "info": {
-          "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
-          "name": "into array",
-          "description": "Collects values into an array."
+        {
+            "id": "spotpy",
+            "name": "SpotPy"
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}, {"name": "conf"}
-        ],
-        "outPorts": [{"name":  "out"}]
-      }
-    },
-    {
-      "categoryId": "file",
-      "component": {
-        "info": {
-          "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
-          "name": "read csv",
-          "description": "Read a csv file and send content as string downstream."
+        {
+            "id": "geo",
+            "name": "Geo"
         },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}],
-        "outPorts": [{"name":  "out"}]
-      }
-    },
-    {
-      "categoryId": "file",
-      "component": {
-        "info": {
-          "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
-          "name": "read file",
-          "description": "Read a file and send full string or lines downstream."
+        {
+            "id": "ip",
+            "name": "InformationPackets"
+        }
+    ],
+    "entries": [
+        {
+            "categoryId": "ip",
+            "component": {
+                "info": {
+                    "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
+                    "name": "copy",
+                    "description": "Copy IP to multiple outputs."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
         },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}],
-        "outPorts": [{"name": "attr"},{"name":  "out"}]
-      }
-    },
-    {
-      "categoryId": "file",
-      "component": {
-        "info": {
-          "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
-          "name": "write file",
-          "description": "Write input into a file."
+        {
+            "categoryId": "ip",
+            "component": {
+                "info": {
+                    "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
+                    "name": "lift attributes",
+                    "description": "Lift attributes."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
         },
-        "type": "standard",
-        "inPorts": [
-          {"name": "in"}, {"name": "conf"}
-        ],
-        "outPorts": []
-      }
-    }
-  ]
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
+                    "name": "create lat lon coords",
+                    "description": "Create lat/lon coords for region."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "country_ids"
+                    }, {
+                        "name": "region"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "lat_lon_coords"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
+                    "name": "get lat/lon grid value",
+                    "description": "Get value from a lat/lon grid."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
+                    "name": "Proj transform coords",
+                    "description": "Transform coordinates using the Proj library."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
+                    "name": "-> geo coord",
+                    "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "vals"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "coord"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "producers",
+            "component": {
+                "info": {
+                    "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+                    "name": "africa calibration producer",
+                    "description": "Producer to work in an Africa calibration flow."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "coords"
+                    }, {
+                        "name": "region"
+                    }, {
+                        "name": "params"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "env"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "consumers",
+            "component": {
+                "info": {
+                    "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
+                    "name": "africa calibration",
+                    "description": "Consumer to work in an Africa calibration flow."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "result"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "year_to_yield"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "data-transform",
+            "component": {
+                "info": {
+                    "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
+                    "name": "ordered flatten nested dicts",
+                    "description": "ordered_flatten_nested_dicts"
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "climate",
+            "component": {
+                "info": {
+                    "id": "79723094-0972-48ec-b219-030dae730063",
+                    "name": "climate service -> dataset",
+                    "description": "Send capabilities to the datasets available at climate service downstream."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "cs"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "ds"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "climate",
+            "component": {
+                "info": {
+                    "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
+                    "name": "datasets -> timeseries",
+                    "description": "Get timeseries capabilties from a dataset."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "ds"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "ts"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "climate",
+            "component": {
+                "info": {
+                    "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
+                    "name": "timeseries capability -> data",
+                    "description": "Get the actual data from a timeseries capability."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "climate",
+            "component": {
+                "info": {
+                    "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
+                    "name": "timeseries data -> csv",
+                    "description": "Create CSV string out of timeseries data."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "console",
+            "component": {
+                "info": {
+                    "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
+                    "name": "output to console",
+                    "description": "Output input to console."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": []
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+                    "name": "split string",
+                    "description": "Splits a string along delimiter."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
+                    "name": "split string -> array",
+                    "description": "Splits a string along delimiter and adds them into an array."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+                    "name": "into array",
+                    "description": "Collects values into an array."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "file",
+            "component": {
+                "info": {
+                    "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
+                    "name": "read csv",
+                    "description": "Read a csv file and send content as string downstream."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "file",
+            "component": {
+                "info": {
+                    "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+                    "name": "read file",
+                    "description": "Read a file and send full string or lines downstream."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "attr"
+                    }, {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "file",
+            "component": {
+                "info": {
+                    "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
+                    "name": "write file",
+                    "description": "Write input into a file."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": []
+            }
+        },
+        {
+            "categoryId": "spotpy",
+            "component": {
+                "info": {
+                    "id": "028290bb-a38c-4599-9948-fc73723e9654",
+                    "name": "create SpotPy calibration params",
+                    "description": "Creates/sets up parameters for Spotpy calibration."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "params"
+                    }
+                ],
+                "outPorts": []
+            }
+        },
+        {
+            "categoryId": "spotpy",
+            "component": {
+                "info": {
+                    "id": "993e5cdf-1c55-4a75-9538-e7906676fedb",
+                    "name": "read observed values",
+                    "description": "Read the observed values for the calibration."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "country_ids"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "spotpy",
+            "component": {
+                "info": {
+                    "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
+                    "name": "Spotpy calibration component",
+                    "description": "The actual component in the center of the calibration flow."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "init_params"
+                    }, {
+                        "name": "obs_values"
+                    }, {
+                        "name": "sim_values"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "sampled_params"
+                    }, {
+                        "name": "best"
+                    }
+                ]
+            }
+        }
+    ]
 }

@@ -24,7 +24,6 @@ import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
-import geo_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -77,6 +76,7 @@ default_config = {
     "list_type": "float",
     "opt:to_name": "wgs84",
     "opt:list_type": "float",  # float | int
+    "port:conf": "[TOML string] -> component configuration",
     "port:vals": "[list[float | int] -> values to convert into coord",
     "port:coord": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> coord to output",
 }
