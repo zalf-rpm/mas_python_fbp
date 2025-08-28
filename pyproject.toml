@@ -1,6 +1,6 @@
 [project]
 name = "zalfmas-fbp"
-version = "0.2.15"
+version = "0.2.14"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
@@ -29,7 +29,6 @@ index-url = "https://test.pypi.org/simple"
 extra-index-urls = ["https://pypi.org/simple"]
 index-strategy = "unsafe-best-match"
 
-
 # Referencing local packages in editable mode for pixi
 # [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
@@ -43,3 +42,8 @@ index-strategy = "unsafe-best-match"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.12.10"
 
+[tool.ruff]
+target-version = "py310"
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
