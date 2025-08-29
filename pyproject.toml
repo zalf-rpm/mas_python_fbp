@@ -27,11 +27,6 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 libsodium = ">=1.0.20,<2"
 
-[tool.pixi.pypi-options]
-index-url = "https://test.pypi.org/simple"
-extra-index-urls = ["https://pypi.org/simple"]
-index-strategy = "unsafe-best-match"
-
 # Referencing local packages in editable mode for pixi
 # [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
