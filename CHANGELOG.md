@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.16](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.15...v0.2.16) (2025-08-29)
+
+
+### Bug Fixes
+
+* remove repository url and rely on default ([5299e41](https://github.com/zalf-rpm/mas_python_fbp/commit/5299e41146d859206f2b507abcd8dfd72b1f2ae2))
+
 ## [0.2.15](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.14...v0.2.15) (2025-08-29)
 
 
