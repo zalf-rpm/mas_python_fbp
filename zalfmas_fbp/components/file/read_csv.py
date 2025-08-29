@@ -14,14 +14,16 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
 import csv
 import os
 import sys
-from zalfmas_common import common
-import zalfmas_fbp.run.ports as p
-import zalfmas_fbp.run.components as c
+
+import capnp
 import zalfmas_capnp_schemas
+from zalfmas_common import common
+
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
@@ -105,11 +107,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 default_config = {
     "id_col": "id",
-    "send_ids": None,  # None, #1,2,3 -> None = all
+    "send_ids": [],  # 1,2,3 -> [] = all
     "file": "sim_setups_bgr_flow.csv",
     "path_to_capnp_struct": "bgr.capnp:Setup",  # "bla.capnp:MyType",
     "to_attr": None,
-    "opt:send_ids": "[None | 1,2,3] -> None = all",
+    "opt:send_ids": "[[] | 1,2,3] -> [] = all",
     "opt:path_to_capnp_struct": "[string (capnp_file.capnp:MyType)]",
     "port:conf": "[TOML string] -> component configuration",
     "port:out": "[list[text | float | int]] -> output split list cast to cast_to type",

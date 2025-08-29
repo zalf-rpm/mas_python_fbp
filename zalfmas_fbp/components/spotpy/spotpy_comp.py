@@ -14,22 +14,23 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
-from datetime import datetime
 import io
-import json
-import matplotlib.pyplot as plt
 import os
-import re
-import spotpy
 import sys
 import tempfile
 import time
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from datetime import datetime
+
+import capnp
+import matplotlib.pyplot as plt
+import spotpy
 import zalfmas_capnp_schemas
 
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
+import common_capnp
 import fbp_capnp
 
 
@@ -53,35 +54,45 @@ class SpotPySetup:
 
     def simulation(self, vector):
         # vector = MaxAssimilationRate, AssimilateReallocation, RootPenetrationRate
-        msg_content = dict(zip(vector.name, vector))
-        out_ip = fbp_capnp.IP.new_message(content=json.dumps(msg_content))
-        self.sampled_params_out_p.write(value=out_ip).wait()
-        print(
-            f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}"
-        )
-        if self.log_out_p:
-            self.log_out_p.write(
-                value={
-                    "content": f"{datetime.now()} sent params to monica setup: {vector}"
-                }
-            ).wait()
+        sim_values = None
+        try:
+            name_to_param = dict(zip(vector.name, vector))
+            out_msg_value = common_capnp.Value.new_message()
+            n2p_list = out_msg_value.init("lpair", len(name_to_param))
+            for i, (k, v) in enumerate(name_to_param.items()):
+                n2p_list[i].fst = k
+                n2p_list[i].snd = common_capnp.Value.new_message(f64=v)
+            out_ip = fbp_capnp.IP.new_message(content=n2p_list)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self.sampled_params_out_p.write(value=out_ip))
+            print(
+                f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}"
+            )
+            if self.log_out_p:
+                loop.run_until_complete(self.log_out_p.write(
+                    value={
+                        "content": f"{datetime.now()} sent params to monica setup: {vector}"
+                    }
+                ))
 
-        msg = self.sim_values_in_p.read().wait()
-        # check for end of data from in port
-        if msg.which() == "done":
-            return
+            in_msg = loop.run_until_complete(self.sim_values_in_p.read())
+            # check for end of data from in port
+            if in_msg.which() == "done":
+                return None
 
-        in_ip = msg.value.as_struct(fbp_capnp.IP)
-        s: str = in_ip.content.as_text()
-        sim_values = json.loads(s)
-        if self.log_out_p:
-            self.log_out_p.write(
-                value={
-                    "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                    f"{len(self.observations)}"
-                }
-            ).wait()
-        assert len(sim_values) == len(self.observations)
+            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+            sim_values = list(in_ip.content.as_struct(common_capnp.Value).lf64)
+            if self.log_out_p:
+                loop.run_until_complete(self.log_out_p.write(
+                    value={
+                        "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
+                        f"{len(self.observations)}"
+                    }
+                ))
+            assert len(sim_values) == len(self.observations)
+        except Exception as e:
+            print(f"{os.path.basename(__file__)} {datetime.now()} exception: {e}")
+
         return sim_values
 
     def evaluation(self):
@@ -161,30 +172,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             spotpy_params = None
             if ports["init_params"]:
                 try:
-                    msg = await ports["init_params"].read()
-                    if msg.which() == "done":
+                    init_params = await p.update_config_from_port({}, ports["init_params"])
+                    if not init_params:
                         ports["init_params"] = None
                         continue
 
-                    init_params_ip = msg.value.as_struct(fbp_capnp.IP)
-                    init_params = json.loads(init_params_ip.content.as_text())
-                    user_params = init_params
-
                     spotpy_params = []
-                    if len(user_params) > 0:
-                        for par in user_params:
-                            par_name = par["name"]
-                            if "array" in par:
-                                if re.search(
-                                    r"\d", par["array"]
-                                ):  # check if par["array"] contains numbers
-                                    par_name += (
-                                        "_" + par["array"]
-                                    )  # spotpy does not allow two parameters to have the same name
-                            if (
-                                "derive_function" not in par
-                            ):  # spotpy does not care about derived params
-                                spotpy_params.append(spotpy.parameter.Uniform(**par))
+                    for name, par in init_params:
+                        par_name = name
+                        if "array_index" in par:
+                            # spotpy does not allow two parameters to have the same name
+                            par_name += f"_{par['array']}"
+                        spotpy_params.append(spotpy.parameter.Uniform(**par))
                     if len(spotpy_params) == 0:
                         print(
                             f"{os.path.basename(__file__)}: no parameters to calibrate!"
@@ -208,8 +207,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     obs_values_ip = msg.value.as_struct(fbp_capnp.IP)
                     for attr in obs_values_ip.attributes:
                         if attr.key == "param_set_id":
-                            param_set_id = attr.value.as_test()
-                    obs_values = json.loads(obs_values_ip.content.as_text())
+                            param_set_id = attr.value.as_text()
+                    obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
                     if not obs_values or len(obs_values) == 0:
                         print(
                             f"{os.path.basename(__file__)}: no observed values to calibrate!"
@@ -223,7 +222,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 spotpy_params, obs_values, ports["sampled_params"], ports["sim_values"]
             )
 
-            rep = int(config["repetitions"])  # initial number was 10
+            rep = config["repetitions"]  # initial number was 10
             db_dir = tempfile.TemporaryDirectory()
             path_to_spotpy_db = f"{db_dir.name}/SCEUA_results"
             # Set up the sampler with the model above
@@ -273,15 +272,15 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "repetitions": "10",
+    "repetitions": 10,
     "path_to_out_folder": "out/",
     # "init_algo_in_sr": None,  #
     "port:conf": "[TOML string] -> component configuration",
-    "port:init_params": None,  # some value struct
-    "port:obs_values": None,  # [obs_value1, obs_value2, ...] :string - json serialization of list of observations
-    "port:sim_values": None,  # [sim_value1, sim_value2, ...] :string - json serialized list of simulated values
-    "port:sampled_params": None,  # {name1: value1, name2: value2, ...} :string of json serialized object of param_name -> sampled value
-    "port:best": None,  # string of best optimized result
+    "port:init_params": "[TOML string]",  # TOML description of the parameters to calibrate
+    "port:obs_values": "[common_capnp.Value.lf64]",  # list of observations
+    "port:sim_values": "[common_capnp.Value.lf64]",  # list of simulated values
+    "port:sampled_params": "[common_capnp.Value.lpair(Text, common_capnp.Value.f64)]",  # [name1: value1, name2: value2, ...] list of param_name -> sampled value pairs
+    "port:best": "[string]",  # best optimized result
     # "port:log_out_sr": None,  # output info messages
 }
 

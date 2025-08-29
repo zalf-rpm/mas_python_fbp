@@ -14,16 +14,18 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
 import os
 import sys
-import zalfmas_fbp.run.ports as p
-import zalfmas_fbp.run.components as c
+
+import capnp
 import zalfmas_capnp_schemas
 
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 import climate_capnp
+import fbp_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -34,25 +36,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     while ports["cs"] and ports["ds"]:
         try:
-            cs_msg = await ports["cs"].read()
-            if cs_msg.which() == "done":
-                ports["cs"] = None
-                continue
-
-            cs_ip = cs_msg.value.as_struct(fbp_capnp.IP)
-            service = None
-            try:
-                service = cs_ip.content.as_interface(climate_capnp.Service)
-            except Exception as e:
-                try:
-                    service = await ports.connection_manager.try_connect(
-                        cs_ip.content.as_text(),
-                        cast_as=climate_capnp.Service,
-                        retry_secs=1,
-                    )
-                except Exception as e:
-                    print("Error: Couldn't connect to dataset. Exception:", e)
-                    continue
+            service = ports.read_or_connect("cs", cast_as=climate_capnp.Service)
             if service is None:
                 continue
 
