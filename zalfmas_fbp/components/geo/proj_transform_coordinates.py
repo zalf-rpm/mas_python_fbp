@@ -14,16 +14,18 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
 import os
 import sys
-from zalfmas_common import geo, common
-from zalfmas_fbp.run import ports as p, components as c
+
+import capnp
 import zalfmas_capnp_schemas
+from zalfmas_common import common, geo
+
+from zalfmas_fbp.run import components as c
+from zalfmas_fbp.run import ports as p
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
-import climate_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):

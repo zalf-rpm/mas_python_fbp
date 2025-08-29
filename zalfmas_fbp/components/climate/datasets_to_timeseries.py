@@ -14,16 +14,18 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
 import os
 import sys
-import zalfmas_fbp.run.ports as p
-import zalfmas_fbp.run.components as c
+
+import capnp
 import zalfmas_capnp_schemas
 
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
+
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 import climate_capnp
+import fbp_capnp
 import geo_capnp
 
 
@@ -54,7 +56,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             dataset = None
             try:
                 dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
-            except Exception as e:
+            except Exception:
                 try:
                     dataset = ports.connection_manager.try_connect(
                         ds_ip.content.as_text(),
@@ -88,9 +90,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     break
                 for l in ls:
                     rc = l.customData[0].value.as_struct(geo_capnp.RowCol)
-                    attrs = [
-                        {"key": "id", "value": "row-{}_col-{}".format(rc.row, rc.col)}
-                    ]
+                    attrs = [{"key": "id", "value": f"row-{rc.row}_col-{rc.col}"}]
                     if config["to_attr"]:
                         attrs.append({"key": config["to_attr"], "value": l.timeSeries})
                     out_ip = fbp_capnp.IP.new_message(attributes=attrs)

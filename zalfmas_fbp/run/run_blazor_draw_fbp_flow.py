@@ -11,18 +11,18 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
-from collections import defaultdict
 import json
 import os
-from pathlib import Path
 import subprocess as sp
 import sys
 import uuid
-from zalfmas_common import common
+from collections import defaultdict
+
+import capnp
 import channels as chans
-import fbp_capnp
 import common_capnp
+import fbp_capnp
+from zalfmas_common import common
 
 # def get_free_port():
 #    with socket.socket() as s:
@@ -49,7 +49,7 @@ async def start_flow_via_port_infos_sr(config: dict):
 
     # read flow file
     # flow_json = None
-    with open(config["path_to_flow"], "r") as _:
+    with open(config["path_to_flow"]) as _:
         flow_json = json.load(_)
 
     if not flow_json:
@@ -82,7 +82,7 @@ async def start_flow_via_port_infos_sr(config: dict):
     component_id_to_cmd = {}
     # create dict for easy access to cmds
     for ptc in path_to_cmds:
-        with open(ptc, "r") as _:
+        with open(ptc) as _:
             component_id_to_cmd.update(json.load(_))
 
     # a mapping of node_id to lambdas for process creation
