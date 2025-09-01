@@ -1,10 +1,10 @@
 [service]
 id = "d5456d2c-c99e-43a2-a7ac-49b7749f3247"
-name = "channel starter service"
+name = "Channel starter service"
 description = ""
 path_to_channel = "./binaries/channel"
 verbose = false
-fixed_sturdy_ref_token = "channel_starter"
+#fixed_sturdy_ref_token = "channel_starter"
 
 #[[service.registries]]
 #name = "channel starter service"
@@ -14,7 +14,7 @@ fixed_sturdy_ref_token = "channel_starter"
 
 [vat]
 #host = "localhost"
-port = "9989"
+#port = "9989"
 serve_bootstrap = true
 
 # at which resolvers should the vat be registered under the current vat id and optional alias

@@ -17,7 +17,6 @@ import asyncio
 import json
 import os
 import sys
-import uuid
 from collections import defaultdict
 
 import capnp
@@ -135,57 +134,29 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             r.entries[i] = ch
 
 
-default_config = {
-    "id": str(uuid.uuid4()),
-    "name": "local FBP components service",
-    "description": None,
-    "path_to_components_json": "path to components.json here",
-    "path_to_cmds_json": "path to cmds.json here",
-    "host": None,
-    "port": None,
-    "serve_bootstrap": True,
-    "fixed_sturdy_ref_token": None,
-    "reg_sturdy_ref": None,
-    "reg_category": None,
-    "opt:id": "ID of the service",
-    "opt:name": "local FBP components service",
-    "opt:description": "Serves locally startable components",
-    "opt:path_to_components_json": "[string (path)] -> Path to JSON file holding the data for the available components",
-    "opt:path_to_cmds_json": "[string (path)] -> Path to JSON containing the mapping of component id to commandline execution",
-    "opt:host": "[string (IP/hostname)] -> Use this host (e.g. localhost)",
-    "opt:port": "[int] -> Use this port (missing = default = choose random free port)",
-    "opt:serve_bootstrap": "[true | false] -> Is the service reachable directly via its restorer interface",
-    "opt:fixed_sturdy_ref_token": "[string] -> Use this token as the sturdy ref token of this service",
-    "opt:reg_sturdy_ref": "[string (sturdy ref)] -> Connect to registry using this sturdy ref",
-    "opt:reg_category": "[string] -> Connect to registry using this category",
-}
-
-
 async def main():
-    parser = serv.create_default_args_parser("local FBP component start service")
-    config, args = serv.handle_default_service_args(parser, default_config)
+    parser = serv.create_default_args_parser(
+        component_description="local FBP component start service",
+        default_config_path="./configs/local_components_service.toml",
+    )
+    config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
 
-    with open(config["path_to_components_json"]) as f:
+    with open(config["service"]["path_to_components_json"]) as f:
         components = json.load(f)
-    with open(config["path_to_cmds_json"]) as f:
+    with open(config["service"]["path_to_cmds_json"]) as f:
         cmds = json.load(f)
 
     restorer = common.Restorer()
     service = Service(
         components,
         cmds,
-        id=config["id"],
-        name=config["name"],
-        description=config["description"],
+        id=config.get("id", None),
+        name=config.get("name", None),
+        description=config.get("description", None),
         restorer=restorer,
     )
-    await serv.init_and_run_service(
-        {"service": service},
-        config["host"],
-        config["port"],
-        serve_bootstrap=config["serve_bootstrap"],
-        name_to_service_srs={"service": config["fixed_sturdy_ref_token"]},
-        restorer=restorer,
+    await serv.init_and_run_service_from_config(
+        config=config, service=service, restorer=restorer
     )
 
 

@@ -18,10 +18,12 @@ import sys
 
 import tomli
 import zalfmas_capnp_schemas
+from capnp.lib.capnp import KjException
 from zalfmas_common import common
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
+import common_capnp
 
 
 async def update_config_from_port(config, port):
@@ -29,17 +31,19 @@ async def update_config_from_port(config, port):
         toml_config = {}
         try:
             conf_msg = await port.read()
-            if conf_msg.which() != "done":
-                conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-                # assume it's toml
-                conf_toml_str = conf_ip.content.as_text()
-                toml_config = tomli.loads(conf_toml_str)
-                config.update(toml_config)
+            if conf_msg.which() == "done":
+                return None
+            conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
+            # assume it's toml
+            conf_toml_str = conf_ip.content.as_text()
+            toml_config = tomli.loads(conf_toml_str)
+            config.update(toml_config)
         except Exception as e:
             print(
                 f"{os.path.basename(__file__)} update_config_from_port: toml_config: {toml_config} Exception:",
                 e,
             )
+    return config
 
 
 class PortConnector:
@@ -187,6 +191,30 @@ class PortConnector:
             print(
                 f"{os.path.basename(__file__)}: Exception connecting to ports via CMD config:\n{config}\n Exception: {e}"
             )
+
+    async def read_or_connect(self, in_port_id, cast_as):
+        try:
+            msg = await self.ins[in_port_id].read()
+            if msg.which() == "done":
+                self.ins[in_port_id] = None
+                return None
+        except KjException:
+            return None
+
+        ip = msg.value.as_struct(fbp_capnp.IP)
+        service = None
+        try:
+            service = ip.content.as_interface(cast_as)
+        except KjException:
+            try:
+                service = await self.connection_manager.try_connect(
+                    ip.content.as_text(),
+                    cast_as=cast_as,
+                    retry_secs=1,
+                )
+            except Exception as e:
+                print("Error: Couldn't connect to dataset. Exception:", e)
+        return service
 
     @staticmethod
     async def create_from_port_infos_reader(

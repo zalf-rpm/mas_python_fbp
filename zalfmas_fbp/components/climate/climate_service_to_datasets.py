@@ -36,25 +36,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     while ports["cs"] and ports["ds"]:
         try:
-            cs_msg = await ports["cs"].read()
-            if cs_msg.which() == "done":
-                ports["cs"] = None
-                continue
-
-            cs_ip = cs_msg.value.as_struct(fbp_capnp.IP)
-            service = None
-            try:
-                service = cs_ip.content.as_interface(climate_capnp.Service)
-            except Exception:
-                try:
-                    service = await ports.connection_manager.try_connect(
-                        cs_ip.content.as_text(),
-                        cast_as=climate_capnp.Service,
-                        retry_secs=1,
-                    )
-                except Exception as e:
-                    print("Error: Couldn't connect to dataset. Exception:", e)
-                    continue
+            service = ports.read_or_connect("cs", cast_as=climate_capnp.Service)
             if service is None:
                 continue
 

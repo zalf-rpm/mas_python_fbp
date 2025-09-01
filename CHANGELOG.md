@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.16](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.15...v0.2.16) (2025-08-29)
+
+
+### Bug Fixes
+
+* remove repository url and rely on default ([5299e41](https://github.com/zalf-rpm/mas_python_fbp/commit/5299e41146d859206f2b507abcd8dfd72b1f2ae2))
+
+## [0.2.15](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.14...v0.2.15) (2025-08-29)
+
+
+### Features
+
+* add ruff config ([ff60a28](https://github.com/zalf-rpm/mas_python_fbp/commit/ff60a28a7e8744efb5e60f90566371c2da9b0d91))
+* **CD:** push to pypi instead of test pypi ([e502def](https://github.com/zalf-rpm/mas_python_fbp/commit/e502def307be2a95e0db612e452be178fc451aca))
+
 ## [0.2.14](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.13...v0.2.14) (2025-08-25)
 
 
