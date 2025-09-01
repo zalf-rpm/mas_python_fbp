@@ -14,20 +14,21 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
-from collections import defaultdict
-from datetime import timedelta, date
 import os
 import sys
-from zalfmas_common import common
-import zalfmas_fbp.run.ports as p
-import zalfmas_fbp.run.components as c
+from collections import defaultdict
+from datetime import date, timedelta
+
+import capnp
 import zalfmas_capnp_schemas
+from zalfmas_common import common
+
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
-import geo_capnp
 import climate_capnp
+import fbp_capnp
 
 
 def capnp_date_to_py_date(capnp_date):

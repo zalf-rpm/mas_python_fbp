@@ -13,21 +13,15 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import argparse
-import capnp
 import os
-from pathlib import Path
 import subprocess as sp
 import sys
+
 import tomlkit as tk
-import uuid
-from zalfmas_common import common
-from zalfmas_common import service as serv
 import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 
 
 def create_default_fbp_component_args_parser(component_description):

@@ -14,14 +14,16 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import capnp
 import csv
 import json
 import os
 import sys
+
+import capnp
+import zalfmas_capnp_schemas
+
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
-import zalfmas_capnp_schemas
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp

@@ -23,6 +23,7 @@ from zalfmas_common import common
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
+import common_capnp
 
 
 async def update_config_from_port(config, port):
