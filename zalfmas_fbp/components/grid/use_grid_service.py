@@ -11,8 +11,6 @@
 # Maintainers:
 # Currently maintained by the authors.
 #
-# This file is part of the util library used by models created at the Institute of
-# Landscape Systems Analysis at the ZALF.
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 # remote debugging via commandline
@@ -25,7 +23,6 @@ import sys
 import capnp
 import zalfmas_capnp_schemas
 from zalfmas_common import common
-from zalfmas_services.grid import ascii_grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
@@ -46,14 +43,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     service = None
     if ports["service"]:
-        service = ports.read_or_connect("service", cast_as=grid_capnp.Grid)
-    if service is None and config["path_to_ascii_grid"]:
-        service = await ascii_grid.main(
-            path_to_ascii_grid=config["path_to_ascii_grid"],
-            grid_crs=config["grid_crs"],
-            val_type=config["val_type"],
-            return_service=True
-        )
+        service = ports.read_or_connect("service", cast_as=grid_capnp.Service)
+        if not service:
+            print(
+                f"{os.path.basename(__file__)} No soil service could be received or connected to."
+            )
+            return
 
     try:
         while ports["in"] and ports["out"] and service:

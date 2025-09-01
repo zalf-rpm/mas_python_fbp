@@ -9,28 +9,20 @@
             "name": "Console"
         },
         {
-            "id": "string",
-            "name": "String"
-        },
-        {
-            "id": "file",
-            "name": "File"
-        },
-        {
             "id": "consumers",
             "name": "Consumers"
-        },
-        {
-            "id": "producers",
-            "name": "Producers"
         },
         {
             "id": "data-transform",
             "name": "Data/Transform"
         },
         {
-            "id": "spotpy",
-            "name": "SpotPy"
+            "id": "grid",
+            "name": "Grid"
+        },
+        {
+            "id": "file",
+            "name": "File"
         },
         {
             "id": "geo",
@@ -39,222 +31,25 @@
         {
             "id": "ip",
             "name": "InformationPackets"
+        },
+        {
+            "id": "producers",
+            "name": "Producers"
+        },
+        {
+            "id": "soil",
+            "name": "Soil"
+        },
+        {
+            "id": "spotpy",
+            "name": "SpotPy"
+        },
+        {
+            "id": "string",
+            "name": "String"
         }
     ],
     "entries": [
-        {
-            "categoryId": "ip",
-            "component": {
-                "info": {
-                    "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
-                    "name": "copy",
-                    "description": "Copy IP to multiple outputs."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "in"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "ip",
-            "component": {
-                "info": {
-                    "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
-                    "name": "lift attributes",
-                    "description": "Lift attributes."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "in"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "geo",
-            "component": {
-                "info": {
-                    "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
-                    "name": "create lat lon coords",
-                    "description": "Create lat/lon coords for region."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "country_ids"
-                    }, {
-                        "name": "region"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "lat_lon_coords"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "geo",
-            "component": {
-                "info": {
-                    "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
-                    "name": "get lat/lon grid value",
-                    "description": "Get value from a lat/lon grid."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "in"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "geo",
-            "component": {
-                "info": {
-                    "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
-                    "name": "Proj transform coords",
-                    "description": "Transform coordinates using the Proj library."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "in"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "geo",
-            "component": {
-                "info": {
-                    "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
-                    "name": "-> geo coord",
-                    "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "vals"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "coord"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "producers",
-            "component": {
-                "info": {
-                    "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
-                    "name": "africa calibration producer",
-                    "description": "Producer to work in an Africa calibration flow."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "coords"
-                    }, {
-                        "name": "region"
-                    }, {
-                        "name": "params"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "env"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "consumers",
-            "component": {
-                "info": {
-                    "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
-                    "name": "africa calibration",
-                    "description": "Consumer to work in an Africa calibration flow."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "result"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "year_to_yield"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "data-transform",
-            "component": {
-                "info": {
-                    "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
-                    "name": "ordered flatten nested dicts",
-                    "description": "ordered_flatten_nested_dicts"
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "conf"
-                    }, {
-                        "name": "in"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
         {
             "categoryId": "climate",
             "component": {
@@ -359,65 +154,42 @@
             }
         },
         {
-            "categoryId": "string",
+            "categoryId": "consumers",
             "component": {
                 "info": {
-                    "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
-                    "name": "split string",
-                    "description": "Splits a string along delimiter."
+                    "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
+                    "name": "africa calibration",
+                    "description": "Consumer to work in an Africa calibration flow."
                 },
                 "type": "standard",
                 "inPorts": [
                     {
-                        "name": "in"
-                    }, {
                         "name": "conf"
+                    }, {
+                        "name": "result"
                     }
                 ],
                 "outPorts": [
                     {
-                        "name": "out"
+                        "name": "year_to_yield"
                     }
                 ]
             }
         },
         {
-            "categoryId": "string",
+            "categoryId": "data-transform",
             "component": {
                 "info": {
-                    "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
-                    "name": "split string -> array",
-                    "description": "Splits a string along delimiter and adds them into an array."
+                    "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
+                    "name": "ordered flatten nested dicts",
+                    "description": "ordered_flatten_nested_dicts"
                 },
                 "type": "standard",
                 "inPorts": [
                     {
-                        "name": "in"
-                    }, {
                         "name": "conf"
-                    }
-                ],
-                "outPorts": [
-                    {
-                        "name": "out"
-                    }
-                ]
-            }
-        },
-        {
-            "categoryId": "string",
-            "component": {
-                "info": {
-                    "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
-                    "name": "into array",
-                    "description": "Collects values into an array."
-                },
-                "type": "standard",
-                "inPorts": [
-                    {
-                        "name": "in"
                     }, {
-                        "name": "conf"
+                        "name": "in"
                     }
                 ],
                 "outPorts": [
@@ -491,6 +263,223 @@
             }
         },
         {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
+                    "name": "create lat lon coords",
+                    "description": "Create lat/lon coords for region."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "country_ids"
+                    }, {
+                        "name": "region"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "lat_lon_coords"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
+                    "name": "get lat/lon grid value",
+                    "description": "Get value from a lat/lon grid."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
+                    "name": "Proj transform coords",
+                    "description": "Transform coordinates using the Proj library."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "geo",
+            "component": {
+                "info": {
+                    "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
+                    "name": "-> geo coord",
+                    "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "vals"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "coord"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "grid",
+            "component": {
+                "info": {
+                    "id": "cb6720d6-bc33-445d-b2c1-aa3842219c81",
+                    "name": "Use grid service",
+                    "description": "Use the grid service to get the grid value at a given Lat/Lon coord."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }, {
+                        "name": "service"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "ip",
+            "component": {
+                "info": {
+                    "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
+                    "name": "copy",
+                    "description": "Copy IP to multiple outputs."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "ip",
+            "component": {
+                "info": {
+                    "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
+                    "name": "lift attributes",
+                    "description": "Lift attributes."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "producers",
+            "component": {
+                "info": {
+                    "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+                    "name": "africa calibration producer",
+                    "description": "Producer to work in an Africa calibration flow."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "coords"
+                    }, {
+                        "name": "region"
+                    }, {
+                        "name": "params"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "env"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "soil",
+            "component": {
+                "info": {
+                    "id": "89da0cb9-2079-4245-aecc-068194bc1637",
+                    "name": "Use soil service",
+                    "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }, {
+                        "name": "service"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
             "categoryId": "spotpy",
             "component": {
                 "info": {
@@ -557,6 +546,75 @@
                         "name": "sampled_params"
                     }, {
                         "name": "best"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+                    "name": "split string",
+                    "description": "Splits a string along delimiter."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
+                    "name": "split string -> array",
+                    "description": "Splits a string along delimiter and adds them into an array."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
+                    "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+                    "name": "into array",
+                    "description": "Collects values into an array."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
                     }
                 ]
             }

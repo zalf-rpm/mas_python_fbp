@@ -1,10 +1,10 @@
 [service]
 id = "45579662-bdf0-49db-9808-860135170794"
-name = "local FBP components service"
-description = ""
+name = "Local FBP components service"
+description = "Service which executes components locally on the machine it has been started."
 path_to_components_json = "./configs/local_components.json"
 path_to_cmds_json = "./configs/local_cmds.json"
-fixed_sturdy_ref_token = "local_components"
+#fixed_sturdy_ref_token = "local_components"
 # sturdy ref to a container which is used by the service to store it's data/state etc.
 #storage_container_sr = "capnp://the_host_key@host:port/a_sturdy_ref_token"
 
@@ -17,7 +17,7 @@ fixed_sturdy_ref_token = "local_components"
 
 [vat]
 #host = "localhost"
-port = "9988"
+#port = "9988"
 serve_bootstrap = true
 
 # at which resolvers should the vat be registered under the current vat id and optional alias
