@@ -18,6 +18,7 @@
     "cb6720d6-bc33-445d-b2c1-aa3842219c81": "python -m zalfmas_fbp.components.grid.use_grid_service",
     "b1e875af-4ee7-4937-8824-17d185216ec4": "python -m zalfmas_fbp.components.ip.copy",
     "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
+    "bc9f8bfd-db77-49ed-a347-a26bb37084d1": "python -m zalfmas_fbp.components.management.ilr_sowing_harvest_dates",
     "4b324ff3-a91d-434b-a2bf-8363bc4828ec": "python -m zalfmas_fbp.components.producers.africa_calibration_producer",
     "89da0cb9-2079-4245-aecc-068194bc1637": "python -m zalfmas_fbp.components.soil.use_soil_service",
     "028290bb-a38c-4599-9948-fc73723e9654": "python -m zalfmas_fbp.components.spotpy.load_calibration_params",

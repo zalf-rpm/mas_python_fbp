@@ -33,6 +33,10 @@
             "name": "InformationPackets"
         },
         {
+            "id": "management",
+            "name": "Management"
+        },
+        {
             "id": "producers",
             "name": "Producers"
         },
@@ -411,6 +415,29 @@
                     "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
                     "name": "lift attributes",
                     "description": "Lift attributes."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "management",
+            "component": {
+                "info": {
+                    "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
+                    "name": "ILR seed/harvest dates",
+                    "description": "Get closest ILR seed/harvest dates to lat/lon location."
                 },
                 "type": "standard",
                 "inPorts": [
