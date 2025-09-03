@@ -114,41 +114,41 @@ def print_status_final(sampler_status, stream):
 
     if sampler_status.optimization_direction == "minimize":
         print(
-            "Minimal objective value: %g" % (sampler_status.objectivefunction_min),
+            f"Minimal objective value: {sampler_status.objectivefunction_min:g}",
             file=stream,
         )
         print("Corresponding parameter setting:", file=stream)
         for i in range(sampler_status.parameters):
-            text = "%s: %g" % (sampler_status.parnames[i], sampler_status.params_min[i])
+            text = f"{sampler_status.parnames[i]}: {sampler_status.params_min[i]:g}"
             print(text, file=stream)
 
     if sampler_status.optimization_direction == "maximize":
         print(
-            "Maximal objective value: %g" % (sampler_status.objectivefunction_max),
+            f"Maximal objective value: {sampler_status.objectivefunction_max:g}",
             file=stream,
         )
         print("Corresponding parameter setting:", file=stream)
         for i in range(sampler_status.parameters):
-            text = "%s: %g" % (sampler_status.parnames[i], sampler_status.params_max[i])
+            text = f"{sampler_status.parnames[i]}: {sampler_status.params_max[i]:g}"
             print(text, file=stream)
 
     if sampler_status.optimization_direction == "grid":
         print(
-            "Minimal objective value: %g" % (sampler_status.objectivefunction_min),
+            f"Minimal objective value: {sampler_status.objectivefunction_min:g}",
             file=stream,
         )
         print("Corresponding parameter setting:", file=stream)
         for i in range(sampler_status.parameters):
-            text = "%s: %g" % (sampler_status.parnames[i], sampler_status.params_min[i])
+            text = f"{sampler_status.parnames[i]}: {sampler_status.params_min[i]:g}"
             print(text, file=stream)
 
         print(
-            "Maximal objective value: %g" % (sampler_status.objectivefunction_max),
+            f"Maximal objective value: {sampler_status.objectivefunction_max:g}",
             file=stream,
         )
         print("Corresponding parameter setting:", file=stream)
         for i in range(sampler_status.parameters):
-            text = "%s: %g" % (sampler_status.parnames[i], sampler_status.params_max[i])
+            text = f"{sampler_status.parnames[i]}: {sampler_status.params_max[i]:g}"
             print(text, file=stream)
 
     print("******************************\n", file=stream)

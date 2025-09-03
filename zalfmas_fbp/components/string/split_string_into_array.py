@@ -35,21 +35,26 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     cast_to = None
     if config["cast_to"] == "float":
-        cast_to = lambda v: float(v)
+        def cast_to(v):
+            return float(v)
     elif config["cast_to"] == "int":
-        cast_to = lambda v: int(v)
+        def cast_to(v):
+            return int(v)
 
-    init_list = lambda any_p, len_: any_p.init_as_list(
-        capnp._ListSchema(capnp.types.Text), len_
-    )
+    def init_list(any_p, len_):
+        return any_p.init_as_list(
+            capnp._ListSchema(capnp.types.Text), len_
+        )
     if config["cast_to"] == "float":
-        init_list = lambda any_p, len_: any_p.init_as_list(
-            capnp._ListSchema(capnp.types.Float64), len_
-        )
+        def init_list(any_p, len_):
+            return any_p.init_as_list(
+                    capnp._ListSchema(capnp.types.Float64), len_
+                )
     elif config["cast_to"] == "int":
-        init_list = lambda any_p, len_: any_p.init_as_list(
-            capnp._ListSchema(capnp.types.Int64), len_
-        )
+        def init_list(any_p, len_):
+            return any_p.init_as_list(
+                    capnp._ListSchema(capnp.types.Int64), len_
+                )
 
     while ports["in"] and ports["out"]:
         try:

@@ -39,7 +39,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     struct_fieldnames = struct_type.schema.fieldnames
     struct_fields = struct_type.schema.fields
     id_col = config["id_col"]
-    send_ids = config["send_ids"].split(",") if config["send_ids"] is not None else None
+    send_ids = config["send_ids"] if config["send_ids"] is not None else None
 
     if ports["out"]:
         try:
