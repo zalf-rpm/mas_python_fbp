@@ -1,0 +1,164 @@
+#!/usr/bin/python
+# -*- coding: UTF-8
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+# Authors:
+# Michael Berg-Mohnicke <michael.berg@zalf.de>
+#
+# Maintainers:
+# Currently maintained by the authors.
+#
+# Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+
+import asyncio
+import json
+import os
+import sys
+
+import capnp
+import zalfmas_capnp_schemas
+
+import zalfmas_fbp.run.components as c
+import zalfmas_fbp.run.ports as p
+
+sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
+import fbp_capnp
+
+
+async def run_component(port_infos_reader_sr: str, config: dict):
+    ports = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
+    )
+    await p.update_config_from_port(config, ports["conf"])
+
+    while ports["in"] and ports["out"]:
+        try:
+            in_msg = await ports["in"].read()
+            # check for end of data from in port
+            if in_msg.which() == "done":
+                ports["in"] = None
+                continue
+
+            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+            attrs = {kv.key: kv.value for kv in in_ip.attributes}
+            j_content = json.loads(in_ip.content.as_text())
+
+            # allowed_operation = update | replace | add
+            # update = structures of j and spec have to match exactly
+            # replace = if j doesn't match, sub-parts will be replaced according to spec
+            # add = if keys are missing, the will be added and set to according sub-spec
+            def change(j, spec, allowed_operation="update"):
+                for k, v in spec.items():
+                    i = int(k) if k.isdigit() else None
+                    # check the key against j to be changed
+                    # the key is an index and points outside the array j
+                    if i and type(j) is list:
+                        if i >= len(j):
+                            if allowed_operation == "add":
+                                j.extend([None] * (i + 1 - len(j)))
+                                j[i] = v
+                            else:
+                                continue
+                    # the key is not in the dict j
+                    elif type(j) is dict:
+                        if k not in j:
+                            if allowed_operation == "add":
+                                j[k] = v
+                            else:
+                                continue
+
+                    # change according to the type of v
+                    # v is a sub-spec (dict), which means recurse into substructure
+                    if type(v) is dict:
+                        # access a list
+                        if i and type(j) is list:
+                            # j[i] is a pointer, so we recurse
+                            if type(j[i]) in [list, dict]:
+                                change(j[i], v, allowed_operation)
+                            elif allowed_operation == "replace":
+                                j[i] = v
+                        # access a dict
+                        else:
+                            # j[k] is a pointer, so we can recurse
+                            if type(j[k]) in [list, dict]:
+                                change(j[k], v, allowed_operation)
+                            elif allowed_operation == "replace":
+                                j[k] = v
+                    elif type(v) is list:
+                        # access a list
+                        if i and type(j) is list and allowed_operation == "replace":
+                            j[i] = v
+                        # access a dict
+                        elif allowed_operation == "replace":
+                            j[k] = v
+                    elif type(v) is str and v in attrs:
+                        if i and type(j) is list:
+                            j[i] = attrs[v]
+                        else:
+                            j[k] = attrs[v]
+                    else:
+                        if i and type(j) is list:
+                            j[i] = v
+                        else:
+                            j[k] = v
+
+            for op in ["update", "replace", "add"]:
+                if op in config:
+                    change(j_content, config[op], allowed_operation=op)
+
+            out_ip = fbp_capnp.IP.new_message(
+                content=json.dumps(j_content),
+                attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),
+            )
+            await ports["out"].write(value=out_ip)
+
+        except Exception as e:
+            print(f"{os.path.basename(__file__)} Exception:", e)
+
+    await ports.close_out_ports()
+    print(f"{os.path.basename(__file__)}: process finished")
+
+"""
+# structures have to match
+#[update]
+#customId = 1
+#cropRotationTemplates.WW.0.worksteps.0.date = 2020-01-03
+
+# replace missing structure 
+#[replace]
+
+# add unknown keys
+#[add]
+"""
+
+
+default_config = {
+    "update": {
+        "customId": {"id": 1, "bla": 2},
+        "customId2": 5,
+        "params": {"siteParameters": {"Latitude": 100}},
+        "cropRotationTemplates.WW.0.worksteps = 5": None,
+        "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
+        "cropRotationTemplates.WW.0.1.worksteps = 5": None,
+        "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
+    },
+    "port:conf": "[TOML string] -> component configuration",
+    "port:in": "[JSON string]",
+    "port:out": "[JSON string] -> updated JSON string"
+}
+
+
+def main():
+    parser = c.create_default_fbp_component_args_parser(
+        "Create a MONICA env"
+    )
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
+        parser, default_config
+    )
+    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
+if __name__ == "__main__":
+    main()

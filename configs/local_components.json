@@ -33,6 +33,10 @@
             "name": "InformationPackets"
         },
         {
+            "id": "json",
+            "name": "JSON"
+        },
+        {
             "id": "management",
             "name": "Management"
         },
@@ -72,7 +76,8 @@
                     {
                         "name": "ds"
                     }
-                ]
+                ],
+                "defaultConfig": "#to_attr=\n#create_substream=false\n"
             }
         },
         {
@@ -93,7 +98,8 @@
                     {
                         "name": "ts"
                     }
-                ]
+                ],
+                "defaultConfig": "#no_of_locations_at_once = 10\n#continue_after_location_id = None\n#to_attr = \n#create_substream = false\n#maintain_incoming_substreams = false"
             }
         },
         {
@@ -116,7 +122,8 @@
                     {
                         "name": "out"
                     }
-                ]
+                ],
+                "defaultConfig": "#to_attr = \n#from_attr = \n#subrange_start = iso-date\n#subrange_end = iso-date\n#subheader = [\"tavg\", \"precip\"]\n#transposed = false\n#maintain_substreams = false"
             }
         },
         {
@@ -429,6 +436,30 @@
                         "name": "out"
                     }
                 ]
+            }
+        },
+        {
+            "categoryId": "json",
+            "component": {
+                "info": {
+                    "id": "67b31990-452a-4058-8a99-6785be345216",
+                    "name": "Update JSON",
+                    "description": "Update JSON datastructure."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ],
+                "defaultConfig": "# structures have to match\n#[update]\n#customId = 1\n#cropRotationTemplates.WW.0.worksteps.0.date = 2020-01-03\n\n# replace missing structure \n#[replace]\n\n# add unknown keys\n#[add]\n"
             }
         },
         {
