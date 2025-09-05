@@ -242,16 +242,17 @@
                 "type": "standard",
                 "inPorts": [
                     {
+                        "name": "attr"
+                    }, {
                         "name": "conf"
                     }
                 ],
                 "outPorts": [
                     {
-                        "name": "attr"
-                    }, {
                         "name": "out"
                     }
-                ]
+                ],
+                "defaultConfig": "#to_attr = \"setup\"\n#file = \"\"\n#lines_mode = true\n#skip_lines = 0"
             }
         },
         {
@@ -390,6 +391,30 @@
                         "name": "out"
                     }
                 ]
+            }
+        },
+        {
+            "categoryId": "ip",
+            "component": {
+                "info": {
+                    "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
+                    "name": "add attribute",
+                    "description": "Add attribute to incoming IP."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ],
+                "defaultConfig": "#to_attr = \"attr\""
             }
         },
         {

@@ -16,6 +16,7 @@
     "b753df51-40f1-4778-ac47-82858c8ef80c": "python -m zalfmas_fbp.components.geo.proj_transform_coordinates",
     "66ea3fce-80f7-4ab6-b77a-0966cb7c2793": "python -m zalfmas_fbp.components.geo.to_geo_coord",
     "cb6720d6-bc33-445d-b2c1-aa3842219c81": "python -m zalfmas_fbp.components.grid.use_grid_service",
+    "1d442f41-dee4-4973-ad99-09855af1d7ad": "python -m zalfmas_fbp.components.ip.add_attribute",
     "b1e875af-4ee7-4937-8824-17d185216ec4": "python -m zalfmas_fbp.components.ip.copy",
     "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
     "67b31990-452a-4058-8a99-6785be345216": "python -m zalfmas_fbp.components.json.update_json",
