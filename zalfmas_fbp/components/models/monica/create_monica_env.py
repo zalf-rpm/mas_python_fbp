@@ -94,15 +94,28 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             attrs = {kv.key: kv.value for kv in in_ip.attributes}
-            llcoord = attrs.pop(config["coord_attr"]).as_struct(geo_capnp.LatLonCoord)
-            setup = attrs.pop(config["setup_attr"]).as_struct(sim_setup_capnp.Setup)
+            if "coord" in config:
+                ll_coord, is_capnp = p.get_config_val(
+                    config, "dgm", attrs, as_struct=geo_capnp.LatLonCoord, remove=True
+                )
+                ll_coord = ll_coord if is_capnp else geo_capnp.LatLonCoord.new_message(**ll_coord)
+            else:
+                continue
+
+            if "setup" in config:
+                setup, is_capnp = p.get_config_val(
+                    config, "dgm", attrs, as_struct=sim_setup_capnp.Setup, remove=True
+                )
+                setup = setup if is_capnp else sim_setup_capnp.Setup.new_message(**config["setup"])
+            else:
+                continue
 
             env_template = create_env(setup.simJson, setup.cropJson, setup.siteJson, setup.cropId)
 
             env_template["params"]["userCropParameters"]["__enable_vernalisation_factor_fix__"] = setup.useVernalisationFix
 
-            if config["ilr_attr"] in attrs:
-                ilr = attrs.pop(config["ilr_attr"]).as_struct(mgmt_capnp.ILRDates)
+            if config["ilr"] in attrs:
+                ilr = attrs.pop(config["ilr"]).as_struct(mgmt_capnp.ILRDates)
                 worksteps = env_template["cropRotation"][0]["worksteps"]
                 sowing_ws = next(filter(lambda ws: ws["type"][-6:] == "Sowing", worksteps))
                 if ilr._has("sowing"):
@@ -130,47 +143,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             #print("soil:", soil_profile)
             #env_template["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile.layers
 
-            # setting groundwater level
-            #if setup.groundwaterLevel:
-            #    groundwaterlevel = 20
-            #    layer_depth = 0
-            #    for layer in soil_profile:
-            #        if layer.get("is_in_groundwater", False):
-            #            groundwaterlevel = layer_depth
-            #            #print("setting groundwaterlevel of soil_id:", str(soil_id), "to", groundwaterlevel, "m")
-            #            break
-            #        layer_depth += get_value(layer["Thickness"])
-            #    env_template["params"]["userEnvironmentParameters"]["MinGroundwaterDepthMonth"] = 3
-            #    env_template["params"]["userEnvironmentParameters"]["MinGroundwaterDepth"] = [max(0, groundwaterlevel - 0.2) , "m"]
-            #    env_template["params"]["userEnvironmentParameters"]["MaxGroundwaterDepth"] = [groundwaterlevel + 0.2, "m"]
-
-            # setting impenetrable layer
-            #if setup.impenetrableLayer:
-            #    impenetrable_layer_depth = get_value(env_template["params"]["userEnvironmentParameters"]["LeachingDepth"])
-            #    layer_depth = 0
-            #    for layer in soil_profile:
-            #        if layer.get("is_impenetrable", False):
-            #            impenetrable_layer_depth = layer_depth
-            #            #print("setting leaching depth of soil_id:", str(soil_id), "to", impenetrable_layer_depth, "m")
-            #            break
-            #        layer_depth += get_value(layer["Thickness"])
-            #    env_template["params"]["userEnvironmentParameters"]["LeachingDepth"] = [impenetrable_layer_depth, "m"]
-            #    env_template["params"]["siteParameters"]["ImpenetrableLayerDepth"] = [impenetrable_layer_depth, "m"]
-
-            if setup.elevation and config["dgm_attr"] in attrs:
-                height_nn = (
-                    attrs.pop(config["dgm_attr"]).as_struct(grid_capnp.Grid.Value).f
+            if setup.elevation and "dgm" in config:
+                height_nn, is_capnp = p.get_config_val(
+                    config, "dgm", attrs, as_struct=grid_capnp.Grid.Value, remove=True
                 )
-                env_template["params"]["siteParameters"]["heightNN"] = height_nn
-
-            if setup.slope and config["slope_attr"] in attrs:
-                slope = (
-                    attrs.pop(config["slope_attr"]).as_struct(grid_capnp.Grid.Value).f
+                env_template["params"]["siteParameters"]["heightNN"] = (
+                    height_nn.f if is_capnp else height_nn
                 )
-                env_template["params"]["siteParameters"]["slope"] = slope / 100.0
+
+            if setup.slope and "slope" in config:
+                slope, is_capnp = p.get_config_val(
+                    config, "slope", attrs, as_struct=grid_capnp.Grid.Value, remove=True
+                )
+                env_template["params"]["siteParameters"]["slope"] = (slope.f if is_capnp else slope) / 100.0
 
             if setup.latitude:
-                env_template["params"]["siteParameters"]["Latitude"] = llcoord.lat
+                env_template["params"]["siteParameters"]["Latitude"] = ll_coord.lat
 
             if setup.co2 > 0:
                 env_template["params"]["userEnvironmentParameters"]["AtmosphericCO2"] = setup.co2
@@ -202,30 +190,44 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             env_template["params"]["simulationParameters"]["EmergenceMoistureControlOn"] = setup.emergenceMoistureControlOn
             env_template["params"]["simulationParameters"]["EmergenceFloodingControlOn"] = setup.emergenceFloodingControlOn
 
-            if config["id_attr"] in attrs:
-                id_ = attrs[config["id_attr"]].as_text()
+            if "id" in config:
+                id_, is_capnp = p.get_config_val("dgm", attrs, as_text=True, remove=False)
             else:
                 id_ = str(uuid.uuid4())
-                attrs["id_attr"] = id_
+                attrs["id"] = id_
 
             env_template["customId"] = {
                 "setup_id": setup.runId,
                 "id": id_,
                 "crop_id": setup.cropId,
-                "lat": llcoord.lat, "lon": llcoord.lon
+                "lat": ll_coord.lat, "lon": ll_coord.lon
             }
 
             capnp_env = model_capnp.Env.new_message()
 
-            if config["climate_attr"] in attrs:
-                timeseries = attrs.pop(config["climate_attr"]).as_interface(climate_capnp.TimeSeries)
-                capnp_env.timeSeries = timeseries
-            else:
-                env_template["pathToClimateCSV"] = "/run/user/1000/gvfs/sftp:host=login01.cluster.zalf.de,user=rpm/beegfs/common/data/climate/dwd/csvs/germany/row-0/col-181.csv"
+            if "climate" in config:
+                timeseries, is_capnp = p.get_config_val(
+                    config, "climate", attrs, as_interface=climate_capnp.TimeSeries, remove=True
+                )
+                if is_capnp:
+                    capnp_env.timeSeries = timeseries
+                else:
+                    env_template["pathToClimateCSV"] = timeseries
 
-            if config["soil_attr"] in attrs:
-                soil_profile = attrs.pop(config["soil_attr"]).as_struct(soil_capnp.Profile)
-                capnp_env.soilProfile = soil_profile
+            if "soil" in config:
+                soil_profile, is_capnp = p.get_config_val(
+                    config,
+                    "soil",
+                    attrs,
+                    as_interface=soil_capnp.Profile,
+                    remove=True,
+                )
+                if is_capnp:
+                    capnp_env.soilProfile = soil_profile
+                else:
+                    env_template["params"]["siteParameters"][
+                        "SoilProfileParameters"
+                    ] = soil_profile
 
             capnp_env.rest = common_capnp.StructuredText.new_message(
                 value=json.dumps(env_template), structure={"json": None}
@@ -244,17 +246,17 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "sim_json": "sim_bgr.json",
-    "crop_json": "crop_bgr.json",
-    "site_json": "site.json",
-    "dgm_attr": "dgm",
-    "slope_attr": "slope",
-    "climate_attr": "climate",
-    "soil_attr": "soil",
-    "coord_attr": "latlon",
-    "setup_attr": "setup",
-    "id_attr": "id",
-    "ilr_attr": "ilr",
+    "sim_json": "@sim.json",
+    "crop_json": "@crop.json",
+    "site_json": "@site.json",
+    "dgm": "@dgm",
+    "slope": "@slope",
+    "climate": "@climate",
+    "soil": "@soil",
+    "coord": "@latlon",
+    "setup": "@setup",
+    "id": "@id",
+    "ilr": "@ilr",
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[string (MONICA JSON result)] -> receive MONICA JSON result",
     "port:out": "[string (MONICA JSON env)]"

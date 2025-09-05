@@ -23,8 +23,28 @@ from zalfmas_common import common
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import fbp_capnp
-import common_capnp
 
+
+def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
+    if key in config:
+        cval = config["key"]
+        if type(cval) is str and len(cval) > 0 and cval[0] == "@" and cval[1:] in attrs:
+            if remove:
+                attr_val = attrs.pop(cval[1:])
+            else:
+                attr_val = attrs[cval[1:]]
+            if as_struct:
+                return attr_val.as_struct(as_struct), True
+            elif as_interface:
+                return attr_val.as_interface(as_interface), True
+            elif as_text:
+                return attr_val.as_text(), True
+            else:
+                return attr_val, True
+        else:
+            return cval, False
+    else:
+        return None, None
 
 async def update_config_from_port(config, port):
     if port:
