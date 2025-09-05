@@ -29,20 +29,13 @@ import fbp_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "attr"], outs=["out"]
+        port_infos_reader_sr, ins=["conf"], outs=["out"]
     )
     await p.update_config_from_port(config, ports["conf"])
 
     skip_lines = int(config["skip_lines"])
     if config["file"]:
         try:
-            attr = None
-            if ports["attr"]:
-                attr_msg = await ports["attr"].read()
-                if attr_msg.which() != "done":
-                    attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
-                    attr = attr_ip.content
-
             if ports["out"]:
                 with open(config["file"]) as _:
                     if config["lines_mode"]:
@@ -51,19 +44,23 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                 skip_lines -= 1
                                 continue
 
-                            out_ip = fbp_capnp.IP.new_message(content=line)
-                            if attr and config["to_attr"]:
+                            out_ip = fbp_capnp.IP.new_message()
+                            if "to_attr" in config:
                                 out_ip.attributes = [
-                                    {"key": config["to_attr"], "value": attr}
+                                    {"key": config["to_attr"], "value": line}
                                 ]
+                            else:
+                                out_ip.content = line
                             await ports["out"].write(value=out_ip)
                     else:
                         file_content = _.read()
-                        out_ip = fbp_capnp.IP.new_message(content=file_content)
-                        if attr and config["to_attr"]:
+                        out_ip = fbp_capnp.IP.new_message()
+                        if "to_attr" in config:
                             out_ip.attributes = [
-                                {"key": config["to_attr"], "value": attr}
+                                {"key": config["to_attr"], "value": file_content}
                             ]
+                        else:
+                            out_ip.content = file_content
                         await ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
@@ -77,16 +74,15 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "to_attr": "setup",
-    "file": "/home/berg/Desktop/bahareh/run_cmd.txt",
+    "to_attr": "attr",
+    "file": "path to file",
     "lines_mode": True,
     "skip_lines": 0,
-    "opt:to_attr": "[string] -> store received content from connected 'attr' port under this name in attributes section of IP",
+    "opt:to_attr": "[string] -> store read file content into 'to_attr'",
     "opt:file": "[string] -> path to file to read",
     "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
     "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
     "port:conf": "[TOML string] -> component configuration",
-    "port:attr": "[anypointer] -> arbitrary content to store as attached attribute with name 'to_attr'",
     "port:out": "[string] -> lines or whole file read",
 }
 
