@@ -228,7 +228,8 @@
                     {
                         "name": "out"
                     }
-                ]
+                ],
+                "defaultConfig": "#id_col = \"id\"\n#send_ids = []  # [1,2,3]\n#file = \"path to csv file\"\n#path_to_capnp_struct = \"bgr.capnp:Setup\",  # \"bla.capnp:MyType\"\n#to_attr ="
             }
         },
         {
@@ -242,8 +243,6 @@
                 "type": "standard",
                 "inPorts": [
                     {
-                        "name": "attr"
-                    }, {
                         "name": "conf"
                     }
                 ],
@@ -271,7 +270,8 @@
                         "name": "conf"
                     }
                 ],
-                "outPorts": []
+                "outPorts": [],
+                "defaultConfig": "#id_attr = \"id\"\n#from_attr = \n#filepath_pattern = \"csv_{id}.csv\"\n#path_to_out_dir = \"path to output dir\"\n#append = false\n#debug = false"
             }
         },
         {

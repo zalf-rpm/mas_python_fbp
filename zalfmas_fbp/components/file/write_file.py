@@ -74,7 +74,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
-
+"""
+#id_attr = "id"
+#from_attr = 
+#filepath_pattern = "csv_{id}.csv"
+#path_to_out_dir = "path to output dir"
+#append = false
+#debug = false
+"""
 default_config = {
     "id_attr": "id",
     "from_attr": None,
