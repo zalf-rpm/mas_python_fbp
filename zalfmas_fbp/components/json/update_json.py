@@ -94,11 +94,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         # access a dict
                         elif allowed_operation == "replace":
                             j[k] = v
-                    elif type(v) is str and v in attrs:
+                    elif type(v) is str:
+                        # use existing function to resolve values from attributes
+                        val, is_capnp = p.get_config_val(
+                            spec,
+                            k,
+                            attrs,
+                            remove=False,
+                        )
                         if i and type(j) is list:
-                            j[i] = attrs[v]
+                            j[i] = val if is_capnp else val
                         else:
-                            j[k] = attrs[v]
+                            j[k] = val if is_capnp else val
                     else:
                         if i and type(j) is list:
                             j[i] = v
@@ -121,19 +128,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
-"""
-# structures have to match
-#[update]
-#customId = 1
-#cropRotationTemplates.WW.0.worksteps.0.date = 2020-01-03
-
-# replace missing structure 
-#[replace]
-
-# add unknown keys
-#[add]
-"""
-
 
 default_config = {
     "update": {
@@ -143,6 +137,7 @@ default_config = {
         "cropRotationTemplates.WW.0.worksteps = 5": None,
         "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
         "cropRotationTemplates.WW.0.1.worksteps = 5": None,
+        "cropRotationTemplates.WW.0.1.worksteps = '@some_attr'": None,
         "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
     },
     "port:conf": "[TOML string] -> component configuration",
