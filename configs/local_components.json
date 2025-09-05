@@ -41,6 +41,10 @@
             "name": "Management"
         },
         {
+            "id": "models-monica",
+            "name": "Models/MONICA"
+        },
+        {
             "id": "producers",
             "name": "Producers"
         },
@@ -494,6 +498,53 @@
                     "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
                     "name": "ILR seed/harvest dates",
                     "description": "Get closest ILR seed/harvest dates to lat/lon location."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "models-monica",
+            "component": {
+                "info": {
+                    "id": "921bcda7-d83f-4190-8593-fce793dc9519",
+                    "name": "Create MONICA env",
+                    "description": "Create MONICA env from sim/crop/site json files."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ],
+                "defaultConfig": "#sim_json = \"sim_bgr.json\"\n#crop_json = \"crop_bgr.json\"\n#site_json = \"site.json\"\n#dgm_attr = \"dgm\"\n#slope_attr = \"slope\"\n#climate_attr = \"climate\"\n#soil_attr = \"soil\"\n#coord_attr = \"latlon\"\n#setup_attr = \"setup\"\n#id_attr = \"id\"\n#ilr_attr = \"ilr\"\n"
+            }
+        },
+        {
+            "categoryId": "models-monica",
+            "component": {
+                "info": {
+                    "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
+                    "name": "Write MONICA CSV",
+                    "description": "Write a MONICA CSV file."
                 },
                 "type": "standard",
                 "inPorts": [
