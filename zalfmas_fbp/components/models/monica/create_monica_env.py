@@ -191,7 +191,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             env_template["params"]["simulationParameters"]["EmergenceFloodingControlOn"] = setup.emergenceFloodingControlOn
 
             if "id" in config:
-                id_, is_capnp = p.get_config_val("dgm", attrs, as_text=True, remove=False)
+                id_, is_capnp = p.get_config_val(config, "id", attrs, as_text=True, remove=False)
             else:
                 id_ = str(uuid.uuid4())
                 attrs["id"] = id_

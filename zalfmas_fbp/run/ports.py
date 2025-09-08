@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import json
 import os
 import sys
 
@@ -46,7 +47,8 @@ def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_tex
     else:
         return None, None
 
-async def update_config_from_port(config, port):
+# toml or json
+async def update_config_from_port(config, port, config_type="toml"):
     if port:
         toml_config = {}
         try:
@@ -54,16 +56,28 @@ async def update_config_from_port(config, port):
             if conf_msg.which() == "done":
                 return None
             conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-            # assume it's toml
-            conf_toml_str = conf_ip.content.as_text()
-            toml_config = tomli.loads(conf_toml_str)
-            config.update(toml_config)
+            conf_str = conf_ip.content.as_text()
+            xxx_config = None
+            if config_type == "toml":
+                xxx_config = tomli.loads(conf_str)
+            elif config_type == "json":
+                xxx_config = json.loads(conf_str)
+            if xxx_config:
+                config.update(toml_config)
         except Exception as e:
             print(
                 f"{os.path.basename(__file__)} update_config_from_port: toml_config: {toml_config} Exception:",
                 e,
             )
     return config
+
+async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
+    if port_name in ports:
+        d = update_config_from_port({}, ports[port_name], config_type=config_type)
+        if d is None and set_port_to_none_if_done:
+            ports[port_name] = None
+        return d
+    return None
 
 
 class PortConnector:
