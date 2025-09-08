@@ -394,7 +394,8 @@
                     {
                         "name": "out"
                     }
-                ]
+                ],
+                "defaultConfig": "#as_common_value = false\n#from_attr = some_attr_name\n#to_attr = some_attr_name"
             }
         },
         {

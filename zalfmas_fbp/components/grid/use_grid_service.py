@@ -13,9 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-# remote debugging via commandline
-# -m ptvsd --host 0.0.0.0 --port 14000 --wait
-
 import asyncio
 import os
 import sys
@@ -28,6 +25,7 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
+import common_capnp
 import fbp_capnp
 import geo_capnp
 import grid_capnp
@@ -64,7 +62,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             else:
                 coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
 
-            val = service.closestValueAt(coord).wait().val
+            val = (await service.closestValueAt(coord)).val
+            if config.get("as_common_value", False):
+                if val.which() == "f":
+                    val = common_capnp.Value.new_message(f64=val.f)
+                elif val.which() == "i":
+                    val = common_capnp.Value.new_message(i64=val.i)
+                elif val.which() == "ui":
+                    val = common_capnp.Value.new_message(ui64=val.ui)
 
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
@@ -80,16 +85,15 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
 default_config = {
-    "path_to_ascii_grid": None,
-    "grid_crs": "utm32n",
-    "val_type": "[int | float]",
+    "as_common_value": False,
     "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
     "to_attr": "[string]", # store result on attribute with this name
     "port:conf": "[TOML string] -> component configuration",
     "port:service": "[sturdy ref | capability]", # capability or sturdy ref to service
     "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
-    "port:out": "[grid_capnp.Grid.Value]",  # value at requested location
+    "port:out": "[grid.capnp:Grid.Value | common.capnp:Value]",  # value at requested location
 }
 
 
