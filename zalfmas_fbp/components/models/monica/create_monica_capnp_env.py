@@ -20,13 +20,11 @@ import sys
 
 import capnp
 import zalfmas_capnp_schemas
-from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-sys.path.append(os.path.join(os.path.dirname(zalfmas_capnp_schemas.__file__), "model", "monica"))
 import climate_capnp
 import common_capnp
 import fbp_capnp
@@ -34,51 +32,14 @@ import model_capnp
 import soil_capnp
 
 
-def create_env(sim, crop, site, crop_id):
-    if not hasattr(create_env, "cache"):
-        create_env.cache = {}
-
-    scsc = (sim, crop, site, crop_id)
-
-    if scsc in create_env.cache:
-        return create_env.cache[scsc]
-
-    with open(sim) as _:
-        sim_json = json.load(_)
-
-    with open(site) as _:
-        site_json = json.load(_)
-    #if len(scenario) > 0 and scenario[:3].lower() == "rcp":
-    #    site_json["EnvironmentParameters"]["rcp"] = scenario
-
-    with open(crop) as _:
-        crop_json = json.load(_)
-
-    # set the current crop used for this run id
-    crop_json["cropRotation"][2] = crop_id
-
-    # create environment template from json templates
-    env_template = monica_io.create_env_json_from_json_config({
-        "crop": crop_json,
-        "site": site_json,
-        "sim": sim_json,
-        "climate": ""
-    })
-
-    env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
-
-    create_env.cache[scsc] = env_template
-    return env_template
-
-def get_value(list_or_value):
-    return list_or_value[0] if isinstance(list_or_value, list) else list_or_value
-
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
+        port_infos_reader_sr, ins=["conf", "climate", "soil", "in"], outs=["out"]
     )
     await p.update_config_from_port(config, ports["conf"])
 
+    timeseries = None
+    soil_profile = None
     while ports["in"] and ports["out"]:
         try:
             in_msg = await ports["in"].read()
@@ -97,7 +58,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             json_env = json.loads(json_env_str)
 
             capnp_env = model_capnp.Env.new_message()
-            if "climate" in config:
+
+            if ports["climate"]:
+                timeseries = ports.read_or_connect("climate", cast_as=climate_capnp.TimeSeries)
+                if timeseries:
+                    capnp_env.timeSeries = timeseries
+            if not timeseries and "climate" in config:
                 timeseries, is_capnp = p.get_config_val(
                     config, "climate", attrs, as_interface=climate_capnp.TimeSeries, remove=True
                 )
@@ -106,7 +72,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 else:
                     json_env["pathToClimateCSV"] = timeseries
 
-            if "soil" in config:
+            if ports["soil"]:
+                soil_profile = ports.read_or_connect("soil", cast_as=soil_capnp.Profile)
+                if soil_profile:
+                    capnp_env.soilProfile = soil_profile
+            if not soil_profile and "soil" in config:
                 soil_profile, is_capnp = p.get_config_val(
                     config,
                     "soil",
@@ -124,10 +94,15 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             capnp_env.rest = common_capnp.StructuredText.new_message(
                 value=json.dumps(json_env), structure={"json": None}
             )
-            out_ip = common_capnp.IP.new_message(
-                content=capnp_env,
-                attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),
-            )
+
+            out_ip = common_capnp.IP.new_message()
+
+            if "to_attr" in config and len(config["to_attr"]) > 0:
+                attrs[config["to_attr"]] = capnp_env
+            else:
+                out_ip.content = capnp_env
+
+            out_ip.attributes = list([{"key": k, "value": v} for k, v in attrs.items()])
             await ports["out"].write(value=out_ip)
 
         except Exception as e:
@@ -142,8 +117,9 @@ default_config = {
     "to_attr": None,
     "climate": "@climate",
     "soil": "@soil",
-    "id": "@id",
     "port:conf": "[TOML string] -> component configuration",
+    "port:soil": "[soil.capnp:Profile | sturdy ref] -> soil profile",
+    "port:climate": "[climate.capnp:TimeSeries | sturdy ref] -> time series to use",
     "port:in": "[JSON string] -> MONICA env",
     "port:out": "[model.capnp:Env (with MONICA JSON env payload)]"
 }

@@ -528,6 +528,10 @@
                     {
                         "name": "conf"
                     }, {
+                        "name": "climate"
+                    }, {
+                        "name": "soil"
+                    }, {
                         "name": "in"
                     }
                 ],
