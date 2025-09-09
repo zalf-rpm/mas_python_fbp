@@ -519,6 +519,30 @@
             "categoryId": "models-monica",
             "component": {
                 "info": {
+                    "id": "e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
+                    "name": "Create model.capnp:Env with MONICA payload",
+                    "description": "Create model.capnp:Env with MONICA JSON env payload."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "in"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ],
+                "defaultConfig": "#from_attr = some_attr_name\n#to_attr = some_attr_name\n#climate = \"@climate\"  \n#soil = \"@soil\"\n#id = \"@id\""
+            }
+        },
+        {
+            "categoryId": "models-monica",
+            "component": {
+                "info": {
                     "id": "921bcda7-d83f-4190-8593-fce793dc9519",
                     "name": "Create MONICA env",
                     "description": "Create MONICA env from sim/crop/site json files."
@@ -537,6 +561,34 @@
                     }
                 ],
                 "defaultConfig": "#sim_json = \"sim_bgr.json\"\n#crop_json = \"crop_bgr.json\"\n#site_json = \"site.json\"\n#dgm_attr = \"dgm\"\n#slope_attr = \"slope\"\n#climate_attr = \"climate\"\n#soil_attr = \"soil\"\n#coord_attr = \"latlon\"\n#setup_attr = \"setup\"\n#id_attr = \"id\"\n#ilr_attr = \"ilr\"\n"
+            }
+        },
+        {
+            "categoryId": "models-monica",
+            "component": {
+                "info": {
+                    "id": "128af0c8-2614-4398-9043-ff3581958bd4",
+                    "name": "Create MONICA JSON env",
+                    "description": "Create MONICA JSON environment."
+                },
+                "type": "standard",
+                "inPorts": [
+                    {
+                        "name": "conf"
+                    }, {
+                        "name": "sim"
+                    }, {
+                        "name": "crop"
+                    }, {
+                        "name": "site"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ],
+                "defaultConfig": "#to_attr = some_attr_name"
             }
         },
         {
