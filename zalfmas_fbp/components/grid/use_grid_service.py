@@ -40,7 +40,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    calc = {k[5:]: v for k, v in config.items() if k.startswith("calc")}
+
 
     service = None
     if ports["service"]:
@@ -96,6 +96,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             new_attrs = {}
             is_valid_to_attr = "to_attr" in config and len(config["to_attr"]) > 0
+            calc = config.get("calc", {})
 
             # update attr
             if is_valid_to_attr and config["to_attr"] in calc:
