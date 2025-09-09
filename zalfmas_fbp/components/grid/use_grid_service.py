@@ -19,6 +19,7 @@ import sys
 
 import capnp
 import zalfmas_capnp_schemas
+from pymep.realParser import eval as mep_eval
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
@@ -38,6 +39,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         outs=["out"],
     )
     await p.update_config_from_port(config, ports["conf"])
+
+    calc = {k[5:]: v for k, v in config.items() if k.startswith("calc")}
 
     service = None
     if ports["service"]:
@@ -62,21 +65,52 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             else:
                 coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
 
-            val = (await service.closestValueAt(coord)).val
-            if config.get("as_common_value", False):
-                if val.which() == "f":
-                    val = common_capnp.Value.new_message(f64=val.f)
-                elif val.which() == "i":
-                    val = common_capnp.Value.new_message(i64=val.i)
-                elif val.which() == "ui":
-                    val = common_capnp.Value.new_message(ui64=val.ui)
+            grid_val = (await service.closestValueAt(coord)).val
+
+            def maybe_as_common_value(grid_value):
+                if config.get("as_common_value", False):
+                    if grid_value.which() == "f":
+                        return common_capnp.Value.new_message(f64=grid_value.f)
+                    elif grid_value.which() == "i":
+                        return common_capnp.Value.new_message(i64=grid_value.i)
+                    elif grid_value.which() == "ui":
+                        return common_capnp.Value.new_message(ui64=grid_value.ui)
+                return grid_value
+
+            def update_val(expr, var_name, grid_value):
+                if grid_value.which() == "f":
+                    grid_value.f = mep_eval(
+                        expr, {var_name, float(grid_value.f)}
+                    )
+                elif grid_value.which() == "i":
+                    grid_value.i = int(
+                        mep_eval(expr, {var_name, int(grid_value.i)})
+                    )
+                elif grid_value.which() == "ui":
+                    grid_value.ui = int(
+                        mep_eval(expr, {var_name, int(grid_value.ui)})
+                    )
+                return grid_value
 
             out_ip = fbp_capnp.IP.new_message()
-            if not config["to_attr"]:
-                out_ip.content = val
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: val} if config["to_attr"] else {})
-            )
+
+            new_attrs = {}
+            is_valid_to_attr = "to_attr" in config and len(config["to_attr"]) > 0
+
+            # update attr
+            if is_valid_to_attr and config["to_attr"] in calc:
+                new_attrs[config["to_attr"]] = maybe_as_common_value(
+                    update_val(calc[config["to_attr"]], config["to_attr"], grid_val)
+                )
+
+            # send via content
+            if not is_valid_to_attr:
+                if "out" in calc:
+                    grid_val = update_val(calc[config["out"]], config["out"], grid_val)
+                out_ip.content = maybe_as_common_value(grid_val)
+
+            # copy old attributes and potentially add new one
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
             await ports["out"].write(value=out_ip)
 
     except Exception as e:
