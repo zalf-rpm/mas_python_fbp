@@ -20,6 +20,9 @@ from collections import defaultdict
 
 import capnp
 import channels as chans
+import zalfmas_capnp_schemas
+
+sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 import common_capnp
 import fbp_capnp
 from zalfmas_common import common
@@ -32,11 +35,10 @@ from zalfmas_common import common
 standalone_config = {
     "hpc": False,
     "use_infiniband": False,
-    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/test_flow5.json",
+    "path_to_flow": "/home/berg/GitHub/mas_python_fbp/flows/test_load_monica_env.json",
     "path_to_channel": "/home/berg/GitHub/monica/_cmake_debug/common/channel",
     "path_to_out_dir": "/home/berg/GitHub/mas_python_fbp/out/",
 }
-
 
 async def start_flow_via_port_infos_sr(config: dict):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
@@ -57,7 +59,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
-    node_id_to_node = {node["node_id"]: node for node in flow_json["nodes"]}
+    node_id_to_node = {node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node}
     links = [
         {"out": link["source"], "in": link["target"]} for link in flow_json["links"]
     ]
@@ -97,16 +99,16 @@ async def start_flow_via_port_infos_sr(config: dict):
             continue
 
         cmd = None
-        component_id = node.get("component_id", None)
-        if "inline_component" in node:
-            cmd = node["inline_component"]["cmd"]
+        component_id = node.get("componentId", None)
+        if "component" in node:
+            cmd = node["component"]["cmd"]
         elif component_id:
             cmd = component_id_to_cmd.get(component_id, None)
         if not cmd:
             continue
 
-        if "parallel_processes" in node:
-            process_id_to_parallel_count[node_id] = node["parallel_processes"]
+        if "parallelProcesses" in node:
+            process_id_to_parallel_count[node_id] = node["parallelProcesses"]
         process_id_to_popen_args[node_id] = cmd.split(" ")
 
     process_id_to_process = {}
@@ -130,17 +132,17 @@ async def start_flow_via_port_infos_sr(config: dict):
         for link in links:
             out_port = link["out"]
             in_port = link["in"]
-            chan_id = f"{out_port['node_id']}.{out_port['port']}->{in_port['node_id']}.{in_port['port']}"
+            chan_id = f"{out_port['nodeId']}.{out_port['port']}->{in_port['nodeId']}.{in_port['port']}"
             # start channel
             chan = chans.start_channel(
                 config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
             )
             channels.append(chan)
 
-            process_id_to_process_srs[out_port["node_id"]]["out_ports"][
+            process_id_to_process_srs[out_port["nodeId"]]["outPorts"][
                 out_port["port"]
             ] = None
-            process_id_to_process_srs[in_port["node_id"]]["in_ports"][
+            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][
                 in_port["port"]
             ] = None
 
@@ -169,13 +171,13 @@ async def start_flow_via_port_infos_sr(config: dict):
                 in_ports = list(
                     [
                         {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["in_ports"].items()
+                        for name, sr in io_to_srs["inPorts"].items()
                     ]
                 )
                 out_ports = list(
                     [
                         {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["out_ports"].items()
+                        for name, sr in io_to_srs["outPorts"].items()
                     ]
                 )
                 if len(out_ports) == 0:
@@ -228,10 +230,10 @@ async def start_flow_via_port_infos_sr(config: dict):
                     # not needed anymore since we sent the IIP
                     del process_id_to_process_srs[out_process_id]
                 else:
-                    process_id_to_process_srs[out_process_id]["out_ports"][
+                    process_id_to_process_srs[out_process_id]["outPorts"][
                         out_port_name
                     ] = info.writerSRs[0]
-                process_id_to_process_srs[in_process_id]["in_ports"][in_port_name] = (
+                process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = (
                     info.readerSRs[0]
                 )
 
