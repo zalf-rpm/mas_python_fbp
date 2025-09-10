@@ -15,20 +15,15 @@
 
 import asyncio
 import os
-import sys
 from collections import defaultdict
 from datetime import date, timedelta
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import climate_capnp, fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import climate_capnp
-import fbp_capnp
 
 
 def capnp_date_to_py_date(capnp_date):

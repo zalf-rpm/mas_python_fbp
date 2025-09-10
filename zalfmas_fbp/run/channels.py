@@ -10,14 +10,8 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import os
 import subprocess as sp
-import sys
 import uuid
-
-import zalfmas_capnp_schemas
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 
 
 def start_first_channel(path_to_channel, name=None):

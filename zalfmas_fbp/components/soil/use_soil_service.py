@@ -15,19 +15,13 @@
 
 import asyncio
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import fbp_capnp, geo_capnp, soil_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
-import geo_capnp
-import soil_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -42,7 +36,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     if ports["service"]:
         service = ports.read_or_connect("service", cast_as=soil_capnp.Service)
         if not service:
-            print(f"{os.path.basename(__file__)} No soil service could be received or connected to.")
+            print(
+                f"{os.path.basename(__file__)} No soil service could be received or connected to."
+            )
             return
 
     mandatory = config["mandatory"]
@@ -85,10 +81,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 default_config = {
     "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "to_attr": "[string]", # store result on attribute with this name
+    "to_attr": "[string]",  # store result on attribute with this name
     "mandatory": ["soilType", "organicCarbon", "rawDensity"],
     "port:conf": "[TOML string] -> component configuration",
-    "port:service": "[sturdy ref | capability]", # capability or sturdy ref to service
+    "port:service": "[sturdy ref | capability]",  # capability or sturdy ref to service
     "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
     "port:out": "[grid_capnp.Grid.Value]",  # value at requested location
 }
