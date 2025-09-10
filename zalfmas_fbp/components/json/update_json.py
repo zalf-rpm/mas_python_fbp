@@ -87,7 +87,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                 change(j[k], v, allowed_operation)
                             elif allowed_operation == "replace":
                                 j[k] = v
+                    # a list as value is treated as sub object access if the first element is an attribute (@) access
                     elif type(v) is list:
+                        # attribute access
+                        if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
+                            attr_val, is_capnp = p.get_config_val(
+                                spec,
+                                v[0][1:],
+                                attrs,
+                                remove=False,
+                            )
+                            # attribute sub access
+                            if is_capnp and len(v) > 1:
+                                for field_name in v[1:]:
+                                    if attr_val._has(field_name):
+                                        attr_val = attr_val._get(field_name)
+                            v = attr_val
                         # access a list
                         if i and type(j) is list and allowed_operation == "replace":
                             j[i] = v
@@ -148,7 +163,7 @@ default_config = {
 
 def main():
     parser = c.create_default_fbp_component_args_parser(
-        "Create a MONICA env"
+        "Update JSON datastructure."
     )
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
         parser, default_config

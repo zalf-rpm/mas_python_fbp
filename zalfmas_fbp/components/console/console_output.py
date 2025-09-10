@@ -31,7 +31,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["in"]
     )
-    print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
+    print(f"{os.path.basename(__file__)}: connected port(s)")
 
     while ports["in"]:
         try:
@@ -48,14 +48,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
         except capnp.KjException as e:
             print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
+                f"{os.path.basename(__file__)}: RPC Exception:",
                 e.description,
             )
             if e.type in ["DISCONNECTED"]:
                 break
 
     await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: {config['name']} process finished")
+    print(f"{os.path.basename(__file__)}: process finished")
 
 
 def main():

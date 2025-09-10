@@ -64,18 +64,30 @@ async def start_flow_via_port_infos_sr(config: dict):
         {"out": link["source"], "in": link["target"]} for link in flow_json["links"]
     ]
 
-    # read components file(s)
-    # path_to_components = flow_json["components"]
-    # if type(path_to_components) is str:
-    #    path_to_components = [path_to_components]
-    # component_id_to_component = {}
-    ## create dicts for easy access to components
-    # for ptcs in path_to_components:
-    #    with open(ptcs, "r") as _:
-    #        component_id_to_component.update({
-    #            e["component"]["info"]["id"]: e["component"]
-    #            for e in json.load(_)["entries"]
-    #        })
+    # create config IIPs if a node has a defaultConfig but no connected config port
+    node_id_to_config = {
+        node["nodeId"]: {"config": node["config"], "generate_iip": True}
+        for node in flow_json["nodes"]
+        if "config" in node
+    }
+    for link in flow_json["links"]:
+        tc = node_id_to_config.get(link["target"]["nodeId"], None)
+        if tc and link["target"]["port"] == "conf":
+            tc["generate_iip"] = False
+    for node_id, conf in node_id_to_config.items():
+        if conf["generate_iip"]:
+            iip_id = str(uuid.uuid4())
+            node_id_to_node[iip_id] = {
+                "nodeId": iip_id,
+                "componentId": "iip",
+                "content": conf["config"],
+            }
+            links.append(
+                {
+                    "out": {"nodeId": iip_id, "port": "Right"},
+                    "in": {"nodeId": node_id, "port": "conf"},
+                }
+            )
 
     # read path file(s)
     path_to_cmds = flow_json["cmds"]
@@ -132,7 +144,10 @@ async def start_flow_via_port_infos_sr(config: dict):
         for link in links:
             out_port = link["out"]
             in_port = link["in"]
-            chan_id = f"{out_port['nodeId']}.{out_port['port']}->{in_port['nodeId']}.{in_port['port']}"
+            chan_id = json.dumps({
+                "out": {"nodeId": out_port["nodeId"], "port": out_port["port"]},
+                "in": {"nodeId": in_port["nodeId"], "port": in_port["port"]}
+            })
             # start channel
             chan = chans.start_channel(
                 config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
@@ -213,9 +228,11 @@ async def start_flow_via_port_infos_sr(config: dict):
                     {"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]}
                 )
             else:
-                out_process_and_port, in_process_and_port = chan_id.split("->")
-                out_process_id, out_port_name = out_process_and_port.split(".")
-                in_process_id, in_port_name = in_process_and_port.split(".")
+                chan_id = json.loads(chan_id)
+                out_process_id = chan_id["out"]["nodeId"]
+                out_port_name = chan_id["out"]["port"]
+                in_process_id = chan_id["in"]["nodeId"]
+                in_port_name = chan_id["in"]["port"]
 
                 if out_process_id in iip_process_ids:
                     out_writer = await con_man.try_connect(

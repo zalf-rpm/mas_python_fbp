@@ -35,7 +35,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    struct_type = common.load_capnp_module(config["path_to_capnp_struct"])
+    struct_type, _ = common.load_capnp_module(config["path_to_capnp_struct"])
     struct_fieldnames = struct_type.schema.fieldnames
     struct_fields = struct_type.schema.fields
     id_col = config["id_col"]
@@ -84,7 +84,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                     if send_ids is None or (
                         id_col in struct_fieldnames
-                        and str(val.__getattr__(id_col)) in send_ids
+                        and val.__getattr__(id_col) in send_ids
                     ):
                         out_ip = fbp_capnp.IP.new_message()
                         if config["to_attr"]:

@@ -28,7 +28,7 @@ import fbp_capnp
 
 def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if key in config:
-        cval = config["key"]
+        cval = config[key]
         if type(cval) is str and len(cval) > 0 and cval[0] == "@" and cval[1:] in attrs:
             if remove:
                 attr_val = attrs.pop(cval[1:])
@@ -50,7 +50,6 @@ def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_tex
 # toml or json
 async def update_config_from_port(config, port, config_type="toml"):
     if port:
-        toml_config = {}
         try:
             conf_msg = await port.read()
             if conf_msg.which() == "done":
@@ -63,7 +62,7 @@ async def update_config_from_port(config, port, config_type="toml"):
             elif config_type == "json":
                 xxx_config = json.loads(conf_str)
             if xxx_config:
-                config.update(toml_config)
+                config.update(xxx_config)
         except Exception as e:
             print(
                 f"{os.path.basename(__file__)} update_config_from_port: toml_config: {toml_config} Exception:",

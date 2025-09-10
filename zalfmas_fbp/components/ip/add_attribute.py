@@ -30,7 +30,7 @@ import fbp_capnp
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "attr"], outs=["out"]
+        port_infos_reader_sr, ins=["conf", "in", "attr"], outs=["out"]
     )
     await p.update_config_from_port(config, ports["conf"])
 
@@ -48,10 +48,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if in_msg.which() == "done":
                 ports["in"] = None
                 continue
-            in_ip = attr_msg.value.as_struct(fbp_capnp.IP)
+            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
 
             out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["attr"]: attr})
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: attr})
             await ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:

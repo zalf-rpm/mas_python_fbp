@@ -37,9 +37,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     while ports["sim"] and ports["crop"] and ports["site"] and ports["out"]:
         try:
-            sim = p.read_dict_from_port(ports, "sim")
-            crop = p.read_dict_from_port(ports, "crop")
-            site = p.read_dict_from_port(ports, "site")
+            sim = await p.read_dict_from_port(ports, "sim")
+            crop = await p.read_dict_from_port(ports, "crop")
+            site = await p.read_dict_from_port(ports, "site")
 
             if sim and crop and site:
                 env_template = monica_io.create_env_json_from_json_config(

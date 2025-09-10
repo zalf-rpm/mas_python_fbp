@@ -33,39 +33,38 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    skip_lines = int(config["skip_lines"])
-    if config["file"]:
+    skip_lines = config["skip_lines"]
+    if config["file"] and ports["out"]:
         try:
-            if ports["out"]:
-                with open(config["file"]) as _:
-                    if config["lines_mode"]:
-                        for line in _.readlines():
-                            if skip_lines > 0:
-                                skip_lines -= 1
-                                continue
+            with open(config["file"]) as _:
+                if config["lines_mode"]:
+                    for line in _.readlines():
+                        if skip_lines > 0:
+                            skip_lines -= 1
+                            continue
 
-                            out_ip = fbp_capnp.IP.new_message()
-                            if "to_attr" in config:
-                                out_ip.attributes = [
-                                    {"key": config["to_attr"], "value": line}
-                                ]
-                            else:
-                                out_ip.content = line
-                            await ports["out"].write(value=out_ip)
-                    else:
-                        file_content = _.read()
                         out_ip = fbp_capnp.IP.new_message()
-                        if "to_attr" in config:
+                        if config["to_attr"] and len(config["to_attr"]) > 0:
                             out_ip.attributes = [
-                                {"key": config["to_attr"], "value": file_content}
+                                {"key": config["to_attr"], "value": line}
                             ]
                         else:
-                            out_ip.content = file_content
+                            out_ip.content = line
                         await ports["out"].write(value=out_ip)
+                else:
+                    file_content = _.read()
+                    out_ip = fbp_capnp.IP.new_message()
+                    if config["to_attr"] and len(config["to_attr"]) > 0:
+                        out_ip.attributes = [
+                            {"key": config["to_attr"], "value": file_content}
+                        ]
+                    else:
+                        out_ip.content = file_content
+                    await ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
             print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
+                f"{os.path.basename(__file__)}: RPC Exception:",
                 e.description,
             )
 
@@ -74,9 +73,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "to_attr": "attr",
-    "file": "path to file",
-    "lines_mode": True,
+    "to_attr": None,
+    "file": None,
+    "lines_mode": False,
     "skip_lines": 0,
     "opt:to_attr": "[string] -> store read file content into 'to_attr'",
     "opt:file": "[string] -> path to file to read",

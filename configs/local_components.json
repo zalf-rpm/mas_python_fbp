@@ -412,6 +412,8 @@
                         "name": "conf"
                     }, {
                         "name": "in"
+                    }, {
+                        "name": "attr"
                     }
                 ],
                 "outPorts": [
