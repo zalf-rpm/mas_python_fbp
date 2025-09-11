@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.16...v0.2.17) (2025-09-11)
+
+
+### Features
+
+* use new import logic ([#18](https://github.com/zalf-rpm/mas_python_fbp/issues/18)) ([87a1fd5](https://github.com/zalf-rpm/mas_python_fbp/commit/87a1fd58f538f454d1c9156ad40583ab9b3cb8b5))
+
 ## [0.2.16](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.15...v0.2.16) (2025-08-29)
 
 
