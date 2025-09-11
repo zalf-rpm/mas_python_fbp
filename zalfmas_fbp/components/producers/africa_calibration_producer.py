@@ -16,24 +16,18 @@
 import asyncio
 import json
 import os
-import sys
 import time
 from datetime import date, datetime, timedelta
 
 import capnp
 import numpy as np
-import zalfmas_capnp_schemas
 from netCDF4 import Dataset
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp, model_capnp
 from zalfmas_common import csv
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
-import fbp_capnp
-import model_capnp
 
 from ..geo import get_lat_lon_grid_value as shared
 

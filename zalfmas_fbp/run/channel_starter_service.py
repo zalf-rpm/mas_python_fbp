@@ -11,21 +11,16 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
-import os
-import sys
 import uuid
 from collections import defaultdict
 
 import capnp
 import channels
-import zalfmas_capnp_schemas
-from zalfmas_common import common
-from zalfmas_common import service as serv
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
 import fbp_capnp
 import service_capnp
+from zalfmas_capnp_schemas import common_capnp
+from zalfmas_common import common
+from zalfmas_common import service as serv
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
@@ -71,8 +66,8 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             chan.terminate()
 
     async def create_startup_info_channel(self):
-        first_chan, first_reader_sr, self.first_writer_sr = channels.start_first_channel(
-            self.path_to_channel
+        first_chan, first_reader_sr, self.first_writer_sr = (
+            channels.start_first_channel(self.path_to_channel)
         )
         self.channels[self.startup_info_id] = (
             first_chan,
@@ -143,7 +138,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
 async def main():
     parser = serv.create_default_args_parser(
         component_description="local start channels service",
-        default_config_path="./configs/channel_starter_service.toml"
+        default_config_path="./configs/channel_starter_service.toml",
     )
     config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
 
