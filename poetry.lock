@@ -1774,15 +1774,15 @@ files = [
 
 [[package]]
 name = "zalfmas-common"
-version = "0.1.29"
+version = "0.1.30"
 description = "Common code for ZALF MAS projects"
 optional = false
 python-versions = "<3.13,>=3.10"
 groups = ["main"]
 markers = "python_version < \"3.12\" or python_version >= \"3.12.0.rc1\""
 files = [
-    {file = "zalfmas_common-0.1.29-py3-none-any.whl", hash = "sha256:75712c525ef455017c3f1980a53f56be4c2a63e9972487ebe2e381d82f532f97"},
-    {file = "zalfmas_common-0.1.29.tar.gz", hash = "sha256:c0e41b373448bdb12ad3c2e9486346f2bb031bcc5ae6272c3794ec101475d305"},
+    {file = "zalfmas_common-0.1.30-py3-none-any.whl", hash = "sha256:82fc1d78fcd0ac9d0ec875e1b6977823667def3707b85d09ac8bf32f1c9fdd05"},
+    {file = "zalfmas_common-0.1.30.tar.gz", hash = "sha256:29aecbe37caf290fd5386e47f98b265a6b90c79020fd820b41778c20a63c77e5"},
 ]
 
 [package.dependencies]
@@ -1793,7 +1793,7 @@ pyproj = ">=3.6.1,<4.0.0"
 pysodium = ">=0.7.17,<0.8.0"
 scipy = ">=1.13.1,<2.0.0"
 tomlkit = ">=0.13.2,<0.14.0"
-zalfmas-capnp-schemas = ">=0.1.29,<0.2.0"
+zalfmas-capnp-schemas = ">=0.1.36,<0.2.0"
 
 [[package]]
 name = "zalfmas-services"
