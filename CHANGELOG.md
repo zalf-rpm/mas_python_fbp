@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.18](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.17...v0.2.18) (2025-09-11)
+
+
+### Bug Fixes
+
+* for some reason some changes got lost ([748d013](https://github.com/zalf-rpm/mas_python_fbp/commit/748d013d1a984814753df5cc4d7ac7d974062301))
+
 ## [0.2.17](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.16...v0.2.17) (2025-09-11)
 
 
