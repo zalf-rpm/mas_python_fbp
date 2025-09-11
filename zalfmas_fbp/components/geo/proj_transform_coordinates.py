@@ -15,17 +15,13 @@
 
 import asyncio
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import fbp_capnp
 from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
 from zalfmas_fbp.run import ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):

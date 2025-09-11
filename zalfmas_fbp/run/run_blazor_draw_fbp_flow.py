@@ -20,11 +20,7 @@ from collections import defaultdict
 
 import capnp
 import channels as chans
-import zalfmas_capnp_schemas
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
-import fbp_capnp
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp
 from zalfmas_common import common
 
 # def get_free_port():

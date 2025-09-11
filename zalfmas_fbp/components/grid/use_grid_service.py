@@ -15,21 +15,14 @@
 
 import asyncio
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
 from pymep.realParser import eval as mep_eval
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp, geo_capnp, grid_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
-import fbp_capnp
-import geo_capnp
-import grid_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -124,9 +117,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 default_config = {
     "as_common_value": False,
     "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "to_attr": "[string]", # store result on attribute with this name
+    "to_attr": "[string]",  # store result on attribute with this name
     "port:conf": "[TOML string] -> component configuration",
-    "port:service": "[sturdy ref | capability]", # capability or sturdy ref to service
+    "port:service": "[sturdy ref | capability]",  # capability or sturdy ref to service
     "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
     "port:out": "[grid.capnp:Grid.Value | common.capnp:Value]",  # value at requested location
 }

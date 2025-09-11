@@ -15,22 +15,17 @@
 
 import asyncio
 import os
-import sys
 from datetime import date, timedelta
 
 import capnp
-import zalfmas_capnp_schemas
 from pyproj import CRS
+from zalfmas_capnp_schemas import fbp_capnp, geo_capnp
+from zalfmas_capnp_schemas import management_capnp as mgmt_capnp
 from zalfmas_common import common, geo
 from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
-import geo_capnp
-import management_capnp as mgmt_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -52,9 +47,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             continue
         print("Read data and created ILR seed/harvest interpolator:", path_to_csv)
         try:
-
-            ilr_seed_harvest_data[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
-                crop_id, path_to_csv, wgs84_crs, utm32n_crs
+            ilr_seed_harvest_data[crop_id] = (
+                ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
+                    crop_id, path_to_csv, wgs84_crs, utm32n_crs
+                )
             )
         except OSError:
             print("Couldn't read file:", path_to_csv)
@@ -225,7 +221,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "crop_ids": ["WW", "SW", "WB"],  # ALF,CLALF,GM,PO,SB,SBee,SM,SU,SW,SWR,WB,WG_test,WR,WRa,WW
+    "crop_ids": [
+        "WW",
+        "SW",
+        "WB",
+    ],  # ALF,CLALF,GM,PO,SB,SBee,SM,SU,SW,SWR,WB,WG_test,WR,WRa,WW
     "crop_id_attr": "cropId",
     "latlon_attr": "latlon",
     "path_to_ilr_csv": {
@@ -233,7 +233,7 @@ default_config = {
     },
     "sowing_time_attr": "sowingTime",  # "fixed", #fixed | auto
     "harvest_time_attr": "harvestTime",  # "fixed", #fixed | auto
-    "to_attr": "ilr", # store result on attribute with this name
+    "to_attr": "ilr",  # store result on attribute with this name
     "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate

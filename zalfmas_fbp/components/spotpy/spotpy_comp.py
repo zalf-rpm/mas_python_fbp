@@ -16,7 +16,6 @@
 import asyncio
 import io
 import os
-import sys
 import tempfile
 import time
 from datetime import datetime
@@ -24,14 +23,10 @@ from datetime import datetime
 import capnp
 import matplotlib.pyplot as plt
 import spotpy
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import common_capnp
-import fbp_capnp
 
 
 class SpotPySetup:
@@ -69,11 +64,13 @@ class SpotPySetup:
                 f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}"
             )
             if self.log_out_p:
-                loop.run_until_complete(self.log_out_p.write(
-                    value={
-                        "content": f"{datetime.now()} sent params to monica setup: {vector}"
-                    }
-                ))
+                loop.run_until_complete(
+                    self.log_out_p.write(
+                        value={
+                            "content": f"{datetime.now()} sent params to monica setup: {vector}"
+                        }
+                    )
+                )
 
             in_msg = loop.run_until_complete(self.sim_values_in_p.read())
             # check for end of data from in port
@@ -83,12 +80,14 @@ class SpotPySetup:
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             sim_values = list(in_ip.content.as_struct(common_capnp.Value).lf64)
             if self.log_out_p:
-                loop.run_until_complete(self.log_out_p.write(
-                    value={
-                        "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                        f"{len(self.observations)}"
-                    }
-                ))
+                loop.run_until_complete(
+                    self.log_out_p.write(
+                        value={
+                            "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
+                            f"{len(self.observations)}"
+                        }
+                    )
+                )
             assert len(sim_values) == len(self.observations)
         except Exception as e:
             print(f"{os.path.basename(__file__)} {datetime.now()} exception: {e}")
@@ -172,7 +171,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             spotpy_params = None
             if ports["init_params"]:
                 try:
-                    init_params = await p.update_config_from_port({}, ports["init_params"])
+                    init_params = await p.update_config_from_port(
+                        {}, ports["init_params"]
+                    )
                     if not init_params:
                         ports["init_params"] = None
                         continue
@@ -208,7 +209,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     for attr in obs_values_ip.attributes:
                         if attr.key == "param_set_id":
                             param_set_id = attr.value.as_text()
-                    obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
+                    obs_values = obs_values_ip.content.as_struct(
+                        common_capnp.Value
+                    ).lf64
                     if not obs_values or len(obs_values) == 0:
                         print(
                             f"{os.path.basename(__file__)}: no observed values to calibrate!"

@@ -14,14 +14,9 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import argparse
-import os
 import subprocess as sp
-import sys
 
 import tomlkit as tk
-import zalfmas_capnp_schemas
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
 
 
 def create_default_fbp_component_args_parser(component_description):
