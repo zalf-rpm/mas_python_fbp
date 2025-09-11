@@ -1764,13 +1764,15 @@ name = "zalfmas-capnp-schemas"
 version = "0.1.36"
 description = ""
 optional = false
-python-versions = "<4.0,>=3.10"
+python-versions = ">=3.10,<4.0"
 groups = ["main"]
 markers = "python_version < \"3.12\" or python_version >= \"3.12.0.rc1\""
-files = [
-    {file = "zalfmas_capnp_schemas-0.1.36-py3-none-any.whl", hash = "sha256:88f4281e3c7369f6fe60c18055f1191cdddfd4937c68220198fae9203f01e64d"},
-    {file = "zalfmas_capnp_schemas-0.1.36.tar.gz", hash = "sha256:36102e6406eaba79508ff4ebe699465b281e2896af9cd6c72bd9d89f673d11a4"},
-]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "../mas_capnproto_schemas"
 
 [[package]]
 name = "zalfmas-common"
@@ -1822,4 +1824,4 @@ zalfmas-common = ">=0.1.29,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "b66b6441216923084c00b0db36c0b2dc786898d9b60df2976982a6a344cd6895"
+content-hash = "b95728c506a331f93dfd479b447067a1cba64288f0e43ef28c6c582ab2f36ed9"

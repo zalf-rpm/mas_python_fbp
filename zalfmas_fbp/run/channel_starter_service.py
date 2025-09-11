@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: UTF-8
+
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -15,12 +18,12 @@ import uuid
 from collections import defaultdict
 
 import capnp
-import channels
-import fbp_capnp
-import service_capnp
-from zalfmas_capnp_schemas import common_capnp
+
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp, service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
+
+import zalfmas_fbp.run.channels as channels
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):

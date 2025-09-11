@@ -14,15 +14,11 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import os
-import sys
 
 import tomli
-import zalfmas_capnp_schemas
 from capnp.lib.capnp import KjException
+from zalfmas_capnp_schemas import fbp_capnp
 from zalfmas_common import common
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 
 
 async def update_config_from_port(config, port):
