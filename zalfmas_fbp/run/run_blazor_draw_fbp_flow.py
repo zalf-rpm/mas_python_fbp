@@ -11,6 +11,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
+import base64
 import json
 import os
 import subprocess as sp
@@ -140,10 +141,10 @@ async def start_flow_via_port_infos_sr(config: dict):
         for link in links:
             out_port = link["out"]
             in_port = link["in"]
-            chan_id = json.dumps({
+            chan_id = base64.urlsafe_b64encode(json.dumps({
                 "out": {"nodeId": out_port["nodeId"], "port": out_port["port"]},
                 "in": {"nodeId": in_port["nodeId"], "port": in_port["port"]}
-            })
+            }).encode()).decode("ascii").rstrip("=")
             # start channel
             chan = chans.start_channel(
                 config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
@@ -224,7 +225,14 @@ async def start_flow_via_port_infos_sr(config: dict):
                     {"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]}
                 )
             else:
-                chan_id = json.loads(chan_id)
+                def decode_no_padding(encoded_str):
+                    # Calculate how much padding is needed
+                    missing_padding = len(encoded_str) % 4
+                    if missing_padding:
+                        encoded_str += "=" * (4 - missing_padding)
+                    return base64.urlsafe_b64decode(encoded_str)
+
+                chan_id = json.loads(decode_no_padding(chan_id).decode())
                 out_process_id = chan_id["out"]["nodeId"]
                 out_port_name = chan_id["out"]["port"]
                 in_process_id = chan_id["in"]["nodeId"]
