@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.19](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.18...v0.2.19) (2025-09-12)
+
+
+### Features
+
+* fixed bug where accidentally all code was excluded from package ([6ff03ae](https://github.com/zalf-rpm/mas_python_fbp/commit/6ff03ae82e1da2747ac4b4c59f1ea766a0240da3))
+
 ## [0.2.18](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.17...v0.2.18) (2025-09-11)
 
 
