@@ -16,20 +16,18 @@
 import asyncio
 import json
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import (
+    climate_capnp,
+    common_capnp,
+    fbp_capnp,
+    model_capnp,
+    soil_capnp,
+)
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import climate_capnp
-import common_capnp
-import fbp_capnp
-import model_capnp
-import soil_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):

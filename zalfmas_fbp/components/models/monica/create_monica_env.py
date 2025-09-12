@@ -16,27 +16,26 @@
 import asyncio
 import json
 import os
-import sys
 import uuid
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import (
+    climate_capnp,
+    common_capnp,
+    fbp_capnp,
+    geo_capnp,
+    grid_capnp,
+    model_capnp,
+    sim_setup_capnp,
+    soil_capnp,
+)
+from zalfmas_capnp_schemas import (
+    management_capnp as mgmt_capnp,
+)
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-sys.path.append(os.path.join(os.path.dirname(zalfmas_capnp_schemas.__file__), "model", "monica"))
-import climate_capnp
-import common_capnp
-import fbp_capnp
-import geo_capnp
-import grid_capnp
-import management_capnp as mgmt_capnp
-import model_capnp
-import sim_setup_capnp
-import soil_capnp
 
 
 def create_env(sim, crop, site, crop_id):

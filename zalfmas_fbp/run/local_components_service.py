@@ -15,20 +15,14 @@
 
 import asyncio
 import json
-import os
-import sys
 from collections import defaultdict
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
-import registry_capnp
 
 
 class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):

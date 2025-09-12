@@ -16,9 +16,7 @@ from collections import defaultdict
 
 import capnp
 import channels
-import fbp_capnp
-import service_capnp
-from zalfmas_capnp_schemas import common_capnp
+from zalfmas_capnp_schemas import common_capnp, fbp_capnp, service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 

@@ -16,16 +16,13 @@
 import asyncio
 import json
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import fbp_capnp
+from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -45,6 +42,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             attrs = {kv.key: kv.value for kv in in_ip.attributes}
             j_content = json.loads(in_ip.content.as_text())
+
+            def as_type(attr_val, capnp_type_desc: str):
+                if capnp_type_desc.lower() == "text":
+                    return attr_val.as_text()
+                else:
+                    struct_type, _ = common.load_capnp_module(capnp_type_desc)
+                    return attr_val.as_struct(struct_type)
 
             # allowed_operation = update | replace | add
             # update = structures of j and spec have to match exactly
@@ -91,36 +95,37 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     elif type(v) is list:
                         # attribute access
                         if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
-                            attr_val, is_capnp = p.get_config_val(
-                                spec,
-                                v[0][1:],
+                            attr_val, is_capnp = p.get_attr_val(
+                                v[0],
                                 attrs,
                                 remove=False,
                             )
                             # attribute sub access
-                            if is_capnp and len(v) > 1:
+                            if is_capnp and len(v) > 1 and "types" in config and v[0] in config["types"]:
+                                attr_val = as_type(attr_val, config["types"][v[0]])
                                 for field_name in v[1:]:
                                     if attr_val._has(field_name):
                                         attr_val = attr_val._get(field_name)
                             v = attr_val
                         # access a list
-                        if i and type(j) is list and allowed_operation == "replace":
+                        if i and type(j) is list:
                             j[i] = v
                         # access a dict
-                        elif allowed_operation == "replace":
+                        else:
                             j[k] = v
                     elif type(v) is str:
                         # use existing function to resolve values from attributes
-                        val, is_capnp = p.get_config_val(
-                            spec,
-                            k,
+                        attr_val, is_capnp = p.get_attr_val(
+                            spec[k],
                             attrs,
                             remove=False,
                         )
+                        if is_capnp and "types" in config and spec[k] in config["types"]:
+                            attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
-                            j[i] = val if is_capnp else val
+                            j[i] = attr_val
                         else:
-                            j[k] = val if is_capnp else val
+                            j[k] = attr_val
                     else:
                         if i and type(j) is list:
                             j[i] = v
@@ -145,16 +150,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 default_config = {
-    "update": {
-        "customId": {"id": 1, "bla": 2},
-        "customId2": 5,
-        "params": {"siteParameters": {"Latitude": 100}},
-        "cropRotationTemplates.WW.0.worksteps = 5": None,
-        "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
-        "cropRotationTemplates.WW.0.1.worksteps = 5": None,
-        "cropRotationTemplates.WW.0.1.worksteps = '@some_attr'": None,
-        "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
-    },
+    # "update": {
+    #     "customId": {"id": 1, "bla": 2},
+    #     "customId2": 5,
+    #     "params": {"siteParameters": {"Latitude": 100}},
+    #     "cropRotationTemplates.WW.0.worksteps = 5": None,
+    #     "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
+    #     "cropRotationTemplates.WW.0.1.worksteps = 5": None,
+    #     "cropRotationTemplates.WW.0.1.worksteps = '@some_attr'": None,
+    #     "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
+    # },
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[JSON string]",
     "port:out": "[JSON string] -> updated JSON string"

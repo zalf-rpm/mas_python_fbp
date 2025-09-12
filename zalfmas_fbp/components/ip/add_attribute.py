@@ -15,17 +15,13 @@
 
 import asyncio
 import os
-import sys
 
 import capnp
-import zalfmas_capnp_schemas
+from zalfmas_capnp_schemas import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -37,12 +33,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     attr = None
     while ports["in"] and (ports["attr"] or attr) and ports["out"]:
         try:
-            attr_msg = await ports["attr"].read()
-            if attr_msg.which() == "done":
-                ports["attr"] = None
-                continue
-            attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
-            attr = attr_ip.content
+            if ports["attr"]:
+                attr_msg = await ports["attr"].read()
+                if attr_msg.which() == "done":
+                    ports["attr"] = None
+                    continue
+                attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
+                attr = attr_ip.content
 
             in_msg = await ports["in"].read()
             if in_msg.which() == "done":
