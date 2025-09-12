@@ -1,6 +1,6 @@
 [project]
 name = "zalfmas-fbp"
-version = "0.2.14"
+version = "0.2.18"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
@@ -37,11 +37,13 @@ libsodium = ">=1.0.20,<2"
 # zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
-# Referencing local packages in editable mode for poetry
-[tool.poetry.dependencies]
-zalfmas-common = { path = "../mas_python_common", develop = true }
-zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
-zalfmas-services = { path = "../mas_python_services", develop = true }
+# Example for referencing local packages in editable mode just uncomment these lines while keeping the above it will overwrite
+# If the line for the package in the dependencies section is commented out it will have no effect
+
+# [tool.poetry.dependencies]
+# zalfmas-common = { path = "../mas_python_common", develop = true }
+# zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
+# zalfmas-services = { path = "../mas_python_services", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.12.10"
