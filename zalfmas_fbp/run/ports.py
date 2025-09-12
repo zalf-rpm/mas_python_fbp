@@ -15,48 +15,59 @@
 
 import json
 import os
-import sys
 
 import tomli
-import zalfmas_capnp_schemas
 from capnp.lib.capnp import KjException
+from zalfmas_capnp_schemas import fbp_capnp
 from zalfmas_common import common
 
-sys.path.append(os.path.dirname(zalfmas_capnp_schemas.__file__))
-import fbp_capnp
+
+def get_attr_val(
+    config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
+):
+    if type(config_val) is str and len(config_val) > 0 and config_val[0] == "@" and config_val[1:] in attrs:
+        if remove:
+            attr_val = attrs.pop(config_val[1:])
+        else:
+            attr_val = attrs[config_val[1:]]
+        if as_struct:
+            return attr_val.as_struct(as_struct), True
+        elif as_interface:
+            return attr_val.as_interface(as_interface), True
+        elif as_text:
+            return attr_val.as_text(), True
+        else:
+            return attr_val, True
+    else:
+        return config_val, False
 
 
-def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
+def get_config_val(
+    config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
+):
     if key in config:
         cval = config[key]
-        if type(cval) is str and len(cval) > 0 and cval[0] == "@" and cval[1:] in attrs:
-            if remove:
-                attr_val = attrs.pop(cval[1:])
-            else:
-                attr_val = attrs[cval[1:]]
-            if as_struct:
-                return attr_val.as_struct(as_struct), True
-            elif as_interface:
-                return attr_val.as_interface(as_interface), True
-            elif as_text:
-                return attr_val.as_text(), True
-            else:
-                return attr_val, True
-        else:
-            return cval, False
+        return get_attr_val(
+            cval,
+            attrs,
+            as_struct=as_struct,
+            as_interface=as_interface,
+            as_text=as_text,
+            remove=remove,
+        )
     else:
         return None, None
 
 # toml or json
 async def update_config_from_port(config, port, config_type="toml"):
     if port:
+        xxx_config = None
         try:
             conf_msg = await port.read()
             if conf_msg.which() == "done":
                 return None
             conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
             conf_str = conf_ip.content.as_text()
-            xxx_config = None
             if config_type == "toml":
                 xxx_config = tomli.loads(conf_str)
             elif config_type == "json":
@@ -65,14 +76,14 @@ async def update_config_from_port(config, port, config_type="toml"):
                 config.update(xxx_config)
         except Exception as e:
             print(
-                f"{os.path.basename(__file__)} update_config_from_port: toml_config: {toml_config} Exception:",
+                f"{os.path.basename(__file__)} update_config_from_port: {config_type} config: {xxx_config} Exception:",
                 e,
             )
     return config
 
 async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
-    if port_name in ports:
-        d = update_config_from_port({}, ports[port_name], config_type=config_type)
+    if port_name in ports.ins:
+        d = await update_config_from_port({}, ports[port_name], config_type=config_type)
         if d is None and set_port_to_none_if_done:
             ports[port_name] = None
         return d
