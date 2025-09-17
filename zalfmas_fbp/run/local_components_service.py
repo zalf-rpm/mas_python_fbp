@@ -140,13 +140,14 @@ async def main():
     with open(config["service"]["path_to_cmds_json"]) as f:
         cmds = json.load(f)
 
+    cs = config.get("service", {})
     restorer = common.Restorer()
     service = Service(
         components,
         cmds,
-        id=config.get("id", None),
-        name=config.get("name", None),
-        description=config.get("description", None),
+        id=cs.get("id", None),
+        name=cs.get("name", None),
+        description=cs.get("description", None),
         restorer=restorer,
     )
     await serv.init_and_run_service_from_config(
