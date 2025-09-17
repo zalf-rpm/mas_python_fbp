@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.20](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.19...v0.2.20) (2025-09-17)
+
+
+### Bug Fixes
+
+* id, name, description from config toml are being used now properly ([28378aa](https://github.com/zalf-rpm/mas_python_fbp/commit/28378aaca939f02803204ddf5d88f5cf87a8b711))
+
 ## [0.2.19](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.18...v0.2.19) (2025-09-12)
 
 
