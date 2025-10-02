@@ -66,6 +66,7 @@ def start_channel(
         ]
         + (["--verbose"] if verbose else [])
         + ([f"--host={host}"] if host else [])
+        + ([f"--local_host={host}"] if host else [])
         + ([f"--port={port}"] if port else [])
         + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
         + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
