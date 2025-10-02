@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.24](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.23...v0.2.24) (2025-10-02)
+
+
+### Bug Fixes
+
+* make channel host optional and make config extraction more robust ([f940a8e](https://github.com/zalf-rpm/mas_python_fbp/commit/f940a8ee31fa0efb695ac0e27257ef07c020ec23))
+
 ## [0.2.23](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.22...v0.2.23) (2025-10-02)
 
 
