@@ -37,6 +37,7 @@ standalone_config = {
     "path_to_out_dir": "/home/berg/GitHub/mas_python_fbp/out/",
 }
 
+
 async def start_flow_via_port_infos_sr(config: dict):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
 
@@ -56,7 +57,9 @@ async def start_flow_via_port_infos_sr(config: dict):
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
-    node_id_to_node = {node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node}
+    node_id_to_node = {
+        node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node
+    }
     links = [
         {"out": link["source"], "in": link["target"]} for link in flow_json["links"]
     ]
@@ -141,10 +144,24 @@ async def start_flow_via_port_infos_sr(config: dict):
         for link in links:
             out_port = link["out"]
             in_port = link["in"]
-            chan_id = base64.urlsafe_b64encode(json.dumps({
-                "out": {"nodeId": out_port["nodeId"], "port": out_port["port"]},
-                "in": {"nodeId": in_port["nodeId"], "port": in_port["port"]}
-            }).encode()).decode("ascii").rstrip("=")
+            chan_id = (
+                base64.urlsafe_b64encode(
+                    json.dumps(
+                        {
+                            "out": {
+                                "nodeId": out_port["nodeId"],
+                                "port": out_port["port"],
+                            },
+                            "in": {
+                                "nodeId": in_port["nodeId"],
+                                "port": in_port["port"],
+                            },
+                        }
+                    ).encode()
+                )
+                .decode("ascii")
+                .rstrip("=")
+            )
             # start channel
             chan = chans.start_channel(
                 config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
@@ -154,9 +171,9 @@ async def start_flow_via_port_infos_sr(config: dict):
             process_id_to_process_srs[out_port["nodeId"]]["outPorts"][
                 out_port["port"]
             ] = None
-            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][
-                in_port["port"]
-            ] = None
+            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][in_port["port"]] = (
+                None
+            )
 
         # start one channel for the configuration of each component (as many channels in one channel service)
         no_of_components = len(process_id_to_popen_args)
@@ -225,6 +242,7 @@ async def start_flow_via_port_infos_sr(config: dict):
                     {"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]}
                 )
             else:
+
                 def decode_no_padding(encoded_str):
                     # Calculate how much padding is needed
                     missing_padding = len(encoded_str) % 4

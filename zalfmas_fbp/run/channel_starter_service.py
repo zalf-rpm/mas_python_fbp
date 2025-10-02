@@ -16,6 +16,9 @@
 import asyncio
 import uuid
 from collections import defaultdict
+from dataclasses import dataclass, field
+from subprocess import Popen
+from typing import cast
 
 import capnp
 from zalfmas_capnp_schemas import common_capnp, fbp_capnp, service_capnp
@@ -26,7 +29,7 @@ import zalfmas_fbp.run.channels as channels
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
-    def __init__(self, proc, remove_from_service=None):
+    def __init__(self, proc: Popen[bytes] | Popen[str], remove_from_service=None):
         self.proc = proc
         self.remove_from_service = remove_from_service
 
@@ -41,27 +44,39 @@ class StopChannelProcess(service_capnp.Stoppable.Server):
         context.results.success = False
 
 
+@dataclass
+class Params:
+    name: str
+    noOfChannels: int = 1
+    noOfReaders: int = 1
+    noOfWriters: int = 1
+    readerSrts: list[str] = field(default_factory=list)
+    writerSrts: list[str] = field(default_factory=list)
+    bufferSize: int = 1
+
+
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
     def __init__(
         self,
-        con_man,
-        path_to_channel,
-        id=None,
-        name=None,
-        description=None,
-        verbose=False,
+        con_man: common.ConnectionManager,
+        path_to_channel: str,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        verbose: bool = False,
         admin=None,
         restorer=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
-        self.con_man = con_man
-        self.path_to_channel = path_to_channel
-        self.startup_info_id = str(uuid.uuid4())
+
+        self.con_man: common.ConnectionManager = con_man
+        self.path_to_channel: str = path_to_channel
+        self.startup_info_id: str = str(uuid.uuid4())
         self.channels = {}
         self.first_reader = None
         self.first_writer_sr = None
         self.chan_id_to_info = defaultdict(list)
-        self.verbose = verbose
+        self.verbose: bool = verbose
 
     def __del__(self):
         for _, (chan, _) in self.channels.items():
@@ -104,12 +119,13 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     #    writerSrts      @5 :List(Text); # fixed sturdy ref tokens per writer
     #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
     # }
+
     async def start_context(
         self, context
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
-        ps = context.params
+        ps = cast(Params, context.params)
         config_chan_id = str(uuid.uuid4())
         reader_srts = ",".join(ps.readerSrts) if ps._has("readerSrts") else None
         writer_srts = ",".join(ps.writerSrts) if ps._has("writerSrts") else None
@@ -142,13 +158,13 @@ async def main():
         component_description="local start channels service",
         default_config_path="./configs/channel_starter_service.toml",
     )
-    config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    config, _ = serv.handle_default_service_args(parser, path_to_service_py=__file__)
 
     restorer = common.Restorer()
     con_man = common.ConnectionManager(restorer)
     service = StartChannelsService(
-        con_man,
-        config["service"]["path_to_channel"],
+        con_man=con_man,
+        path_to_channel=config["service"]["path_to_channel"],
         id=config.get("id", None),
         name=config.get("name", None),
         description=config.get("description", None),

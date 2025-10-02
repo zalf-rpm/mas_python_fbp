@@ -25,7 +25,12 @@ from zalfmas_common import common
 def get_attr_val(
     config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
 ):
-    if type(config_val) is str and len(config_val) > 0 and config_val[0] == "@" and config_val[1:] in attrs:
+    if (
+        type(config_val) is str
+        and len(config_val) > 0
+        and config_val[0] == "@"
+        and config_val[1:] in attrs
+    ):
         if remove:
             attr_val = attrs.pop(config_val[1:])
         else:
@@ -58,6 +63,7 @@ def get_config_val(
     else:
         return None, None
 
+
 # toml or json
 async def update_config_from_port(config, port, config_type="toml"):
     if port:
@@ -81,7 +87,10 @@ async def update_config_from_port(config, port, config_type="toml"):
             )
     return config
 
-async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
+
+async def read_dict_from_port(
+    ports, port_name, config_type="json", set_port_to_none_if_done=True
+):
     if port_name in ports.ins:
         d = await update_config_from_port({}, ports[port_name], config_type=config_type)
         if d is None and set_port_to_none_if_done:

@@ -70,6 +70,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
 """
 #id_attr = "id"
 #from_attr = 

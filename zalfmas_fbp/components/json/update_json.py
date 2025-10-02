@@ -94,14 +94,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     # a list as value is treated as sub object access if the first element is an attribute (@) access
                     elif type(v) is list:
                         # attribute access
-                        if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
+                        if (
+                            len(v) >= 1
+                            and type(v[0]) is str
+                            and len(v[0]) > 0
+                            and v[0][0] == "@"
+                        ):
                             attr_val, is_capnp = p.get_attr_val(
                                 v[0],
                                 attrs,
                                 remove=False,
                             )
                             # attribute sub access
-                            if is_capnp and len(v) > 1 and "types" in config and v[0] in config["types"]:
+                            if (
+                                is_capnp
+                                and len(v) > 1
+                                and "types" in config
+                                and v[0] in config["types"]
+                            ):
                                 attr_val = as_type(attr_val, config["types"][v[0]])
                                 for field_name in v[1:]:
                                     if attr_val._has(field_name):
@@ -120,7 +130,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             attrs,
                             remove=False,
                         )
-                        if is_capnp and "types" in config and spec[k] in config["types"]:
+                        if (
+                            is_capnp
+                            and "types" in config
+                            and spec[k] in config["types"]
+                        ):
                             attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
                             j[i] = attr_val
@@ -162,18 +176,17 @@ default_config = {
     # },
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[JSON string]",
-    "port:out": "[JSON string] -> updated JSON string"
+    "port:out": "[JSON string] -> updated JSON string",
 }
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Update JSON datastructure."
-    )
+    parser = c.create_default_fbp_component_args_parser("Update JSON datastructure.")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
         parser, default_config
     )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
 
 if __name__ == "__main__":
     main()

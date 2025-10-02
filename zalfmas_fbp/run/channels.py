@@ -14,7 +14,7 @@ import subprocess as sp
 import uuid
 
 
-def start_first_channel(path_to_channel, name=None):
+def start_first_channel(path_to_channel: str, name: str | None = None):
     chan = sp.Popen(
         [
             path_to_channel,
@@ -39,19 +39,19 @@ def start_first_channel(path_to_channel, name=None):
 
 
 def start_channel(
-    path_to_channel,
-    startup_info_id,
-    startup_info_writer_sr,
-    name=None,
-    verbose=False,
-    host=None,
-    port=None,
-    no_of_channels=1,
-    no_of_readers=1,
-    no_of_writers=1,
-    reader_srts=None,
-    writer_srts=None,
-    buffer_size=1,
+    path_to_channel: str,
+    startup_info_id: str | None,
+    startup_info_writer_sr: str | None,
+    name: str | None = None,
+    verbose: bool = False,
+    host: str | None = None,
+    port: str | None = None,
+    no_of_channels: int = 1,
+    no_of_readers: int = 1,
+    no_of_writers: int = 1,
+    reader_srts: str | None = None,
+    writer_srts: str | None = None,
+    buffer_size: int = 1,
 ):
     return sp.Popen(
         [

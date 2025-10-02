@@ -33,8 +33,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-
-
     service = None
     if ports["service"]:
         service = ports.read_or_connect("service", cast_as=grid_capnp.Service)
@@ -72,17 +70,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             def update_val(expr, var_name, grid_value):
                 if grid_value.which() == "f":
-                    grid_value.f = mep_eval(
-                        expr, {var_name, float(grid_value.f)}
-                    )
+                    grid_value.f = mep_eval(expr, {var_name, float(grid_value.f)})
                 elif grid_value.which() == "i":
-                    grid_value.i = int(
-                        mep_eval(expr, {var_name, int(grid_value.i)})
-                    )
+                    grid_value.i = int(mep_eval(expr, {var_name, int(grid_value.i)}))
                 elif grid_value.which() == "ui":
-                    grid_value.ui = int(
-                        mep_eval(expr, {var_name, int(grid_value.ui)})
-                    )
+                    grid_value.ui = int(mep_eval(expr, {var_name, int(grid_value.ui)}))
                 return grid_value
 
             out_ip = fbp_capnp.IP.new_message()

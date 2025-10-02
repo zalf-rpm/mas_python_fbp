@@ -50,7 +50,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip = fbp_capnp.IP.new_message()
                 to_attr = config.get("to_attr", None)
                 if to_attr and len(to_attr.as_text()) > 0:
-                    out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]
+                    out_ip.attributes = [
+                        {"key": to_attr.as_text(), "value": json.dumps(env_template)}
+                    ]
                 else:
                     out_ip.content = json.dumps(env_template)
                 await ports["out"].write(value=out_ip)
@@ -68,7 +70,7 @@ default_config = {
     "port:sim": "[JSON string] -> sim.json content",
     "port:crop": "[JSON string] -> crop.json content",
     "port:site": "[JSON string] -> site.json content",
-    "port:out": "[string (MONICA JSON env)]"
+    "port:out": "[string (MONICA JSON env)]",
 }
 
 
@@ -80,6 +82,7 @@ def main():
         parser, default_config
     )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
 
 if __name__ == "__main__":
     main()

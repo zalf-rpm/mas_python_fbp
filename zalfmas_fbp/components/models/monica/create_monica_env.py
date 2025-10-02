@@ -52,7 +52,7 @@ def create_env(sim, crop, site, crop_id):
 
     with open(site) as _:
         site_json = json.load(_)
-    #if len(scenario) > 0 and scenario[:3].lower() == "rcp":
+    # if len(scenario) > 0 and scenario[:3].lower() == "rcp":
     #    site_json["EnvironmentParameters"]["rcp"] = scenario
 
     with open(crop) as _:
@@ -62,20 +62,19 @@ def create_env(sim, crop, site, crop_id):
     crop_json["cropRotation"][2] = crop_id
 
     # create environment template from json templates
-    env_template = monica_io.create_env_json_from_json_config({
-        "crop": crop_json,
-        "site": site_json,
-        "sim": sim_json,
-        "climate": ""
-    })
+    env_template = monica_io.create_env_json_from_json_config(
+        {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""}
+    )
 
     env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
 
     create_env.cache[scsc] = env_template
     return env_template
 
+
 def get_value(list_or_value):
     return list_or_value[0] if isinstance(list_or_value, list) else list_or_value
+
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
@@ -97,7 +96,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 ll_coord, is_capnp = p.get_config_val(
                     config, "dgm", attrs, as_struct=geo_capnp.LatLonCoord, remove=True
                 )
-                ll_coord = ll_coord if is_capnp else geo_capnp.LatLonCoord.new_message(**ll_coord)
+                ll_coord = (
+                    ll_coord
+                    if is_capnp
+                    else geo_capnp.LatLonCoord.new_message(**ll_coord)
+                )
             else:
                 continue
 
@@ -105,42 +108,58 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 setup, is_capnp = p.get_config_val(
                     config, "dgm", attrs, as_struct=sim_setup_capnp.Setup, remove=True
                 )
-                setup = setup if is_capnp else sim_setup_capnp.Setup.new_message(**config["setup"])
+                setup = (
+                    setup
+                    if is_capnp
+                    else sim_setup_capnp.Setup.new_message(**config["setup"])
+                )
             else:
                 continue
 
-            env_template = create_env(setup.simJson, setup.cropJson, setup.siteJson, setup.cropId)
+            env_template = create_env(
+                setup.simJson, setup.cropJson, setup.siteJson, setup.cropId
+            )
 
-            env_template["params"]["userCropParameters"]["__enable_vernalisation_factor_fix__"] = setup.useVernalisationFix
+            env_template["params"]["userCropParameters"][
+                "__enable_vernalisation_factor_fix__"
+            ] = setup.useVernalisationFix
 
             if config["ilr"] in attrs:
                 ilr = attrs.pop(config["ilr"]).as_struct(mgmt_capnp.ILRDates)
                 worksteps = env_template["cropRotation"][0]["worksteps"]
-                sowing_ws = next(filter(lambda ws: ws["type"][-6:] == "Sowing", worksteps))
+                sowing_ws = next(
+                    filter(lambda ws: ws["type"][-6:] == "Sowing", worksteps)
+                )
                 if ilr._has("sowing"):
                     s = ilr.sowing
                     sowing_ws["date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
                 if ilr._has("earliestSowing"):
                     s = ilr.earliestSowing
-                    sowing_ws["earliest-date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                    sowing_ws["earliest-date"] = (
+                        f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                    )
                 if ilr._has("latestSowing"):
                     s = ilr.latestSowing
                     sowing_ws["latest-date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
 
-                harvest_ws = next(filter(lambda ws: ws["type"][-7:] == "Harvest", worksteps))
+                harvest_ws = next(
+                    filter(lambda ws: ws["type"][-7:] == "Harvest", worksteps)
+                )
                 if ilr._has("harvest"):
                     h = ilr.harvest
                     harvest_ws["date"] = f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
                 if ilr._has("latestHarvest"):
                     h = ilr.latestHarvest
-                    harvest_ws["latest-date"] = f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
+                    harvest_ws["latest-date"] = (
+                        f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
+                    )
 
             env_template["params"]["userCropParameters"][
                 "__enable_T_response_leaf_expansion__"
             ] = setup.leafExtensionModifier
 
-            #print("soil:", soil_profile)
-            #env_template["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile.layers
+            # print("soil:", soil_profile)
+            # env_template["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile.layers
 
             if setup.elevation and "dgm" in config:
                 height_nn, is_capnp = p.get_config_val(
@@ -154,43 +173,69 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 slope, is_capnp = p.get_config_val(
                     config, "slope", attrs, as_struct=grid_capnp.Grid.Value, remove=True
                 )
-                env_template["params"]["siteParameters"]["slope"] = (slope.f if is_capnp else slope) / 100.0
+                env_template["params"]["siteParameters"]["slope"] = (
+                    slope.f if is_capnp else slope
+                ) / 100.0
 
             if setup.latitude:
                 env_template["params"]["siteParameters"]["Latitude"] = ll_coord.lat
 
             if setup.co2 > 0:
-                env_template["params"]["userEnvironmentParameters"]["AtmosphericCO2"] = setup.co2
+                env_template["params"]["userEnvironmentParameters"][
+                    "AtmosphericCO2"
+                ] = setup.co2
 
             if setup.o3 > 0:
-                env_template["params"]["userEnvironmentParameters"]["AtmosphericO3"] = setup.o3
+                env_template["params"]["userEnvironmentParameters"]["AtmosphericO3"] = (
+                    setup.o3
+                )
 
             if setup.fieldConditionModifier:
-                env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"]["species"]["FieldConditionModifier"] = setup.fieldConditionModifier
+                env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"][
+                    "species"
+                ]["FieldConditionModifier"] = setup.fieldConditionModifier
 
             if len(setup.stageTemperatureSum) > 0:
-                stage_ts = setup.stageTemperatureSum.split('_')
+                stage_ts = setup.stageTemperatureSum.split("_")
                 stage_ts = [int(temp_sum) for temp_sum in stage_ts]
-                orig_stage_ts = env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"]["cultivar"][
-                    "StageTemperatureSum"][0]
+                orig_stage_ts = env_template["cropRotation"][0]["worksteps"][0]["crop"][
+                    "cropParams"
+                ]["cultivar"]["StageTemperatureSum"][0]
                 if len(stage_ts) != len(orig_stage_ts):
                     stage_ts = orig_stage_ts
-                    print('The provided StageTemperatureSum array is not '
-                            'sufficiently long. Falling back to original StageTemperatureSum')
+                    print(
+                        "The provided StageTemperatureSum array is not "
+                        "sufficiently long. Falling back to original StageTemperatureSum"
+                    )
 
-                env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"]["cultivar"][
-                    "StageTemperatureSum"][0] = stage_ts
+                env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"][
+                    "cultivar"
+                ]["StageTemperatureSum"][0] = stage_ts
 
-            env_template["params"]["simulationParameters"]["UseNMinMineralFertilisingMethod"] = setup.fertilization
-            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = setup.irrigation
+            env_template["params"]["simulationParameters"][
+                "UseNMinMineralFertilisingMethod"
+            ] = setup.fertilization
+            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = (
+                setup.irrigation
+            )
 
-            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = setup.nitrogenResponseOn
-            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = setup.waterDeficitResponseOn
-            env_template["params"]["simulationParameters"]["EmergenceMoistureControlOn"] = setup.emergenceMoistureControlOn
-            env_template["params"]["simulationParameters"]["EmergenceFloodingControlOn"] = setup.emergenceFloodingControlOn
+            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = (
+                setup.nitrogenResponseOn
+            )
+            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = (
+                setup.waterDeficitResponseOn
+            )
+            env_template["params"]["simulationParameters"][
+                "EmergenceMoistureControlOn"
+            ] = setup.emergenceMoistureControlOn
+            env_template["params"]["simulationParameters"][
+                "EmergenceFloodingControlOn"
+            ] = setup.emergenceFloodingControlOn
 
             if "id" in config:
-                id_, is_capnp = p.get_config_val(config, "id", attrs, as_text=True, remove=False)
+                id_, is_capnp = p.get_config_val(
+                    config, "id", attrs, as_text=True, remove=False
+                )
             else:
                 id_ = str(uuid.uuid4())
                 attrs["id"] = id_
@@ -199,14 +244,19 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 "setup_id": setup.runId,
                 "id": id_,
                 "crop_id": setup.cropId,
-                "lat": ll_coord.lat, "lon": ll_coord.lon
+                "lat": ll_coord.lat,
+                "lon": ll_coord.lon,
             }
 
             capnp_env = model_capnp.Env.new_message()
 
             if "climate" in config:
                 timeseries, is_capnp = p.get_config_val(
-                    config, "climate", attrs, as_interface=climate_capnp.TimeSeries, remove=True
+                    config,
+                    "climate",
+                    attrs,
+                    as_interface=climate_capnp.TimeSeries,
+                    remove=True,
                 )
                 if is_capnp:
                     capnp_env.timeSeries = timeseries
@@ -258,18 +308,17 @@ default_config = {
     "ilr": "@ilr",
     "port:conf": "[TOML string] -> component configuration",
     "port:in": "[string (MONICA JSON result)] -> receive MONICA JSON result",
-    "port:out": "[string (MONICA JSON env)]"
+    "port:out": "[string (MONICA JSON env)]",
 }
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Create a MONICA env"
-    )
+    parser = c.create_default_fbp_component_args_parser("Create a MONICA env")
     port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
         parser, default_config
     )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
 
 if __name__ == "__main__":
     main()

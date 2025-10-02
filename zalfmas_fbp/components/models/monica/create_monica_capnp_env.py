@@ -58,12 +58,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             capnp_env = model_capnp.Env.new_message()
 
             if ports["climate"]:
-                timeseries = ports.read_or_connect("climate", cast_as=climate_capnp.TimeSeries)
+                timeseries = ports.read_or_connect(
+                    "climate", cast_as=climate_capnp.TimeSeries
+                )
                 if timeseries:
                     capnp_env.timeSeries = timeseries
             if not timeseries and "climate" in config:
                 timeseries, is_capnp = p.get_config_val(
-                    config, "climate", attrs, as_interface=climate_capnp.TimeSeries, remove=True
+                    config,
+                    "climate",
+                    attrs,
+                    as_interface=climate_capnp.TimeSeries,
+                    remove=True,
                 )
                 if is_capnp:
                     capnp_env.timeSeries = timeseries
@@ -85,9 +91,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if is_capnp:
                     capnp_env.soilProfile = soil_profile
                 else:
-                    json_env["params"]["siteParameters"][
-                        "SoilProfileParameters"
-                    ] = soil_profile
+                    json_env["params"]["siteParameters"]["SoilProfileParameters"] = (
+                        soil_profile
+                    )
 
             capnp_env.rest = common_capnp.StructuredText.new_message(
                 value=json.dumps(json_env), structure={"json": None}
@@ -119,7 +125,7 @@ default_config = {
     "port:soil": "[soil.capnp:Profile | sturdy ref] -> soil profile",
     "port:climate": "[climate.capnp:TimeSeries | sturdy ref] -> time series to use",
     "port:in": "[JSON string] -> MONICA env",
-    "port:out": "[model.capnp:Env (with MONICA JSON env payload)]"
+    "port:out": "[model.capnp:Env (with MONICA JSON env payload)]",
 }
 
 
@@ -131,6 +137,7 @@ def main():
         parser, default_config
     )
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+
 
 if __name__ == "__main__":
     main()
