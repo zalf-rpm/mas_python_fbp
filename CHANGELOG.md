@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.22](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.21...v0.2.22) (2025-10-02)
+
+
+### Bug Fixes
+
+* set local_host in channel also (why is there a difference) ([5a74103](https://github.com/zalf-rpm/mas_python_fbp/commit/5a7410385b007175ea1db05157c91c8c0a44c448))
+
 ## [0.2.21](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.20...v0.2.21) (2025-10-02)
 
 
