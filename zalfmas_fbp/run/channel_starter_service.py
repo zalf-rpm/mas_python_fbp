@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
+import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -64,7 +65,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         name: str | None = None,
         description: str | None = None,
         verbose: bool = False,
-        channel_host_name: str = "localhost",
+        channel_host_name: str | None = None,
         admin=None,
         restorer=None,
     ):
@@ -73,12 +74,14 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         self.con_man: common.ConnectionManager = con_man
         self.path_to_channel: str = path_to_channel
         self.startup_info_id: str = str(uuid.uuid4())
-        self.channels = {}
+        self.channels: dict[
+            str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]
+        ] = {}
         self.first_reader = None
         self.first_writer_sr = None
         self.chan_id_to_info = defaultdict(list)
         self.verbose: bool = verbose
-        self.channel_host_name: str = channel_host_name
+        self.channel_host_name: str | None = channel_host_name
 
     def __del__(self):
         for _, (chan, _) in self.channels.items():
@@ -165,15 +168,29 @@ async def main():
 
     restorer = common.Restorer()
     con_man = common.ConnectionManager(restorer)
+
+    config_service_section = config.get("service")
+    if not isinstance(config_service_section, dict):
+        logging.error("Need service section in config")
+        return
+
+    config_service_section = cast(dict[str, str], config_service_section)
+
+    path_to_channel = config_service_section.get("path_to_channel", None)
+    if path_to_channel is None:
+        logging.error("Need path to channel binary")
+        return
+
     service = StartChannelsService(
         con_man=con_man,
-        path_to_channel=config["service"]["path_to_channel"],
-        id=config.get("id", None),
-        name=config.get("name", None),
-        description=config.get("description", None),
+        path_to_channel=path_to_channel,
+        id=config_service_section.get("id", None),
+        name=config_service_section.get("name", None),
+        description=config_service_section.get("description", None),
+        channel_host_name=config_service_section.get("channel_host", None),
         restorer=restorer,
-        channel_host_name=config["service"]["channel_host_name"],
     )
+
     await service.create_startup_info_channel()
     await serv.init_and_run_service_from_config(
         config=config, service=service, restorer=restorer
