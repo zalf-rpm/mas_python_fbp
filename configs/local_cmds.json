@@ -5,7 +5,7 @@
     "ce4749cc-abab-4830-9eb3-1c44c9d451ce": "python -m zalfmas_fbp.components.climate.datasets_to_timeseries",
     "b510d603-8f2a-4fbd-ac24-634362b4b0f4": "python -m zalfmas_fbp.components.climate.timeseries_cap_to_data",
     "6b11cf2a-08bb-43f9-964a-1d4ed248cce9": "python -m zalfmas_fbp.components.climate.timeseries_data_to_csv",
-    "2de9c491-d8a6-4b36-84de-db7f4a312731": "python -m zalfmas_fbp.components.console.console_output",
+    "2de9c491-d8a6-4b36-84de-db7f4a312731": "python -u -m zalfmas_fbp.components.console.console_output",
     "b5dea358-e34e-49ad-b20d-4d97159114a0": "python -m zalfmas_fbp.components.consumers.africa_calibration_consumer",
     "c0ec26bf-2d10-4dae-89f6-2e0fea58980e": "python -m zalfmas_fbp.components.data.transform.ordered_flatten_nested_dicts",
     "0e7507f8-97ae-4479-a608-4c1ebf37c4ba": "python -m zalfmas_fbp.components.file.read_csv",
