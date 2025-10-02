@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.25](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.24...v0.2.25) (2025-10-02)
+
+
+### Bug Fixes
+
+* make output unbuffered otherwise docker cant read the console output of the subprocess ([3f3eed1](https://github.com/zalf-rpm/mas_python_fbp/commit/3f3eed11ddd62db220c42f0b46e6f377f9bb5648))
+
 ## [0.2.24](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.23...v0.2.24) (2025-10-02)
 
 
