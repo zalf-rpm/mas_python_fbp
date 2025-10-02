@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.22...v0.2.23) (2025-10-02)
+
+
+### Bug Fixes
+
+* use updated binary that resolves the ip address correctly ([cb05321](https://github.com/zalf-rpm/mas_python_fbp/commit/cb05321b571f618fc9fd461698e18eed2d2b474f))
+
 ## [0.2.22](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.21...v0.2.22) (2025-10-02)
 
 
