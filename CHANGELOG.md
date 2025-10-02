@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.21](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.20...v0.2.21) (2025-10-02)
+
+
+### Features
+
+* add possibility to configure hostname of channels that are instantiated ([e9aff1b](https://github.com/zalf-rpm/mas_python_fbp/commit/e9aff1b11a41dcb56eb4b585818c2beef3b98b05))
+
 ## [0.2.20](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.19...v0.2.20) (2025-09-17)
 
 
