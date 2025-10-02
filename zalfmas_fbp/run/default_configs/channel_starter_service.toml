@@ -4,6 +4,7 @@ name = "Channel starter service"
 description = ""
 path_to_channel = "./binaries/channel"
 verbose = false
+channel_host_name = "localhost"
 #fixed_sturdy_ref_token = "channel_starter"
 
 #[[service.registries]]

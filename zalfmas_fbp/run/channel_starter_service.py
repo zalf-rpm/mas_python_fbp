@@ -64,6 +64,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         name: str | None = None,
         description: str | None = None,
         verbose: bool = False,
+        channel_host_name: str = "localhost",
         admin=None,
         restorer=None,
     ):
@@ -77,6 +78,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         self.first_writer_sr = None
         self.chan_id_to_info = defaultdict(list)
         self.verbose: bool = verbose
+        self.channel_host_name: str = channel_host_name
 
     def __del__(self):
         for _, (chan, _) in self.channels.items():
@@ -141,6 +143,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             reader_srts=reader_srts,
             writer_srts=writer_srts,
             verbose=self.verbose,
+            host=self.channel_host_name,
         )
         stop = StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None))
         self.channels[config_chan_id] = (
@@ -169,6 +172,7 @@ async def main():
         name=config.get("name", None),
         description=config.get("description", None),
         restorer=restorer,
+        channel_host_name=config["service"]["channel_host_name"],
     )
     await service.create_startup_info_channel()
     await serv.init_and_run_service_from_config(
