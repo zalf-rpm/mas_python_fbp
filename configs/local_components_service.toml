@@ -15,6 +15,11 @@ fixed_sturdy_ref_token = "local_components"
 # sturdy ref to a registry where the service should be registered at
 #sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
 
+#[[service.gateways]]
+#name = "test gateway"
+## sturdy ref to a registry where the service should be registered at
+#sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
+
 [vat]
 #host = "localhost"
 port = "9988"
@@ -22,5 +27,5 @@ serve_bootstrap = true
 
 # at which resolvers should the vat be registered under the current vat id and optional alias
 #[[vat.resolvers]]
-#sturdy_ref = "capnp://OLBqQD7KRvJJFgAoXrcUlt5i7rb_pjyNE9ZB7v8Shew@10.10.28.186:36425/81707b08-08c5-4872-be70-a227e5115940"
+#sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
 #alias = "some_components_service"

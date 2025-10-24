@@ -2,7 +2,7 @@
 id = "d5456d2c-c99e-43a2-a7ac-49b7749f3247"
 name = "channel starter service"
 description = ""
-path_to_channel = "./binaries/channel"
+path_to_channel = "/home/berg/GitHub/monica/_cmake_debug/common/channel"
 verbose = false
 fixed_sturdy_ref_token = "channel_starter"
 # channel_host = "localhost"
@@ -10,7 +10,12 @@ fixed_sturdy_ref_token = "channel_starter"
 #[[service.registries]]
 #name = "channel starter service"
 #category_id = "channels"
-# sturdy ref to a registry where the service should be registered at
+## sturdy ref to a registry where the service should be registered at
+#sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
+
+#[[service.gateways]]
+#name = "test gateway"
+## sturdy ref to a registry where the service should be registered at
 #sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
 
 [vat]
@@ -20,5 +25,5 @@ serve_bootstrap = true
 
 # at which resolvers should the vat be registered under the current vat id and optional alias
 #[[vat.resolvers]]
-#sturdy_ref = "sturdy ref here"
+#sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
 #alias = "channel_starter"
