@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.26](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.25...v0.2.26) (2025-10-24)
+
+
+### Features
+
+* use last version mas_python_common ([bfc22e7](https://github.com/zalf-rpm/mas_python_fbp/commit/bfc22e7e7d1f124ab922539b85829d243b17291a))
+
 ## [0.2.25](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.24...v0.2.25) (2025-10-02)
 
 
