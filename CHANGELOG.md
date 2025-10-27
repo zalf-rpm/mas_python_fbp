@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.26](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.25...v0.2.26) (2025-10-27)
+
+
+### Features
+
+* **deps:** update maximum python version to 3.13 and dependencies accordingly ([10b1840](https://github.com/zalf-rpm/mas_python_fbp/commit/10b18402536bf4540a6b7e9efa7d088224659c8e))
+* use last version mas_python_common ([bfc22e7](https://github.com/zalf-rpm/mas_python_fbp/commit/bfc22e7e7d1f124ab922539b85829d243b17291a))
+
 ## [0.2.25](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.24...v0.2.25) (2025-10-02)
 
 
