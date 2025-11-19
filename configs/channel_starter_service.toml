@@ -2,7 +2,7 @@
 id = "d5456d2c-c99e-43a2-a7ac-49b7749f3247"
 name = "channel starter service"
 description = ""
-path_to_channel = "/home/berg/GitHub/monica/_cmake_debug/common/channel"
+path_to_channel = "./binaries/channel"
 verbose = false
 fixed_sturdy_ref_token = "channel_starter"
 # channel_host = "localhost"

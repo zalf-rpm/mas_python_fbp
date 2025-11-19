@@ -18,7 +18,7 @@ import json
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas import fbp_capnp, registry_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 

@@ -23,7 +23,7 @@ from datetime import datetime
 import capnp
 import matplotlib.pyplot as plt
 import spotpy
-from zalfmas_capnp_schemas import common_capnp, fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p

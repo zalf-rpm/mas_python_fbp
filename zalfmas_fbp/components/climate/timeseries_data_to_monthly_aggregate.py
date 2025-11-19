@@ -19,7 +19,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 import capnp
-from zalfmas_capnp_schemas import climate_capnp, fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c

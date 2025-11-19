@@ -17,7 +17,7 @@ import asyncio
 import os
 
 import capnp
-from zalfmas_capnp_schemas import fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common, geo
 from zalfmas_common import rect_ascii_grid_management as ragm
 

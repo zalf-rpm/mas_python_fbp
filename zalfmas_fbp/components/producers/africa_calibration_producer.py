@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 import capnp
 import numpy as np
 from netCDF4 import Dataset
-from zalfmas_capnp_schemas import common_capnp, fbp_capnp, model_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, model_capnp
 from zalfmas_common import csv
 from zalfmas_common.model import monica_io
 

@@ -17,7 +17,7 @@ import asyncio
 import os
 
 import capnp
-from zalfmas_capnp_schemas import climate_capnp, fbp_capnp, geo_capnp
+from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp, geo_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
