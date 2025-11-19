@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.27](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.26...v0.2.27) (2025-11-19)
+
+
+### Features
+
+* use new capnproto schemas with stubs for type checking and push all dependencies to also require it ([093a3b9](https://github.com/zalf-rpm/mas_python_fbp/commit/093a3b930cd0f72f9c98b792d138667953d4822a))
+
 ## [0.2.26](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.25...v0.2.26) (2025-10-27)
 
 
