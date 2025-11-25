@@ -32,8 +32,6 @@ class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
         id=None,
         name=None,
         description=None,
-        admin=None,
-        restorer=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -56,6 +54,28 @@ class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
             self.proc = None
             context.results.success = rt
         context.results.success = False
+
+class RunnableFactory(fbp_capnp.Component.RunnableFactory.Server, common.Identifiable):
+    def __init__(
+            self,
+            path_to_executable,
+            id=None,
+            name=None,
+            description=None,
+    ):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.path_to_executable = path_to_executable
+        self.runnables = []
+        self.count = 0
+
+    async def create(
+            self, _context
+    ):  # create @0 () -> (r :Runnable);
+        self.count += 1
+        r = Runnable(self.path_to_executable, id=f"{self.id}_{self.count}", name=f"{self.name} {self.count}",
+                     description=self.description)
+        self.runnables.append(r)
+        return r
 
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
@@ -80,7 +100,7 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             info = c["info"]
             c_id = info["id"]
             if c_id in self._cmds:
-                c["run"] = Runnable(
+                c["runFactory"] = RunnableFactory(
                     self._cmds[c_id],
                     c_id,
                     info.get("name", None),
