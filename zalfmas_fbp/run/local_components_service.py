@@ -15,17 +15,18 @@
 
 import asyncio
 import json
+import subprocess as sp
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, registry_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
 
 
-class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
+class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
         self,
         path_to_executable,
@@ -55,7 +56,29 @@ class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
             context.results.success = rt
         context.results.success = False
 
-class RunnableFactory(fbp_capnp.Component.RunnableFactory.Server, common.Identifiable):
+class ProcessWriter(fbp_capnp.Channel.Writer.Server):
+    def __init__(self):
+        self.process_cap = None
+        self.process_cap_received_future = asyncio.Future()
+        self.unregister_writer = None
+
+    # struct Msg {
+    #   union {
+    #     value @0 :V;
+    #     done  @1 :Void;   # done message, no more data will be sent (indicate upstream is done - but semantics up to user)
+    #     noMsg @2 :Void;   # no message available, if readIfMsg is used
+    #   }
+    # }
+    # write @0 Msg;
+    async def write_context(self, context):
+        if context.params.which() == "value":
+            self.process_cap = context.params.value.as_interface(fbp_capnp.Process)
+            self.process_cap_received_future.set_result(self.process_cap)
+            if self.unregister_writer:
+                await self.unregister_writer()
+
+
+class RunnableFactory(common_capnp.Factory.Server, common.Identifiable):
     def __init__(
             self,
             path_to_executable,
@@ -68,14 +91,50 @@ class RunnableFactory(fbp_capnp.Component.RunnableFactory.Server, common.Identif
         self.runnables = []
         self.count = 0
 
+    # create @0 () -> (r :Runnable);
     async def create(
             self, _context
-    ):  # create @0 () -> (r :Runnable);
+    ):
         self.count += 1
         r = Runnable(self.path_to_executable, id=f"{self.id}_{self.count}", name=f"{self.name} {self.count}",
                      description=self.description)
         self.runnables.append(r)
         return r
+
+class ProcessFactory(common_capnp.Factory.Server, common.Identifiable):
+    def __init__(
+            self,
+            path_to_executable: str,
+            restorer: common.Restorer,
+            id: str = None,
+            name: str = None,
+            description: str = None,
+    ):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.path_to_executable = path_to_executable
+        self.procs: list[sp.Popen[str]] = []
+        #self.proc_writers = []
+        self.count = 0
+        self.restorer = restorer
+
+    def __del__(self):
+        for proc in self.procs:
+            proc.terminate()
+
+    # create @0 () -> (r :Process);
+    async def create(self, _context):
+        self.count += 1
+        writer = ProcessWriter()
+        save_sr_token, unsave_sr_token = await self.restorer.save_cap(writer)
+        async def unsave():
+            await self.restorer.unsave(unsave_sr_token)
+        writer.unregister_writer = unsave #lambda: self.restorer.unsave(unsave_sr_token)
+        writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
+        self.procs.append(comp.start_local_process_component(
+            self.path_to_executable, writer_sr_str, self.id
+        ))
+        process_cap = await writer.process_cap_received_future
+        return process_cap
 
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
@@ -100,12 +159,22 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             info = c["info"]
             c_id = info["id"]
             if c_id in self._cmds:
-                c["runFactory"] = RunnableFactory(
-                    self._cmds[c_id],
-                    c_id,
-                    info.get("name", None),
-                    info.get("description", None),
-                )
+                c["factory"] = {}
+                if c["type"] == "standard":
+                    c["factory"]["runnable"] = RunnableFactory(
+                        self._cmds[c_id],
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
+                elif c["type"] == "process":
+                    c["factory"]["process"] = ProcessFactory(
+                        self._cmds[c_id],
+                        restorer=restorer,
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
             self._cat_id_to_component_holders[e["categoryId"]].append(
                 registry_capnp.Registry.Entry.new_message(
                     categoryId=e["categoryId"],
