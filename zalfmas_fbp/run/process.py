@@ -9,12 +9,16 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 import argparse
+import asyncio
+import logging
 import os
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 from zalfmas_common import common
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
@@ -29,63 +33,73 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
         self.in_ports_config = {}
         self.out_ports_config = {}
-        self._config = {}
-        self._in_ports = {}
-        self._out_ports = {}
+        self.configuration = {}
+        self.in_ports = {}
+        self.out_ports = {}
         self.tasks = []
 
     @property
     def config(self):
-        return self._config
+        return self.configuration
 
     @property
-    def in_ports(self):
-        return self._in_ports
+    def ips(self):
+        return self.in_ports
 
     @property
-    def out_ports(self):
-        return self._out_ports
+    def ops(self):
+        return self.out_ports
 
     # inPorts @0 () -> (ports :List(Component.Port));
-    async def inPorts(self):
-        pass
+    async def inPorts(self, _context):
+        return list(
+            [
+                {"name": k, "type": "standard", "contentType": "Text"}
+                for k, v in self.in_ports.items()
+            ]
+        )
 
-    # connectInPort @1 (name :Text, sturdyRef :Text) -> (connected :Bool);
-    async def connectInPort(self, name: str, sturdyRef: str):
+    # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
+    async def connectInPort(self, name: str, sturdyRef: persistence_capnp.SturdyRefReader, _context):
         self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Reader)
         return self.in_ports[name] is not None
 
     # outPorts @2 () -> (ports :List(Component.Port));
-    async def outPorts(self):
-        pass
+    async def outPorts(self, _context):
+        return list(
+            [
+                {"name": k, "type": "standard", "contentType": "Text"}
+                for k, v in self.out_ports.items()
+            ]
+        )
 
-    # connectOutPort @3 (name :Text, sturdyRef :Text) -> (connected :Bool);
-    async def connectOutPort(self, name: str, sturdyRef: str):
+    # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
+    async def connectOutPort(self, name: str, sturdyRef: persistence_capnp.SturdyRefReader, _context):
         self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Writer)
         return self.out_ports[name] is not None
 
     # configEntries @4 () -> (config :List(ConfigEntry));
-    async def configEntries(self):
+    async def configEntries(self, _context):
         return list(map(lambda k, v: fbp_capnp.ConfigEntry.new_message(name=k, val=v), self.config.items()))
 
-    # setConfigValue @7 (name :Text, value :Common.Value);
-    async def setConfigValue(self, name: str, value: common_capnp.Value):
+    # struct ConfigEntry {
+    #     name @0 :Text;
+    #     val  @1 :Common.Value;
+    # }
+    # setConfigEntry @7 ConfigEntry;
+    async def setConfigEntry(self, name: str, value: common_capnp.Value, _context):
         self.config[name] = value
 
     # start @5 ();
-    async def start(self):
-        pass
+    async def start(self, _context):
+        logger.warning("start method unimplemented")
 
     # stop @6 ();
-    async def stop(self):
+    async def stop(self, _context):
         await self.close_out_ports()
 
 
-    async def close_out_ports(
-            self,
-            print_info=False,
-            print_exception=True,
-    ):
+    async def close_out_ports(self):
         for name, ps in self.out_ports.items():
             # is an array out port
             if isinstance(ps, list):
@@ -93,60 +107,90 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     if p is not None:
                         try:
                             await p.close()
-                            if print_info:
-                                print(
-                                    f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'"
-                                )
+                            logger.info(f"closed array out port '{name}[{i}]'")
                         except Exception as e:
-                            if print_exception:
-                                print(
-                                    f"{os.path.basename(__file__)}: Exception closing array out port '{name}[{i}]': {e}"
-                                )
+                            logger.error(f"Exception closing array out port '{name}[{i}]': {e}")
             # is a single out port
             elif ps is not None:
                 try:
                     await ps.close()
-                    if print_info:
-                        print(f"{os.path.basename(__file__)}: closed out port '{name}'")
+                    logger.info(f"closed out port '{name}'")
                 except Exception as e:
-                    if print_exception:
-                        print(
-                            f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}"
-                        )
+                    logger.error(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
     async def serve(
         self,
-        writer_sr: str,
+        writer_sr: str = None,
+        serve_bootstrap: bool = False,
         host: str = None,
         port: int = None,
-        print_debug: bool = False,
     ):
-        if writer := (await self.con_man.try_connect(writer_sr)).cast_as(
-            fbp_capnp.Channel.Writer
-        ):
+        if (writer_sr and len(writer_sr) > 0 and
+                (writer := (await self.con_man.try_connect(writer_sr)).cast_as(fbp_capnp.Channel.Writer))):
             await writer.write(value=self)
-            if print_debug:
-                print(
-                    f"{os.path.basename(__file__)}: wrote process cap into {writer_sr}"
-                )
+            logging.info(f"wrote process cap into {writer_sr}")
 
         async def new_connection(stream):
-            await capnp.TwoPartyServer(stream, bootstrap=None).on_disconnect()
+            await capnp.TwoPartyServer(stream, bootstrap=self if serve_bootstrap else None).on_disconnect()
 
         port = port if port else 0
         server = await capnp.AsyncIoStream.create_server(new_connection, host, port)
         async with server:
+            if serve_bootstrap:
+                host = host if host else common.get_public_ip()
+                import socket
+                if len(ip4_socks := list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))) > 0:
+                    port = ip4_socks[0].getsockname()[1]
+                print(f"Process({self.name}) SR: capnp://{host}:{port}")
             await server.serve_forever()
 
+def parse_cmd_args_and_serve_process(p: Process):
+    parser, args = create_default_args_parser(component_description=p.description)
+    logger.setLevel(args.log_level)
+    asyncio.run(
+        capnp.run(
+            p.serve(
+                writer_sr=args.writer_sr,
+                serve_bootstrap=True if not args.writer_sr else args.serve_bootstrap,
+                host=args.host,
+                port=args.port,
+            )
+        )
+    )
 
 def create_default_args_parser(
         component_description: str,
 ):
     parser = argparse.ArgumentParser(description=component_description)
     parser.add_argument(
-        "writer_sr",
+        "-w", "--writer_sr",
         type=str,
-        nargs="?",
-        help="SturdyRef to Writer<Process.StartupInfo>",
+        default=None,
+        help="SturdyRef to the Writer<fbp.capnp::Process>. Writes process capability on startup to writer.",
+    )
+    parser.add_argument(
+        "-b", "--serve_bootstrap",
+        action="store_true",
+        help="Serve process as the bootstrap object.>",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=None,
+        help="Host to be used when serving the process.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Port to be used when serving the process.",
+    )
+    parser.add_argument(
+        "-l",
+        "--log_level",
+        type=str,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="WARNING",
+        help="Set logging level.",
     )
     return parser, parser.parse_args()

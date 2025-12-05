@@ -119,3 +119,13 @@ def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
         text=True,
     )
     return proc
+
+def start_local_process_component(path_to_executable, process_cap_writer_sr, name=None) -> sp.Popen[str]:
+    proc = sp.Popen(
+        list(path_to_executable.split(" "))
+        + [f"--writer_sr={process_cap_writer_sr}"]
+        + ([f'--name="{name}"'] if name else []),
+        # stdout=sp.PIPE, stderr=sp.STDOUT,
+        text=True,
+    )
+    return proc
