@@ -770,6 +770,29 @@
             "categoryId": "string",
             "component": {
                 "info": {
+                    "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
+                    "name": "split string2",
+                    "description": "Splits a string along delimiter."
+                },
+                "type": "process",
+                "inPorts": [
+                    {
+                        "name": "in"
+                    }, {
+                        "name": "conf"
+                    }
+                ],
+                "outPorts": [
+                    {
+                        "name": "out"
+                    }
+                ]
+            }
+        },
+        {
+            "categoryId": "string",
+            "component": {
+                "info": {
                     "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
                     "name": "split string -> array",
                     "description": "Splits a string along delimiter and adds them into an array."
