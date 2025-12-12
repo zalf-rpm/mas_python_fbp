@@ -40,9 +40,9 @@ libsodium = ">=1.0.20,<2"
 # Example for referencing local packages in editable mode just uncomment these lines while keeping the above it will overwrite
 # If the line for the package in the dependencies section is commented out it will have no effect
 
-# [tool.poetry.dependencies]
-# zalfmas-common = { path = "../mas_python_common", develop = true }
-# zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
+[tool.poetry.dependencies]
+zalfmas-common = { path = "../mas_python_common", develop = true }
+zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
 # zalfmas-services = { path = "../mas_python_services", develop = true }
 
 [tool.poetry.group.dev.dependencies]

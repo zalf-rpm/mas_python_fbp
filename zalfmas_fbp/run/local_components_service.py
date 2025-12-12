@@ -19,7 +19,7 @@ import subprocess as sp
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
@@ -56,29 +56,7 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             context.results.success = rt
         context.results.success = False
 
-class ProcessWriter(fbp_capnp.Channel.Writer.Server):
-    def __init__(self):
-        self.process_cap = None
-        self.process_cap_received_future = asyncio.Future()
-        self.unregister_writer = None
-
-    # struct Msg {
-    #   union {
-    #     value @0 :V;
-    #     done  @1 :Void;   # done message, no more data will be sent (indicate upstream is done - but semantics up to user)
-    #     noMsg @2 :Void;   # no message available, if readIfMsg is used
-    #   }
-    # }
-    # write @0 Msg;
-    async def write_context(self, context):
-        if context.params.which() == "value":
-            self.process_cap = context.params.value.as_interface(fbp_capnp.Process)
-            self.process_cap_received_future.set_result(self.process_cap)
-            if self.unregister_writer:
-                await self.unregister_writer()
-
-
-class RunnableFactory(common_capnp.Factory.Server, common.Identifiable):
+class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
             self,
             path_to_executable,
@@ -101,7 +79,30 @@ class RunnableFactory(common_capnp.Factory.Server, common.Identifiable):
         self.runnables.append(r)
         return r
 
-class ProcessFactory(common_capnp.Factory.Server, common.Identifiable):
+
+class ProcessWriter(fbp_capnp.Channel.Writer.Server):
+    def __init__(self):
+        self.process_cap = None
+        self.process_cap_received_future = asyncio.Future()
+        self.unregister_writer = None
+
+    # struct Msg {
+    #   union {
+    #     value @0 :V;
+    #     done  @1 :Void;   # done message, no more data will be sent (indicate upstream is done - but semantics up to user)
+    #     noMsg @2 :Void;   # no message available, if readIfMsg is used
+    #   }
+    # }
+    # write @0 Msg;
+    async def write_context(self, context):
+        if context.params.which() == "value":
+            self.process_cap = context.params.value.as_interface(fbp_capnp.Process)
+            self.process_cap_received_future.set_result(self.process_cap)
+            if self.unregister_writer:
+                await self.unregister_writer()
+
+
+class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
     def __init__(
             self,
             path_to_executable: str,

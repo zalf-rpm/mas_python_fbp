@@ -20,6 +20,20 @@ from zalfmas_common import common
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
+
+class StateTransition(fbp_capnp.Process.StateTransition.Server):
+    def __init__(
+            self,
+            callback#: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
+    ):
+        self.callback = callback
+
+    # stateChanged @0 (old :State, new :State);
+    async def stateChanged(
+            self, old, new, _context
+    ):
+        self.callback(old, new)
+
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
             self,
@@ -37,6 +51,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.in_ports = {}
         self.out_ports = {}
         self.tasks = []
+        self.process_state = "stopped" # states: started, stopped, canceled
+        self.state_transition_callbacks = []
+
+    def is_canceled(self):
+        return self.process_state == "canceled"
 
     @property
     def config(self):
@@ -60,7 +79,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
-    async def connectInPort(self, name: str, sturdyRef: persistence_capnp.SturdyRefReader, _context):
+    async def connectInPort(self, name: str, sturdyRef: persistence_capnp.SturdyRef.Reader, _context):
         self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Reader)
         return self.in_ports[name] is not None
 
@@ -74,7 +93,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
-    async def connectOutPort(self, name: str, sturdyRef: persistence_capnp.SturdyRefReader, _context):
+    async def connectOutPort(self, name: str, sturdyRef: persistence_capnp.SturdyRef.Reader, _context):
         self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Writer)
         return self.out_ports[name] is not None
 
@@ -87,17 +106,43 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     #     val  @1 :Common.Value;
     # }
     # setConfigEntry @7 ConfigEntry;
-    async def setConfigEntry(self, name: str, value: common_capnp.Value, _context):
+    async def setConfigEntry(self, name: str, value: common_capnp.ValueReader, _context):
         self.config[name] = value
 
-    # start @5 ();
+    async def process_started(self):
+        await self.transition_to_state("started")
+
+    async def process_stopped(self):
+        await self.transition_to_state("stopped")
+
+    async def transition_to_state(self, new_state):
+        if new_state == self.process_state:
+            return
+
+        prev_state = self.process_state
+        self.process_state = new_state
+        for cb in self.state_transition_callbacks:
+            await cb(prev_state, self.process_state)
+
+    # start @5 () -> (started: Bool, finishedSuccessfully :Bool);
     async def start(self, _context):
-        logger.warning("start method unimplemented")
+        self.run()
+        await self.transition_to_state("started")
 
     # stop @6 ();
     async def stop(self, _context):
         await self.close_out_ports()
+        await self.transition_to_state("canceled")
 
+    async def run(self):
+        logger.warning("run method unimplemented")
+
+    # state @8 (transitionCallback :StateTransition) -> (currentState :State);
+    async def state(self, transitionCallback, _context):
+        if transitionCallback:
+            self.state_transition_callbacks.append(transitionCallback)
+        return self.process_state
+        
 
     async def close_out_ports(self):
         for name, ps in self.out_ports.items():
@@ -151,7 +196,7 @@ def parse_cmd_args_and_serve_process(p: Process):
         capnp.run(
             p.serve(
                 writer_sr=args.writer_sr,
-                serve_bootstrap=True if not args.writer_sr else args.serve_bootstrap,
+                serve_bootstrap=args.serve_bootstrap,
                 host=args.host,
                 port=args.port,
             )

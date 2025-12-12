@@ -33,11 +33,15 @@ class SplitString(process.Process):
         self.description="Split a string."
         self.in_ports_config = {"in": "text"}
         self.out_ports_config = {"in": "text"}
-        self.config["split_at"] = common_capnp.Value.new_message(t=",")
+        self.config["split_at"]: dict[str, common_capnp.ValueBuilder] = common_capnp.Value.new_message(t=",")
 
+    async def run(self):
+        await self.process_started()
+        logger.info(f"{self.name} process started")
 
-    async def start(self):
         while self.isp["in"] and self.ops["out"]:
+            if self.is_canceled():
+                break
             try:
                 in_msg = await self.ips["in"].read()
                 if in_msg.which() == "done":
@@ -47,7 +51,7 @@ class SplitString(process.Process):
                 s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
                 logger.info(f"{self.name} received: {s}")
                 s = s.rstrip()
-                vals = s.split(self.config["split_at"])
+                vals = s.split(self.config["split_at"].t)
 
                 for val in vals:
                     out_ip = fbp_capnp.IP.new_message(content=val)
@@ -60,6 +64,7 @@ class SplitString(process.Process):
                     break
 
         logger.info(f"{self.name} process finished")
+        await self.process_stopped()
 
 
 def main():

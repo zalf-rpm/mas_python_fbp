@@ -22,7 +22,11 @@ from subprocess import Popen
 from typing import cast
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, service_capnp
+from zalfmas_capnp_schemas_with_stubs import (
+    common_capnp,
+    fbp_capnp,
+    service_capnp,
+)
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
