@@ -23,17 +23,22 @@ from zalfmas_common import common
 import zalfmas_fbp.run.process as process
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+logging.basicConfig(
+    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 
 class SplitString(process.Process):
-
     def __init__(self, con_man: common.ConnectionManager = None):
         process.Process.__init__(self, con_man)
         self.name = "split string"
-        self.description="Split a string."
+        self.description = "Split a string."
         self.in_ports_config = {"in": "text"}
         self.out_ports_config = {"in": "text"}
-        self.config["split_at"]: dict[str, common_capnp.ValueBuilder] = common_capnp.Value.new_message(t=",")
+        self.config["split_at"]: dict[str, common_capnp.ValueBuilder] = (
+            common_capnp.Value.new_message(t=",")
+        )
 
     async def run(self):
         await self.process_started()
@@ -69,6 +74,7 @@ class SplitString(process.Process):
 
 def main():
     process.parse_cmd_args_and_serve_process(SplitString())
+
 
 if __name__ == "__main__":
     main()

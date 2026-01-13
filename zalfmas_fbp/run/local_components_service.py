@@ -56,13 +56,14 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             context.results.success = rt
         context.results.success = False
 
+
 class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
-            self,
-            path_to_executable,
-            id=None,
-            name=None,
-            description=None,
+        self,
+        path_to_executable,
+        id=None,
+        name=None,
+        description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -70,12 +71,14 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
         self.count = 0
 
     # create @0 () -> (r :Runnable);
-    async def create(
-            self, _context
-    ):
+    async def create(self, _context):
         self.count += 1
-        r = Runnable(self.path_to_executable, id=f"{self.id}_{self.count}", name=f"{self.name} {self.count}",
-                     description=self.description)
+        r = Runnable(
+            self.path_to_executable,
+            id=f"{self.id}_{self.count}",
+            name=f"{self.name} {self.count}",
+            description=self.description,
+        )
         self.runnables.append(r)
         return r
 
@@ -104,17 +107,17 @@ class ProcessWriter(fbp_capnp.Channel.Writer.Server):
 
 class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
     def __init__(
-            self,
-            path_to_executable: str,
-            restorer: common.Restorer,
-            id: str = None,
-            name: str = None,
-            description: str = None,
+        self,
+        path_to_executable: str,
+        restorer: common.Restorer,
+        id: str = None,
+        name: str = None,
+        description: str = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
         self.procs: list[sp.Popen[str]] = []
-        #self.proc_writers = []
+        # self.proc_writers = []
         self.count = 0
         self.restorer = restorer
 
@@ -127,13 +130,19 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         self.count += 1
         writer = ProcessWriter()
         save_sr_token, unsave_sr_token = await self.restorer.save_cap(writer)
+
         async def unsave():
             await self.restorer.unsave(unsave_sr_token)
-        writer.unregister_writer = unsave #lambda: self.restorer.unsave(unsave_sr_token)
+
+        writer.unregister_writer = (
+            unsave  # lambda: self.restorer.unsave(unsave_sr_token)
+        )
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
-        self.procs.append(comp.start_local_process_component(
-            self.path_to_executable, writer_sr_str, self.id
-        ))
+        self.procs.append(
+            comp.start_local_process_component(
+                self.path_to_executable, writer_sr_str, self.id
+            )
+        )
         process_cap = await writer.process_cap_received_future
         return process_cap
 
