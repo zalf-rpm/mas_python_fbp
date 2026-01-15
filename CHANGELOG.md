@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.28](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.27...v0.2.28) (2026-01-15)
+
+
+### Bug Fixes
+
+* pin pixi to 0.62.0 due to a breaking change ([365af0e](https://github.com/zalf-rpm/mas_python_fbp/commit/365af0eb93d7b05f6fc0d6585cfbac53d173ea4e))
+
 ## [0.2.27](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.26...v0.2.27) (2025-11-19)
 
 
