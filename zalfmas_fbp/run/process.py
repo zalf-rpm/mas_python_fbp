@@ -8,13 +8,19 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
+
 import argparse
 import asyncio
 import logging
 import os
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.persistence import persistence_capnp
+
+# from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 from zalfmas_common import common
 
 logger = logging.getLogger(__name__)
@@ -32,7 +38,7 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
         self.callback = callback
 
     # stateChanged @0 (old :State, new :State);
-    async def stateChanged(self, old, new, _context):
+    async def stateChanged(self, old, new, _context, **kwargs):
         self.callback(old, new)
 
 
@@ -45,9 +51,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
-        common.GatewayRegistrable.__init__(
-            self, con_man if con_man else common.ConnectionManager()
-        )
+        common.GatewayRegistrable.__init__(self, con_man if con_man else common.ConnectionManager())
 
         self.in_ports_config = {}
         self.out_ports_config = {}
@@ -65,16 +69,22 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     def config(self):
         return self.configuration
 
-    @property
-    def ips(self):
-        return self.in_ports
+    def ip(self, port_name: str):
+        return self.in_ports.get(port_name, None)
 
-    @property
-    def ops(self):
-        return self.out_ports
+    def close_ip(self, port_name: str):
+        if port_name in self.in_ports:
+            self.in_ports[port_name] = None
+
+    def op(self, port_name: str):
+        return self.out_ports.get(port_name, None)
+
+    def close_op(self, port_name: str):
+        if port_name in self.out_ports:
+            self.out_ports[port_name] = None
 
     # inPorts @0 () -> (ports :List(Component.Port));
-    async def inPorts(self, _context):
+    async def inPorts(self, _context, **kwargs):
         return list(
             [
                 {"name": k, "type": "standard", "contentType": "Text"}
@@ -83,16 +93,14 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
-    async def connectInPort(
-        self, name: str, sturdyRef: persistence_capnp.SturdyRef.Reader, _context
-    ):
+    async def connectInPort(self, name: str, sturdyRef, _context, **kwargs):
         self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(
             fbp_capnp.Channel.Reader
         )
         return self.in_ports[name] is not None
 
     # outPorts @2 () -> (ports :List(Component.Port));
-    async def outPorts(self, _context):
+    async def outPorts(self, _context, **kwargs):
         return list(
             [
                 {"name": k, "type": "standard", "contentType": "Text"}
@@ -101,16 +109,14 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
-    async def connectOutPort(
-        self, name: str, sturdyRef: persistence_capnp.SturdyRef.Reader, _context
-    ):
+    async def connectOutPort(self, name: str, sturdyRef, _context, **kwargs):
         self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(
             fbp_capnp.Channel.Writer
         )
         return self.out_ports[name] is not None
 
     # configEntries @4 () -> (config :List(ConfigEntry));
-    async def configEntries(self, _context):
+    async def configEntries(self, _context, **kwargs):
         return list(
             map(
                 lambda k, v: fbp_capnp.ConfigEntry.new_message(name=k, val=v),
@@ -123,9 +129,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     #     val  @1 :Common.Value;
     # }
     # setConfigEntry @7 ConfigEntry;
-    async def setConfigEntry(
-        self, name: str, value: common_capnp.ValueReader, _context
-    ):
+    async def setConfigEntry(self, name: str, value: common_capnp.ValueReader, _context, **kwargs):
         self.config[name] = value
 
     async def process_started(self):
@@ -141,15 +145,15 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         prev_state = self.process_state
         self.process_state = new_state
         for cb in self.state_transition_callbacks:
-            await cb(prev_state, self.process_state)
+            await cb.stateChanged(prev_state, self.process_state)
 
     # start @5 () -> (started: Bool, finishedSuccessfully :Bool);
-    async def start(self, _context):
-        self.run()
+    async def start(self, _context, **kwargs):
         await self.transition_to_state("started")
+        await self.run()
 
     # stop @6 ();
-    async def stop(self, _context):
+    async def stop(self, _context, **kwargs):
         await self.close_out_ports()
         await self.transition_to_state("canceled")
 
@@ -157,7 +161,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         logger.warning("run method unimplemented")
 
     # state @8 (transitionCallback :StateTransition) -> (currentState :State);
-    async def state(self, transitionCallback, _context):
+    async def state(self, transitionCallback, _context, **kwargs):
         if transitionCallback:
             self.state_transition_callbacks.append(transitionCallback)
         return self.process_state
@@ -172,9 +176,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                             await p.close()
                             logger.info(f"closed array out port '{name}[{i}]'")
                         except Exception as e:
-                            logger.error(
-                                f"Exception closing array out port '{name}[{i}]': {e}"
-                            )
+                            logger.error(f"Exception closing array out port '{name}[{i}]': {e}")
             # is a single out port
             elif ps is not None:
                 try:

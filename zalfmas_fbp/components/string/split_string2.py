@@ -44,13 +44,13 @@ class SplitString(process.Process):
         await self.process_started()
         logger.info(f"{self.name} process started")
 
-        while self.isp["in"] and self.ops["out"]:
+        while self.ip("in") and self.op("out"):
             if self.is_canceled():
                 break
             try:
-                in_msg = await self.ips["in"].read()
+                in_msg = await self.ip("in").read()
                 if in_msg.which() == "done":
-                    self.ips["in"] = None
+                    self.close_ip("in")
                     continue
 
                 s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
@@ -60,7 +60,7 @@ class SplitString(process.Process):
 
                 for val in vals:
                     out_ip = fbp_capnp.IP.new_message(content=val)
-                    await self.ops["out"].write(value=out_ip)
+                    await self.op("out").write(value=out_ip)
                     logger.info(f"{self.name} sent: {val}")
 
             except capnp.KjException as e:
