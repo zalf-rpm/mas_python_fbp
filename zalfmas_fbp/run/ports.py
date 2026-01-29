@@ -22,9 +22,7 @@ from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 
-def get_attr_val(
-    config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
-):
+def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if (
         type(config_val) is str
         and len(config_val) > 0
@@ -88,9 +86,7 @@ async def update_config_from_port(config, port, config_type="toml"):
     return config
 
 
-async def read_dict_from_port(
-    ports, port_name, config_type="json", set_port_to_none_if_done=True
-):
+async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
     if port_name in ports.ins:
         d = await update_config_from_port({}, ports[port_name], config_type=config_type)
         if d is None and set_port_to_none_if_done:
@@ -103,9 +99,7 @@ class PortConnector:
     def __init__(self, ins=None, outs=None, connection_manager=None):
         self.in_ports = {n: None for n in ins} if ins else {}
         self.out_ports = {n: None for n in outs} if outs else {}
-        self.con_man = (
-            connection_manager if connection_manager else common.ConnectionManager()
-        )
+        self.con_man = connection_manager if connection_manager else common.ConnectionManager()
         self.port_infos_reader = None
 
     # make in_ports a property
@@ -187,9 +181,7 @@ class PortConnector:
             #  pass
 
     @staticmethod
-    async def create_from_cmd_config(
-        config: dict, ins=None, outs=None, connection_manager=None
-    ):
+    async def create_from_cmd_config(config: dict, ins=None, outs=None, connection_manager=None):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_cmd_config(config)
         return pc
@@ -282,13 +274,11 @@ class PortConnector:
             self.port_infos_reader = await self.con_man.try_connect(
                 port_infos_reader_sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
             )
-            pis = (await self.port_infos_reader.read()).value.as_struct(
-                fbp_capnp.PortInfos
-            )
+            pis = (await self.port_infos_reader.read()).value.as_struct(fbp_capnp.PortInfos)
             for n2sr in pis.inPorts:
                 if len(n2sr.name) > 0:
                     port_name = n2sr.name
-                    if n2sr.which() == "sr" and len(n2sr.sr) > 0:
+                    if n2sr.which() == "sr" and n2sr.sr is not None:
                         self.in_ports[port_name] = await self.con_man.try_connect(
                             n2sr.sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
                         )
@@ -296,14 +286,14 @@ class PortConnector:
             for n2sr in pis.outPorts:
                 if len(n2sr.name) > 0:
                     port_name = n2sr.name
-                    if n2sr.which() == "sr" and len(n2sr.sr) > 0:
+                    if n2sr.which() == "sr" and n2sr.sr is not None:
                         self.out_ports[port_name] = await self.con_man.try_connect(
                             n2sr.sr, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
                         )
                     elif len(n2sr.srs) > 0:
                         self.out_ports[port_name] = []
                         for sr in n2sr.srs:
-                            if len(sr) > 0:
+                            if sr is not None:
                                 self.out_ports[port_name].append(
                                     await self.con_man.try_connect(
                                         sr,
@@ -346,9 +336,7 @@ class PortConnector:
                         sr = None if sr == "" else sr
                         self.out_ports[port_name].append(sr)
                         if sr:
-                            self.out_ports[port_name][
-                                -1
-                            ] = await self.con_man.try_connect(
+                            self.out_ports[port_name][-1] = await self.con_man.try_connect(
                                 sr, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
                             )
                 else:
