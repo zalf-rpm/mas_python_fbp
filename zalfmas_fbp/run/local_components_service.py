@@ -19,7 +19,7 @@ import subprocess as sp
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, registry_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
@@ -41,10 +41,12 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     async def start_context(
         self, context
     ):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
-        port_infos_reader_sr = context.params.portInfosReaderSr
+        port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
+            context.params.portInfosReaderSr
+        )
         name = context.params.name
         self.proc = comp.start_local_component(
-            self.path_to_executable, port_infos_reader_sr, name
+            self.path_to_executable, port_infos_reader_sr_str, name
         )
         context.results.success = self.proc.poll() is None
 
@@ -71,7 +73,7 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
         self.count = 0
 
     # create @0 () -> (r :Runnable);
-    async def create(self, _context):
+    async def create(self, _context, **kwargs):
         self.count += 1
         r = Runnable(
             self.path_to_executable,
@@ -126,7 +128,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
             proc.terminate()
 
     # create @0 () -> (r :Process);
-    async def create(self, _context):
+    async def create(self, _context, **kwargs):
         self.count += 1
         writer = ProcessWriter()
         save_sr_token, unsave_sr_token = await self.restorer.save_cap(writer)

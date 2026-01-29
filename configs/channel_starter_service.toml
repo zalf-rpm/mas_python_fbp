@@ -17,6 +17,9 @@ fixed_sturdy_ref_token = "channel_starter"
 #name = "test gateway"
 ## sturdy ref to a registry where the service should be registered at
 #sturdy_ref = "capnp://the_host_key@host:port/a_sturdy_ref_token"
+[[service.gateways]]
+name = "DAKIS Gateway"
+sturdy_ref = "capnp://capnp-gateway.staging.dakispro.de"
 
 [vat]
 #host = "localhost"
