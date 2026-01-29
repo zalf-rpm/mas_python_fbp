@@ -15,6 +15,7 @@
 
 import argparse
 import subprocess as sp
+import sys
 
 import tomlkit as tk
 
@@ -111,10 +112,11 @@ def handle_default_fpb_component_args(parser, config: dict = None):
 
 
 def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
+    pte_split = list(path_to_executable.split(" "))
+    if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
+        pte_split[0] = sys.executable
     proc = sp.Popen(
-        list(path_to_executable.split(" "))
-        + [port_infos_reader_sr]
-        + ([f'--name="{name}"'] if name else []),
+        pte_split + [port_infos_reader_sr] + ([f'--name="{name}"'] if name else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
     )
@@ -124,10 +126,11 @@ def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
 def start_local_process_component(
     path_to_executable, process_cap_writer_sr, name=None
 ) -> sp.Popen[str]:
+    pte_split = list(path_to_executable.split(" "))
+    if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
+        pte_split[0] = sys.executable
     proc = sp.Popen(
-        list(path_to_executable.split(" "))
-        + [f"--writer_sr={process_cap_writer_sr}"]
-        + ([f'--name="{name}"'] if name else []),
+        pte_split + [f"--writer_sr={process_cap_writer_sr}"],
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
     )
