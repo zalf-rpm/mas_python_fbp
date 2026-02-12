@@ -1,6 +1,6 @@
 [project]
 name = "zalfmas-fbp"
-version = "0.2.29"
+version = "0.2.30"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
