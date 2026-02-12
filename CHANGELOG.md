@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.29](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.28...v0.2.29) (2026-02-12)
+
+
+### Features
+
+* bump minimum python version to 3.12 ([4b95f99](https://github.com/zalf-rpm/mas_python_fbp/commit/4b95f99297512b89db7fa149600de3f1fc737f51))
+* stabilze versions ahead of python update ([9d12724](https://github.com/zalf-rpm/mas_python_fbp/commit/9d1272434c57e962345d48353af424917e77941f))
+
 ## [0.2.28](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.27...v0.2.28) (2026-01-15)
 
 
