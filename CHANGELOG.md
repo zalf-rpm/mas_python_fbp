@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.30](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.29...v0.2.30) (2026-02-12)
+
+
+### Bug Fixes
+
+* add .pixi to docker ignore for lcoal dev ([2ede1f7](https://github.com/zalf-rpm/mas_python_fbp/commit/2ede1f7582c683127d96004b02db92d1828d56f9))
+
 ## [0.2.29](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.28...v0.2.29) (2026-02-12)
 
 
