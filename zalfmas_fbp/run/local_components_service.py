@@ -28,18 +28,18 @@ import zalfmas_fbp.run.components as comp
 
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
-        self,
-        path_to_executable,
-        id=None,
-        name=None,
-        description=None,
+            self,
+            path_to_executable,
+            id=None,
+            name=None,
+            description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
         self.proc = None
 
     async def start_context(
-        self, context
+            self, context
     ):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
         port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
             context.params.portInfosReaderSr
@@ -61,11 +61,11 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
 
 class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
-        self,
-        path_to_executable,
-        id=None,
-        name=None,
-        description=None,
+            self,
+            path_to_executable,
+            id=None,
+            name=None,
+            description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -109,12 +109,12 @@ class ProcessWriter(fbp_capnp.Channel.Writer.Server):
 
 class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
     def __init__(
-        self,
-        path_to_executable: str,
-        restorer: common.Restorer,
-        id: str = None,
-        name: str = None,
-        description: str = None,
+            self,
+            path_to_executable: str,
+            restorer: common.Restorer,
+            id: str = None,
+            name: str = None,
+            description: str = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -151,13 +151,13 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
     def __init__(
-        self,
-        components: dict,
-        cmds: dict,
-        id=None,
-        name=None,
-        description=None,
-        restorer=None,
+            self,
+            components: dict,
+            cmds: dict,
+            id=None,
+            name=None,
+            description=None,
+            restorer=None,
     ):
         common.Persistable.__init__(self, restorer)
         common.Identifiable.__init__(self, id, name, description)
@@ -168,6 +168,9 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
 
         for e in self._components["entries"]:
             c = e["component"]
+            if "defaultConfig" in c:
+                dc_json = json.dumps(c["defaultConfig"])
+                c["defaultConfig"] = common_capnp.StructuredText.new_message(type="json", value=dc_json)
             info = c["info"]
             c_id = info["id"]
             if c_id in self._cmds:
@@ -197,12 +200,12 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             )
 
     async def supportedCategories_context(
-        self, context
+            self, context
     ):  # supportedCategories @0 () -> (cats :List(IdInformation));
         context.results.cats = self._components["categories"]
 
     async def categoryInfo_context(
-        self, context
+            self, context
     ):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
         cat_id = context.params.categoryId
         r = context.results
@@ -214,7 +217,7 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
                     r.description = c["description"]
 
     async def entries_context(
-        self, context
+            self, context
     ):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
         cat_id = context.params.categoryId
         r = context.results

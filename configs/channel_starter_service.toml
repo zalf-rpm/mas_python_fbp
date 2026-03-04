@@ -4,7 +4,7 @@ name = "channel starter service"
 description = ""
 path_to_channel = "./binaries/channel"
 verbose = false
-fixed_sturdy_ref_token = "channel_starter"
+fixed_sturdy_ref_token = "local_mas_python_fbp_channel_starter"
 # channel_host = "localhost"
 
 #[[service.registries]]

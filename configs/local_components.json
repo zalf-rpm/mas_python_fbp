@@ -81,7 +81,12 @@
                         "name": "ds"
                     }
                 ],
-                "defaultConfig": "#to_attr=\n#create_substream=false\n"
+                "defaultConfig": {
+                    "to_attr": null,
+                    "to_attr_type": "string",
+                    "to_attr_desc": "send content instead in 'to_attr'",
+                    "create_substream": false
+                }
             }
         },
         {
@@ -103,7 +108,23 @@
                         "name": "ts"
                     }
                 ],
-                "defaultConfig": "#no_of_locations_at_once = 10\n#continue_after_location_id = None\n#to_attr = \n#create_substream = false\n#maintain_incoming_substreams = false"
+                "defaultConfig": {
+                    "no_of_locations_at_once": 10,
+                    "no_of_locations_at_once_type": "int",
+                    "no_of_locations_at_once_desc": "number of locations to send at once",
+                    "continue_after_location_id": false,
+                    "continue_after_location_id_type": "string",
+                    "continue_after_location_id_desc": "continue after a particular location id",
+                    "to_attr": null,
+                    "to_attr_type": "string",
+                    "to_attr_desc": "send data attached to attribute 'to_attr'",
+                    "create_substream": false,
+                    "create_substream_type": "[true | false]",
+                    "create_substream_desc": "create a substream for each datasets' timeseries",
+                    "maintain_incoming_substreams": false,
+                    "maintain_incoming_substreams_type": "[true | false]",
+                    "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams"
+                }
             }
         },
         {
@@ -127,7 +148,17 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#to_attr = \n#from_attr = \n#subrange_start = iso-date\n#subrange_end = iso-date\n#subheader = [\"tavg\", \"precip\"]\n#transposed = false\n#maintain_substreams = false"
+                "defaultConfig": {
+                    "to_attr": null,
+                    "from_attr": null,
+                    "subrange_start": null,
+                    "subrange_start_type": "iso-date",
+                    "subrange_end": null,
+                    "subrange_end_type": "iso-date",
+                    "subheader": ["tavg", "precip"],
+                    "transposed": false,
+                    "maintain_substreams": false
+                }
             }
         },
         {
@@ -233,7 +264,15 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#id_col = \"id\"\n#send_ids = []  # [1,2,3]\n#file = \"path to csv file\"\n#path_to_capnp_struct = \"bgr.capnp:Setup\",  # \"bla.capnp:MyType\"\n#to_attr ="
+                "defaultConfig": {
+                    "id_col": "id",
+                    "send_ids": [],
+                    "send_ids_ex": [1, 2, 3],
+                    "file": "path to csv file",
+                    "path_to_capnp_struct": "bgr.capnp:Setup",
+                    "path_to_capnp_struct_ex": "bla.capnp:MyType",
+                    "to_attr": null
+                }
             }
         },
         {
@@ -255,7 +294,20 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#to_attr = \"setup\"\n#file = \"\"\n#lines_mode = true\n#skip_lines = 0"
+                "defaultConfig": {
+                    "to_attr": null,
+                    "to_attr_type": "string",
+                    "to_attr_desc": "store read file content into 'to_attr'",
+                    "file": "",
+                    "file_type": "string",
+                    "file_desc": "path to file to read",
+                    "lines_mode": true,
+                    "lines_mode_type": [true, false],
+                    "lines_mode_desc": "send single lines if true else send whole file content at once",
+                    "skip_lines": 0,
+                    "skip_lines_type": "int",
+                    "skip_lines_desc": "if lines mode is true, skip that many lines at the beginning of the file"
+                }
             }
         },
         {
@@ -275,7 +327,14 @@
                     }
                 ],
                 "outPorts": [],
-                "defaultConfig": "#id_attr = \"id\"\n#from_attr = \n#filepath_pattern = \"csv_{id}.csv\"\n#path_to_out_dir = \"path to output dir\"\n#append = false\n#debug = false"
+                "defaultConfig": {
+                    "id_attr": "id",
+                    "from_attr": null,
+                    "filepath_pattern": "csv_{id}.csv",
+                    "path_to_out_dir": "path to output dir",
+                    "append": false,
+                    "debug": false
+                }
             }
         },
         {
@@ -395,7 +454,11 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#as_common_value = false\n#from_attr = some_attr_name\n#to_attr = some_attr_name"
+                "defaultConfig": {
+                    "as_common_value": false,
+                    "from_attr": null,
+                    "to_attr": null
+                }
             }
         },
         {
@@ -421,7 +484,9 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#to_attr = \"attr\""
+                "defaultConfig": {
+                    "to_attr": "attr"
+                }
             }
         },
         {
@@ -491,7 +556,17 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "# structures have to match\n#[update]\n#customId = 1\n#cropRotationTemplates.WW.0.worksteps.0.date = 2020-01-03\n\n# replace missing structure \n#[replace]\n\n# add unknown keys\n#[add]\n"
+                "defaultConfig": {
+                    "update_desc": "update structure: structures have to match",
+                    "update": [
+                        ["customId_ex", "<-", 1],
+                        ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+                    ],
+                    "replace_desc": "replace missing structure",
+                    "replace": [],
+                    "add_desc": "add unknown keys",
+                    "add": []
+                }
             }
         },
         {
@@ -542,7 +617,17 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#from_attr = some_attr_name\n#to_attr = some_attr_name\n#climate = \"@climate\"  \n#soil = \"@soil\"\n#id = \"@id\""
+                "defaultConfig": {
+                    "from_attr": null,
+                    "from_attr_type": "string",
+                    "from_attr_desc": "some_attr_name",
+                    "to_attr": null,
+                    "to_attr_type": "string",
+                    "to_attr_desc": "some_attr_name",
+                    "climate": "@climate",
+                    "soil": "@soil",
+                    "id": "@id"
+                }
             }
         },
         {
@@ -566,7 +651,19 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#sim_json = \"sim_bgr.json\"\n#crop_json = \"crop_bgr.json\"\n#site_json = \"site.json\"\n#dgm_attr = \"dgm\"\n#slope_attr = \"slope\"\n#climate_attr = \"climate\"\n#soil_attr = \"soil\"\n#coord_attr = \"latlon\"\n#setup_attr = \"setup\"\n#id_attr = \"id\"\n#ilr_attr = \"ilr\"\n"
+                "defaultConfig": {
+                    "sim_json": "sim_bgr.json",
+                    "crop_json": "crop_bgr.json",
+                    "site_json": "site.json",
+                    "dgm_attr": "dgm",
+                    "slope_attr": "slope",
+                    "climate_attr": "climate",
+                    "soil_attr": "soil",
+                    "coord_attr": "latlon",
+                    "setup_attr": "setup",
+                    "id_attr": "id",
+                    "ilr_attr": "ilr"
+                }
             }
         },
         {
@@ -594,7 +691,11 @@
                         "name": "out"
                     }
                 ],
-                "defaultConfig": "#to_attr = some_attr_name"
+                "defaultConfig": {
+                    "to_attr": null,
+                    "to_attr_type": "string",
+                    "to_attr_desc": "some_attr_name"
+                }
             }
         },
         {

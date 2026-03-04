@@ -18,7 +18,7 @@ import os
 
 import tomli
 from capnp.lib.capnp import KjException
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
 from zalfmas_common import common
 
 
@@ -71,16 +71,26 @@ async def update_config_from_port(config, port, config_type="toml"):
             if conf_msg.which() == "done":
                 return None
             conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-            conf_str = conf_ip.content.as_text()
-            if config_type == "toml":
-                xxx_config = tomli.loads(conf_str)
-            elif config_type == "json":
-                xxx_config = json.loads(conf_str)
+            try:  # first try to read as structured text
+                conf_st = conf_ip.content.as_struct(common_capnp.StructuredText)
+                if conf_st.type == "toml":
+                    xxx_config = tomli.loads(conf_st.value)
+                elif conf_st.type == "json":
+                    xxx_config = json.loads(conf_st.value)
+            except:
+                try:  # if structured text fails, try as plain text and use config_type parameter
+                    conf_str = conf_ip.content.as_text()
+                    if config_type == "toml":
+                        xxx_config = tomli.loads(conf_str)
+                    elif config_type == "json":
+                        xxx_config = json.loads(conf_str)
+                except:
+                    pass
             if xxx_config:
                 config.update(xxx_config)
         except Exception as e:
             print(
-                f"{os.path.basename(__file__)} update_config_from_port: {config_type} config: {xxx_config} Exception:",
+                f"{os.path.basename(__file__)} update_config_from_port: config: {xxx_config} Exception:",
                 e,
             )
     return config
