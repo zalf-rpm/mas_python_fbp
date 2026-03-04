@@ -54,7 +54,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # update = structures of j and spec have to match exactly
             # replace = if j doesn't match, sub-parts will be replaced according to spec
             # add = if keys are missing, the will be added and set to according sub-spec
-            def change(j, spec, allowed_operation="update"):
+            def change(j, spec: dict, allowed_operation="update"):
                 for k, v in spec.items():
                     i = int(k) if k.isdigit() else None
                     # check the key against j to be changed
@@ -95,10 +95,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     elif type(v) is list:
                         # attribute access
                         if (
-                            len(v) >= 1
-                            and type(v[0]) is str
-                            and len(v[0]) > 0
-                            and v[0][0] == "@"
+                                len(v) >= 1
+                                and type(v[0]) is str
+                                and len(v[0]) > 0
+                                and v[0][0] == "@"
                         ):
                             attr_val, is_capnp = p.get_attr_val(
                                 v[0],
@@ -107,10 +107,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             )
                             # attribute sub access
                             if (
-                                is_capnp
-                                and len(v) > 1
-                                and "types" in config
-                                and v[0] in config["types"]
+                                    is_capnp
+                                    and len(v) > 1
+                                    and "types" in config
+                                    and v[0] in config["types"]
                             ):
                                 attr_val = as_type(attr_val, config["types"][v[0]])
                                 for field_name in v[1:]:
@@ -131,9 +131,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             remove=False,
                         )
                         if (
-                            is_capnp
-                            and "types" in config
-                            and spec[k] in config["types"]
+                                is_capnp
+                                and "types" in config
+                                and spec[k] in config["types"]
                         ):
                             attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
@@ -146,9 +146,33 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         else:
                             j[k] = v
 
+            def create_nested_dict(l: list) -> dict:
+                res_dict = {}
+                d = res_dict
+                prev_d = d
+                prev_key = None
+                assign_result = False
+                for val in l:
+                    if assign_result:
+                        prev_d[prev_key] = val
+                        continue
+                    if val == "<-":
+                        assign_result = True
+                        continue
+                    d[str(val)] = {}
+                    prev_d = d
+                    prev_key = str(val)
+                    d = d[str(val)]
+                return res_dict
+
             for op in ["update", "replace", "add"]:
                 if op in config:
-                    change(j_content, config[op], allowed_operation=op)
+                    for co in config[op]:
+                        try:
+                            nested_dict = create_nested_dict(co)
+                            change(j_content, nested_dict, allowed_operation=op)
+                        except:
+                            pass
 
             out_ip = fbp_capnp.IP.new_message(
                 content=json.dumps(j_content),
