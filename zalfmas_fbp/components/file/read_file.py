@@ -41,9 +41,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                         out_ip = fbp_capnp.IP.new_message()
                         if config["to_attr"] and len(config["to_attr"]) > 0:
-                            out_ip.attributes = [
-                                {"key": config["to_attr"], "value": line}
-                            ]
+                            out_ip.attributes = [{"key": config["to_attr"], "value": line}]
                         else:
                             out_ip.content = line
                         await ports["out"].write(value=out_ip)
@@ -51,9 +49,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     file_content = _.read()
                     out_ip = fbp_capnp.IP.new_message()
                     if config["to_attr"] and len(config["to_attr"]) > 0:
-                        out_ip.attributes = [
-                            {"key": config["to_attr"], "value": file_content}
-                        ]
+                        out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]
                     else:
                         out_ip.content = file_content
                     await ports["out"].write(value=out_ip)
@@ -67,6 +63,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
+default_toml = """
+to_attr = "" # [string] -> store read file content into 'to_attr'
+file = "" # [string] -> path to file to read
+lines_mode = true # [true | false] -> send single lines if true else send whole file content at once
+skip_lines = 0 # [int] -> if lines mode is true, skip that many lines at the beginning of the file
+"""
 
 default_config = {
     "to_attr": None,
@@ -84,9 +87,7 @@ default_config = {
 
 def main():
     parser = c.create_default_fbp_component_args_parser("Read a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
 

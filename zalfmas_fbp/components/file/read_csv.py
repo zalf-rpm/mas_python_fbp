@@ -79,14 +79,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             continue
 
                     if send_ids is None or (
-                        id_col in struct_fieldnames
-                        and val.__getattr__(id_col) in send_ids
+                        id_col in struct_fieldnames and val.__getattr__(id_col) in send_ids
                     ):
                         out_ip = fbp_capnp.IP.new_message()
                         if config["to_attr"]:
-                            out_ip.attributes = [
-                                {"key": config["to_attr"], "value": val}
-                            ]
+                            out_ip.attributes = [{"key": config["to_attr"], "value": val}]
                         else:
                             out_ip.content = val
                         await ports["out"].write(value=out_ip)
@@ -100,6 +97,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
+
+default_toml = """
+id_col = "id"
+send_ids = []  # [1,2,3]
+file = "path to csv file"
+path_to_capnp_struct = "bgr.capnp:Setup"  # "bla.capnp:MyType"
+#to_attr = 
+"""
 
 default_config = {
     "id_col": "id",
@@ -118,9 +123,7 @@ def main():
     parser = c.create_default_fbp_component_args_parser(
         "Read a CSV file into user structs per line"
     )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
+    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
     asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
 
 
