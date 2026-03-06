@@ -36,7 +36,7 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
-        self.proc = None
+        self.proc: sp.Popen = None
 
     async def start_context(
             self, context
@@ -56,7 +56,7 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             rt = self.proc.returncode == 0
             self.proc = None
             context.results.success = rt
-        context.results.success = False
+        context.results.success = True
 
 
 class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
