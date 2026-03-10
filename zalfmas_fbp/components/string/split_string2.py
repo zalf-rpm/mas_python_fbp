@@ -64,7 +64,7 @@ class SplitString(process.Process):
                     logger.info(f"{self.name} sent: {val}")
 
             except capnp.KjException as e:
-                logger.error(f"{self.name} RPC Exception: {e.description()}")
+                logger.error(f"{self.name} RPC Exception: {e.description}")
                 if e.type in ["DISCONNECTED"]:
                     break
 

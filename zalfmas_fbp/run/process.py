@@ -18,8 +18,6 @@ import os
 import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
-from mas.schema.persistence import persistence_capnp
-
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 from zalfmas_common import common
 
@@ -32,8 +30,8 @@ logging.basicConfig(
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
     def __init__(
-        self,
-        callback,  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
+            self,
+            callback,  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
     ):
         self.callback = callback
 
@@ -44,11 +42,11 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
 
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
-        self,
-        con_man: common.ConnectionManager = None,
-        id: str | None = None,
-        name: str | None = None,
-        description: str | None = None,
+            self,
+            con_man: common.ConnectionManager = None,
+            id: str | None = None,
+            name: str | None = None,
+            description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man if con_man else common.ConnectionManager())
@@ -149,6 +147,9 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # start @5 () -> (started: Bool, finishedSuccessfully :Bool);
     async def start(self, _context, **kwargs):
+        # only call run, if run has finished already
+        if self.process_state == "started" or self.process_state == "canceled":
+            return
         await self.transition_to_state("started")
         await self.run()
 
@@ -188,20 +189,20 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     )
 
     async def serve(
-        self,
-        writer_sr: str = None,
-        serve_bootstrap: bool = False,
-        host: str = None,
-        port: int = None,
+            self,
+            writer_sr: str = None,
+            serve_bootstrap: bool = False,
+            host: str = None,
+            port: int = None,
     ):
         if (
-            writer_sr
-            and len(writer_sr) > 0
-            and (
+                writer_sr
+                and len(writer_sr) > 0
+                and (
                 writer := (await self.con_man.try_connect(writer_sr)).cast_as(
                     fbp_capnp.Channel.Writer
                 )
-            )
+        )
         ):
             await writer.write(value=self)
             logging.info(f"wrote process cap into {writer_sr}")
@@ -219,15 +220,15 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 import socket
 
                 if (
-                    len(
-                        ip4_socks := list(
-                            filter(
-                                lambda s: s.family == socket.AddressFamily.AF_INET,
-                                server.sockets,
+                        len(
+                            ip4_socks := list(
+                                filter(
+                                    lambda s: s.family == socket.AddressFamily.AF_INET,
+                                    server.sockets,
+                                )
                             )
                         )
-                    )
-                    > 0
+                        > 0
                 ):
                     port = ip4_socks[0].getsockname()[1]
                 print(f"Process({self.name}) SR: capnp://{host}:{port}")
@@ -250,7 +251,7 @@ def parse_cmd_args_and_serve_process(p: Process):
 
 
 def create_default_args_parser(
-    component_description: str,
+        component_description: str,
 ):
     parser = argparse.ArgumentParser(description=component_description)
     parser.add_argument(
