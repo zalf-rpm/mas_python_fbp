@@ -24,10 +24,10 @@ from zalfmas_common import common
 
 def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if (
-        type(config_val) is str
-        and len(config_val) > 0
-        and config_val[0] == "@"
-        and config_val[1:] in attrs
+            type(config_val) is str
+            and len(config_val) > 0
+            and config_val[0] == "@"
+            and config_val[1:] in attrs
     ):
         if remove:
             attr_val = attrs.pop(config_val[1:])
@@ -46,7 +46,7 @@ def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=F
 
 
 def get_config_val(
-    config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
+        config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
 ):
     if key in config:
         cval = config[key]
@@ -65,40 +65,42 @@ def get_config_val(
 # toml or json
 async def update_config_from_port(config, port, config_type="toml"):
     if port:
-        xxx_config = None
-        try:
-            conf_msg = await port.read()
-            if conf_msg.which() == "done":
-                return None
-            conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-            try:  # first try to read as structured text
-                conf_st = conf_ip.content.as_struct(common_capnp.StructuredText)
-                if conf_st.type == "toml":
-                    xxx_config = tomli.loads(conf_st.value)
-                elif conf_st.type == "json":
-                    xxx_config = json.loads(conf_st.value)
-            except:
-                try:  # if structured text fails, try as plain text and use config_type parameter
-                    conf_str = conf_ip.content.as_text()
-                    if config_type == "toml":
-                        xxx_config = tomli.loads(conf_str)
-                    elif config_type == "json":
-                        xxx_config = json.loads(conf_str)
-                except:
-                    pass
-            if xxx_config:
-                config.update(xxx_config)
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)} update_config_from_port: config: {xxx_config} Exception:",
-                e,
-            )
+        if xxx_config := read_dict_from_port(port, config_type):
+            config.update(xxx_config)
     return config
 
 
-async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
+async def read_dict_from_port(port, text_type="toml"):
+    d = {}
+    if port:
+        try:
+            msg = await port.read()
+            if msg.which() == "done":
+                return None
+            ip = msg.value.as_struct(fbp_capnp.IP)
+            try:  # first try to read as structured text
+                st = ip.content.as_struct(common_capnp.StructuredText)
+                if st.type == "toml":
+                    d = tomli.loads(st.value)
+                elif st.type == "json":
+                    d = json.loads(st.value)
+            except:
+                try:  # if structured text fails, try as plain text and use config_type parameter
+                    str = ip.content.as_text()
+                    if text_type == "toml":
+                        d = tomli.loads(str)
+                    elif text_type == "json":
+                        d = json.loads(str)
+                except:
+                    pass
+        except Exception as e:
+            print(f"{os.path.basename(__file__)} read_dict_from_port. Exception: {e}")
+    return d
+
+
+async def read_dict_from_port_done(ports, port_name, text_type="json", set_port_to_none_if_done=True):
     if port_name in ports.ins:
-        d = await update_config_from_port({}, ports[port_name], config_type=config_type)
+        d = await read_dict_from_port(ports[port_name], text_type=text_type)
         if d is None and set_port_to_none_if_done:
             ports[port_name] = None
         return d
@@ -137,11 +139,11 @@ class PortConnector:
 
     def __setitem__(self, key, value):
         if (
-            key in self.in_ports
-            and key in self.out_ports
-            and isinstance(value, dict)
-            and "in" in value
-            and "out" in value
+                key in self.in_ports
+                and key in self.out_ports
+                and isinstance(value, dict)
+                and "in" in value
+                and "out" in value
         ):
             self.in_ports[key] = value["in"]
             self.out_ports[key] = value["out"]
@@ -151,10 +153,10 @@ class PortConnector:
             self.out_ports[key] = value
 
     async def close_out_ports(
-        self,
-        print_info=False,
-        print_exception=True,
-        wait_for_port_infos_reader_done=True,
+            self,
+            print_info=False,
+            print_exception=True,
+            wait_for_port_infos_reader_done=True,
     ):
         for name, ps in self.out_ports.items():
             # is an array out port
@@ -273,7 +275,7 @@ class PortConnector:
 
     @staticmethod
     async def create_from_port_infos_reader(
-        port_infos_reader_sr: str, ins=None, outs=None, connection_manager=None
+            port_infos_reader_sr: str, ins=None, outs=None, connection_manager=None
     ):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_port_infos_reader(port_infos_reader_sr)
@@ -319,7 +321,7 @@ class PortConnector:
 
     @staticmethod
     async def create_from_toml_str(
-        config_toml_str: str, ins=None, outs=None, connection_manager=None
+            config_toml_str: str, ins=None, outs=None, connection_manager=None
     ):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_toml_str(config_toml_str)
@@ -365,7 +367,7 @@ class PortConnector:
 
     @staticmethod
     async def create_from_toml_reader_sr(
-        config_reader_sr: str, ins=None, outs=None, connection_manager=None
+            config_reader_sr: str, ins=None, outs=None, connection_manager=None
     ):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_toml_reader_sr(config_reader_sr)

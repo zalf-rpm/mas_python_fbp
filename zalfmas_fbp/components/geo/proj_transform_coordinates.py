@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,33 @@ from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
 from zalfmas_fbp.run import ports as p
+
+meta = {
+    "category": {
+        "id": "geo",
+        "name": "Geo"
+    },
+    "component": {
+        "info": {
+            "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
+            "name": "Proj transform coords",
+            "description": "Transform coordinates using the Proj library."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "in"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ]
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -83,13 +109,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

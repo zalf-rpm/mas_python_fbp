@@ -13,14 +13,54 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp, geo_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "climate",
+        "name": "Climate"
+    },
+    "component": {
+        "info": {
+            "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
+            "name": "datasets -> timeseries",
+            "description": "Get timeseries capabilties from a dataset."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "ds"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "ts"
+            }
+        ],
+        "defaultConfig": {
+            "no_of_locations_at_once": 10,
+            "no_of_locations_at_once_type": "int",
+            "no_of_locations_at_once_desc": "number of locations to send at once",
+            "continue_after_location_id": false,
+            "continue_after_location_id_type": "string",
+            "continue_after_location_id_desc": "continue after a particular location id",
+            "to_attr": null,
+            "to_attr_type": "string",
+            "to_attr_desc": "send data attached to attribute 'to_attr'",
+            "create_substream": false,
+            "create_substream_type": "[true | false]",
+            "create_substream_desc": "create a substream for each datasets' timeseries",
+            "maintain_incoming_substreams": false,
+            "maintain_incoming_substreams_type": "[true | false]",
+            "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams"
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -122,13 +162,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

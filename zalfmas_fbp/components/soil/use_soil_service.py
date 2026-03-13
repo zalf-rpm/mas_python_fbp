@@ -13,21 +13,72 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp, soil_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+meta = {
+    "category": {
+        "id": "soil",
+        "name": "Soil"
+    },
+    "component": {
+        "info": {
+            "id": "89da0cb9-2079-4245-aecc-068194bc1637",
+            "name": "Use soil service",
+            "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "latlon",
+                "contentType": "geo.capnp.LatLonCoord",
+                "desc": "Lat/Lon coordinate"
+            }, {
+                "name": "service",
+                "contentType": "soil.capnp:Service | Text (SturdyRef)",
+                "desc": "Capability or sturdy ref to service."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "grid.capnp.Grid.Value",
+                "desc": "value at requested location"
+            }
+        ],
+        "defaultConfig": {
+            "from_attr": {
+                "value": None,
+                "contentType": "geo.capnp.LatLonCoord",
+                "desc": "name of the attribute to get coordinate from (on 'in' IP) (e.g. latlon)"
+            },
+            "to_attr": {
+                "value": None,
+                "contentType": "grid.capnp.Grid.Value",
+                "desc": "store result on attribute with this name"
+            },
+            "mandatory": {
+                "value": ["soilType", "organicCarbon", "rawDensity"],
+                "contentType": "List[Text]",
+                "desc": "Which soil attributes are needed in the result to be valid?"
+            }
+        }
+    }
+}
+
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
-        ins=["conf", "in", "service"],
+        ins=["conf", "latlon", "service"],
         outs=["out"],
     )
     await p.update_config_from_port(config, ports["conf"])
@@ -42,11 +93,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             return
 
     mandatory = config["mandatory"]
-    while ports["in"] and ports["out"] and service:
+    while ports["latlon"] and ports["out"] and service:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await ports["latlon"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                ports["latlon"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -79,25 +130,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "to_attr": "[string]",  # store result on attribute with this name
-    "mandatory": ["soilType", "organicCarbon", "rawDensity"],
-    "port:conf": "[TOML string] -> component configuration",
-    "port:service": "[sturdy ref | capability]",  # capability or sturdy ref to service
-    "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
-    "port:out": "[grid_capnp.Grid.Value]",  # value at requested location
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get soil profiles at lat/lon location."
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

@@ -13,12 +13,10 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 import uuid
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import (
     climate_capnp,
     common_capnp,
@@ -36,6 +34,90 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "models/monica",
+        "name": "Models/MONICA"
+    },
+    "component": {
+        "info": {
+            "id": "921bcda7-d83f-4190-8593-fce793dc9519",
+            "name": "Create MONICA env",
+            "description": "Create MONICA env from sim/crop/site json files."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "?",
+                "desc": "a message with no content, but all relevant information in it's attributes. See configuration."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "model.capnp:Env",
+                "desc": "Env structure ready to be sent to a MONICA instance."
+            }
+        ],
+        "defaultConfig": {
+            "sim_json": {
+                "value": "sim.json",
+                "type": "Text",
+                "desc": "Path to sim.json file."
+            },
+            "crop_json": {
+                "value": "crop.json",
+                "type": "Text",
+                "desc": "Path to crop.json file."
+            },
+            "site_json": {
+                "value": "site.json",
+                "type": "Text",
+                "desc": "Name of attribute to read dgm value from."
+            },
+            "dgm_attr": {
+                "value": "@dgm",
+                "type": "grid.capnp:Grid.Value | Number",
+                "desc": "Height above sea level. As Grid.Value via @ out of an attribute or directly as number from config value."
+            },
+            "slope_attr": {
+                "value": "@slope",
+                "type": "grid.capnp.Grid.Value | Number",
+                "desc": "Slope value. As Grid.Value via @ out of an attribute or directly as number from config value."
+            },
+            "climate_attr": {
+                "value": "@climate",
+                "type": "climate.capnp:TimeSeries | Text",
+                "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value."
+            },
+            "soil_attr": {
+                "value": "@soil",
+                "type": "soil.capnp:Profile | Text (JSON array)",
+                "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value."
+            },
+            "setup_attr": {
+                "value": "@setup",
+                "type": "model/monica/sim_setup.capnp:Setup",
+                "desc": "Setup structure via @ out of attribute."
+            },
+            "id_attr": {
+                "value": "@id",
+                "type": "Text",
+                "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated."
+            },
+            "ilr_attr": {
+                "value": "@ilr",
+                "type": "Text",
+                "desc": "Path to site.json file."
+            }
+        }
+    }
+}
 
 
 def create_env(sim, crop, site, crop_id):
@@ -94,7 +176,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             attrs = {kv.key: kv.value for kv in in_ip.attributes}
             if "coord" in config:
                 ll_coord, is_capnp = p.get_config_val(
-                    config, "dgm", attrs, as_struct=geo_capnp.LatLonCoord, remove=True
+                    config, "coord", attrs, as_struct=geo_capnp.LatLonCoord, remove=True
                 )
                 ll_coord = (
                     ll_coord
@@ -106,7 +188,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             if "setup" in config:
                 setup, is_capnp = p.get_config_val(
-                    config, "dgm", attrs, as_struct=sim_setup_capnp.Setup, remove=True
+                    config, "setup", attrs, as_struct=sim_setup_capnp.Setup, remove=True
                 )
                 setup = (
                     setup
@@ -124,35 +206,38 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 "__enable_vernalisation_factor_fix__"
             ] = setup.useVernalisationFix
 
-            if config["ilr"] in attrs:
-                ilr = attrs.pop(config["ilr"]).as_struct(mgmt_capnp.ILRDates)
-                worksteps = env_template["cropRotation"][0]["worksteps"]
-                sowing_ws = next(
-                    filter(lambda ws: ws["type"][-6:] == "Sowing", worksteps)
+            if "ilr" in config:
+                ilr, is_capnp = p.get_config_val(
+                    config, "ilr", attrs, as_struct=mgmt_capnp.ILRDates, remove=True
                 )
-                if ilr._has("sowing"):
-                    s = ilr.sowing
-                    sowing_ws["date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
-                if ilr._has("earliestSowing"):
-                    s = ilr.earliestSowing
-                    sowing_ws["earliest-date"] = (
-                        f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                if is_capnp:
+                    worksteps = env_template["cropRotation"][0]["worksteps"]
+                    sowing_ws = next(
+                        filter(lambda ws: ws["type"][-6:] == "Sowing", worksteps)
                     )
-                if ilr._has("latestSowing"):
-                    s = ilr.latestSowing
-                    sowing_ws["latest-date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                    if ilr._has("sowing"):
+                        s = ilr.sowing
+                        sowing_ws["date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                    if ilr._has("earliestSowing"):
+                        s = ilr.earliestSowing
+                        sowing_ws["earliest-date"] = (
+                            f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
+                        )
+                    if ilr._has("latestSowing"):
+                        s = ilr.latestSowing
+                        sowing_ws["latest-date"] = f"{s.year:04d}-{s.month:02d}-{s.day:02d}"
 
-                harvest_ws = next(
-                    filter(lambda ws: ws["type"][-7:] == "Harvest", worksteps)
-                )
-                if ilr._has("harvest"):
-                    h = ilr.harvest
-                    harvest_ws["date"] = f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
-                if ilr._has("latestHarvest"):
-                    h = ilr.latestHarvest
-                    harvest_ws["latest-date"] = (
-                        f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
+                    harvest_ws = next(
+                        filter(lambda ws: ws["type"][-7:] == "Harvest", worksteps)
                     )
+                    if ilr._has("harvest"):
+                        h = ilr.harvest
+                        harvest_ws["date"] = f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
+                    if ilr._has("latestHarvest"):
+                        h = ilr.latestHarvest
+                        harvest_ws["latest-date"] = (
+                            f"{h.year:04d}-{h.month:02d}-{h.day:02d}"
+                        )
 
             env_template["params"]["userCropParameters"][
                 "__enable_T_response_leaf_expansion__"
@@ -174,8 +259,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     config, "slope", attrs, as_struct=grid_capnp.Grid.Value, remove=True
                 )
                 env_template["params"]["siteParameters"]["slope"] = (
-                    slope.f if is_capnp else slope
-                ) / 100.0
+                                                                        slope.f if is_capnp else slope
+                                                                    ) / 100.0
 
             if setup.latitude:
                 env_template["params"]["siteParameters"]["Latitude"] = ll_coord.lat
@@ -279,7 +364,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     ] = soil_profile
 
             capnp_env.rest = common_capnp.StructuredText.new_message(
-                value=json.dumps(env_template), structure={"json": None}
+                value=json.dumps(env_template), type="json"
             )
             out_ip = common_capnp.IP.new_message(
                 content=capnp_env,
@@ -294,30 +379,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "sim_json": "@sim.json",
-    "crop_json": "@crop.json",
-    "site_json": "@site.json",
-    "dgm": "@dgm",
-    "slope": "@slope",
-    "climate": "@climate",
-    "soil": "@soil",
-    "coord": "@latlon",
-    "setup": "@setup",
-    "id": "@id",
-    "ilr": "@ilr",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string (MONICA JSON result)] -> receive MONICA JSON result",
-    "port:out": "[string (MONICA JSON env)]",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Create a MONICA env")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

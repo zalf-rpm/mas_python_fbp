@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -21,6 +20,27 @@ from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "console",
+        "name": "Console"
+    },
+    "component": {
+        "info": {
+            "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
+            "name": "output to console",
+            "description": "Output input to console."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in"
+            }
+        ],
+        "outPorts": []
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -55,11 +75,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Output text on console FBP component"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser)
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

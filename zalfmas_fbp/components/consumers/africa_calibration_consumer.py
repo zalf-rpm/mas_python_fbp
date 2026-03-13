@@ -13,17 +13,42 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 from collections import defaultdict
 from datetime import datetime
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "consumers",
+        "name": "Consumers"
+    },
+    "component": {
+        "info": {
+            "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
+            "name": "africa calibration",
+            "description": "Consumer to work in an Africa calibration flow."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "result"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "year_to_yield"
+            }
+        ]
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -93,7 +118,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         no_of_yields = len(yields)
                         if no_of_yields > 0:
                             country_id_and_year_to_avg_yield[f"{country_id}|{year}"] = (
-                                sum(yields) / no_of_yields
+                                    sum(yields) / no_of_yields
                             )
 
                 out_ip = fbp_capnp.IP.new_message(
@@ -125,13 +150,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Copy IP to all attached array out ports"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

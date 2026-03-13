@@ -13,10 +13,8 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from pymep.realParser import eval as mep_eval
 from zalfmas_capnp_schemas_with_stubs import (
     common_capnp,
@@ -28,6 +26,40 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "grid",
+        "name": "Grid"
+    },
+    "component": {
+        "info": {
+            "id": "cb6720d6-bc33-445d-b2c1-aa3842219c81",
+            "name": "Use grid service",
+            "description": "Use the grid service to get the grid value at a given Lat/Lon coord."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "in"
+            }, {
+                "name": "service"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ],
+        "defaultConfig": {
+            "as_common_value": False,
+            "from_attr": None,
+            "to_attr": None
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -123,13 +155,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get grid value at lat/lon location, either via external Grid service or starting it within the component."
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

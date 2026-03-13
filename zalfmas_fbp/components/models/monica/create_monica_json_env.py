@@ -13,16 +13,57 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "models/monica",
+        "name": "Models/MONICA"
+    },
+    "component": {
+        "info": {
+            "id": "128af0c8-2614-4398-9043-ff3581958bd4",
+            "name": "Create MONICA JSON env",
+            "description": "Create MONICA JSON environment."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "sim",
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+            }, {
+                "name": "crop",
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+            }, {
+                "name": "site",
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)"
+            }
+        ],
+        "defaultConfig": {
+            "to_attr": {
+                "value": None,
+                "type": "Text (JSON)",
+                "desc": "Set output into this attribute."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -33,9 +74,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     while ports["sim"] and ports["crop"] and ports["site"] and ports["out"]:
         try:
-            sim = await p.read_dict_from_port(ports, "sim")
-            crop = await p.read_dict_from_port(ports, "crop")
-            site = await p.read_dict_from_port(ports, "site")
+            sim = await p.read_dict_from_port_done(ports, "sim")
+            crop = await p.read_dict_from_port_done(ports, "crop")
+            site = await p.read_dict_from_port_done(ports, "site")
 
             if sim and crop and site:
                 env_template = monica_io.create_env_json_from_json_config(
@@ -64,24 +105,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "to_attr": None,
-    "port:conf": "[TOML string] -> component configuration",
-    "port:sim": "[JSON string] -> sim.json content",
-    "port:crop": "[JSON string] -> crop.json content",
-    "port:site": "[JSON string] -> site.json content",
-    "port:out": "[string (MONICA JSON env)]",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Create a MONICA JSON environment from input sim/crop/site JSON content"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

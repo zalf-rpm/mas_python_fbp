@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
@@ -28,17 +28,47 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+meta = {
+    "category": {
+        "id": "string",
+        "name": "String"
+    },
+    "component": {
+        "info": {
+            "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
+            "name": "split string2",
+            "description": "Splits a string along delimiter."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text"
+            }, {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text"
+            }
+        ],
+        "defaultConfig": {
+            "split_at": {
+                "value": ",",
+                "type": "string",
+                "desc": "split string at this character"
+            }
+        }
+    }
+}
+
 
 class SplitString(process.Process):
-    def __init__(self, con_man: common.ConnectionManager = None):
-        process.Process.__init__(self, con_man)
-        self.name = "split string"
-        self.description = "Split a string."
-        self.in_ports_config = {"in": "text"}
-        self.out_ports_config = {"in": "text"}
-        self.config["split_at"]: dict[str, common_capnp.ValueBuilder] = (
-            common_capnp.Value.new_message(t=",")
-        )
+    def __init__(self, metadata, con_man: common.ConnectionManager = None):
+        process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
         await self.process_started()
@@ -73,7 +103,7 @@ class SplitString(process.Process):
 
 
 def main():
-    process.parse_cmd_args_and_serve_process(SplitString())
+    process.run_process_from_metadata_and_cmd_args(SplitString(meta), meta)
 
 
 if __name__ == "__main__":

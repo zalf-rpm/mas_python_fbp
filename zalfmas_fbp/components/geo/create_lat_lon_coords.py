@@ -13,16 +13,43 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 
-import capnp
 import shared
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "geo",
+        "name": "Geo"
+    },
+    "component": {
+        "info": {
+            "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
+            "name": "create lat lon coords",
+            "description": "Create lat/lon coords for region."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "country_ids"
+            }, {
+                "name": "region"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "lat_lon_coords"
+            }
+        ]
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -109,7 +136,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                 country_id = country_ids_data["value"](lat, lon, False)
                 if not country_id or (
-                    len(country_ids) > 0 and country_id not in country_ids
+                        len(country_ids) > 0 and country_id not in country_ids
                 ):
                     continue
 
@@ -134,18 +161,13 @@ default_config = {
     "path_to_country_ids_grid": "data/country-id_0.083deg_4326_wgs84_africa.asc",
     "port:country_ids": None,  # [1,2,3] :string of serialized json array containing country ids
     "port:region": None,  # africa | nigeria | earth :string
-    "port:lat_lon_coords": "",  # [[lat1,lon1],[lat2,lon2]] :string of serialized json array containing array of lat/lon pairs
+    "port:lat_lon_coords": "",
+    # [[lat1,lon1],[lat2,lon2]] :string of serialized json array containing array of lat/lon pairs
 }
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Copy IP to all attached array out ports"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

@@ -13,16 +13,57 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "json",
+        "name": "JSON"
+    },
+    "component": {
+        "info": {
+            "id": "67b31990-452a-4058-8a99-6785be345216",
+            "name": "Update JSON",
+            "description": "Update JSON datastructure."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "in"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ],
+        "defaultConfig": {
+            "types": {
+                "@setup": "zalfmas_capnp_schemas/model/monica/sim_setup.capnp:Setup"
+            },
+            "update_desc": "update structure: structures have to match",
+            "update": [
+                ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
+                ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
+                ["customId_ex", "<-", 1],
+                ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+            ],
+            "replace_desc": "replace missing structure",
+            "replace": [],
+            "add_desc": "add unknown keys",
+            "add": []
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -205,11 +246,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Update JSON datastructure.")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

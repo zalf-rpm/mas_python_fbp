@@ -15,18 +15,43 @@
 # Landscape Systems Analysis at the ZALF.
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import csv
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "models/monica",
+        "name": "Models/MONICA"
+    },
+    "component": {
+        "info": {
+            "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
+            "name": "Write MONICA CSV",
+            "description": "Write a MONICA CSV file."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "in"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ]
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -80,10 +105,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     if len(results) > 0:
                         writer.writerow([orig_spec.replace('"', "")])
                         for row in monica_io.write_output_header_rows(
-                            output_ids,
-                            include_header_row=True,
-                            include_units_row=True,
-                            include_time_agg=False,
+                                output_ids,
+                                include_header_row=True,
+                                include_units_row=True,
+                                include_time_agg=False,
                         ):
                             writer.writerow(row)
 
@@ -122,13 +147,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Write a MONICA CSV output file"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

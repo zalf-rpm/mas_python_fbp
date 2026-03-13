@@ -20,7 +20,6 @@ import tempfile
 import time
 from datetime import datetime
 
-import capnp
 import matplotlib.pyplot as plt
 import spotpy
 from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
@@ -28,15 +27,71 @@ from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+meta = {
+    "category": {
+        "id": "spotpy",
+        "name": "Spotpy"
+    },
+    "component": {
+        "info": {
+            "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
+            "name": "Spotpy calibration component",
+            "description": "The actual component in the center of the calibration flow."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "init_params",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "desc": "key/value pair description of the parameters to calibrate"
+            }, {
+                "name": "obs_values",
+                "contentType": "List[common_capnp.Value.lf64]",
+                "desc": "list of observations"
+            }, {
+                "name": "sim_values",
+                "contentType": "List[common_capnp.Value.lf64]",
+                "desc": "list of simulated values"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "sampled_params",
+                "contentType": "List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
+                "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs"
+            }, {
+                "name": "best",
+                "contentType": "string",
+                "desc": "best optimized result"
+            }
+        ],
+        "defaultConfig": {
+            "repetitions": {
+                "value": 10,
+                "type": "int",
+                "desc": "number of repetitions"
+            },
+            "path_to_out_folder": {
+                "value": "out/",
+                "type": "string",
+                "desc": "path to output folder"
+            }
+        }
+    }
+}
+
 
 class SpotPySetup:
     def __init__(
-        self,
-        params,
-        observations,
-        sampled_params_out_p,
-        sim_values_in_p,
-        log_out_p=None,
+            self,
+            params,
+            observations,
+            sampled_params_out_p,
+            sim_values_in_p,
+            log_out_p=None,
     ):
         self.params = params
         self.observations = observations
@@ -84,7 +139,7 @@ class SpotPySetup:
                     self.log_out_p.write(
                         value={
                             "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                            f"{len(self.observations)}"
+                                       f"{len(self.observations)}"
                         }
                     )
                 )
@@ -162,9 +217,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     await p.update_config_from_port(config, ports["conf"])
 
     while (
-        ports["sampled_params"]
-        and ports["sim_values"]
-        and (ports["init_params"] or ports["obs_values"])
+            ports["sampled_params"]
+            and ports["sim_values"]
+            and (ports["init_params"] or ports["obs_values"])
     ):
         db_dir = None
         try:
@@ -274,26 +329,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "repetitions": 10,
-    "path_to_out_folder": "out/",
-    # "init_algo_in_sr": None,  #
-    "port:conf": "[TOML string] -> component configuration",
-    "port:init_params": "[TOML string]",  # TOML description of the parameters to calibrate
-    "port:obs_values": "[common_capnp.Value.lf64]",  # list of observations
-    "port:sim_values": "[common_capnp.Value.lf64]",  # list of simulated values
-    "port:sampled_params": "[common_capnp.Value.lpair(Text, common_capnp.Value.f64)]",  # [name1: value1, name2: value2, ...] list of param_name -> sampled value pairs
-    "port:best": "[string]",  # best optimized result
-    # "port:log_out_sr": None,  # output info messages
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Spotpy calibration component")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

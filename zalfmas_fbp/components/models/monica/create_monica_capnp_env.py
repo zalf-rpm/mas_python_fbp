@@ -13,11 +13,9 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import (
     climate_capnp,
     common_capnp,
@@ -28,6 +26,67 @@ from zalfmas_capnp_schemas_with_stubs import (
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "models/monica",
+        "name": "Models/MONICA"
+    },
+    "component": {
+        "info": {
+            "id": "e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
+            "name": "Create model.capnp:Env with MONICA payload",
+            "description": "Create model.capnp:Env with MONICA JSON env payload."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "climate"
+            }, {
+                "name": "soil"
+            }, {
+                "name": "in",
+                "type": "Text (JSON)",
+                "desc": "MONICA env json."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ],
+        "defaultConfig": {
+            "from_attr": {
+                "value": None,
+                "type": "Text",
+                "desc": "Instead of the message content, read the MONICA JSON env from this attribute."
+            },
+            "to_attr": {
+                "value": None,
+                "type": "Text",
+                "desc": "Instead of sending the ready prepared MONICA Cap'n Proto env via the message content, send it via this attribute."
+            },
+            "climate_attr": {
+                "value": "@climate",
+                "type": "climate.capnp:TimeSeries | Text",
+                "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value."
+            },
+            "soil_attr": {
+                "value": "@soil",
+                "type": "soil.capnp:Profile | Text (JSON array)",
+                "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value."
+            },
+            "id_attr": {
+                "value": "@id",
+                "type": "Text",
+                "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -116,27 +175,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "from_attr": None,
-    "to_attr": None,
-    "climate": "@climate",
-    "soil": "@soil",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:soil": "[soil.capnp:Profile | sturdy ref] -> soil profile",
-    "port:climate": "[climate.capnp:TimeSeries | sturdy ref] -> time series to use",
-    "port:in": "[JSON string] -> MONICA env",
-    "port:out": "[model.capnp:Env (with MONICA JSON env payload)]",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Create a Cap'n Proto model.capnp:Env structure with a MONICA env as payload"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

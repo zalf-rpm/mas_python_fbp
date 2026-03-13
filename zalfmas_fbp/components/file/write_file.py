@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,37 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "file",
+        "name": "File"
+    },
+    "component": {
+        "info": {
+            "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
+            "name": "write file",
+            "description": "Write input into a file."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in"
+            }, {
+                "name": "conf"
+            }
+        ],
+        "outPorts": [],
+        "defaultConfig": {
+            "id_attr": "id",
+            "from_attr": null,
+            "filepath_pattern": "csv_{id}.csv",
+            "path_to_out_dir": "path to output dir",
+            "append": false,
+            "debug": false
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -96,11 +126,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Write a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":
