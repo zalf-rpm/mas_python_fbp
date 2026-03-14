@@ -18,7 +18,7 @@ import json
 import os
 
 import capnp
-from zalfmas_capnp_schemas import (
+from zalfmas_capnp_schemas_with_stubs import (
     climate_capnp,
     common_capnp,
     fbp_capnp,

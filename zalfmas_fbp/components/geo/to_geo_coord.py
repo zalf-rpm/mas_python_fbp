@@ -17,7 +17,7 @@ import asyncio
 import os
 
 import capnp
-from zalfmas_capnp_schemas import fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import geo
 
 import zalfmas_fbp.run.components as c

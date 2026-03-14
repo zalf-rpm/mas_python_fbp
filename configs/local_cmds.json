@@ -31,6 +31,7 @@
     "993e5cdf-1c55-4a75-9538-e7906676fedb": "python -m zalfmas_fbp.components.spotpy.read_observed_values",
     "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab": "python -m zalfmas_fbp.components.spotpy.spotpy_comp",
     "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c": "python -m zalfmas_fbp.components.string.split_string",
+    "d44040ab-7d5a-44d1-94e8-3f79969edbd4": "python -m zalfmas_fbp.components.string.split_string2",
     "6c9346e6-71a7-4007-b403-2c78c845c1c7": "python -m zalfmas_fbp.components.string.split_string_into_array",
     "4b260f85-eb1b-4109-87ec-b30d38a5631a": "python -m zalfmas_fbp.components.string.into_array"
 }

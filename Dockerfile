@@ -1,4 +1,4 @@
-FROM ghcr.io/prefix-dev/pixi:latest AS build
+FROM ghcr.io/prefix-dev/pixi:0.62.0 AS build
 
 # copy source code, pixi.toml and pixi.lock to the container
 COPY . /app
@@ -34,4 +34,3 @@ USER appuser
 # set the entrypoint to the shell-hook script (activate the environment and run the command)
 # no more pixi needed in the prod container
 ENTRYPOINT ["/bin/bash", "/shell-hook.sh"]
-

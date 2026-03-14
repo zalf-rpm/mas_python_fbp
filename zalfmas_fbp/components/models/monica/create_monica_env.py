@@ -19,7 +19,7 @@ import os
 import uuid
 
 import capnp
-from zalfmas_capnp_schemas import (
+from zalfmas_capnp_schemas_with_stubs import (
     climate_capnp,
     common_capnp,
     fbp_capnp,
@@ -29,7 +29,7 @@ from zalfmas_capnp_schemas import (
     sim_setup_capnp,
     soil_capnp,
 )
-from zalfmas_capnp_schemas import (
+from zalfmas_capnp_schemas_with_stubs import (
     management_capnp as mgmt_capnp,
 )
 from zalfmas_common.model import monica_io

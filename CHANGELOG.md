@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.29](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.28...v0.2.29) (2026-02-12)
+
+
+### Features
+
+* bump minimum python version to 3.12 ([4b95f99](https://github.com/zalf-rpm/mas_python_fbp/commit/4b95f99297512b89db7fa149600de3f1fc737f51))
+* stabilze versions ahead of python update ([9d12724](https://github.com/zalf-rpm/mas_python_fbp/commit/9d1272434c57e962345d48353af424917e77941f))
+
+## [0.2.28](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.27...v0.2.28) (2026-01-15)
+
+
+### Bug Fixes
+
+* pin pixi to 0.62.0 due to a breaking change ([365af0e](https://github.com/zalf-rpm/mas_python_fbp/commit/365af0eb93d7b05f6fc0d6585cfbac53d173ea4e))
+
+## [0.2.27](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.26...v0.2.27) (2025-11-19)
+
+
+### Features
+
+* use new capnproto schemas with stubs for type checking and push all dependencies to also require it ([093a3b9](https://github.com/zalf-rpm/mas_python_fbp/commit/093a3b930cd0f72f9c98b792d138667953d4822a))
+
 ## [0.2.26](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.25...v0.2.26) (2025-10-27)
 
 

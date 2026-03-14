@@ -15,37 +15,38 @@
 
 import asyncio
 import json
+import subprocess as sp
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas import fbp_capnp, registry_capnp
+from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
 
 
-class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
+class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
-        self,
-        path_to_executable,
-        id=None,
-        name=None,
-        description=None,
-        admin=None,
-        restorer=None,
+            self,
+            path_to_executable,
+            id=None,
+            name=None,
+            description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
-        self.proc = None
+        self.proc: sp.Popen = None
 
     async def start_context(
-        self, context
+            self, context
     ):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
-        port_infos_reader_sr = context.params.portInfosReaderSr
+        port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
+            context.params.portInfosReaderSr
+        )
         name = context.params.name
         self.proc = comp.start_local_component(
-            self.path_to_executable, port_infos_reader_sr, name
+            self.path_to_executable, port_infos_reader_sr_str, name
         )
         context.results.success = self.proc.poll() is None
 
@@ -55,18 +56,108 @@ class Runnable(fbp_capnp.Component.Runnable.Server, common.Identifiable):
             rt = self.proc.returncode == 0
             self.proc = None
             context.results.success = rt
-        context.results.success = False
+        context.results.success = True
+
+
+class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
+    def __init__(
+            self,
+            path_to_executable,
+            id=None,
+            name=None,
+            description=None,
+    ):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.path_to_executable = path_to_executable
+        self.runnables = []
+        self.count = 0
+
+    # create @0 () -> (r :Runnable);
+    async def create(self, _context, **kwargs):
+        self.count += 1
+        r = Runnable(
+            self.path_to_executable,
+            id=f"{self.id}_{self.count}",
+            name=f"{self.name} {self.count}",
+            description=self.description,
+        )
+        self.runnables.append(r)
+        return r
+
+
+class ProcessWriter(fbp_capnp.Channel.Writer.Server):
+    def __init__(self):
+        self.process_cap = None
+        self.process_cap_received_future = asyncio.Future()
+        self.unregister_writer = None
+
+    # struct Msg {
+    #   union {
+    #     value @0 :V;
+    #     done  @1 :Void;   # done message, no more data will be sent (indicate upstream is done - but semantics up to user)
+    #     noMsg @2 :Void;   # no message available, if readIfMsg is used
+    #   }
+    # }
+    # write @0 Msg;
+    async def write_context(self, context):
+        if context.params.which() == "value":
+            self.process_cap = context.params.value.as_interface(fbp_capnp.Process)
+            self.process_cap_received_future.set_result(self.process_cap)
+            if self.unregister_writer:
+                await self.unregister_writer()
+
+
+class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
+    def __init__(
+            self,
+            path_to_executable: str,
+            restorer: common.Restorer,
+            id: str = None,
+            name: str = None,
+            description: str = None,
+    ):
+        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        self.path_to_executable = path_to_executable
+        self.procs: list[sp.Popen[str]] = []
+        # self.proc_writers = []
+        self.count = 0
+        self.restorer = restorer
+
+    def __del__(self):
+        for proc in self.procs:
+            proc.terminate()
+
+    # create @0 () -> (r :Process);
+    async def create(self, _context, **kwargs):
+        self.count += 1
+        writer = ProcessWriter()
+        save_sr_token, unsave_sr_token = await self.restorer.save_cap(writer)
+
+        async def unsave():
+            await self.restorer.unsave(unsave_sr_token)
+
+        writer.unregister_writer = (
+            unsave  # lambda: self.restorer.unsave(unsave_sr_token)
+        )
+        writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
+        self.procs.append(
+            comp.start_local_process_component(
+                self.path_to_executable, writer_sr_str, self.id
+            )
+        )
+        process_cap = await writer.process_cap_received_future
+        return process_cap
 
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
     def __init__(
-        self,
-        components: dict,
-        cmds: dict,
-        id=None,
-        name=None,
-        description=None,
-        restorer=None,
+            self,
+            components: dict,
+            cmds: dict,
+            id=None,
+            name=None,
+            description=None,
+            restorer=None,
     ):
         common.Persistable.__init__(self, restorer)
         common.Identifiable.__init__(self, id, name, description)
@@ -77,15 +168,28 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
 
         for e in self._components["entries"]:
             c = e["component"]
+            if "defaultConfig" in c:
+                dc_json = json.dumps(c["defaultConfig"])
+                c["defaultConfig"] = common_capnp.StructuredText.new_message(type="json", value=dc_json)
             info = c["info"]
             c_id = info["id"]
             if c_id in self._cmds:
-                c["run"] = Runnable(
-                    self._cmds[c_id],
-                    c_id,
-                    info.get("name", None),
-                    info.get("description", None),
-                )
+                c["factory"] = {}
+                if c["type"] == "standard":
+                    c["factory"]["runnable"] = RunnableFactory(
+                        self._cmds[c_id],
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
+                elif c["type"] == "process":
+                    c["factory"]["process"] = ProcessFactory(
+                        self._cmds[c_id],
+                        restorer=restorer,
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
             self._cat_id_to_component_holders[e["categoryId"]].append(
                 registry_capnp.Registry.Entry.new_message(
                     categoryId=e["categoryId"],
@@ -96,12 +200,12 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             )
 
     async def supportedCategories_context(
-        self, context
+            self, context
     ):  # supportedCategories @0 () -> (cats :List(IdInformation));
         context.results.cats = self._components["categories"]
 
     async def categoryInfo_context(
-        self, context
+            self, context
     ):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
         cat_id = context.params.categoryId
         r = context.results
@@ -113,7 +217,7 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
                     r.description = c["description"]
 
     async def entries_context(
-        self, context
+            self, context
     ):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
         cat_id = context.params.categoryId
         r = context.results
