@@ -50,7 +50,7 @@ meta = {
         "defaultConfig": {
             "path_to_calibrate_csv": {
                 "value": "calibratethese.csv",
-                "type": "Text",
+                "type": "string",
                 "desc": "path to csv file with parameters to calibrate"
             }
         }

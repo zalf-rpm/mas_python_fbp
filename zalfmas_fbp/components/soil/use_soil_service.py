@@ -62,12 +62,12 @@ meta = {
             },
             "to_attr": {
                 "value": None,
-                "contentType": "grid.capnp.Grid.Value",
+                "contentType": "grid.capnp.Grid:Value",
                 "desc": "store result on attribute with this name"
             },
             "mandatory": {
                 "value": ["soilType", "organicCarbon", "rawDensity"],
-                "contentType": "List[Text]",
+                "contentType": ["soilType", "organicCarbon", "rawDensity", "bulkDensity", "sand", "clay", "silt"],
                 "desc": "Which soil attributes are needed in the result to be valid?"
             }
         }

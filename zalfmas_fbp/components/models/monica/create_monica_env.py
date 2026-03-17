@@ -24,11 +24,11 @@ from zalfmas_capnp_schemas_with_stubs import (
     geo_capnp,
     grid_capnp,
     model_capnp,
-    sim_setup_capnp,
     soil_capnp,
-)
-from zalfmas_capnp_schemas_with_stubs import (
     management_capnp as mgmt_capnp,
+)
+from zalfmas_capnp_schemas_with_stubs.model.monica import (
+    sim_setup_capnp
 )
 from zalfmas_common.model import monica_io
 

@@ -44,11 +44,11 @@ meta = {
         "outPorts": [],
         "defaultConfig": {
             "id_attr": "id",
-            "from_attr": null,
+            "from_attr": None,
             "filepath_pattern": "csv_{id}.csv",
             "path_to_out_dir": "path to output dir",
-            "append": false,
-            "debug": false
+            "append": False,
+            "debug": False
         }
     }
 }

@@ -16,8 +16,8 @@
 import json
 import os
 
-import shared
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from zalfmas_common import rect_ascii_grid_management as grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
@@ -81,7 +81,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         },
     }
 
-    country_ids_data = shared.load_grid_cached(config["path_to_country_ids_grid"], int)
+    country_ids_data = grid.load_grid_cached(config["path_to_country_ids_grid"], int)
 
     # get just default values for region and country_ids
     region = config["region"]

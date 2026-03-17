@@ -14,8 +14,10 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
+import copy
 import json
 import logging
+import os.path
 import subprocess as sp
 import sys
 from collections import defaultdict, Counter
@@ -204,20 +206,29 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             r.entries[i] = ch
 
 
-def load_component_metadata(cmds, restorer):
+def load_component_metadata(cmds, components_cache, restorer):
     cat_id_to_name_and_component_holders = defaultdict(lambda: {"name": [], "component_holders": []})
     for comp_id, cmd_str in cmds.items():
-        if comp_id == "id" or comp_id == "name":
+        if comp_id == "id" or comp_id == "name" or comp_id[:3] == "___":
             continue
-        try:
-            pte_split = list(cmd_str.split(" "))
-            if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
-                pte_split[0] = sys.executable
-            res = sp.run(pte_split + ["-O"], stdout=sp.PIPE, text=True)
-            if res is None:
-                continue
 
-            meta = json.loads(res.stdout)
+        comp_in_cache = components_cache and comp_id in components_cache
+        meta = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
+        if meta is None:
+            try:
+                pte_split = list(cmd_str.split(" "))
+                if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
+                    pte_split[0] = sys.executable
+                res = sp.run(pte_split + ["-O"], stdout=sp.PIPE, text=True)
+                if res is None:
+                    continue
+                meta = json.loads(res.stdout)
+                components_cache[comp_id] = copy.deepcopy(meta)
+            except Exception as e:
+                logger.warning(
+                    f"Couldn't execute component via '{pte_split + ['-O']}'. Exception: {e}")
+
+        try:
             c = meta["component"]
             info = c["info"]
             c_id = info["id"]
@@ -265,11 +276,13 @@ def load_component_metadata(cmds, restorer):
 
     # if there are multiple names for the same category, use the one that appears most
     for cat_id, n_to_cs in cat_id_to_name_and_component_holders.items():
-        if len(n_to_cs["names"]) > 1:
-            cat_id_to_name_and_component_holders[cat_id]["name"] = Counter(n_to_cs["names"]).most_common(1)
+        if len(n_to_cs["name"]) > 1:
+            mc = Counter(n_to_cs["name"]).most_common(1)
+            cat_id_to_name_and_component_holders[cat_id]["name"] = mc[0][0] if len(mc) > 0 and len(
+                mc[0]) > 0 else "unknown"
         else:
-            assert len(n_to_cs["names"]) == 1
-            cat_id_to_name_and_component_holders[cat_id]["name"] = n_to_cs["names"][0]
+            assert len(n_to_cs["name"]) == 1
+            cat_id_to_name_and_component_holders[cat_id]["name"] = n_to_cs["name"][0]
 
     return cat_id_to_name_and_component_holders
 
@@ -281,15 +294,22 @@ async def main():
     )
     config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
 
-    # with open(config["service"]["path_to_components_json"]) as f:
-    #     components = json.load(f)
+    # load components cache
+    if os.path.exists(config["service"]["path_to_components_cache_json"]):
+        with open(config["service"]["path_to_components_cache_json"]) as f:
+            components_cache = json.load(f)
+    else:
+        components_cache = {}
     with open(config["service"]["path_to_cmds_json"]) as f:
         cmds = json.load(f)
 
     cs = config.get("service", {})
     restorer = common.Restorer()
 
-    cat_id_to_name_and_component_holders = load_component_metadata(cmds, restorer)
+    cat_id_to_name_and_component_holders = load_component_metadata(cmds, components_cache, restorer)
+    # update components cache
+    with open(config["service"]["path_to_components_cache_json"], "w") as f:
+        json.dump(components_cache, f, indent=4)
 
     service = Service(
         cat_id_to_name_and_component_holders,

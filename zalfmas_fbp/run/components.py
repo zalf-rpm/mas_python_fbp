@@ -73,8 +73,8 @@ def create_default_fbp_component_args_parser(component_description):
 
 def handle_default_fpb_component_args(parser, component_meta: dict = None):
     args = parser.parse_args()
-    if component_meta:
-        default_config = {k: v["value"] for k, v in component_meta["component"]["defaultConfig"].items()}
+    if component_meta and (dc := component_meta.get("component", {}).get("defaultConfig", None)):
+        default_config = {k: v.get("value", v) if v and type(v) is dict else v for k, v in dc.items()}
     else:
         default_config = {}
 

@@ -43,10 +43,10 @@ meta = {
             }
         ],
         "defaultConfig": {
-            "to_attr": null,
+            "to_attr": None,
             "to_attr_type": "string",
             "to_attr_desc": "send content instead in 'to_attr'",
-            "create_substream": false
+            "create_substream": False
         }
     }
 }
