@@ -57,19 +57,57 @@ meta = {
         "defaultConfig": {
             "from_attr": {
                 "value": None,
-                "contentType": "geo.capnp.LatLonCoord",
-                "desc": "name of the attribute to get coordinate from (on 'in' IP) (e.g. latlon)"
+                "type": "string",
+                "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message."
             },
             "to_attr": {
                 "value": None,
-                "contentType": "grid.capnp.Grid:Value",
-                "desc": "store result on attribute with this name"
+                "type": "string",
+                "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message."
             },
             "mandatory": {
                 "value": ["soilType", "organicCarbon", "rawDensity"],
-                "contentType": ["soilType", "organicCarbon", "rawDensity", "bulkDensity", "sand", "clay", "silt"],
+                "type": [
+                    "soilType",
+                    "sand",
+                    "clay",
+                    "silt",
+                    "organicCarbon",
+                    "organicMatter",
+                    "rawDensity",
+                    "bulkDensity",
+                    "fieldCapacity",
+                    "permanentWiltingPoint",
+                    "saturation",
+                    "sceleton",
+                    "pH"
+                ],
                 "desc": "Which soil attributes are needed in the result to be valid?"
-            }
+            },
+            "optional": {
+                "value": [],
+                "type": [
+                    "soilType",
+                    "sand",
+                    "clay",
+                    "silt",
+                    "organicCarbon",
+                    "organicMatter",
+                    "rawDensity",
+                    "bulkDensity",
+                    "fieldCapacity",
+                    "permanentWiltingPoint",
+                    "saturation",
+                    "sceleton",
+                    "pH"
+                ],
+                "desc": "Which soil attributes are needed in the result to be valid?"
+            },
+            "only_raw_data": {
+                "value": False,
+                "type": "bool",
+                "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory"
+            },
         }
     }
 }
@@ -93,6 +131,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             return
 
     mandatory = config["mandatory"]
+    optional = config["optional"]
     while ports["latlon"] and ports["out"] and service:
         try:
             in_msg = await ports["latlon"].read()
@@ -108,7 +147,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
 
             profiles = await service.profilesAt(
-                coord, {"mandatory": mandatory, "onlyRawData": False}
+                coord, {"mandatory": mandatory, "optional": optional, "onlyRawData": config["only_raw_data"]}
             ).profiles
             if len(profiles) > 0:
                 profile = profiles[0]

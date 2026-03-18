@@ -52,7 +52,7 @@ meta = {
             "split_at": {
                 "value": ",",
                 "type": "string",
-                "desc": "split string at this character"
+                "desc": "Split string at this character."
             }
         }
     }

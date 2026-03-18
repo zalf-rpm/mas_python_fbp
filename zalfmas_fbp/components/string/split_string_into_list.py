@@ -50,11 +50,6 @@ meta = {
             }
         ],
         "defaultConfig": {
-            "no_of_elements": {
-                "value": "all",
-                "type": ["string", "int"],
-                "desc": "Number of elements to collect into array."
-            },
             "cast_to": {
                 "value": "text",
                 "type": ["text", "float", "int"],
