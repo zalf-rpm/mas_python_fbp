@@ -40,16 +40,47 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
-                "name": "in"
+                "name": "in",
+                "contentType": "string (MONICA JSON result)",
+                "desc": "Receive MONICA JSON result.",
             }
         ],
-        "outPorts": [
-            {
-                "name": "out"
+        "outPorts": [],
+        "defaultConfig": {
+            "path_to_out_dir": {
+                "value": "out/",
+                "type": "string",
+                "desc": "Use path_to_out_dir if no out_path_attr is available in metadata of IP.",
+            },
+            "out_path_attr": {
+                "value": "out_path",
+                "type": "string",
+                "desc": "If out_path_attr is available, don't use path_to_out_dir.",
+            },
+            "id_attr": {
+                "value": "id",
+                "type": "string",
+                "desc": "Name of attribute which contains id to use for file name pattern.",
+            },
+            "from_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Get file content from attribute 'from_attr'."
+            },
+            "filepath_pattern": {
+                "value": "csv_{id}.csv",
+                "type": "string",
+                "desc": "Pattern with 'id' field (csv_{id}.csv)]. Write files name where id is replaced.",
+            },
+            "csv_delimiter": {
+                "value": ",",
+                "type": "string",
+                "desc": "Like ','. Use this string as delimiter for csv output.",
             }
-        ]
+        }
     }
 }
 
@@ -126,24 +157,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "path_to_out_dir": "out/",
-    "out_path_attr": "out_path",
-    "id_attr": "id",
-    "from_attr": None,
-    "filepath_pattern": "csv_{id}.csv",
-    "csv_delimiter": ",",
-    "opt:from_attr": "[name:string] -> get file content from attibute set in 'from_attr'",
-    "opt:path_to_out_dir": "[string (path)] -> use path_to_out_dir if no out_path_attr is available in metadata of IP",
-    "opt:out_path_attr": "[string (path)] -> if out_path_attr is available, don't use path_to_out_dir",
-    "opt:id_attr": "[string (name)] -> name of attribute which contains id to use for file name pattern",
-    "opt:filepath_pattern": "[string pattern with 'id' field (csv_{id}.csv)] -> write files name where id is replaced",
-    "opt:csv_delimiter": "[string (like ',')] -> use this string as delimiter for csv output",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string (MONICA JSON result)] -> receive MONICA JSON result",
-}
 
 
 def main():

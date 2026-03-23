@@ -87,7 +87,7 @@ meta = {
             },
             "slope_attr": {
                 "value": "@slope",
-                "type": "grid.capnp.Grid.Value | Number",
+                "type": "grid.capnp:Grid.Value | Number",
                 "desc": "Slope value. As Grid.Value via @ out of an attribute or directly as number from config value."
             },
             "climate_attr": {

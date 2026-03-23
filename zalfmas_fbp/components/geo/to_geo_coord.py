@@ -36,16 +36,32 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
-                "name": "vals"
+                "name": "vals",
+                "contentType": "List[float | int]",
+                "desc": "Values to convert into coord.",
             }
         ],
         "outPorts": [
             {
-                "name": "coord"
+                "name": "coord",
+                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                "desc": "Coord to output.",
             }
-        ]
+        ],
+        "defaultConfig": {
+            "to_name": {
+                "value": "LatLon",
+                "type": "string",
+                "desc": "One of 2D, XY, LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])",
+            },
+            "list_type": {
+                "value": "float",
+                "type": ["float", "int"]
+            }
+        }
     }
 }
 
@@ -93,17 +109,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "to_name": "wgs84",
-    "list_type": "float",
-    "opt:to_name": "wgs84",
-    "opt:list_type": "float",  # float | int
-    "port:conf": "[TOML string] -> component configuration",
-    "port:vals": "[list[float | int] -> values to convert into coord",
-    "port:coord": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> coord to output",
-}
 
 
 def main():

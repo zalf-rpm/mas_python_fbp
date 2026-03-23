@@ -39,12 +39,16 @@ meta = {
                 "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
                 "name": "in",
-                "contentType": "Anypointer"
+                "contentType": "AnyPointer",
+                "desc": "The IP to copy to all attached outports"
             }
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "type": "array",
+                "contentType": "AnyPointer",
+                "desc": "Copied IP for each attached outport"
             }
         ]
     }

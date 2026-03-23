@@ -31,36 +31,54 @@ meta = {
         "info": {
             "id": "67b31990-452a-4058-8a99-6785be345216",
             "name": "Update JSON",
-            "description": "Update JSON datastructure."
+            "description": "Update JSON datastructures."
         },
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
-                "name": "in"
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "JSON text which is supposed to be updated and changed."
             }
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "The updated JSON text."
             }
         ],
         "defaultConfig": {
             "types": {
-                "@setup": "zalfmas_capnp_schemas/model/monica/sim_setup.capnp:Setup"
+                "value": {
+                    "@setup": "zalfmas_capnp_schemas/model/monica/sim_setup.capnp:Setup"
+                },
+                "type": "object",
+                "desc": "Define the loadable type the attribute being referenced has."
             },
-            "update_desc": "update structure: structures have to match",
-            "update": [
-                ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
-                ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
-                ["customId_ex", "<-", 1],
-                ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
-            ],
-            "replace_desc": "replace missing structure",
-            "replace": [],
-            "add_desc": "add unknown keys",
-            "add": []
+            "update": {
+                "value": [
+                    ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
+                    ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
+                    ["customId_ex", "<-", 1],
+                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+                ],
+                "type": "array",
+                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+            },
+            "replace": {
+                "value": [],
+                "type": "array",
+                "desc": "List of replacement operations to perform on the JSON structure."
+            },
+            "add": {
+                "value": [],
+                "type": "array",
+                "desc": "List of addition operations to perform on the JSON structure."
+            }
         }
     }
 }

@@ -50,7 +50,7 @@ meta = {
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "grid.capnp.Grid.Value",
+                "contentType": "grid.capnp:Grid.Value",
                 "desc": "value at requested location"
             }
         ],

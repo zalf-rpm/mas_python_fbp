@@ -44,9 +44,13 @@ meta = {
                 "name": "conf",
                 "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
-                "name": "climate"
+                "name": "climate",
+                "contentType": "climate.capnp:TimeSeries | Text",
+                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability or a path to a CSV file."
             }, {
-                "name": "soil"
+                "name": "soil",
+                "contentType": "soil.capnp:Profile | Text (JSON array)",
+                "desc": "Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers."
             }, {
                 "name": "in",
                 "type": "Text (JSON)",
@@ -55,7 +59,9 @@ meta = {
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "contentType": "model.capnp:Env",
+                "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component."
             }
         ],
         "defaultConfig": {

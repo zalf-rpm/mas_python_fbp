@@ -41,22 +41,48 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
-                "name": "in"
+                "name": "in",
+                "contentType": "geo.capnp:LatLonCoord",
+                "desc": "The coordinate to get the value at."
             }, {
-                "name": "service"
+                "name": "service",
+                "contentType": "grid.capnp:Service | SturdyRef",
+                "desc": "Capability or sturdy ref to service."
             }
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
+                "desc": "Output grid value at given coordinate."
             }
         ],
         "defaultConfig": {
-            "as_common_value": False,
-            "from_attr": None,
-            "to_attr": None
+            "as_common_value": {
+                "value": False,
+                "type": "bool",
+                "desc": "Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value."
+            },
+            "from_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord)."
+            },
+            "to_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value)."
+            },
+            "calc": {
+                "value": {
+                    "f(gv)": None,
+                },
+                "type": "object",
+                "desc": "If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object."
+            }
         }
     }
 }
@@ -121,16 +147,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             calc = config.get("calc", {})
 
             # update attr
-            if is_valid_to_attr and config["to_attr"] in calc:
-                new_attrs[config["to_attr"]] = maybe_as_common_value(
-                    update_val(calc[config["to_attr"]], config["to_attr"], grid_val)
-                )
+            if is_valid_to_attr:
+                calc_val = update_val(calc.get("f(gv)", {}), calc.copy().pop("f(gv)"), grid_val)
+                new_attrs[config["to_attr"]] = maybe_as_common_value(calc_val)
 
             # send via content
             if not is_valid_to_attr:
-                if "out" in calc:
-                    grid_val = update_val(calc[config["out"]], config["out"], grid_val)
-                out_ip.content = maybe_as_common_value(grid_val)
+                calc_val = update_val(calc.get("f(gv)", {}), calc.copy().pop("f(gv)"), grid_val)
+                out_ip.content = maybe_as_common_value(calc_val)
 
             # copy old attributes and potentially add new one
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
@@ -141,17 +165,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "as_common_value": False,
-    "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "to_attr": "[string]",  # store result on attribute with this name
-    "port:conf": "[TOML string] -> component configuration",
-    "port:service": "[sturdy ref | capability]",  # capability or sturdy ref to service
-    "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
-    "port:out": "[grid.capnp:Grid.Value | common.capnp:Value]",  # value at requested location
-}
 
 
 def main():

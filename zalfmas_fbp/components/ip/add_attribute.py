@@ -40,11 +40,11 @@ meta = {
                 "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }, {
                 "name": "in",
-                "contentType": "Anypointer",
+                "contentType": "AnyPointer",
                 "desc": "Arbitrary content."
             }, {
                 "name": "attr",
-                "contentType": "Anypointer",
+                "contentType": "AnyPointer",
                 "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
             }
         ],
