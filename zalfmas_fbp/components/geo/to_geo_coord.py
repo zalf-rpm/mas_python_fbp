@@ -78,11 +78,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     else:
         list_schema_type = capnp._ListSchema(capnp.types.Int64)
 
-    while ports["in"] and ports["out"]:
+    while ports["vals"] and ports["coord"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await ports["vals"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                ports["vals"] = None
                 continue
 
             vals = in_msg.value.as_struct(fbp_capnp.IP).content.as_list(
@@ -91,7 +91,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if len(vals) > 1:
                 to_coord = to_instance.copy()
                 geo.set_xy(to_coord, vals[0], vals[1])
-                await ports["out"].write(
+                await ports["coord"].write(
                     value=fbp_capnp.IP.new_message(content=to_coord)
                 )
             else:

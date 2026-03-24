@@ -65,7 +65,7 @@ def get_config_val(
 # toml or json
 async def update_config_from_port(config, port, config_type="toml"):
     if port:
-        if xxx_config := read_dict_from_port(port, config_type):
+        if xxx_config := await read_dict_from_port(port, config_type):
             config.update(xxx_config)
     return config
 
