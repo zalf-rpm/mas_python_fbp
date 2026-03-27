@@ -177,8 +177,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     # setConfigEntry @7 ConfigEntry;
     async def setConfigEntry_context(self, context):
         ps = context.params
-        self.config[ps.name] = ps.val
-        print(f"received config entry: {ps.name} with value: {ps.val}")
+        self.config[ps.name] = ps.val.as_builder()
+        # print(f"received config entry: {ps.name} with value: {ps.val}")
 
     async def process_started(self):
         await self.transition_to_state("started")
