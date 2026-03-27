@@ -60,7 +60,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e0/23/0f2f12e27bbc3b46a2a064a1ab51c062ba11a46a9e1070c5a771da414d84/zalfmas_capnp_schemas-0.1.53-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/1a/7851739ff67eb3569cb6cfe960d168dd85aa2c67e6f3b089e6dbc1875b8a/zalfmas_common-0.1.39-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/b0/05/0d45398c28476c4fcc958b2f82dafe2b41685fdc73000a88b71ce9e43db5/zalfmas_common-0.1.41-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -791,10 +791,10 @@ packages:
   requires_dist:
   - pycapnp>=2.2.1,<3.0.0
   requires_python: '>=3.10,<3.14'
-- pypi: https://files.pythonhosted.org/packages/6a/1a/7851739ff67eb3569cb6cfe960d168dd85aa2c67e6f3b089e6dbc1875b8a/zalfmas_common-0.1.39-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/b0/05/0d45398c28476c4fcc958b2f82dafe2b41685fdc73000a88b71ce9e43db5/zalfmas_common-0.1.41-py3-none-any.whl
   name: zalfmas-common
-  version: 0.1.39
-  sha256: 39c1d5358255dd10b9343e4d50851d4e9b4e7ba2b9c51455346401084a5b0b2a
+  version: 0.1.41
+  sha256: bd8e8e96e5469801bfee698e75ed854a39930d90943c2b33a98845855b0df23c
   requires_dist:
   - pandas>=2.2.2,<4.0.0
   - psutil>=7.0.0,<8.0.0

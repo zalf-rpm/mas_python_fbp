@@ -77,7 +77,11 @@ class ToString(process.Process):
         if self.config["struct_type"] is None:
             t = None
         else:
-            t = common.load_capnp_module(self.config["struct_type"].t)
+            try:
+                t, _ = common.load_capnp_module(self.config["struct_type"].t)
+            except Exception as e:
+                logger.error(f"Failed to load Cap'n Proto module: {e}")
+                t = None
 
         while self.ip("in") and self.op("out"):
             if self.is_canceled():
