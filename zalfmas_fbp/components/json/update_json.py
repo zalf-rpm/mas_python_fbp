@@ -54,7 +54,7 @@ meta = {
         "defaultConfig": {
             "types": {
                 "value": {
-                    "@setup": "zalfmas_capnp_schemas/model/monica/sim_setup.capnp:Setup"
+                    "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
                 },
                 "type": "object",
                 "desc": "Define the loadable type the attribute being referenced has."
@@ -244,23 +244,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    # "update": {
-    #     "customId": {"id": 1, "bla": 2},
-    #     "customId2": 5,
-    #     "params": {"siteParameters": {"Latitude": 100}},
-    #     "cropRotationTemplates.WW.0.worksteps = 5": None,
-    #     "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
-    #     "cropRotationTemplates.WW.0.1.worksteps = 5": None,
-    #     "cropRotationTemplates.WW.0.1.worksteps = '@some_attr'": None,
-    #     "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
-    # },
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[JSON string]",
-    "port:out": "[JSON string] -> updated JSON string",
-}
 
 
 def main():

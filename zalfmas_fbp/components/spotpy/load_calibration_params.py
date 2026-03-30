@@ -102,11 +102,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "path_to_calibrate_csv": "calibratethese.csv",
-}
-
-
 def main():
     c.run_component_from_metadata(run_component, meta)
 

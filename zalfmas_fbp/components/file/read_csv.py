@@ -37,22 +37,48 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
+                "desc": "A single row from the CSV file sent as Setup struct."
             }
         ],
         "defaultConfig": {
-            "id_col": "id",
-            "send_ids": [],
-            "send_ids_ex": [1, 2, 3],
-            "file": "path to csv file",
-            "path_to_capnp_struct": "bgr.capnp:Setup",
-            "path_to_capnp_struct_ex": "bla.capnp:MyType",
-            "to_attr": None
+            "id_col": {
+                "value": "id",
+                "type": "string",
+                "desc": "The column to be used to unique identify a row."
+            },
+            "col_to_field_names": {
+                "value": {},
+                "type": "object",
+                "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}."
+            },
+            "send_ids": {
+                "value": [],
+                "type": "list",
+                "desc": "Send only these ids as messages downstream. E.g. [1,2,3]"
+            },
+            "file": {
+                "value": "path to csv file",
+                "type": "string",
+                "desc": "The path to the CSV file to be read."
+            },
+            "struct_type": {
+                "value": "mas.schema.model.monica.sim_setup_capnp:Setup",
+                "type": "string",
+                "desc": "The Cap'n Proto struct type to fill from a CSV row."
+            },
+            "to_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Instead of sending a row as IP content, send it in this attribute."
+            }
         }
     }
 }
@@ -64,10 +90,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    struct_type, _ = common.load_capnp_module(config["path_to_capnp_struct"])
+    struct_type, _ = common.load_capnp_module(config["struct_type"])
     struct_fieldnames = struct_type.schema.fieldnames
     struct_fields = struct_type.schema.fields
-    id_col = config["id_col"]
+    col_to_field_names = config["col_to_field_names"]
+    id_col = col_to_field_names.get(config["id_col"], config["id_col"])
     send_ids = config["send_ids"] if config["send_ids"] is not None else None
 
     if ports["out"]:
@@ -83,6 +110,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 for row in reader:
                     val = struct_type.new_message()
                     for i, header_col in enumerate(header_cols):
+                        # potentially map header column names to names of the structs field names
+                        header_col = col_to_field_names.get(header_col, header_col)
                         if header_col not in struct_fieldnames:
                             continue
                         value = row[i]
@@ -129,27 +158,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_toml = """
-id_col = "id"
-send_ids = []  # [1,2,3]
-file = "path to csv file"
-path_to_capnp_struct = "bgr.capnp:Setup"  # "bla.capnp:MyType"
-#to_attr = 
-"""
-
-default_config = {
-    "id_col": "id",
-    "send_ids": [],  # 1,2,3 -> [] = all
-    "file": "sim_setups_bgr_flow.csv",
-    "path_to_capnp_struct": "bgr.capnp:Setup",  # "bla.capnp:MyType",
-    "to_attr": None,
-    "opt:send_ids": "[[] | 1,2,3] -> [] = all",
-    "opt:path_to_capnp_struct": "[string (capnp_file.capnp:MyType)]",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:out": "[list[text | float | int]] -> output split list cast to cast_to type",
-}
 
 
 def main():

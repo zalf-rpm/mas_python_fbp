@@ -36,19 +36,46 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "in"
+                "name": "in",
+                "contentType": "Text",
+                "desc": "The input data to be written to a file."
             }, {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }
         ],
         "outPorts": [],
         "defaultConfig": {
-            "id_attr": "id",
-            "from_attr": None,
-            "filepath_pattern": "csv_{id}.csv",
-            "path_to_out_dir": "path to output dir",
-            "append": False,
-            "debug": False
+            "id_attr": {
+                "value": "id",
+                "type": "string",
+                "desc": "The attribute to get id for the filepattern from"
+            },
+            "from_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Instead of the IP content, get the content from that 'attr'."
+            },
+            "filepath_pattern": {
+                "value": "csv_{id}.csv",
+                "type": "string",
+                "desc": "The pattern to use for the filename. Can contain {id} as placeholder for the id attribute."
+            },
+            "path_to_out_dir": {
+                "value": "path to output dir",
+                "type": "string",
+                "desc": "The path to the output directory where the files will be written."
+            },
+            "append": {
+                "value": False,
+                "type": "bool",
+                "desc": "If True, append to existing files instead of overwriting them."
+            },
+            "debug": {
+                "value": False,
+                "type": "bool",
+                "desc": "If True, print debug information to the console."
+            }
         }
     }
 }
@@ -99,30 +126,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-"""
-#id_attr = "id"
-#from_attr = 
-#filepath_pattern = "csv_{id}.csv"
-#path_to_out_dir = "path to output dir"
-#append = false
-#debug = false
-"""
-default_config = {
-    "id_attr": "id",
-    "from_attr": None,
-    "filepath_pattern": "csv_{id}.csv",
-    "path_to_out_dir": "/home/berg/GitHub/mas-infrastructure/src/python/fbp/out/",
-    "append": False,
-    "debug": False,
-    "opt:from_attr": "[name:string] -> get file content from attibute set in 'from_attr'",
-    "opt:append": "[true | false] -> open file to be written in append mode or overwrite mode ",
-    "opt:debug": "[true | false] -> if true output filepath to console",
-    "opt:file": "[string] -> path to file to read",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> write string to file",
-}
 
 
 def main():

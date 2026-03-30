@@ -35,27 +35,38 @@ meta = {
         "type": "standard",
         "inPorts": [
             {
-                "name": "conf"
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
             }
         ],
         "outPorts": [
             {
-                "name": "out"
+                "name": "out",
+                "contentType": "Text",
+                "desc": "Output either full file content or each line as as separate message."
             }
         ],
         "defaultConfig": {
-            "to_attr": None,
-            "to_attr_type": "string",
-            "to_attr_desc": "store read file content into 'to_attr'",
-            "file": "",
-            "file_type": "string",
-            "file_desc": "path to file to read",
-            "lines_mode": True,
-            "lines_mode_type": [True, False],
-            "lines_mode_desc": "send single lines if true else send whole file content at once",
-            "skip_lines": 0,
-            "skip_lines_type": "int",
-            "skip_lines_desc": "if lines mode is true, skip that many lines at the beginning of the file"
+            "to_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "store read file content into 'to_attr'"
+            },
+            "file": {
+                "value": "",
+                "type": "string",
+                "desc": "Path to file to read."
+            },
+            "lines_mode": {
+                "value": True,
+                "type": "bool",
+                "desc": "Send single lines if true else send whole file content at once."
+            },
+            "skip_lines": {
+                "value": 0,
+                "type": "int",
+                "desc": "If lines mode is true, skip that many lines at the beginning of the file."
+            },
         }
     }
 }
@@ -100,27 +111,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     await ports.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_toml = """
-to_attr = "" # [string] -> store read file content into 'to_attr'
-file = "" # [string] -> path to file to read
-lines_mode = true # [true | false] -> send single lines if true else send whole file content at once
-skip_lines = 0 # [int] -> if lines mode is true, skip that many lines at the beginning of the file
-"""
-
-default_config = {
-    "to_attr": None,
-    "file": None,
-    "lines_mode": False,
-    "skip_lines": 0,
-    "opt:to_attr": "[string] -> store read file content into 'to_attr'",
-    "opt:file": "[string] -> path to file to read",
-    "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
-    "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:out": "[string] -> lines or whole file read",
-}
 
 
 def main():
