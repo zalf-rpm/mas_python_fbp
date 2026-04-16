@@ -59,7 +59,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/59/bb/8002fadefb64ab2669e5b977df3f5e444febea60e717e755b38bb7c41029/tomli-2.4.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/10/6a/c2b8183f6ec167ed42169a7e0ae1ff6830b0b3d3cd342704704b52981071/zalfmas_capnp_schemas-0.1.54-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/53/e5/ab7f6de0cabbefb6b9c5a0945c7b3463e7fdcea3fadc43b6cbd9f035cb67/zalfmas_capnp_schemas-0.1.57-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b0/05/0d45398c28476c4fcc958b2f82dafe2b41685fdc73000a88b71ce9e43db5/zalfmas_common-0.1.41-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
 packages:
@@ -784,13 +784,13 @@ packages:
   purls: []
   size: 119135
   timestamp: 1767016325805
-- pypi: https://files.pythonhosted.org/packages/10/6a/c2b8183f6ec167ed42169a7e0ae1ff6830b0b3d3cd342704704b52981071/zalfmas_capnp_schemas-0.1.54-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/53/e5/ab7f6de0cabbefb6b9c5a0945c7b3463e7fdcea3fadc43b6cbd9f035cb67/zalfmas_capnp_schemas-0.1.57-py3-none-any.whl
   name: zalfmas-capnp-schemas
-  version: 0.1.54
-  sha256: 745eb6738bb5b4c8498f5747dfa24376782df05f247358ac76fbcc4f5fca09ed
+  version: 0.1.57
+  sha256: cf5fedb3096948ee0af7ac5645d212718df9e5666df722547c7a9f8366a20165
   requires_dist:
   - pycapnp>=2.2.1,<3.0.0
-  requires_python: '>=3.10,<3.14'
+  requires_python: '>=3.12,<3.14'
 - pypi: https://files.pythonhosted.org/packages/b0/05/0d45398c28476c4fcc958b2f82dafe2b41685fdc73000a88b71ce9e43db5/zalfmas_common-0.1.41-py3-none-any.whl
   name: zalfmas-common
   version: 0.1.41
