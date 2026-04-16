@@ -48,14 +48,17 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
         self.proc: sp.Popen = None
+        self.stopped_callbacks = []
 
     async def start_context(
             self, context
-    ):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
+    ):  # start @0 (portInfosReaderSr :SturdyRef, name :Text, stoppedCb :StoppedCallback) -> (success :Bool);
         port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
             context.params.portInfosReaderSr
         )
         name = context.params.name
+        if context.params._has("stoppedCb"):
+            self.stopped_callbacks.append(context.params.stoppedCb)
         self.proc = comp.start_local_component(
             self.path_to_executable, port_infos_reader_sr_str, name
         )
@@ -67,6 +70,8 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             rt = self.proc.returncode == 0
             self.proc = None
             context.results.success = rt
+            for scb in self.stopped_callbacks:
+                await scb.stopped()
         context.results.success = True
 
 
