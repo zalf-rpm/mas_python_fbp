@@ -18,7 +18,7 @@ def start_first_channel(path_to_channel: str, name: str | None = None):
     chan = sp.Popen(
         [
             path_to_channel,
-            f"--name=chan_{name if name else str(uuid.uuid4())}",
+            f"--name=chan_{sanitize_channel_name(name) if name and len(name) > 0 else str(uuid.uuid4())}",
             "--output_srs",
         ],
         stdout=sp.PIPE,
@@ -38,25 +38,30 @@ def start_first_channel(path_to_channel: str, name: str | None = None):
     return chan, first_reader_sr, first_writer_sr
 
 
+def sanitize_channel_name(name: str):
+    name = name.replace(" ", "_")
+    return name
+
+
 def start_channel(
-    path_to_channel: str,
-    startup_info_id: str | None,
-    startup_info_writer_sr: str | None,
-    name: str | None = None,
-    verbose: bool = False,
-    host: str | None = None,
-    port: str | None = None,
-    no_of_channels: int = 1,
-    no_of_readers: int = 1,
-    no_of_writers: int = 1,
-    reader_srts: str | None = None,
-    writer_srts: str | None = None,
-    buffer_size: int = 1,
+        path_to_channel: str,
+        startup_info_id: str | None,
+        startup_info_writer_sr: str | None,
+        name: str | None = None,
+        verbose: bool = False,
+        host: str | None = None,
+        port: str | None = None,
+        no_of_channels: int = 1,
+        no_of_readers: int = 1,
+        no_of_writers: int = 1,
+        reader_srts: str | None = None,
+        writer_srts: str | None = None,
+        buffer_size: int = 1,
 ):
     return sp.Popen(
         [
             path_to_channel,
-            f"--name=chan_{name if name and len(name) > 0 else str(uuid.uuid4())}",
+            f"--name=chan_{sanitize_channel_name(name) if name and len(name) > 0 else str(uuid.uuid4())}",
             f"--startup_info_id={startup_info_id}",
             f"--startup_info_writer_sr={startup_info_writer_sr}",
             f"--no_of_channels={no_of_channels}",
@@ -72,7 +77,6 @@ def start_channel(
         + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT
     )
-
 
 # class Channel(fbp_capnp.Channel.Server, common.Identifiable, common.Persistable, serv.AdministrableService):
 #
