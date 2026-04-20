@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.30](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.29...v0.2.30) (2026-04-20)
+
+
+### Features
+
+* update pixi and and shipped channel binary ([e2db313](https://github.com/zalf-rpm/mas_python_fbp/commit/e2db3133c40658d12718d70d8289338709f372db))
+
+
+### Bug Fixes
+
+* add .pixi to docker ignore for lcoal dev ([2ede1f7](https://github.com/zalf-rpm/mas_python_fbp/commit/2ede1f7582c683127d96004b02db92d1828d56f9))
+
 ## [0.2.29](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.28...v0.2.29) (2026-02-12)
 
 
