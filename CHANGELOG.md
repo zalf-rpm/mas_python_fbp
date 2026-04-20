@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.31](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.30...v0.2.31) (2026-04-20)
+
+
+### Bug Fixes
+
+* update channel binary ([367cccc](https://github.com/zalf-rpm/mas_python_fbp/commit/367cccc01ffffcd2a77d71743770bb263306c938))
+
 ## [0.2.30](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.29...v0.2.30) (2026-04-20)
 
 
