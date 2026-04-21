@@ -41,13 +41,17 @@ meta = {
 }
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
     await p.update_config_from_port(config, ports["conf"])
 
     while ports["cs"] and ports["ds"]:
         try:
-            service = ports.read_or_connect("cs", cast_as=climate_capnp.Service)
+            service = (
+                service_cap.cast_as(climate_capnp.Service)
+                if (service_cap := await ports.read_or_connect("cs")) is not None
+                else None
+            )
             if service is None:
                 continue
 

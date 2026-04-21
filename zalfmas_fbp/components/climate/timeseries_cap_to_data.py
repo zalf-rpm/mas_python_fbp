@@ -86,10 +86,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
             except Exception:
                 try:
-                    timeseries = await ports.connection_manager.try_connect(
-                        cap_or_sr.as_text(),
-                        cast_as=climate_capnp.TimeSeries,
-                        retry_secs=1,
+                    timeseries = (
+                        timeseries_cap.cast_as(climate_capnp.TimeSeries)
+                        if (
+                            timeseries_cap := await ports.connection_manager.try_connect(
+                                cap_or_sr.as_text(),
+                                retry_secs=1,
+                            )
+                        )
+                        is not None
+                        else None
                     )
                 except Exception as e:
                     print(

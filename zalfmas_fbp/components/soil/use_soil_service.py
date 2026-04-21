@@ -109,7 +109,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     service = None
     if ports["service"]:
-        service = ports.read_or_connect("service", cast_as=soil_capnp.Service)
+        service = (
+            service_cap.cast_as(soil_capnp.Service)
+            if (service_cap := await ports.read_or_connect("service")) is not None
+            else None
+        )
         if not service:
             print(f"{os.path.basename(__file__)} No soil service could be received or connected to.")
             return

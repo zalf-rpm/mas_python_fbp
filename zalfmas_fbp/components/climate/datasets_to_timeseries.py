@@ -79,10 +79,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
             except Exception:
                 try:
-                    dataset = ports.connection_manager.try_connect(
-                        ds_ip.content.as_text(),
-                        cast_as=climate_capnp.Dataset,
-                        retry_secs=1,
+                    dataset = (
+                        dataset_cap.cast_as(climate_capnp.Dataset)
+                        if (
+                            dataset_cap := await ports.connection_manager.try_connect(
+                                ds_ip.content.as_text(),
+                                retry_secs=1,
+                            )
+                        )
+                        is not None
+                        else None
                     )
                 except Exception as e:
                     print("Error: Couldn't connect to dataset. Exception:", e)

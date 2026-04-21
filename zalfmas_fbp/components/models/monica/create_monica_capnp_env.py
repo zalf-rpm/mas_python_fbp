@@ -114,7 +114,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             capnp_env = model_capnp.Env.new_message()
 
             if ports["climate"]:
-                timeseries = ports.read_or_connect("climate", cast_as=climate_capnp.TimeSeries)
+                timeseries = (
+                    timeseries_cap.cast_as(climate_capnp.TimeSeries)
+                    if (timeseries_cap := await ports.read_or_connect("climate")) is not None
+                    else None
+                )
                 if timeseries:
                     capnp_env.timeSeries = timeseries
             if not timeseries and "climate" in config:
@@ -131,7 +135,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     json_env["pathToClimateCSV"] = timeseries
 
             if ports["soil"]:
-                soil_profile = ports.read_or_connect("soil", cast_as=soil_capnp.Profile)
+                soil_profile = (
+                    soil_profile_cap.cast_as(soil_capnp.Profile)
+                    if (soil_profile_cap := await ports.read_or_connect("soil")) is not None
+                    else None
+                )
                 if soil_profile:
                     capnp_env.soilProfile = soil_profile
             if not soil_profile and "soil" in config:
