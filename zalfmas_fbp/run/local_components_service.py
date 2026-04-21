@@ -19,11 +19,14 @@ import json
 import logging
 import os.path
 import subprocess as sp
-import sys
-from collections import defaultdict, Counter
+from collections import defaultdict
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.registry import registry_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
@@ -35,6 +38,9 @@ logging.basicConfig(
     format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.clients import ProcessClient
 
 
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
@@ -60,6 +66,7 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr_str, name)
         context.results.success = self.proc.poll() is None
 
+    @override
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
@@ -74,17 +81,18 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
 class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
         self,
-        path_to_executable,
-        id=None,
-        name=None,
-        description=None,
+        path_to_executable: str,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
-        self.path_to_executable = path_to_executable
-        self.runnables = []
-        self.count = 0
+        self.path_to_executable: str = path_to_executable
+        self.runnables: list[Runnable] = []
+        self.count: int = 0
 
     # create @0 () -> (r :Runnable);
+    @override
     async def create(self, _context, **kwargs):
         self.count += 1
         r = Runnable(
@@ -99,9 +107,9 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
 
 class ProcessWriter(fbp_capnp.Channel.Writer.Server):
     def __init__(self):
-        self.process_cap = None
+        self.process_cap: ProcessClient | None = None
         self.process_cap_received_future = asyncio.Future()
-        self.unregister_writer = None
+        self.unregister_writer: Callable[..., None] | None = None
 
     # struct Msg {
     #   union {
@@ -111,6 +119,7 @@ class ProcessWriter(fbp_capnp.Channel.Writer.Server):
     #   }
     # }
     # write @0 Msg;
+    @override
     async def write_context(self, context):
         if context.params.which() == "value":
             self.process_cap = context.params.value.as_interface(fbp_capnp.Process)
@@ -124,29 +133,31 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         self,
         path_to_executable: str,
         restorer: common.Restorer,
-        id: str = None,
-        name: str = None,
-        description: str = None,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
-        self.path_to_executable = path_to_executable
+        self.path_to_executable: str = path_to_executable
         self.procs: list[sp.Popen[str]] = []
         # self.proc_writers = []
-        self.count = 0
-        self.restorer = restorer
+        self.count: int = 0
+        self.restorer: common.Restorer = restorer
 
     def __del__(self):
         for proc in self.procs:
             proc.terminate()
 
     # create @0 () -> (r :Process);
+    @override
     async def create(self, _context, **kwargs):
         self.count += 1
         writer = ProcessWriter()
         save_sr_token, unsave_sr_token = await self.restorer.save_cap(writer)
 
         async def unsave():
-            await self.restorer.unsave(unsave_sr_token)
+            if unsave_sr_token:
+                _ = await self.restorer.unsave(unsave_sr_token)
 
         writer.unregister_writer = unsave  # lambda: self.restorer.unsave(unsave_sr_token)
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)

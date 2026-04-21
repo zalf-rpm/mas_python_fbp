@@ -26,12 +26,18 @@ def start_first_channel(path_to_channel: str, name: str | None = None):
     )
     first_reader_sr = None
     first_writer_sr = None
+    stdout = chan.stdout
+    if stdout is None:
+        return chan, first_reader_sr, first_writer_sr
     while chan.poll() is None:
-        s = chan.stdout.readline().split("=", maxsplit=1)
-        id, sr = s if len(s) == 2 else (None, None)
-        if id and id.strip() == "readerSR":
+        s = stdout.readline().split("=", maxsplit=1)
+        id = None
+        sr = None
+        if len(s) == 2:
+            id, sr = s
+        if id and sr and id.strip() == "readerSR":
             first_reader_sr = sr.strip()
-        elif id and id.strip() == "writerSR":
+        elif id and sr and id.strip() == "writerSR":
             first_writer_sr = sr.strip()
         if first_reader_sr and first_writer_sr:
             break

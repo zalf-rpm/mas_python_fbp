@@ -102,7 +102,7 @@ def handle_default_fpb_component_args(parser, component_meta: dict = None):
     return port_infos_reader_sr, default_config, args
 
 
-def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
+def start_local_component(path_to_executable: str, port_infos_reader_sr: str, name: str | None = None):
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
         pte_split[0] = sys.executable

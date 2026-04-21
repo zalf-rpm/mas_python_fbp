@@ -13,31 +13,42 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
-from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from subprocess import Popen
-from typing import cast
+from typing import TYPE_CHECKING, cast, override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import (
-    common_capnp,
-    fbp_capnp,
-    service_capnp,
-)
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.service import service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.channels as channels
 
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import StartupInfoReader
+    from mas.schema.service.service_capnp.types.clients import AdminClient
+
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
-    def __init__(self, proc: Popen[bytes] | Popen[str], remove_from_service_func=None):
-        self.proc = proc
-        self.remove_from_service_func = remove_from_service_func
+    def __init__(
+        self,
+        proc: Popen[bytes] | Popen[str] | None,
+        remove_from_service: Callable[[], tuple[Popen[str] | Popen[bytes], StopChannelProcess] | None] | None = None,
+    ):
+        self.proc: Popen[bytes] | Popen[str] | None = proc
+        self.remove_from_service: Callable[[], tuple[Popen[str] | Popen[bytes], StopChannelProcess] | None] | None = (
+            remove_from_service
+        )
 
+    @override
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
@@ -45,8 +56,9 @@ class StopChannelProcess(service_capnp.Stoppable.Server):
             await asyncio.sleep(1)
             context.results.success = self.proc.poll() is not None
             self.proc = None
-            if self.remove_from_service_func:
-                self.remove_from_service_func()
+            if self.remove_from_service:
+                _ = self.remove_from_service()
+            context.results.success = rt
         context.results.success = False
 
 
@@ -71,8 +83,8 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         description: str | None = None,
         verbose: bool = False,
         channel_host_name: str | None = None,
-        admin=None,
-        restorer=None,
+        admin: AdminClient | None = None,
+        restorer: common.Restorer | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
 
@@ -80,9 +92,9 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         self.path_to_channel: str = path_to_channel
         self.startup_info_id: str = str(uuid.uuid4())
         self.channels: dict[str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]] = {}
-        self.first_reader = None
-        self.first_writer_sr = None
-        self.chan_id_to_info = defaultdict(list)
+        self.first_reader: fbp_capnp.types.clients.ReaderClient | None = None
+        self.first_writer_sr: str | None = None
+        self.chan_id_to_info: dict[str, list[StartupInfoReader]] = {}
         self.verbose: bool = verbose
         self.channel_host_name: str | None = channel_host_name
 
@@ -96,14 +108,22 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             first_chan,
             StopChannelProcess(first_chan),
         )
-        self.first_reader = await self.con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
+        if not first_reader_sr:
+            return
 
-    async def get_start_infos(self, chan, chan_id, no_of_chans):
+        if (first_reader_cap := await self.con_man.try_connect(first_reader_sr)) is None:
+            raise RuntimeError(f"Couldn't connect to startup reader {first_reader_sr}.")
+
+        self.first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
+
+    async def get_start_infos(self, chan: Popen[bytes], chan_id: str, no_of_chans: int):
         if chan_id in self.chan_id_to_info:
             return self.chan_id_to_info.pop(chan_id)
-        start_infos = []
+        start_infos: list[StartupInfoReader] = []
         received_infos = 0
         while chan.poll() is None and received_infos < no_of_chans:
+            if not self.first_reader:
+                continue
             p = (await self.first_reader.read()).value.as_struct(common_capnp.Pair)
             msg_chan_id = p.fst.as_text()
             info = p.snd.as_struct(fbp_capnp.Channel.StartupInfo)
@@ -124,15 +144,16 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
     # }
 
+    @override
     async def start_context(
         self, context
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
-        ps = cast(Params, context.params)
+        ps = context.params
         config_chan_id = str(uuid.uuid4())
-        reader_srts = ",".join(ps.readerSrts) if ps._has("readerSrts") else None
-        writer_srts = ",".join(ps.writerSrts) if ps._has("writerSrts") else None
+        reader_srts = ",".join(ps.readerSrts) if ps.readerSrts else None
+        writer_srts = ",".join(ps.writerSrts) if ps.writerSrts else None
         chan = channels.start_channel(
             self.path_to_channel,
             config_chan_id,
