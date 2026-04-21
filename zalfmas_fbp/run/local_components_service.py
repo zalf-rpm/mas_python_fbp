@@ -39,11 +39,11 @@ logging.basicConfig(
 
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
-            self,
-            path_to_executable,
-            id=None,
-            name=None,
-            description=None,
+        self,
+        path_to_executable,
+        id=None,
+        name=None,
+        description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -51,17 +51,13 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         self.stopped_callbacks = []
 
     async def start_context(
-            self, context
+        self, context
     ):  # start @0 (portInfosReaderSr :SturdyRef, name :Text, stoppedCb :StoppedCallback) -> (success :Bool);
-        port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
-            context.params.portInfosReaderSr
-        )
+        port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(context.params.portInfosReaderSr)
         name = context.params.name
         if context.params._has("stoppedCb"):
             self.stopped_callbacks.append(context.params.stoppedCb)
-        self.proc = comp.start_local_component(
-            self.path_to_executable, port_infos_reader_sr_str, name
-        )
+        self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr_str, name)
         context.results.success = self.proc.poll() is None
 
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
@@ -77,11 +73,11 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
 
 class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
-            self,
-            path_to_executable,
-            id=None,
-            name=None,
-            description=None,
+        self,
+        path_to_executable,
+        id=None,
+        name=None,
+        description=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -125,12 +121,12 @@ class ProcessWriter(fbp_capnp.Channel.Writer.Server):
 
 class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
     def __init__(
-            self,
-            path_to_executable: str,
-            restorer: common.Restorer,
-            id: str = None,
-            name: str = None,
-            description: str = None,
+        self,
+        path_to_executable: str,
+        restorer: common.Restorer,
+        id: str = None,
+        name: str = None,
+        description: str = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
@@ -152,52 +148,41 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         async def unsave():
             await self.restorer.unsave(unsave_sr_token)
 
-        writer.unregister_writer = (
-            unsave  # lambda: self.restorer.unsave(unsave_sr_token)
-        )
+        writer.unregister_writer = unsave  # lambda: self.restorer.unsave(unsave_sr_token)
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
-        self.procs.append(
-            process.start_local_process_component(
-                self.path_to_executable, writer_sr_str, self.id
-            )
-        )
+        self.procs.append(process.start_local_process_component(self.path_to_executable, writer_sr_str, self.id))
         process_cap = await writer.process_cap_received_future
         return process_cap
 
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
     def __init__(
-            self,
-            cat_id_to_name_and_component_holders: dict,
-            id=None,
-            name=None,
-            description=None,
-            restorer=None,
+        self,
+        cat_id_to_name_and_component_holders: dict,
+        id=None,
+        name=None,
+        description=None,
+        restorer=None,
     ):
         common.Persistable.__init__(self, restorer)
         common.Identifiable.__init__(self, id, name, description)
 
         self._cat_id_to_name_and_component_holders = cat_id_to_name_and_component_holders
 
-    async def supportedCategories_context(
-            self, context
-    ):  # supportedCategories @0 () -> (cats :List(IdInformation));
+    async def supportedCategories_context(self, context):  # supportedCategories @0 () -> (cats :List(IdInformation));
         cats = list(
-            [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()])
+            [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()]
+        )
         context.results.cats = cats
 
-    async def categoryInfo_context(
-            self, context
-    ):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
+    async def categoryInfo_context(self, context):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
         cat_id = context.params.categoryId
         r = context.results
         if n_to_chs := self._cat_id_to_name_and_component_holders.get(cat_id):
             r.id = cat_id
             r.name = n_to_chs.get("name", r.id)
 
-    async def entries_context(
-            self, context
-    ):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
+    async def entries_context(self, context):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
         cat_id = context.params.categoryId
         r = context.results
         if n_to_chs := self._cat_id_to_name_and_component_holders.get(cat_id):
@@ -230,8 +215,7 @@ def load_component_metadata(cmds, components_cache, restorer):
                 meta = json.loads(res.stdout)
                 components_cache[comp_id] = copy.deepcopy(meta)
             except Exception as e:
-                logger.warning(
-                    f"Couldn't execute component via '{pte_split + ['-O']}'. Exception: {e}")
+                logger.warning(f"Couldn't execute component via '{pte_split + ['-O']}'. Exception: {e}")
 
         try:
             c = meta["component"]
@@ -239,7 +223,8 @@ def load_component_metadata(cmds, components_cache, restorer):
             c_id = info["id"]
             if c_id != comp_id:
                 logger.warning(
-                    f"Component id={comp_id} in cmds is not the same as in referenced component (id={c_id})! Skipping component.")
+                    f"Component id={comp_id} in cmds is not the same as in referenced component (id={c_id})! Skipping component."
+                )
                 continue
 
             if "defaultConfig" in c:
@@ -277,14 +262,16 @@ def load_component_metadata(cmds, components_cache, restorer):
 
         except Exception as e:
             logger.warning(
-                f"Some exception happend during retrieving metadata for component with id={comp_id}. Exception: {e}")
+                f"Some exception happend during retrieving metadata for component with id={comp_id}. Exception: {e}"
+            )
 
     # if there are multiple names for the same category, use the one that appears most
     for cat_id, n_to_cs in cat_id_to_name_and_component_holders.items():
         if len(n_to_cs["name"]) > 1:
             mc = Counter(n_to_cs["name"]).most_common(1)
-            cat_id_to_name_and_component_holders[cat_id]["name"] = mc[0][0] if len(mc) > 0 and len(
-                mc[0]) > 0 else "unknown"
+            cat_id_to_name_and_component_holders[cat_id]["name"] = (
+                mc[0][0] if len(mc) > 0 and len(mc[0]) > 0 else "unknown"
+            )
         else:
             assert len(n_to_cs["name"]) == 1
             cat_id_to_name_and_component_holders[cat_id]["name"] = n_to_cs["name"][0]
@@ -323,9 +310,7 @@ async def main():
         description=cs.get("description", None),
         restorer=restorer,
     )
-    await serv.init_and_run_service_from_config(
-        config=config, service=service, restorer=restorer
-    )
+    await serv.init_and_run_service_from_config(config=config, service=service, restorer=restorer)
 
 
 if __name__ == "__main__":

@@ -28,70 +28,48 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "spotpy",
-        "name": "Spotpy"
-    },
+    "category": {"id": "spotpy", "name": "Spotpy"},
     "component": {
         "info": {
             "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
             "name": "Spotpy calibration component",
-            "description": "The actual component in the center of the calibration flow."
+            "description": "The actual component in the center of the calibration flow.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "init_params",
                 "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "desc": "key/value pair description of the parameters to calibrate"
-            }, {
-                "name": "obs_values",
-                "contentType": "List[common_capnp.Value.lf64]",
-                "desc": "list of observations"
-            }, {
-                "name": "sim_values",
-                "contentType": "List[common_capnp.Value.lf64]",
-                "desc": "list of simulated values"
-            }
+                "desc": "key/value pair description of the parameters to calibrate",
+            },
+            {"name": "obs_values", "contentType": "List[common_capnp.Value.lf64]", "desc": "list of observations"},
+            {"name": "sim_values", "contentType": "List[common_capnp.Value.lf64]", "desc": "list of simulated values"},
         ],
         "outPorts": [
             {
                 "name": "sampled_params",
                 "contentType": "List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
-                "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs"
-            }, {
-                "name": "best",
-                "contentType": "string",
-                "desc": "best optimized result"
-            }
+                "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs",
+            },
+            {"name": "best", "contentType": "string", "desc": "best optimized result"},
         ],
         "defaultConfig": {
-            "repetitions": {
-                "value": 10,
-                "type": "int",
-                "desc": "number of repetitions"
-            },
-            "path_to_out_folder": {
-                "value": "out/",
-                "type": "string",
-                "desc": "path to output folder"
-            }
-        }
-    }
+            "repetitions": {"value": 10, "type": "int", "desc": "number of repetitions"},
+            "path_to_out_folder": {"value": "out/", "type": "string", "desc": "path to output folder"},
+        },
+    },
 }
 
 
 class SpotPySetup:
     def __init__(
-            self,
-            params,
-            observations,
-            sampled_params_out_p,
-            sim_values_in_p,
-            log_out_p=None,
+        self,
+        params,
+        observations,
+        sampled_params_out_p,
+        sim_values_in_p,
+        log_out_p=None,
     ):
         self.params = params
         self.observations = observations
@@ -115,16 +93,10 @@ class SpotPySetup:
             out_ip = fbp_capnp.IP.new_message(content=n2p_list)
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self.sampled_params_out_p.write(value=out_ip))
-            print(
-                f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}"
-            )
+            print(f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}")
             if self.log_out_p:
                 loop.run_until_complete(
-                    self.log_out_p.write(
-                        value={
-                            "content": f"{datetime.now()} sent params to monica setup: {vector}"
-                        }
-                    )
+                    self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"})
                 )
 
             in_msg = loop.run_until_complete(self.sim_values_in_p.read())
@@ -139,7 +111,7 @@ class SpotPySetup:
                     self.log_out_p.write(
                         value={
                             "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                                       f"{len(self.observations)}"
+                            f"{len(self.observations)}"
                         }
                     )
                 )
@@ -159,9 +131,7 @@ class SpotPySetup:
 def print_status_final(sampler_status, stream):
     print("\n*** Final SPOTPY summary ***")
     print(
-        "Total Duration: "
-        + str(round((time.time() - sampler_status.starttime), 2))
-        + " seconds",
+        "Total Duration: " + str(round((time.time() - sampler_status.starttime), 2)) + " seconds",
         file=stream,
     )
     print("Total Repetitions:", sampler_status.rep, file=stream)
@@ -216,19 +186,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    while (
-            ports["sampled_params"]
-            and ports["sim_values"]
-            and (ports["init_params"] or ports["obs_values"])
-    ):
+    while ports["sampled_params"] and ports["sim_values"] and (ports["init_params"] or ports["obs_values"]):
         db_dir = None
         try:
             spotpy_params = None
             if ports["init_params"]:
                 try:
-                    init_params = await p.update_config_from_port(
-                        {}, ports["init_params"]
-                    )
+                    init_params = await p.update_config_from_port({}, ports["init_params"])
                     if not init_params:
                         ports["init_params"] = None
                         continue
@@ -241,9 +205,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             par_name += f"_{par['array']}"
                         spotpy_params.append(spotpy.parameter.Uniform(**par))
                     if len(spotpy_params) == 0:
-                        print(
-                            f"{os.path.basename(__file__)}: no parameters to calibrate!"
-                        )
+                        print(f"{os.path.basename(__file__)}: no parameters to calibrate!")
                         continue
 
                 except Exception as e:
@@ -264,29 +226,21 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     for attr in obs_values_ip.attributes:
                         if attr.key == "param_set_id":
                             param_set_id = attr.value.as_text()
-                    obs_values = obs_values_ip.content.as_struct(
-                        common_capnp.Value
-                    ).lf64
+                    obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
                     if not obs_values or len(obs_values) == 0:
-                        print(
-                            f"{os.path.basename(__file__)}: no observed values to calibrate!"
-                        )
+                        print(f"{os.path.basename(__file__)}: no observed values to calibrate!")
                         continue
                 except Exception as e:
                     print(f"{os.path.basename(__file__)} Exception:", e)
                     continue
 
-            spot_setup = SpotPySetup(
-                spotpy_params, obs_values, ports["sampled_params"], ports["sim_values"]
-            )
+            spot_setup = SpotPySetup(spotpy_params, obs_values, ports["sampled_params"], ports["sim_values"])
 
             rep = config["repetitions"]  # initial number was 10
             db_dir = tempfile.TemporaryDirectory()
             path_to_spotpy_db = f"{db_dir.name}/SCEUA_results"
             # Set up the sampler with the model above
-            sampler = spotpy.algorithms.sceua(
-                spot_setup, dbname=path_to_spotpy_db, dbformat="csv"
-            )
+            sampler = spotpy.algorithms.sceua(spot_setup, dbname=path_to_spotpy_db, dbformat="csv")
 
             # Run the sampler to produce the parameter distribution
             # and identify optimal parameters based on objective function

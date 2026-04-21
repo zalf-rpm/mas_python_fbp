@@ -23,12 +23,7 @@ from zalfmas_common import common
 
 
 def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
-    if (
-            type(config_val) is str
-            and len(config_val) > 0
-            and config_val[0] == "@"
-            and config_val[1:] in attrs
-    ):
+    if type(config_val) is str and len(config_val) > 0 and config_val[0] == "@" and config_val[1:] in attrs:
         if remove:
             attr_val = attrs.pop(config_val[1:])
         else:
@@ -45,9 +40,7 @@ def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=F
         return config_val, False
 
 
-def get_config_val(
-        config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
-):
+def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if key in config:
         cval = config[key]
         return get_attr_val(
@@ -139,11 +132,11 @@ class PortConnector:
 
     def __setitem__(self, key, value):
         if (
-                key in self.in_ports
-                and key in self.out_ports
-                and isinstance(value, dict)
-                and "in" in value
-                and "out" in value
+            key in self.in_ports
+            and key in self.out_ports
+            and isinstance(value, dict)
+            and "in" in value
+            and "out" in value
         ):
             self.in_ports[key] = value["in"]
             self.out_ports[key] = value["out"]
@@ -153,10 +146,10 @@ class PortConnector:
             self.out_ports[key] = value
 
     async def close_out_ports(
-            self,
-            print_info=False,
-            print_exception=True,
-            wait_for_port_infos_reader_done=True,
+        self,
+        print_info=False,
+        print_exception=True,
+        wait_for_port_infos_reader_done=True,
     ):
         for name, ps in self.out_ports.items():
             # is an array out port
@@ -166,9 +159,7 @@ class PortConnector:
                         try:
                             await p.close()
                             if print_info:
-                                print(
-                                    f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'"
-                                )
+                                print(f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'")
                         except Exception as e:
                             if print_exception:
                                 print(
@@ -182,9 +173,7 @@ class PortConnector:
                         print(f"{os.path.basename(__file__)}: closed out port '{name}'")
                 except Exception as e:
                     if print_exception:
-                        print(
-                            f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}"
-                        )
+                        print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
         if wait_for_port_infos_reader_done:
             if self.port_infos_reader:
@@ -274,9 +263,7 @@ class PortConnector:
         return service
 
     @staticmethod
-    async def create_from_port_infos_reader(
-            port_infos_reader_sr: str, ins=None, outs=None, connection_manager=None
-    ):
+    async def create_from_port_infos_reader(port_infos_reader_sr: str, ins=None, outs=None, connection_manager=None):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_port_infos_reader(port_infos_reader_sr)
         return pc
@@ -320,9 +307,7 @@ class PortConnector:
             )
 
     @staticmethod
-    async def create_from_toml_str(
-            config_toml_str: str, ins=None, outs=None, connection_manager=None
-    ):
+    async def create_from_toml_str(config_toml_str: str, ins=None, outs=None, connection_manager=None):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_toml_str(config_toml_str)
         return pc
@@ -366,9 +351,7 @@ class PortConnector:
             )
 
     @staticmethod
-    async def create_from_toml_reader_sr(
-            config_reader_sr: str, ins=None, outs=None, connection_manager=None
-    ):
+    async def create_from_toml_reader_sr(config_reader_sr: str, ins=None, outs=None, connection_manager=None):
         pc = PortConnector(ins, outs, connection_manager)
         await pc.connect_from_toml_reader_sr(config_reader_sr)
         return pc

@@ -23,46 +23,23 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "models/monica",
-        "name": "Models/MONICA"
-    },
+    "category": {"id": "models/monica", "name": "Models/MONICA"},
     "component": {
         "info": {
             "id": "128af0c8-2614-4398-9043-ff3581958bd4",
             "name": "Create MONICA JSON env",
-            "description": "Create MONICA JSON environment."
+            "description": "Create MONICA JSON environment.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "sim",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
-            }, {
-                "name": "crop",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
-            }, {
-                "name": "site",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "sim", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
+            {"name": "crop", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
+            {"name": "site", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text (JSON)"
-            }
-        ],
-        "defaultConfig": {
-            "to_attr": {
-                "value": None,
-                "type": "Text (JSON)",
-                "desc": "Set output into this attribute."
-            }
-        }
-    }
+        "outPorts": [{"name": "out", "contentType": "Text (JSON)"}],
+        "defaultConfig": {"to_attr": {"value": None, "type": "Text (JSON)", "desc": "Set output into this attribute."}},
+    },
 }
 
 
@@ -91,9 +68,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip = fbp_capnp.IP.new_message()
                 to_attr = config.get("to_attr", None)
                 if to_attr and len(to_attr.as_text()) > 0:
-                    out_ip.attributes = [
-                        {"key": to_attr.as_text(), "value": json.dumps(env_template)}
-                    ]
+                    out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]
                 else:
                     out_ip.content = json.dumps(env_template)
                 await ports["out"].write(value=out_ip)

@@ -44,19 +44,19 @@ def sanitize_channel_name(name: str):
 
 
 def start_channel(
-        path_to_channel: str,
-        startup_info_id: str | None,
-        startup_info_writer_sr: str | None,
-        name: str | None = None,
-        verbose: bool = False,
-        host: str | None = None,
-        port: str | None = None,
-        no_of_channels: int = 1,
-        no_of_readers: int = 1,
-        no_of_writers: int = 1,
-        reader_srts: str | None = None,
-        writer_srts: str | None = None,
-        buffer_size: int = 1,
+    path_to_channel: str,
+    startup_info_id: str | None,
+    startup_info_writer_sr: str | None,
+    name: str | None = None,
+    verbose: bool = False,
+    host: str | None = None,
+    port: str | None = None,
+    no_of_channels: int = 1,
+    no_of_readers: int = 1,
+    no_of_writers: int = 1,
+    reader_srts: str | None = None,
+    writer_srts: str | None = None,
+    buffer_size: int = 1,
 ):
     return sp.Popen(
         [
@@ -77,6 +77,7 @@ def start_channel(
         + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT
     )
+
 
 # class Channel(fbp_capnp.Channel.Server, common.Identifiable, common.Persistable, serv.AdministrableService):
 #

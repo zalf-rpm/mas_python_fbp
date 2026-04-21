@@ -24,28 +24,17 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
             "name": "timeseries data -> csv",
-            "description": "Create CSV string out of timeseries data."
+            "description": "Create CSV string out of timeseries data.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
@@ -54,9 +43,7 @@ def capnp_date_to_py_date(capnp_date):
 
 
 def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
-    grouped_data = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(list))
-    )  # var -> year -> month -> values
+    grouped_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))  # var -> year -> month -> values
     for i, line in enumerate(data):
         current_date = start_date + timedelta(days=i)
         for j, v in enumerate(line):
@@ -99,9 +86,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             else:
                 data = in_ip.content.as_struct(climate_capnp.TimeSeriesData)
 
-            vars = aggregate_monthly(
-                data.header, data.data, capnp_date_to_py_date(data.startDate)
-            )
+            vars = aggregate_monthly(data.header, data.data, capnp_date_to_py_date(data.startDate))
 
             for var, out_p in ports.outs.items():
                 rs, cs = id.as_text().split("_")
@@ -111,9 +96,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip = fbp_capnp.IP.new_message()
                 if not config["to_attr"]:
                     out_ip.content = line
-                updated_attrs = {"id": var} | (
-                    {config["to_attr"]: line} if config["to_attr"] else {}
-                )
+                updated_attrs = {"id": var} | ({config["to_attr"]: line} if config["to_attr"] else {})
                 common.copy_and_set_fbp_attrs(in_ip, out_ip, **updated_attrs)
                 await out_p.write(value=out_ip)
 

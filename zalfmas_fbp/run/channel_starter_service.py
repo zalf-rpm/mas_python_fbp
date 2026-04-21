@@ -63,25 +63,23 @@ class Params:
 
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
     def __init__(
-            self,
-            con_man: common.ConnectionManager,
-            path_to_channel: str,
-            id: str | None = None,
-            name: str | None = None,
-            description: str | None = None,
-            verbose: bool = False,
-            channel_host_name: str | None = None,
-            admin=None,
-            restorer=None,
+        self,
+        con_man: common.ConnectionManager,
+        path_to_channel: str,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        verbose: bool = False,
+        channel_host_name: str | None = None,
+        admin=None,
+        restorer=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
 
         self.con_man: common.ConnectionManager = con_man
         self.path_to_channel: str = path_to_channel
         self.startup_info_id: str = str(uuid.uuid4())
-        self.channels: dict[
-            str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]
-        ] = {}
+        self.channels: dict[str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]] = {}
         self.first_reader = None
         self.first_writer_sr = None
         self.chan_id_to_info = defaultdict(list)
@@ -93,16 +91,12 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             chan.terminate()
 
     async def create_startup_info_channel(self):
-        first_chan, first_reader_sr, self.first_writer_sr = (
-            channels.start_first_channel(self.path_to_channel)
-        )
+        first_chan, first_reader_sr, self.first_writer_sr = channels.start_first_channel(self.path_to_channel)
         self.channels[self.startup_info_id] = (
             first_chan,
             StopChannelProcess(first_chan),
         )
-        self.first_reader = await self.con_man.try_connect(
-            first_reader_sr, cast_as=fbp_capnp.Channel.Reader
-        )
+        self.first_reader = await self.con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
 
     async def get_start_infos(self, chan, chan_id, no_of_chans):
         if chan_id in self.chan_id_to_info:
@@ -131,7 +125,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     # }
 
     async def start_context(
-            self, context
+        self, context
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
@@ -158,9 +152,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             chan,
             StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None)),
         )
-        context.results.startupInfos = await self.get_start_infos(
-            chan, config_chan_id, ps.noOfChannels
-        )
+        context.results.startupInfos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
         context.results.stop = stop
 
 
@@ -198,9 +190,7 @@ async def main():
     )
 
     await service.create_startup_info_channel()
-    await serv.init_and_run_service_from_config(
-        config=config, service=service, restorer=restorer
-    )
+    await serv.init_and_run_service_from_config(config=config, service=service, restorer=restorer)
 
 
 if __name__ == "__main__":

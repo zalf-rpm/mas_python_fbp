@@ -21,27 +21,16 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
             "name": "datasets -> timeseries",
-            "description": "Get timeseries capabilties from a dataset."
+            "description": "Get timeseries capabilties from a dataset.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "ds"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "ts"
-            }
-        ],
+        "inPorts": [{"name": "ds"}],
+        "outPorts": [{"name": "ts"}],
         "defaultConfig": {
             "no_of_locations_at_once": 10,
             "no_of_locations_at_once_type": "int",
@@ -57,16 +46,14 @@ meta = {
             "create_substream_desc": "create a substream for each datasets' timeseries",
             "maintain_incoming_substreams": False,
             "maintain_incoming_substreams_type": "[true | false]",
-            "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams"
-        }
-    }
+            "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams",
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
     await p.update_config_from_port(config, ports["conf"])
 
     while ports["ds"] and ports["ts"]:
@@ -104,22 +91,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             if config["continue_after_location_id"]:
-                callback = dataset.streamLocations(
-                    config["continue_after_location_id"]
-                ).locationsCallback
+                callback = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
             else:
                 callback = dataset.streamLocations().locationsCallback
             info = await dataset.info()
             # callback = await callback_prom
 
             if config["create_substream"]:
-                await ports["ts"].write(
-                    value=fbp_capnp.IP.new_message(type="openBracket", content=info.id)
-                )
+                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             while True:
-                ls = (
-                    await callback.nextLocations(int(config["no_of_locations_at_once"]))
-                ).locations
+                ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
                     break
                 for l in ls:
@@ -132,9 +113,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         out_ip.content = l.timeSeries
                     await ports["ts"].write(value=out_ip)
             if config["create_substream"]:
-                await ports["ts"].write(
-                    value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id)
-                )
+                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)

@@ -24,9 +24,7 @@ import capnp
 
 def run_component_from_metadata(func, meta):
     parser = create_default_fbp_component_args_parser(meta["component"]["info"]["description"])
-    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(
-        parser, meta
-    )
+    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(parser, meta)
     asyncio.run(capnp.run(func(port_infos_reader_sr, default_config)))
 
 

@@ -24,35 +24,22 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
             "name": "timeseries data -> csv",
-            "description": "Create CSV string out of timeseries data."
+            "description": "Create CSV string out of timeseries data.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     def py_date(capnp_date):
@@ -87,9 +74,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
                 out_ip.content = csv
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {})
-            )
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {}))
             await ports["out"].write(value=out_ip)
 
         except Exception as e:

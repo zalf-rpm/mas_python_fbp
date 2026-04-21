@@ -22,60 +22,49 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "ip",
-        "name": "IP (Flow packages)"
-    },
+    "category": {"id": "ip", "name": "IP (Flow packages)"},
     "categoryId": "ip",
     "component": {
         "info": {
             "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
             "name": "lift attributes",
-            "description": "Lift attributes."
+            "description": "Lift attributes.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Input message with any content containing some structured attributes."
-            }
+                "desc": "Input message with any content containing some structured attributes.",
+            },
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata."
+                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
             }
         ],
         "defaultConfig": {
-            "lift_from_attr": {
-                "value": "name",
-                "type": "string",
-                "desc": "Attribute to read from IP."
-            },
+            "lift_from_attr": {"value": "name", "type": "string", "desc": "Attribute to read from IP."},
             "lift_from_type": {
                 "value": "schema.capnp:Type",
                 "type": "string",
-                "desc": "Capnp struct type to read from attribute."
+                "desc": "Capnp struct type to read from attribute.",
             },
             "lifted_attrs": {
                 "value": ["attr1", "attr2", "attr3"],
                 "type": "List",
-                "desc": "Attributes to lift from struct into metadata."
-            }
-        }
-    }
+                "desc": "Attributes to lift from struct into metadata.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     lift_from_type = common.load_capnp_module(config["lift_from_type"])
@@ -90,9 +79,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            lift_from_attr = common.get_fbp_attr(
-                in_ip, config["lift_from_attr"]
-            ).as_struct(lift_from_type)
+            lift_from_attr = common.get_fbp_attr(in_ip, config["lift_from_attr"]).as_struct(lift_from_type)
 
             out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
             lifted_attrs = config["lifted_attrs"]

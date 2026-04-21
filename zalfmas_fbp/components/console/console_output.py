@@ -22,31 +22,22 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "console",
-        "name": "Console"
-    },
+    "category": {"id": "console", "name": "Console"},
     "component": {
         "info": {
             "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
             "name": "output to console",
-            "description": "Output input to console."
+            "description": "Output input to console.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "in"
-            }
-        ],
-        "outPorts": []
-    }
+        "inPorts": [{"name": "in"}],
+        "outPorts": [],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["in"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
     print(f"{os.path.basename(__file__)}: connected port(s)")
 
     while ports["in"]:

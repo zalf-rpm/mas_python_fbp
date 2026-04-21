@@ -29,34 +29,17 @@ import zalfmas_fbp.run.ports as p
 from ..geo import get_lat_lon_grid_value as shared
 
 meta = {
-    "category": {
-        "id": "producers",
-        "name": "Producers"
-    },
+    "category": {"id": "producers", "name": "Producers"},
     "component": {
         "info": {
             "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
             "name": "africa calibration producer",
-            "description": "Producer to work in an Africa calibration flow."
+            "description": "Producer to work in an Africa calibration flow.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf"
-            }, {
-                "name": "coords"
-            }, {
-                "name": "region"
-            }, {
-                "name": "params"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "env"
-            }
-        ]
-    }
+        "inPorts": [{"name": "conf"}, {"name": "coords"}, {"name": "region"}, {"name": "params"}],
+        "outPorts": [{"name": "env"}],
+    },
 }
 
 
@@ -252,23 +235,19 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     {
                         "Thickness": [monica_depth_m, "m"],
                         "SoilOrganicCarbon": [
-                            soil_vars["corg"][i, row, col]
-                            * soil_data["corg"]["conv_factor"],
+                            soil_vars["corg"][i, row, col] * soil_data["corg"]["conv_factor"],
                             "%",
                         ],
                         "SoilBulkDensity": [
-                            soil_vars["bd"][i, row, col]
-                            * soil_data["bd"]["conv_factor"],
+                            soil_vars["bd"][i, row, col] * soil_data["bd"]["conv_factor"],
                             "kg m-3",
                         ],
                         "Sand": [
-                            soil_vars["sand"][i, row, col]
-                            * soil_data["sand"]["conv_factor"],
+                            soil_vars["sand"][i, row, col] * soil_data["sand"]["conv_factor"],
                             "fraction",
                         ],
                         "Clay": [
-                            soil_vars["clay"][i, row, col]
-                            * soil_data["clay"]["conv_factor"],
+                            soil_vars["clay"][i, row, col] * soil_data["clay"]["conv_factor"],
                             "fraction",
                         ],
                     }
@@ -338,9 +317,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             management_file = f"{planting}_planting_{nitrogen}_nitrogen.csv"
             # load management data
             management = csv.read_csv(
-                paths["path-to-data-dir"]
-                + "/agro_ecological_regions_nigeria/"
-                + management_file,
+                paths["path-to-data-dir"] + "/agro_ecological_regions_nigeria/" + management_file,
                 key="id",
             )
         else:
@@ -352,33 +329,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             int,
         )
         crop_mask_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-mask_0.083deg_4326_wgs84_africa.asc.gz",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-mask_0.083deg_4326_wgs84_africa.asc.gz",
             int,
         )
         planting_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-planting-doy_0.5deg_4326_wgs84_africa.asc",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-planting-doy_0.5deg_4326_wgs84_africa.asc",
             int,
         )
         harvest_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-harvest-doy_0.5deg_4326_wgs84_africa.asc",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-harvest-doy_0.5deg_4326_wgs84_africa.asc",
             int,
         )
-        height_data = shared.load_grid_cached(
-            paths["path-to-data-dir"] + "/../" + setup["path_to_dem_asc_grid"], float
-        )
+        height_data = shared.load_grid_cached(paths["path-to-data-dir"] + "/../" + setup["path_to_dem_asc_grid"], float)
         slope_data = shared.load_grid_cached(
             paths["path-to-data-dir"] + "/../" + setup["path_to_slope_asc_grid"], float
         )
 
         # read template sim.json
-        with open(
-                os.path.join(
-                    config["path_to_repo"], setup.get("sim.json", config["sim.json"])
-                )
-        ) as _:
+        with open(os.path.join(config["path_to_repo"], setup.get("sim.json", config["sim.json"]))) as _:
             sim_json = json.load(_)
         # change start and end date according to setup
         if setup["start_date"]:
@@ -386,27 +354,17 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         if setup["end_date"]:
             end_year = int(setup["end_date"].split("-")[0])
             sim_json["climate.csv-options"]["end-date"] = str(setup["end_date"])
-        sim_json["include-file-base-path"] = os.path.join(
-            config["path_to_repo"], sim_json["include-file-base-path"]
-        )
+        sim_json["include-file-base-path"] = os.path.join(config["path_to_repo"], sim_json["include-file-base-path"])
 
         # read template site.json
-        with open(
-                os.path.join(
-                    config["path_to_repo"], setup.get("site.json", config["site.json"])
-                )
-        ) as _:
+        with open(os.path.join(config["path_to_repo"], setup.get("site.json", config["site.json"]))) as _:
             site_json = json.load(_)
 
         if len(scenario) > 0 and scenario[:3].lower() == "ssp":
             site_json["EnvironmentParameters"]["rcp"] = f"rcp{scenario[-2:]}"
 
         # read template crop.json
-        with open(
-                os.path.join(
-                    config["path_to_repo"], setup.get("crop.json", config["crop.json"])
-                )
-        ) as _:
+        with open(os.path.join(config["path_to_repo"], setup.get("crop.json", config["crop.json"]))) as _:
             crop_json = json.load(_)
             # set current crop
             for ws in crop_json["cropRotation"][0]["worksteps"]:
@@ -421,9 +379,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     ps["cultivar"][pname] = pval
 
         crop_json["CropParameters"]["__enable_vernalisation_factor_fix__"] = (
-            setup["use_vernalisation_fix"]
-            if "use_vernalisation_fix" in setup
-            else False
+            setup["use_vernalisation_fix"] if "use_vernalisation_fix" in setup else False
         )
 
         # create environment template from json templates
@@ -477,21 +433,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     elif ws["type"] == "Harvest" and "Harvest date" in mgmt:
                         ws["date"] = shared.mgmt_date_to_rel_date(mgmt["Harvest date"])
                     elif ws["type"] == "AutomaticHarvest" and "Harvest date" in mgmt:
-                        ws["latest-date"] = shared.mgmt_date_to_rel_date(
-                            mgmt["Harvest date"]
-                        )
+                        ws["latest-date"] = shared.mgmt_date_to_rel_date(mgmt["Harvest date"])
                     elif ws["type"] == "Tillage" and "Tillage date" in mgmt:
                         ws["date"] = shared.mgmt_date_to_rel_date(mgmt["Tillage date"])
-                    elif (
-                            ws["type"] == "MineralFertilization"
-                            and mgmt[:2] == "N "
-                            and mgmt[-5:] == " date"
-                    ):
+                    elif ws["type"] == "MineralFertilization" and mgmt[:2] == "N " and mgmt[-5:] == " date":
                         app_no = int(ws["application"])
                         app_str = str(app_no) + ["st", "nd", "rd", "th"][app_no - 1]
-                        ws["date"] = shared.mgmt_date_to_rel_date(
-                            mgmt[f"N {app_str} date"]
-                        )
+                        ws["date"] = shared.mgmt_date_to_rel_date(mgmt[f"N {app_str} date"])
                         ws["amount"] = [
                             float(mgmt[f"N {app_str} application (kg/ha)"]),
                             "kg",
@@ -517,13 +465,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if not soil_profile or len(soil_profile) == 0:
                 continue
 
-            env_template["params"]["userCropParameters"][
-                "__enable_T_response_leaf_expansion__"
-            ] = setup["LeafExtensionModifier"]
+            env_template["params"]["userCropParameters"]["__enable_T_response_leaf_expansion__"] = setup[
+                "LeafExtensionModifier"
+            ]
 
-            env_template["params"]["siteParameters"]["SoilProfileParameters"] = (
-                soil_profile
-            )
+            env_template["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile
 
             if setup["elevation"]:
                 env_template["params"]["siteParameters"]["heightNN"] = height_nn
@@ -545,32 +491,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             fcms = setup["FieldConditionModifier"].split("|")
                             fcm = float(fcms[aer - 1])
                             if fcm > 0:
-                                ws["crop"]["cropParams"]["species"][
-                                    "FieldConditionModifier"
-                                ] = fcm
+                                ws["crop"]["cropParams"]["species"]["FieldConditionModifier"] = fcm
                         else:
-                            ws["crop"]["cropParams"]["species"][
+                            ws["crop"]["cropParams"]["species"]["FieldConditionModifier"] = setup[
                                 "FieldConditionModifier"
-                            ] = setup["FieldConditionModifier"]
+                            ]
 
-            env_template["params"]["simulationParameters"][
-                "UseNMinMineralFertilisingMethod"
-            ] = setup["fertilization"]
-            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = (
-                setup["irrigation"]
-            )
-            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = (
-                setup["NitrogenResponseOn"]
-            )
-            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = (
-                setup["WaterDeficitResponseOn"]
-            )
-            env_template["params"]["simulationParameters"][
+            env_template["params"]["simulationParameters"]["UseNMinMineralFertilisingMethod"] = setup["fertilization"]
+            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = setup["irrigation"]
+            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = setup["NitrogenResponseOn"]
+            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = setup["WaterDeficitResponseOn"]
+            env_template["params"]["simulationParameters"]["EmergenceMoistureControlOn"] = setup[
                 "EmergenceMoistureControlOn"
-            ] = setup["EmergenceMoistureControlOn"]
-            env_template["params"]["simulationParameters"][
+            ]
+            env_template["params"]["simulationParameters"]["EmergenceFloodingControlOn"] = setup[
                 "EmergenceFloodingControlOn"
-            ] = setup["EmergenceFloodingControlOn"]
+            ]
 
             env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
             hist_sub_path = f"isimip/3b_v1.1_CMIP6/csvs/{gcm}/historical/{ensmem}/row-{c_row}/col-{c_col}.csv.gz"

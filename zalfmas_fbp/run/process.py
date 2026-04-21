@@ -21,6 +21,7 @@ import sys
 import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
+
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 from zalfmas_common import common
 
@@ -33,8 +34,8 @@ logging.basicConfig(
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
     def __init__(
-            self,
-            callback,  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
+        self,
+        callback,  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
     ):
         self.callback = callback
 
@@ -45,12 +46,12 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
 
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
-            self,
-            metadata: dict = None,
-            con_man: common.ConnectionManager = None,
-            id: str | None = None,
-            name: str | None = None,
-            description: str | None = None,
+        self,
+        metadata: dict = None,
+        con_man: common.ConnectionManager = None,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man if con_man else common.ConnectionManager())
@@ -74,7 +75,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 self.description = self.meta["component"]["info"]["description"]
             except Exception as e:
                 logger.warning(
-                    f"Some metadata could not be used for initializing the process component. Exception: {e}")
+                    f"Some metadata could not be used for initializing the process component. Exception: {e}"
+                )
         for k, v in default_config.items():
             val = None
             vt = type(v)
@@ -131,34 +133,20 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # inPorts @0 () -> (ports :List(Component.Port));
     async def inPorts(self, _context, **kwargs):
-        return list(
-            [
-                {"name": k, "type": "standard", "contentType": "Text"}
-                for k, v in self.in_ports.items()
-            ]
-        )
+        return list([{"name": k, "type": "standard", "contentType": "Text"} for k, v in self.in_ports.items()])
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectInPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(
-            fbp_capnp.Channel.Reader
-        )
+        self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Reader)
         return self.in_ports[name] is not None
 
     # outPorts @2 () -> (ports :List(Component.Port));
     async def outPorts(self, _context, **kwargs):
-        return list(
-            [
-                {"name": k, "type": "standard", "contentType": "Text"}
-                for k, v in self.out_ports.items()
-            ]
-        )
+        return list([{"name": k, "type": "standard", "contentType": "Text"} for k, v in self.out_ports.items()])
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectOutPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(
-            fbp_capnp.Channel.Writer
-        )
+        self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Writer)
         return self.out_ports[name] is not None
 
     # configEntries @4 () -> (config :List(ConfigEntry));
@@ -234,33 +222,25 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     await ps.close()
                     logger.info(f"closed out port '{name}'")
                 except Exception as e:
-                    logger.error(
-                        f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}"
-                    )
+                    logger.error(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
 
     async def serve(
-            self,
-            writer_sr: str = None,
-            serve_bootstrap: bool = False,
-            host: str = None,
-            port: int = None,
+        self,
+        writer_sr: str = None,
+        serve_bootstrap: bool = False,
+        host: str = None,
+        port: int = None,
     ):
         if (
-                writer_sr
-                and len(writer_sr) > 0
-                and (
-                writer := (await self.con_man.try_connect(writer_sr)).cast_as(
-                    fbp_capnp.Channel.Writer
-                )
-        )
+            writer_sr
+            and len(writer_sr) > 0
+            and (writer := (await self.con_man.try_connect(writer_sr)).cast_as(fbp_capnp.Channel.Writer))
         ):
             await writer.write(value=self)
             logging.info(f"wrote process cap into {writer_sr}")
 
         async def new_connection(stream):
-            await capnp.TwoPartyServer(
-                stream, bootstrap=self if serve_bootstrap else None
-            ).on_disconnect()
+            await capnp.TwoPartyServer(stream, bootstrap=self if serve_bootstrap else None).on_disconnect()
 
         port = port if port else 0
         server = await capnp.AsyncIoStream.create_server(new_connection, host, port)
@@ -268,6 +248,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             if serve_bootstrap:
                 host = host if host else common.get_public_ip()
                 import socket
+
                 l = list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))
                 if len(ip4_socks := l) > 0:
                     port = ip4_socks[0].getsockname()[1]
@@ -275,9 +256,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             await server.serve_forever()
 
 
-def start_local_process_component(
-        path_to_executable, process_cap_writer_sr, name=None
-) -> sp.Popen[str]:
+def start_local_process_component(path_to_executable, process_cap_writer_sr, name=None) -> sp.Popen[str]:
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
         pte_split[0] = sys.executable
@@ -290,7 +269,7 @@ def start_local_process_component(
 
 
 def create_default_args_parser(
-        component_description: str,
+    component_description: str,
 ):
     parser = argparse.ArgumentParser(description=component_description)
     parser.add_argument(

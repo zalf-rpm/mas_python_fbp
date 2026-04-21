@@ -24,30 +24,17 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "consumers",
-        "name": "Consumers"
-    },
+    "category": {"id": "consumers", "name": "Consumers"},
     "component": {
         "info": {
             "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
             "name": "africa calibration",
-            "description": "Consumer to work in an Africa calibration flow."
+            "description": "Consumer to work in an Africa calibration flow.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf"
-            }, {
-                "name": "result"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "year_to_yield"
-            }
-        ]
-    }
+        "inPorts": [{"name": "conf"}, {"name": "result"}],
+        "outPorts": [{"name": "year_to_yield"}],
+    },
 }
 
 
@@ -102,9 +89,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     results = data.get("results", [])
                     for vals in results:
                         if "Year" in vals:
-                            country_id_to_year_to_yields[country_id][
-                                int(vals["Year"])
-                            ].append(vals["Yield"])
+                            country_id_to_year_to_yields[country_id][int(vals["Year"])].append(vals["Yield"])
 
             if no_of_envs_expected == envs_received:
                 out_str = f"{os.path.basename(__file__)}: {datetime.now()} last expected env received\n"
@@ -117,13 +102,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     for year, yields in rest.items():
                         no_of_yields = len(yields)
                         if no_of_yields > 0:
-                            country_id_and_year_to_avg_yield[f"{country_id}|{year}"] = (
-                                    sum(yields) / no_of_yields
-                            )
+                            country_id_and_year_to_avg_yield[f"{country_id}|{year}"] = sum(yields) / no_of_yields
 
-                out_ip = fbp_capnp.IP.new_message(
-                    content=json.dumps(country_id_and_year_to_avg_yield)
-                )
+                out_ip = fbp_capnp.IP.new_message(content=json.dumps(country_id_and_year_to_avg_yield))
                 await ports["year_to_yield"].write(value=out_ip)
 
                 # reset and wait for next round

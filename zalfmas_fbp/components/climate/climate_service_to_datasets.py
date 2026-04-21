@@ -21,41 +21,28 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "79723094-0972-48ec-b219-030dae730063",
             "name": "climate service -> dataset",
-            "description": "Send capabilities to the datasets available at climate service downstream."
+            "description": "Send capabilities to the datasets available at climate service downstream.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "cs"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "ds"
-            }
-        ],
+        "inPorts": [{"name": "cs"}],
+        "outPorts": [{"name": "ds"}],
         "defaultConfig": {
             "to_attr": None,
             "to_attr_type": "string",
             "to_attr_desc": "send content instead in 'to_attr'",
-            "create_substream": False
-        }
-    }
+            "create_substream": False,
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
     await p.update_config_from_port(config, ports["conf"])
 
     while ports["cs"] and ports["ds"]:
@@ -71,23 +58,17 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             info = await info_prom
             if config["create_substream"]:
-                ports["ds"].write(
-                    value=fbp_capnp.IP.new_message(type="openBracket", content=info.id)
-                )
+                ports["ds"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             for meta_plus_data in datasets if datasets else []:
                 attrs = []
                 if config["to_attr"]:
-                    attrs.append(
-                        {"key": config["to_attr"], "value": meta_plus_data.data}
-                    )
+                    attrs.append({"key": config["to_attr"], "value": meta_plus_data.data})
                 out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                 if not config["to_attr"]:
                     out_ip.content = meta_plus_data.data
                 await ports["ds"].write(value=out_ip)
             if config["create_substream"]:
-                ports["ds"].write(
-                    value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id)
-                )
+                ports["ds"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)

@@ -23,71 +23,56 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "json",
-        "name": "JSON"
-    },
+    "category": {"id": "json", "name": "JSON"},
     "component": {
         "info": {
             "id": "67b31990-452a-4058-8a99-6785be345216",
             "name": "Update JSON",
-            "description": "Update JSON datastructures."
+            "description": "Update JSON datastructures.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "JSON text which is supposed to be updated and changed."
-            }
+                "desc": "JSON text which is supposed to be updated and changed.",
+            },
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text (JSON)",
-                "desc": "The updated JSON text."
-            }
-        ],
+        "outPorts": [{"name": "out", "contentType": "Text (JSON)", "desc": "The updated JSON text."}],
         "defaultConfig": {
             "types": {
-                "value": {
-                    "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
-                },
+                "value": {"@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"},
                 "type": "object",
-                "desc": "Define the loadable type the attribute being referenced has."
+                "desc": "Define the loadable type the attribute being referenced has.",
             },
             "update": {
                 "value": [
                     ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
                     ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
                     ["customId_ex", "<-", 1],
-                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"],
                 ],
                 "type": "array",
-                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match.",
             },
             "replace": {
                 "value": [],
                 "type": "array",
-                "desc": "List of replacement operations to perform on the JSON structure."
+                "desc": "List of replacement operations to perform on the JSON structure.",
             },
             "add": {
                 "value": [],
                 "type": "array",
-                "desc": "List of addition operations to perform on the JSON structure."
-            }
-        }
-    }
+                "desc": "List of addition operations to perform on the JSON structure.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     while ports["in"] and ports["out"]:
@@ -153,24 +138,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     # a list as value is treated as sub object access if the first element is an attribute (@) access
                     elif type(v) is list:
                         # attribute access
-                        if (
-                                len(v) >= 1
-                                and type(v[0]) is str
-                                and len(v[0]) > 0
-                                and v[0][0] == "@"
-                        ):
+                        if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
                             attr_val, is_capnp = p.get_attr_val(
                                 v[0],
                                 attrs,
                                 remove=False,
                             )
                             # attribute sub access
-                            if (
-                                    is_capnp
-                                    and len(v) > 1
-                                    and "types" in config
-                                    and v[0] in config["types"]
-                            ):
+                            if is_capnp and len(v) > 1 and "types" in config and v[0] in config["types"]:
                                 attr_val = as_type(attr_val, config["types"][v[0]])
                                 for field_name in v[1:]:
                                     if attr_val._has(field_name):
@@ -189,11 +164,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             attrs,
                             remove=False,
                         )
-                        if (
-                                is_capnp
-                                and "types" in config
-                                and spec[k] in config["types"]
-                        ):
+                        if is_capnp and "types" in config and spec[k] in config["types"]:
                             attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
                             j[i] = attr_val

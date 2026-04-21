@@ -23,45 +23,30 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "ip",
-        "name": "IP (Flow packages)"
-    },
+    "category": {"id": "ip", "name": "IP (Flow packages)"},
     "component": {
         "info": {
             "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
             "name": "add attribute",
-            "description": "Add attribute to incoming IP."
+            "description": "Add attribute to incoming IP.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "AnyPointer", "desc": "Arbitrary content."},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "AnyPointer",
-                "desc": "Arbitrary content."
-            }, {
                 "name": "attr",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
-            }
+                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'.",
+            },
         ],
         "outPorts": [
-            {
-                "name": "out",
-                "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."
-            }
+            {"name": "out", "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."}
         ],
         "defaultConfig": {
-            "to_attr": {
-                "value": "attr",
-                "type": "Text",
-                "desc": "The attribute's name to add to the outgoing message."
-            }
-        }
-    }
+            "to_attr": {"value": "attr", "type": "Text", "desc": "The attribute's name to add to the outgoing message."}
+        },
+    },
 }
 
 

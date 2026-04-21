@@ -22,53 +22,30 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "string",
-        "name": "String"
-    },
+    "category": {"id": "string", "name": "String"},
     "component": {
         "info": {
             "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
             "name": "split string",
-            "description": "Splits a string along delimiter."
+            "description": "Splits a string along delimiter.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "in",
-                "contentType": "Text"
-            }, {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
+            {"name": "in", "contentType": "Text"},
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text"
-            }
-        ],
-        "defaultConfig": {
-            "split_at": {
-                "value": ",",
-                "type": "string",
-                "desc": "Split string at this character."
-            }
-        }
-    }
+        "outPorts": [{"name": "out", "contentType": "Text"}],
+        "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "Split string at this character."}},
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
     await p.update_config_from_port(config, ports["conf"])
     if ports["conf"]:
-        print(
-            f"{os.path.basename(__file__)}: {config['name']} updated config from config port"
-        )
+        print(f"{os.path.basename(__file__)}: {config['name']} updated config from config port")
 
     while ports["in"] and ports["out"]:
         try:

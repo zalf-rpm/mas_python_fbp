@@ -22,29 +22,16 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
             "name": "timeseries capability -> data",
-            "description": "Get the actual data from a timeseries capability."
+            "description": "Get the actual data from a timeseries capability.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "in"
-            }, {
-                "name": "conf"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ],
+        "inPorts": [{"name": "in"}, {"name": "conf"}],
+        "outPorts": [{"name": "out"}],
         "defaultConfig": {
             "to_attr": None,
             "from_attr": None,
@@ -54,16 +41,14 @@ meta = {
             "subrange_end_type": "iso-date",
             "subheader": ["tavg", "precip"],
             "transposed": False,
-            "maintain_substreams": False
-        }
-    }
+            "maintain_substreams": False,
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     def create_capnp_date(py_date):  # isodate):
@@ -144,11 +129,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             resolution = timeseries.resolution()
             se_date_prom = timeseries.range()
             header_size = len(header)
-            ds = (
-                (await timeseries.dataT()).data
-                if tsd.isTransposed
-                else (await timeseries.data()).data
-            )
+            ds = (await timeseries.dataT()).data if tsd.isTransposed else (await timeseries.data()).data
             tsd.init("data", len(ds))
             for i in range(len(ds)):
                 l = tsd.data.init(i, header_size)
@@ -166,9 +147,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
                 out_ip.content = tsd
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {})
-            )
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {}))
             await ports["out"].write(value=out_ip)
 
         except Exception as e:

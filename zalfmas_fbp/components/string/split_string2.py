@@ -29,40 +29,21 @@ logging.basicConfig(
 )
 
 meta = {
-    "category": {
-        "id": "string",
-        "name": "String"
-    },
+    "category": {"id": "string", "name": "String"},
     "component": {
         "info": {
             "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
             "name": "split string2",
-            "description": "Splits a string along delimiter."
+            "description": "Splits a string along delimiter.",
         },
         "type": "process",
         "inPorts": [
-            {
-                "name": "in",
-                "contentType": "Text"
-            }, {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
+            {"name": "in", "contentType": "Text"},
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text"
-            }
-        ],
-        "defaultConfig": {
-            "split_at": {
-                "value": ",",
-                "type": "string",
-                "desc": "split string at this character"
-            }
-        }
-    }
+        "outPorts": [{"name": "out", "contentType": "Text"}],
+        "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "split string at this character"}},
+    },
 }
 
 

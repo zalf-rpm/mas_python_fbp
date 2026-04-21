@@ -22,43 +22,27 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "ip",
-        "name": "IP (Flow packages)"
-    },
+    "category": {"id": "ip", "name": "IP (Flow packages)"},
     "component": {
         "info": {
             "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
             "name": "copy",
-            "description": "Copy IP to multiple outputs."
+            "description": "Copy IP to multiple outputs.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "AnyPointer",
-                "desc": "The IP to copy to all attached outports"
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "AnyPointer", "desc": "The IP to copy to all attached outports"},
         ],
         "outPorts": [
-            {
-                "name": "out",
-                "type": "array",
-                "contentType": "AnyPointer",
-                "desc": "Copied IP for each attached outport"
-            }
-        ]
-    }
+            {"name": "out", "type": "array", "contentType": "AnyPointer", "desc": "Copied IP for each attached outport"}
+        ],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     while ports["in"] and any(ports["out"]):

@@ -23,26 +23,21 @@ from zalfmas_fbp.run import components as c
 from zalfmas_fbp.run import ports as p
 
 meta = {
-    "category": {
-        "id": "geo",
-        "name": "Geo"
-    },
+    "category": {"id": "geo", "name": "Geo"},
     "component": {
         "info": {
             "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
             "name": "Proj transform coords",
-            "description": "Transform coordinates using the Proj library."
+            "description": "Transform coordinates using the Proj library.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "in",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
                 "desc": "Input geo coordinate.",
-            }
+            },
         ],
         "outPorts": [
             {
@@ -62,25 +57,15 @@ meta = {
                 "type": "string",
                 "desc": "Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
             },
-            "from_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Attribute name to use as the input coordinate."
-            },
-            "to_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Attribute name to use as the output."
-            }
-        }
-    }
+            "from_attr": {"value": None, "type": "string", "desc": "Attribute name to use as the input coordinate."},
+            "to_attr": {"value": None, "type": "string", "desc": "Attribute name to use as the output."},
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     from_type = geo.name_to_struct_type(config["from_name"])

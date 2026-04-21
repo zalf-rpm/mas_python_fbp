@@ -57,12 +57,8 @@ async def start_flow_via_port_infos_sr(config: dict):
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
-    node_id_to_node = {
-        node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node
-    }
-    links = [
-        {"out": link["source"], "in": link["target"]} for link in flow_json["links"]
-    ]
+    node_id_to_node = {node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node}
+    links = [{"out": link["source"], "in": link["target"]} for link in flow_json["links"]]
 
     # create config IIPs if a node has a defaultConfig but no connected config port
     node_id_to_config = {
@@ -127,15 +123,11 @@ async def start_flow_via_port_infos_sr(config: dict):
     channels = []
 
     try:
-        first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(
-            config["path_to_channel"]
-        )
+        first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(config["path_to_channel"])
         channels.append(first_chan)
 
         con_man = common.ConnectionManager()
-        first_reader = await con_man.try_connect(
-            first_reader_sr, cast_as=fbp_capnp.Channel.Reader
-        )
+        first_reader = await con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
 
         process_id_to_process_srs = defaultdict(lambda: defaultdict(dict))
         # chan_id_to_in_out_sr_names = {}
@@ -163,17 +155,11 @@ async def start_flow_via_port_infos_sr(config: dict):
                 .rstrip("=")
             )
             # start channel
-            chan = chans.start_channel(
-                config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
-            )
+            chan = chans.start_channel(config["path_to_channel"], chan_id, first_writer_sr, name=chan_id)
             channels.append(chan)
 
-            process_id_to_process_srs[out_port["nodeId"]]["outPorts"][
-                out_port["port"]
-            ] = None
-            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][in_port["port"]] = (
-                None
-            )
+            process_id_to_process_srs[out_port["nodeId"]]["outPorts"][out_port["port"]] = None
+            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][in_port["port"]] = None
 
         # start one channel for the configuration of each component (as many channels in one channel service)
         no_of_components = len(process_id_to_popen_args)
@@ -193,22 +179,10 @@ async def start_flow_via_port_infos_sr(config: dict):
 
         async def check_and_run_process(process_id):
             io_to_srs = process_id_to_process_srs[process_id]
-            if len(config_chans) > 0 and all(
-                [sr is not None for srs in io_to_srs.values() for _, sr in srs.items()]
-            ):
+            if len(config_chans) > 0 and all([sr is not None for srs in io_to_srs.values() for _, sr in srs.items()]):
                 port_infos_msg = fbp_capnp.PortInfos.new_message()
-                in_ports = list(
-                    [
-                        {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["inPorts"].items()
-                    ]
-                )
-                out_ports = list(
-                    [
-                        {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["outPorts"].items()
-                    ]
-                )
+                in_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["inPorts"].items()])
+                out_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["outPorts"].items()])
                 if len(out_ports) == 0:
                     sink_process_ids.append(process_id)
                 port_infos_msg.inPorts = in_ports
@@ -238,9 +212,7 @@ async def start_flow_via_port_infos_sr(config: dict):
             no_of_startup_infos_still_to_be_received -= 1
             if chan_id == config_chan_id:
                 out_process_id = None
-                config_chans.append(
-                    {"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]}
-                )
+                config_chans.append({"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]})
             else:
 
                 def decode_no_padding(encoded_str):
@@ -257,9 +229,7 @@ async def start_flow_via_port_infos_sr(config: dict):
                 in_port_name = chan_id["in"]["port"]
 
                 if out_process_id in iip_process_ids:
-                    out_writer = await con_man.try_connect(
-                        info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer
-                    )
+                    out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
                     content = node_id_to_node[out_process_id]["content"]
                     out_ip = fbp_capnp.IP.new_message(content=content)
                     await out_writer.write(value=out_ip)
@@ -269,12 +239,8 @@ async def start_flow_via_port_infos_sr(config: dict):
                     # not needed anymore since we sent the IIP
                     del process_id_to_process_srs[out_process_id]
                 else:
-                    process_id_to_process_srs[out_process_id]["outPorts"][
-                        out_port_name
-                    ] = info.writerSRs[0]
-                process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = (
-                    info.readerSRs[0]
-                )
+                    process_id_to_process_srs[out_process_id]["outPorts"][out_port_name] = info.writerSRs[0]
+                process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = info.readerSRs[0]
 
         for process_id in process_id_to_popen_args.keys():
             await check_and_run_process(process_id)

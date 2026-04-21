@@ -29,40 +29,27 @@ logging.basicConfig(
 )
 
 meta = {
-    "category": {
-        "id": "string",
-        "name": "String"
-    },
+    "category": {"id": "string", "name": "String"},
     "component": {
         "info": {
             "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
             "name": "to string",
-            "description": "Outputs input structures as string (if possible)."
+            "description": "Outputs input structures as string (if possible).",
         },
         "type": "process",
         "inPorts": [
-            {
-                "name": "in",
-                "contentType": "AnyStruct"
-            }, {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
+            {"name": "in", "contentType": "AnyStruct"},
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text"
-            }
-        ],
+        "outPorts": [{"name": "out", "contentType": "Text"}],
         "defaultConfig": {
             "struct_type": {
                 "value": None,
                 "type": "string",
-                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to."
+                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
             }
-        }
-    }
+        },
+    },
 }
 
 

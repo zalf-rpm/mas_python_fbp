@@ -22,37 +22,22 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "data/transform",
-        "name": "Data/Transform"
-    },
+    "category": {"id": "data/transform", "name": "Data/Transform"},
     "component": {
         "info": {
             "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
             "name": "ordered flatten nested dicts",
-            "description": "ordered_flatten_nested_dicts"
+            "description": "ordered_flatten_nested_dicts",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf"
-            }, {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "conf"}, {"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     reverse = config["reverse"]

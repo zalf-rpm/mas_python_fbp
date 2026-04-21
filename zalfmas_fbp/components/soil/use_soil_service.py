@@ -22,48 +22,34 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "soil",
-        "name": "Soil"
-    },
+    "category": {"id": "soil", "name": "Soil"},
     "component": {
         "info": {
             "id": "89da0cb9-2079-4245-aecc-068194bc1637",
             "name": "Use soil service",
-            "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord."
+            "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "latlon", "contentType": "geo.capnp.LatLonCoord", "desc": "Lat/Lon coordinate"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "latlon",
-                "contentType": "geo.capnp.LatLonCoord",
-                "desc": "Lat/Lon coordinate"
-            }, {
                 "name": "service",
                 "contentType": "soil.capnp:Service | Text (SturdyRef)",
-                "desc": "Capability or sturdy ref to service."
-            }
+                "desc": "Capability or sturdy ref to service.",
+            },
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "grid.capnp:Grid.Value",
-                "desc": "value at requested location"
-            }
-        ],
+        "outPorts": [{"name": "out", "contentType": "grid.capnp:Grid.Value", "desc": "value at requested location"}],
         "defaultConfig": {
             "from_attr": {
                 "value": None,
                 "type": "string",
-                "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message."
+                "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message.",
             },
             "to_attr": {
                 "value": None,
                 "type": "string",
-                "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message."
+                "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message.",
             },
             "mandatory": {
                 "value": ["soilType", "organicCarbon", "rawDensity"],
@@ -80,9 +66,9 @@ meta = {
                     "permanentWiltingPoint",
                     "saturation",
                     "sceleton",
-                    "pH"
+                    "pH",
                 ],
-                "desc": "Which soil attributes are needed in the result to be valid?"
+                "desc": "Which soil attributes are needed in the result to be valid?",
             },
             "optional": {
                 "value": [],
@@ -99,17 +85,17 @@ meta = {
                     "permanentWiltingPoint",
                     "saturation",
                     "sceleton",
-                    "pH"
+                    "pH",
                 ],
-                "desc": "Which soil attributes are needed in the result to be valid?"
+                "desc": "Which soil attributes are needed in the result to be valid?",
             },
             "only_raw_data": {
                 "value": False,
                 "type": "bool",
-                "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory"
+                "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory",
             },
-        }
-    }
+        },
+    },
 }
 
 
@@ -125,9 +111,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     if ports["service"]:
         service = ports.read_or_connect("service", cast_as=soil_capnp.Service)
         if not service:
-            print(
-                f"{os.path.basename(__file__)} No soil service could be received or connected to."
-            )
+            print(f"{os.path.basename(__file__)} No soil service could be received or connected to.")
             return
 
     mandatory = config["mandatory"]

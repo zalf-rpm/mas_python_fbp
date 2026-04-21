@@ -23,45 +23,35 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
 
 meta = {
-    "category": {
-        "id": "spotpy",
-        "name": "Spotpy"
-    },
+    "category": {"id": "spotpy", "name": "Spotpy"},
     "component": {
         "info": {
             "id": "028290bb-a38c-4599-9948-fc73723e9654",
             "name": "create SpotPy calibration params",
-            "description": "Creates/sets up parameters for Spotpy calibration."
+            "description": "Creates/sets up parameters for Spotpy calibration.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
-        ],
+        "inPorts": [{"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"}],
         "outPorts": [
             {
                 "name": "params",
                 "contentType": "Text (JSON list)",
-                "desc": "output spotpy calibration params as json list string"
+                "desc": "output spotpy calibration params as json list string",
             }
         ],
         "defaultConfig": {
             "path_to_calibrate_csv": {
                 "value": "calibratethese.csv",
                 "type": "string",
-                "desc": "path to csv file with parameters to calibrate"
+                "desc": "path to csv file with parameters to calibrate",
             }
-        }
-    }
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await pp.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf"], outs=["params"]
-    )
+    ports = await pp.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["params"])
     await pp.update_config_from_port(config, ports["conf"])
 
     params = []

@@ -23,58 +23,35 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "geo",
-        "name": "Geo"
-    },
+    "category": {"id": "geo", "name": "Geo"},
     "component": {
         "info": {
             "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
             "name": "get lat/lon grid value",
-            "description": "Get value from a lat/lon grid."
+            "description": "Get value from a lat/lon grid.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "geo.capnp:LatLon",
-                "desc": "Lat/Lon coordinate to get the value at."
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "geo.capnp:LatLon", "desc": "Lat/Lon coordinate to get the value at."},
         ],
         "outPorts": [
-            {
-                "name": "out",
-                "contentType": "common.capnp:Value",
-                "desc": "Value at the given lat/lon coordinate."
-            }
+            {"name": "out", "contentType": "common.capnp:Value", "desc": "Value at the given lat/lon coordinate."}
         ],
         "defaultConfig": {
-            "path_to_grid": {
-                "value": None,
-                "type": "string",
-                "desc": "Path to the lat/lon grid file."
-            },
-            "type": {
-                "value": "int",
-                "type": ["int", "float"],
-                "desc": "Type of value to read from grid."
-            },
+            "path_to_grid": {"value": None, "type": "string", "desc": "Path to the lat/lon grid file."},
+            "type": {"value": "int", "type": ["int", "float"], "desc": "Type of value to read from grid."},
             "debug_out": {
                 "value": True,
                 "type": "bool",
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
+    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, ports["conf"])
 
     debug_out = config["debug_out"]

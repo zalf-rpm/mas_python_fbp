@@ -23,70 +23,55 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 meta = {
-    "category": {
-        "id": "geo",
-        "name": "Geo"
-    },
+    "category": {"id": "geo", "name": "Geo"},
     "component": {
         "info": {
             "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
             "name": "create lat lon coords",
-            "description": "Create lat/lon coords for region."
+            "description": "Create lat/lon coords for region.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "ids",
-                "contentType": "List[int]",
-                "desc": "List of IDs to include in the output."
-            }, {
-                "name": "region",
-                "contentType": "string",
-                "desc": "The region we create the coords for."
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "ids", "contentType": "List[int]", "desc": "List of IDs to include in the output."},
+            {"name": "region", "contentType": "string", "desc": "The region we create the coords for."},
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
-                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs."
+                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
             }
         ],
         "defaultConfig": {
             "stream": {
                 "value": False,
                 "type": "bool",
-                "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord."
+                "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord.",
             },
             "create_substream": {
                 "value": False,
                 "type": "bool",
-                "desc": "If true, creates for each set of region and ids, a new substream."
+                "desc": "If true, creates for each set of region and ids, a new substream.",
             },
-            "region": {
-                "value": "africa",
-                "type": ["nigeria", "africa", "earth"]
-            },
+            "region": {"value": "africa", "type": ["nigeria", "africa", "earth"]},
             "resolution": {
                 "value": "5min",
                 "type": ["5min", "30sec"],
-                "desc": "Select the resolution of the generated data."
+                "desc": "Select the resolution of the generated data.",
             },
             "ids": {
                 "value": [],
                 "type": "list[int]",
-                "desc": "List of IDs to include in the output, unless the 'ids' port is connected."
+                "desc": "List of IDs to include in the output, unless the 'ids' port is connected.",
             },
             "path_to_ids_grid": {
                 "value": "data/country-id_0.083deg_4326_wgs84_africa.asc",
                 "type": "string",
-                "desc": "Path to the ids grid file."
+                "desc": "Path to the ids grid file.",
             },
-        }
-    }
+        },
+    },
 }
 
 
@@ -178,8 +163,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     continue
 
                 if do_stream:
-                    id_and_ll = common_capnp.Pair.new_message(fst=common_capnp.Value.new_message(i64=id),
-                                                              snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon))
+                    id_and_ll = common_capnp.Pair.new_message(
+                        fst=common_capnp.Value.new_message(i64=id),
+                        snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon),
+                    )
                     out_ip = fbp_capnp.IP.new_message(content=id_and_ll)
                     await ports["out"].write(value=out_ip)
                 else:
