@@ -1516,6 +1516,12 @@ files = [
 [package.dependencies]
 pycapnp = ">=2.2.1,<3.0.0"
 
+[package.source]
+type = "git"
+url = "https://github.com/zalf-rpm/mas_capnproto_schemas"
+reference = "new-typing-module"
+resolved_reference = "0c5ff49834948444ea2d163ccf1b2ebb5cde84e7"
+
 [[package]]
 name = "zalfmas-common"
 version = "0.1.41"
@@ -1565,4 +1571,4 @@ zalfmas-common = ">=0.1.35,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "503eecd8e24b62b07e1a870a1507d4c488b0ada77496a1a78b332963fd6900ea"
+content-hash = "f150b00a015e37e6c1af726fc05254113a25956d7bc333b9573ebc60c142d04c"

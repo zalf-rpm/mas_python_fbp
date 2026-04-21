@@ -12,8 +12,8 @@ dependencies = [
   "spotpy>=1.6.7,<2",
   "matplotlib>=3.10.8,<4",
   "pycapnp>=2.2.2,<3",
-  "zalfmas-common>=0.1.41,<0.2",
-  "zalfmas-capnp-schemas>=0.1.57,<0.2",
+  "zalfmas-common @ git+https://github.com/zalf-rpm/mas_python_common@new-typing-module",
+  "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas@new-typing-module",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
 ]
