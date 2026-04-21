@@ -127,7 +127,9 @@ async def start_flow_via_port_infos_sr(config: dict):
         channels.append(first_chan)
 
         con_man = common.ConnectionManager()
-        first_reader = await con_man.try_connect(first_reader_sr, cast_as=fbp_capnp.Channel.Reader)
+        if (first_reader_cap := await con_man.try_connect(first_reader_sr)) is None:
+            raise RuntimeError(f"Couldn't connect to startup reader {first_reader_sr}.")
+        first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
 
         process_id_to_process_srs = defaultdict(lambda: defaultdict(dict))
         # chan_id_to_in_out_sr_names = {}
@@ -193,9 +195,9 @@ async def start_flow_via_port_infos_sr(config: dict):
                         process_id_to_popen_args[process_id] + [config_srs["readerSR"]]
                     )
                     # connect to the current components config channel and send port information, then close it
-                    port_infos_writer = await con_man.try_connect(
-                        config_srs["writerSR"], cast_as=fbp_capnp.Channel.Writer
-                    )
+                    if (port_infos_writer_cap := await con_man.try_connect(config_srs["writerSR"])) is None:
+                        raise RuntimeError(f"Couldn't connect to config writer {config_srs['writerSR']}.")
+                    port_infos_writer = port_infos_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     await port_infos_writer.write(value=port_infos_msg)
                     # don't close port infos writer channel, but use it as signal for letting
                     # the component close down, because it has to stay alive to forward cap calls
@@ -229,7 +231,9 @@ async def start_flow_via_port_infos_sr(config: dict):
                 in_port_name = chan_id["in"]["port"]
 
                 if out_process_id in iip_process_ids:
-                    out_writer = await con_man.try_connect(info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer)
+                    if (out_writer_cap := await con_man.try_connect(info.writerSRs[0])) is None:
+                        raise RuntimeError(f"Couldn't connect to IIP writer {info.writerSRs[0]}.")
+                    out_writer = out_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     content = node_id_to_node[out_process_id]["content"]
                     out_ip = fbp_capnp.IP.new_message(content=content)
                     await out_writer.write(value=out_ip)

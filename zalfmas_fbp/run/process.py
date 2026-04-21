@@ -17,12 +17,15 @@ import logging
 import os
 import subprocess as sp
 import sys
+from typing import TYPE_CHECKING
 
 import capnp
-from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
+if TYPE_CHECKING:
+    from mas.schema.common.common_capnp.types.readers import ValueReader
+    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
 from zalfmas_common import common
 
 logger = logging.getLogger(__name__)
@@ -49,6 +52,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self,
         metadata: dict = None,
         con_man: common.ConnectionManager = None,
+        con_man: common.ConnectionManager | None = None,
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
@@ -58,8 +62,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
         self.metadata = metadata if metadata else {}
         self.configuration = {}
-        self.in_ports = {}
-        self.out_ports = {}
+        self.in_ports: dict[str, ReaderClient | None] = {}
+        self.out_ports: dict[str, WriterClient | None] = {}
         self.tasks = []
         self.process_state = "stopped"  # states: started, stopped, canceled
         self.state_transition_callbacks = []
@@ -137,7 +141,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectInPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.in_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Reader)
+        self.in_ports[name] = (
+            reader_cap.cast_as(fbp_capnp.Channel.Reader)
+            if (reader_cap := await self.con_man.try_connect(sturdyRef)) is not None
+            else None
+        )
         return self.in_ports[name] is not None
 
     # outPorts @2 () -> (ports :List(Component.Port));
@@ -146,7 +154,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectOutPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.out_ports[name] = (await self.con_man.try_connect(sturdyRef)).cast_as(fbp_capnp.Channel.Writer)
+        self.out_ports[name] = (
+            writer_cap.cast_as(fbp_capnp.Channel.Writer)
+            if (writer_cap := await self.con_man.try_connect(sturdyRef)) is not None
+            else None
+        )
         return self.out_ports[name] is not None
 
     # configEntries @4 () -> (config :List(ConfigEntry));
@@ -226,16 +238,13 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     async def serve(
         self,
-        writer_sr: str = None,
+        writer_sr: str | None = None,
         serve_bootstrap: bool = False,
-        host: str = None,
-        port: int = None,
+        host: str | None = None,
+        port: int | None = None,
     ):
-        if (
-            writer_sr
-            and len(writer_sr) > 0
-            and (writer := (await self.con_man.try_connect(writer_sr)).cast_as(fbp_capnp.Channel.Writer))
-        ):
+        if writer_sr and len(writer_sr) > 0 and (writer_cap := await self.con_man.try_connect(writer_sr)) is not None:
+            writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
             await writer.write(value=self)
             logging.info(f"wrote process cap into {writer_sr}")
 
