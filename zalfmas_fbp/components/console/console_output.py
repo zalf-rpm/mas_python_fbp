@@ -36,7 +36,7 @@ meta = {
 }
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
     ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
     print(f"{os.path.basename(__file__)}: connected port(s)")
 

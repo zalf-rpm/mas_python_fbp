@@ -158,8 +158,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             for lon_scaled in lons_scaled:
                 lon = lon_scaled / s_res_scale_factor
 
-                id = ids_grid["value"](lat, lon, False)
-                if not id or len(ids) > 0 and id not in ids:
+                country_id = country_ids_data["value"](lat, lon, False)
+                if not country_id or (len(country_ids) > 0 and country_id not in country_ids):
                     continue
 
                 if do_stream:
