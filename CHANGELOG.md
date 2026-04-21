@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.32](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.31...v0.2.32) (2026-04-21)
+
+
+### Features
+
+* local_components_cache.json ([8193a7c](https://github.com/zalf-rpm/mas_python_fbp/commit/8193a7cf1a4fead510876f846a17db85ea3ce208))
+
 ## [0.2.31](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.30...v0.2.31) (2026-04-20)
 
 
