@@ -1,0 +1,1569 @@
+{
+    "79723094-0972-48ec-b219-030dae730063": {
+        "category": {
+            "id": "climate",
+            "name": "Climate"
+        },
+        "component": {
+            "info": {
+                "id": "79723094-0972-48ec-b219-030dae730063",
+                "name": "climate service -> dataset",
+                "description": "Send capabilities to the datasets available at climate service downstream."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "cs"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "ds"
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": null,
+                "to_attr_type": "string",
+                "to_attr_desc": "send content instead in 'to_attr'",
+                "create_substream": false
+            }
+        }
+    },
+    "ce4749cc-abab-4830-9eb3-1c44c9d451ce": {
+        "category": {
+            "id": "climate",
+            "name": "Climate"
+        },
+        "component": {
+            "info": {
+                "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
+                "name": "datasets -> timeseries",
+                "description": "Get timeseries capabilties from a dataset."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "ds"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "ts"
+                }
+            ],
+            "defaultConfig": {
+                "no_of_locations_at_once": 10,
+                "no_of_locations_at_once_type": "int",
+                "no_of_locations_at_once_desc": "number of locations to send at once",
+                "continue_after_location_id": false,
+                "continue_after_location_id_type": "string",
+                "continue_after_location_id_desc": "continue after a particular location id",
+                "to_attr": null,
+                "to_attr_type": "string",
+                "to_attr_desc": "send data attached to attribute 'to_attr'",
+                "create_substream": false,
+                "create_substream_type": "[true | false]",
+                "create_substream_desc": "create a substream for each datasets' timeseries",
+                "maintain_incoming_substreams": false,
+                "maintain_incoming_substreams_type": "[true | false]",
+                "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams"
+            }
+        }
+    },
+    "b510d603-8f2a-4fbd-ac24-634362b4b0f4": {
+        "category": {
+            "id": "climate",
+            "name": "Climate"
+        },
+        "component": {
+            "info": {
+                "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
+                "name": "timeseries capability -> data",
+                "description": "Get the actual data from a timeseries capability."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in"
+                },
+                {
+                    "name": "conf"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out"
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": null,
+                "from_attr": null,
+                "subrange_start": null,
+                "subrange_start_type": "iso-date",
+                "subrange_end": null,
+                "subrange_end_type": "iso-date",
+                "subheader": [
+                    "tavg",
+                    "precip"
+                ],
+                "transposed": false,
+                "maintain_substreams": false
+            }
+        }
+    },
+    "6b11cf2a-08bb-43f9-964a-1d4ed248cce9": {
+        "category": {
+            "id": "climate",
+            "name": "Climate"
+        },
+        "component": {
+            "info": {
+                "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
+                "name": "timeseries data -> csv",
+                "description": "Create CSV string out of timeseries data."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out"
+                }
+            ]
+        }
+    },
+    "2de9c491-d8a6-4b36-84de-db7f4a312731": {
+        "category": {
+            "id": "console",
+            "name": "Console"
+        },
+        "component": {
+            "info": {
+                "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
+                "name": "output to console",
+                "description": "Output input to console."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in"
+                }
+            ],
+            "outPorts": []
+        }
+    },
+    "b5dea358-e34e-49ad-b20d-4d97159114a0": {
+        "category": {
+            "id": "consumers",
+            "name": "Consumers"
+        },
+        "component": {
+            "info": {
+                "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
+                "name": "africa calibration",
+                "description": "Consumer to work in an Africa calibration flow."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf"
+                },
+                {
+                    "name": "result"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "year_to_yield"
+                }
+            ]
+        }
+    },
+    "c0ec26bf-2d10-4dae-89f6-2e0fea58980e": {
+        "category": {
+            "id": "data/transform",
+            "name": "Data/Transform"
+        },
+        "component": {
+            "info": {
+                "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
+                "name": "ordered flatten nested dicts",
+                "description": "ordered_flatten_nested_dicts"
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf"
+                },
+                {
+                    "name": "in"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out"
+                }
+            ]
+        }
+    },
+    "0e7507f8-97ae-4479-a608-4c1ebf37c4ba": {
+        "category": {
+            "id": "file",
+            "name": "File"
+        },
+        "component": {
+            "info": {
+                "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
+                "name": "read csv",
+                "description": "Read a csv file and send content as string downstream."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
+                    "desc": "A single row from the CSV file sent as Setup struct."
+                }
+            ],
+            "defaultConfig": {
+                "id_col": {
+                    "value": "id",
+                    "type": "string",
+                    "desc": "The column to be used to unique identify a row."
+                },
+                "col_to_field_names": {
+                    "value": {},
+                    "type": "object",
+                    "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}."
+                },
+                "send_ids": {
+                    "value": [],
+                    "type": "list",
+                    "desc": "Send only these ids as messages downstream. E.g. [1,2,3]"
+                },
+                "file": {
+                    "value": "path to csv file",
+                    "type": "string",
+                    "desc": "The path to the CSV file to be read."
+                },
+                "struct_type": {
+                    "value": "mas.schema.model.monica.sim_setup_capnp:Setup",
+                    "type": "string",
+                    "desc": "The Cap'n Proto struct type to fill from a CSV row."
+                },
+                "to_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Instead of sending a row as IP content, send it in this attribute."
+                }
+            }
+        }
+    },
+    "7ba769ca-eba1-437c-b61a-bef27e24b1dc": {
+        "category": {
+            "id": "file",
+            "name": "File"
+        },
+        "component": {
+            "info": {
+                "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+                "name": "read file",
+                "description": "Read a file and send full string or lines downstream."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text",
+                    "desc": "Output either full file content or each line as as separate message."
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "store read file content into 'to_attr'"
+                },
+                "file": {
+                    "value": "",
+                    "type": "string",
+                    "desc": "Path to file to read."
+                },
+                "lines_mode": {
+                    "value": true,
+                    "type": "bool",
+                    "desc": "Send single lines if true else send whole file content at once."
+                },
+                "skip_lines": {
+                    "value": 0,
+                    "type": "int",
+                    "desc": "If lines mode is true, skip that many lines at the beginning of the file."
+                }
+            }
+        }
+    },
+    "b3867019-5f42-4c59-9438-a49fe9452e6f": {
+        "category": {
+            "id": "file",
+            "name": "File"
+        },
+        "component": {
+            "info": {
+                "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
+                "name": "write file",
+                "description": "Write input into a file."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "Text",
+                    "desc": "The input data to be written to a file."
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [],
+            "defaultConfig": {
+                "id_attr": {
+                    "value": "id",
+                    "type": "string",
+                    "desc": "The attribute to get id for the filepattern from"
+                },
+                "from_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Instead of the IP content, get the content from that 'attr'."
+                },
+                "filepath_pattern": {
+                    "value": "csv_{id}.csv",
+                    "type": "string",
+                    "desc": "The pattern to use for the filename. Can contain {id} as placeholder for the id attribute."
+                },
+                "path_to_out_dir": {
+                    "value": "path to output dir",
+                    "type": "string",
+                    "desc": "The path to the output directory where the files will be written."
+                },
+                "append": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "If True, append to existing files instead of overwriting them."
+                },
+                "debug": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "If True, print debug information to the console."
+                }
+            }
+        }
+    },
+    "1229ed4f-9fef-4b76-9061-a117d52e9bc2": {
+        "category": {
+            "id": "geo",
+            "name": "Geo"
+        },
+        "component": {
+            "info": {
+                "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
+                "name": "create lat lon coords",
+                "description": "Create lat/lon coords for region."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "ids",
+                    "contentType": "List[int]",
+                    "desc": "List of IDs to include in the output."
+                },
+                {
+                    "name": "region",
+                    "contentType": "string",
+                    "desc": "The region we create the coords for."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
+                    "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs."
+                }
+            ],
+            "defaultConfig": {
+                "stream": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord."
+                },
+                "create_substream": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "If true, creates for each set of region and ids, a new substream."
+                },
+                "region": {
+                    "value": "africa",
+                    "type": [
+                        "nigeria",
+                        "africa",
+                        "earth"
+                    ]
+                },
+                "resolution": {
+                    "value": "5min",
+                    "type": [
+                        "5min",
+                        "30sec"
+                    ],
+                    "desc": "Select the resolution of the generated data."
+                },
+                "ids": {
+                    "value": [],
+                    "type": "list[int]",
+                    "desc": "List of IDs to include in the output, unless the 'ids' port is connected."
+                },
+                "path_to_ids_grid": {
+                    "value": "data/country-id_0.083deg_4326_wgs84_africa.asc",
+                    "type": "string",
+                    "desc": "Path to the ids grid file."
+                }
+            }
+        }
+    },
+    "d8e349d6-e0e0-49cb-a24f-0b42358791a5": {
+        "category": {
+            "id": "geo",
+            "name": "Geo"
+        },
+        "component": {
+            "info": {
+                "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
+                "name": "get lat/lon grid value",
+                "description": "Get value from a lat/lon grid."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "geo.capnp:LatLon",
+                    "desc": "Lat/Lon coordinate to get the value at."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "common.capnp:Value",
+                    "desc": "Value at the given lat/lon coordinate."
+                }
+            ],
+            "defaultConfig": {
+                "path_to_grid": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Path to the lat/lon grid file."
+                },
+                "type": {
+                    "value": "int",
+                    "type": [
+                        "int",
+                        "float"
+                    ],
+                    "desc": "Type of value to read from grid."
+                },
+                "debug_out": {
+                    "value": true,
+                    "type": "bool"
+                }
+            }
+        }
+    },
+    "b753df51-40f1-4778-ac47-82858c8ef80c": {
+        "category": {
+            "id": "geo",
+            "name": "Geo"
+        },
+        "component": {
+            "info": {
+                "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
+                "name": "Proj transform coords",
+                "description": "Transform coordinates using the Proj library."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                    "desc": "Input geo coordinate."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                    "desc": "Output geo coordinate."
+                }
+            ],
+            "defaultConfig": {
+                "from_name": {
+                    "value": "LatLon",
+                    "type": "string",
+                    "desc": "Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])."
+                },
+                "to_name": {
+                    "value": "LatLon",
+                    "type": "string",
+                    "desc": "Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])."
+                },
+                "from_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Attribute name to use as the input coordinate."
+                },
+                "to_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Attribute name to use as the output."
+                }
+            }
+        }
+    },
+    "66ea3fce-80f7-4ab6-b77a-0966cb7c2793": {
+        "category": {
+            "id": "geo",
+            "name": "Geo"
+        },
+        "component": {
+            "info": {
+                "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
+                "name": "to geo coord",
+                "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "vals",
+                    "contentType": "List[float | int]",
+                    "desc": "Values to convert into coord."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "coord",
+                    "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                    "desc": "Coord to output."
+                }
+            ],
+            "defaultConfig": {
+                "to_name": {
+                    "value": "LatLon",
+                    "type": "string",
+                    "desc": "One of 2D, XY, LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])"
+                },
+                "list_type": {
+                    "value": "float",
+                    "type": [
+                        "float",
+                        "int"
+                    ]
+                }
+            }
+        }
+    },
+    "cb6720d6-bc33-445d-b2c1-aa3842219c81": {
+        "category": {
+            "id": "grid",
+            "name": "Grid"
+        },
+        "component": {
+            "info": {
+                "id": "cb6720d6-bc33-445d-b2c1-aa3842219c81",
+                "name": "Use grid service",
+                "description": "Use the grid service to get the grid value at a given Lat/Lon coord."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "geo.capnp:LatLonCoord",
+                    "desc": "The coordinate to get the value at."
+                },
+                {
+                    "name": "service",
+                    "contentType": "grid.capnp:Service | SturdyRef",
+                    "desc": "Capability or sturdy ref to service."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
+                    "desc": "Output grid value at given coordinate."
+                }
+            ],
+            "defaultConfig": {
+                "as_common_value": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value."
+                },
+                "from_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord)."
+                },
+                "to_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value)."
+                },
+                "calc": {
+                    "value": {
+                        "f(gv)": null
+                    },
+                    "type": "object",
+                    "desc": "If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object."
+                }
+            }
+        }
+    },
+    "1d442f41-dee4-4973-ad99-09855af1d7ad": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "component": {
+            "info": {
+                "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
+                "name": "add attribute",
+                "description": "Add attribute to incoming IP."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "AnyPointer",
+                    "desc": "Arbitrary content."
+                },
+                {
+                    "name": "attr",
+                    "contentType": "AnyPointer",
+                    "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": {
+                    "value": "attr",
+                    "type": "Text",
+                    "desc": "The attribute's name to add to the outgoing message."
+                }
+            }
+        }
+    },
+    "b1e875af-4ee7-4937-8824-17d185216ec4": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "component": {
+            "info": {
+                "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
+                "name": "copy",
+                "description": "Copy IP to multiple outputs."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "AnyPointer",
+                    "desc": "The IP to copy to all attached outports"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "type": "array",
+                    "contentType": "AnyPointer",
+                    "desc": "Copied IP for each attached outport"
+                }
+            ]
+        }
+    },
+    "1ccc2798-23b2-4148-a40f-6b70a69be2fb": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "categoryId": "ip",
+        "component": {
+            "info": {
+                "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
+                "name": "lift attributes",
+                "description": "Lift attributes."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "AnyPointer",
+                    "desc": "Input message with any content containing some structured attributes."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "AnyPointer",
+                    "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata."
+                }
+            ],
+            "defaultConfig": {
+                "lift_from_attr": {
+                    "value": "name",
+                    "type": "string",
+                    "desc": "Attribute to read from IP."
+                },
+                "lift_from_type": {
+                    "value": "schema.capnp:Type",
+                    "type": "string",
+                    "desc": "Capnp struct type to read from attribute."
+                },
+                "lifted_attrs": {
+                    "value": [
+                        "attr1",
+                        "attr2",
+                        "attr3"
+                    ],
+                    "type": "List",
+                    "desc": "Attributes to lift from struct into metadata."
+                }
+            }
+        }
+    },
+    "67b31990-452a-4058-8a99-6785be345216": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "component": {
+            "info": {
+                "id": "67b31990-452a-4058-8a99-6785be345216",
+                "name": "Update JSON",
+                "description": "Update JSON datastructures."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "Text (JSON)",
+                    "desc": "JSON text which is supposed to be updated and changed."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text (JSON)",
+                    "desc": "The updated JSON text."
+                }
+            ],
+            "defaultConfig": {
+                "types": {
+                    "value": {
+                        "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
+                    },
+                    "type": "object",
+                    "desc": "Define the loadable type the attribute being referenced has."
+                },
+                "update": {
+                    "value": [
+                        [
+                            "climate",
+                            "csv-options",
+                            "start-date",
+                            "<-",
+                            [
+                                "@setup",
+                                "startDate"
+                            ]
+                        ],
+                        [
+                            "climate",
+                            "csv-options",
+                            "end-date",
+                            "<-",
+                            "1999-01-09"
+                        ],
+                        [
+                            "customId_ex",
+                            "<-",
+                            1
+                        ],
+                        [
+                            "cropRotationTemplate_ex",
+                            "WW",
+                            0,
+                            "worksteps",
+                            0,
+                            "date",
+                            "<-",
+                            "2020-01-03"
+                        ]
+                    ],
+                    "type": "array",
+                    "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+                },
+                "replace": {
+                    "value": [],
+                    "type": "array",
+                    "desc": "List of replacement operations to perform on the JSON structure."
+                },
+                "add": {
+                    "value": [],
+                    "type": "array",
+                    "desc": "List of addition operations to perform on the JSON structure."
+                }
+            }
+        }
+    },
+    "bc9f8bfd-db77-49ed-a347-a26bb37084d1": {
+        "category": {
+            "id": "management",
+            "name": "Management"
+        },
+        "categoryId": "management",
+        "component": {
+            "info": {
+                "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
+                "name": "ILR seed/harvest dates",
+                "description": "Get closest ILR seed/harvest dates to lat/lon location."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf"
+                },
+                {
+                    "name": "in"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out"
+                }
+            ]
+        }
+    },
+    "e58b7ff4-3c76-4ea2-9873-09d6923e5c75": {
+        "category": {
+            "id": "models/monica",
+            "name": "Models/MONICA"
+        },
+        "component": {
+            "info": {
+                "id": "e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
+                "name": "Create model.capnp:Env with MONICA payload",
+                "description": "Create model.capnp:Env with MONICA JSON env payload."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "climate",
+                    "contentType": "climate.capnp:TimeSeries | Text",
+                    "desc": "Climate data for MONICA simulation, either as a TimeSeries capability or a path to a CSV file."
+                },
+                {
+                    "name": "soil",
+                    "contentType": "soil.capnp:Profile | Text (JSON array)",
+                    "desc": "Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers."
+                },
+                {
+                    "name": "in",
+                    "type": "Text (JSON)",
+                    "desc": "MONICA env json."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "model.capnp:Env",
+                    "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component."
+                }
+            ],
+            "defaultConfig": {
+                "from_attr": {
+                    "value": null,
+                    "type": "Text",
+                    "desc": "Instead of the message content, read the MONICA JSON env from this attribute."
+                },
+                "to_attr": {
+                    "value": null,
+                    "type": "Text",
+                    "desc": "Instead of sending the ready prepared MONICA Cap'n Proto env via the message content, send it via this attribute."
+                },
+                "climate_attr": {
+                    "value": "@climate",
+                    "type": "climate.capnp:TimeSeries | Text",
+                    "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value."
+                },
+                "soil_attr": {
+                    "value": "@soil",
+                    "type": "soil.capnp:Profile | Text (JSON array)",
+                    "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value."
+                },
+                "id_attr": {
+                    "value": "@id",
+                    "type": "Text",
+                    "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated."
+                }
+            }
+        }
+    },
+    "128af0c8-2614-4398-9043-ff3581958bd4": {
+        "category": {
+            "id": "models/monica",
+            "name": "Models/MONICA"
+        },
+        "component": {
+            "info": {
+                "id": "128af0c8-2614-4398-9043-ff3581958bd4",
+                "name": "Create MONICA JSON env",
+                "description": "Create MONICA JSON environment."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "sim",
+                    "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                },
+                {
+                    "name": "crop",
+                    "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                },
+                {
+                    "name": "site",
+                    "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text (JSON)"
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": {
+                    "value": null,
+                    "type": "Text (JSON)",
+                    "desc": "Set output into this attribute."
+                }
+            }
+        }
+    },
+    "92e48886-2728-4a78-b53e-5cb0d4ac415a": {
+        "category": {
+            "id": "models/monica",
+            "name": "Models/MONICA"
+        },
+        "component": {
+            "info": {
+                "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
+                "name": "Write MONICA CSV",
+                "description": "Write a MONICA CSV file."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "string (MONICA JSON result)",
+                    "desc": "Receive MONICA JSON result."
+                }
+            ],
+            "outPorts": [],
+            "defaultConfig": {
+                "path_to_out_dir": {
+                    "value": "out/",
+                    "type": "string",
+                    "desc": "Use path_to_out_dir if no out_path_attr is available in metadata of IP."
+                },
+                "out_path_attr": {
+                    "value": "out_path",
+                    "type": "string",
+                    "desc": "If out_path_attr is available, don't use path_to_out_dir."
+                },
+                "id_attr": {
+                    "value": "id",
+                    "type": "string",
+                    "desc": "Name of attribute which contains id to use for file name pattern."
+                },
+                "from_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Get file content from attribute 'from_attr'."
+                },
+                "filepath_pattern": {
+                    "value": "csv_{id}.csv",
+                    "type": "string",
+                    "desc": "Pattern with 'id' field (csv_{id}.csv)]. Write files name where id is replaced."
+                },
+                "csv_delimiter": {
+                    "value": ",",
+                    "type": "string",
+                    "desc": "Like ','. Use this string as delimiter for csv output."
+                }
+            }
+        }
+    },
+    "4b324ff3-a91d-434b-a2bf-8363bc4828ec": {
+        "category": {
+            "id": "producers",
+            "name": "Producers"
+        },
+        "component": {
+            "info": {
+                "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+                "name": "africa calibration producer",
+                "description": "Producer to work in an Africa calibration flow."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf"
+                },
+                {
+                    "name": "coords"
+                },
+                {
+                    "name": "region"
+                },
+                {
+                    "name": "params"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "env"
+                }
+            ]
+        }
+    },
+    "89da0cb9-2079-4245-aecc-068194bc1637": {
+        "category": {
+            "id": "soil",
+            "name": "Soil"
+        },
+        "component": {
+            "info": {
+                "id": "89da0cb9-2079-4245-aecc-068194bc1637",
+                "name": "Use soil service",
+                "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "latlon",
+                    "contentType": "geo.capnp.LatLonCoord",
+                    "desc": "Lat/Lon coordinate"
+                },
+                {
+                    "name": "service",
+                    "contentType": "soil.capnp:Service | Text (SturdyRef)",
+                    "desc": "Capability or sturdy ref to service."
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "grid.capnp:Grid.Value",
+                    "desc": "value at requested location"
+                }
+            ],
+            "defaultConfig": {
+                "from_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message."
+                },
+                "to_attr": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message."
+                },
+                "mandatory": {
+                    "value": [
+                        "soilType",
+                        "organicCarbon",
+                        "rawDensity"
+                    ],
+                    "type": [
+                        "soilType",
+                        "sand",
+                        "clay",
+                        "silt",
+                        "organicCarbon",
+                        "organicMatter",
+                        "rawDensity",
+                        "bulkDensity",
+                        "fieldCapacity",
+                        "permanentWiltingPoint",
+                        "saturation",
+                        "sceleton",
+                        "pH"
+                    ],
+                    "desc": "Which soil attributes are needed in the result to be valid?"
+                },
+                "optional": {
+                    "value": [],
+                    "type": [
+                        "soilType",
+                        "sand",
+                        "clay",
+                        "silt",
+                        "organicCarbon",
+                        "organicMatter",
+                        "rawDensity",
+                        "bulkDensity",
+                        "fieldCapacity",
+                        "permanentWiltingPoint",
+                        "saturation",
+                        "sceleton",
+                        "pH"
+                    ],
+                    "desc": "Which soil attributes are needed in the result to be valid?"
+                },
+                "only_raw_data": {
+                    "value": false,
+                    "type": "bool",
+                    "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory"
+                }
+            }
+        }
+    },
+    "028290bb-a38c-4599-9948-fc73723e9654": {
+        "category": {
+            "id": "spotpy",
+            "name": "Spotpy"
+        },
+        "component": {
+            "info": {
+                "id": "028290bb-a38c-4599-9948-fc73723e9654",
+                "name": "create SpotPy calibration params",
+                "description": "Creates/sets up parameters for Spotpy calibration."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "params",
+                    "contentType": "Text (JSON list)",
+                    "desc": "output spotpy calibration params as json list string"
+                }
+            ],
+            "defaultConfig": {
+                "path_to_calibrate_csv": {
+                    "value": "calibratethese.csv",
+                    "type": "string",
+                    "desc": "path to csv file with parameters to calibrate"
+                }
+            }
+        }
+    },
+    "993e5cdf-1c55-4a75-9538-e7906676fedb": {
+        "category": {
+            "id": "spotpy",
+            "name": "Spotpy"
+        },
+        "component": {
+            "info": {
+                "id": "993e5cdf-1c55-4a75-9538-e7906676fedb",
+                "name": "read observed values",
+                "description": "Read the observed values for the calibration."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "country_ids",
+                    "contentType": "Text (JSON Array or Number)",
+                    "desc": "[1,2,3] :string of serialized json array containing country ids"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text",
+                    "desc": "{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield"
+                }
+            ],
+            "defaultConfig": {
+                "path_to_yield_data": {
+                    "value": "data/FAO_yield_data.csv",
+                    "type": "string",
+                    "desc": "path to yield data"
+                },
+                "crop": {
+                    "value": "maize",
+                    "type": "string",
+                    "desc": "crop to calibrate, e.g. maize | millet | sorghum"
+                },
+                "from_year": {
+                    "value": 2010,
+                    "type": "int",
+                    "desc": "start year for calibration"
+                },
+                "to_year": {
+                    "value": 2020,
+                    "type": "int",
+                    "desc": "end year for calibration"
+                },
+                "no_data_value": {
+                    "value": -9999,
+                    "type": "int",
+                    "desc": "no data value"
+                },
+                "default_country_ids": {
+                    "value": [],
+                    "type": "list",
+                    "desc": "string of serialized json array containing country ids"
+                }
+            }
+        }
+    },
+    "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab": {
+        "category": {
+            "id": "spotpy",
+            "name": "Spotpy"
+        },
+        "component": {
+            "info": {
+                "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
+                "name": "Spotpy calibration component",
+                "description": "The actual component in the center of the calibration flow."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "init_params",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                    "desc": "key/value pair description of the parameters to calibrate"
+                },
+                {
+                    "name": "obs_values",
+                    "contentType": "List[common_capnp.Value.lf64]",
+                    "desc": "list of observations"
+                },
+                {
+                    "name": "sim_values",
+                    "contentType": "List[common_capnp.Value.lf64]",
+                    "desc": "list of simulated values"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "sampled_params",
+                    "contentType": "List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
+                    "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs"
+                },
+                {
+                    "name": "best",
+                    "contentType": "string",
+                    "desc": "best optimized result"
+                }
+            ],
+            "defaultConfig": {
+                "repetitions": {
+                    "value": 10,
+                    "type": "int",
+                    "desc": "number of repetitions"
+                },
+                "path_to_out_folder": {
+                    "value": "out/",
+                    "type": "string",
+                    "desc": "path to output folder"
+                }
+            }
+        }
+    },
+    "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "component": {
+            "info": {
+                "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+                "name": "split string",
+                "description": "Splits a string along delimiter."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "Text"
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text"
+                }
+            ],
+            "defaultConfig": {
+                "split_at": {
+                    "value": ",",
+                    "type": "string",
+                    "desc": "Split string at this character."
+                }
+            }
+        }
+    },
+    "d44040ab-7d5a-44d1-94e8-3f79969edbd4": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "component": {
+            "info": {
+                "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
+                "name": "split string2",
+                "description": "Splits a string along delimiter."
+            },
+            "type": "process",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "Text"
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text"
+                }
+            ],
+            "defaultConfig": {
+                "split_at": {
+                    "value": ",",
+                    "type": "string",
+                    "desc": "split string at this character"
+                }
+            }
+        }
+    },
+    "6c9346e6-71a7-4007-b403-2c78c845c1c7": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "component": {
+            "info": {
+                "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+                "name": "collect into list",
+                "description": "Collects values (parsed out of a string) into a list."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "Text",
+                    "desc": "Stream of strings, whose values to collect into a single list."
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "List[Text | Float64 | Int64]"
+                }
+            ],
+            "defaultConfig": {
+                "cast_to": {
+                    "value": "text",
+                    "type": [
+                        "text",
+                        "float",
+                        "int"
+                    ],
+                    "desc": "Cast text elements to any of these types."
+                }
+            }
+        }
+    },
+    "4b260f85-eb1b-4109-87ec-b30d38a5631a": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "component": {
+            "info": {
+                "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+                "name": "Collect into list",
+                "description": "Collects values (parsed out of a string) into a list."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "Text"
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "List[Text | Float64 | Int64]"
+                }
+            ],
+            "defaultConfig": {
+                "no_of_elements": {
+                    "value": 0,
+                    "type": "int",
+                    "desc": "Number of elements to collect into array. no_of_elements <= 0 means collect all elements from upstream. This means the component waits for the 'in' port to close, before sending a message on out."
+                },
+                "cast_to": {
+                    "value": "text",
+                    "type": [
+                        "text",
+                        "float",
+                        "int"
+                    ],
+                    "desc": "Cast received value on 'in' port to either text, float or int values."
+                }
+            }
+        }
+    },
+    "250488d8-7519-49a8-820e-0e981ffb2a71": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "component": {
+            "info": {
+                "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
+                "name": "to string",
+                "description": "Outputs input structures as string (if possible)."
+            },
+            "type": "process",
+            "inPorts": [
+                {
+                    "name": "in",
+                    "contentType": "AnyStruct"
+                },
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "contentType": "Text"
+                }
+            ],
+            "defaultConfig": {
+                "struct_type": {
+                    "value": null,
+                    "type": "string",
+                    "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to."
+                }
+            }
+        }
+    }
+}
