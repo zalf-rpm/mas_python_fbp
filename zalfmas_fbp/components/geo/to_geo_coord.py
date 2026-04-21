@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,49 @@ from zalfmas_common import geo
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "geo",
+        "name": "Geo"
+    },
+    "component": {
+        "info": {
+            "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
+            "name": "to geo coord",
+            "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "vals",
+                "contentType": "List[float | int]",
+                "desc": "Values to convert into coord.",
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "coord",
+                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                "desc": "Coord to output.",
+            }
+        ],
+        "defaultConfig": {
+            "to_name": {
+                "value": "LatLon",
+                "type": "string",
+                "desc": "One of 2D, XY, LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])",
+            },
+            "list_type": {
+                "value": "float",
+                "type": ["float", "int"]
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -36,11 +78,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     else:
         list_schema_type = capnp._ListSchema(capnp.types.Int64)
 
-    while ports["in"] and ports["out"]:
+    while ports["vals"] and ports["coord"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await ports["vals"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                ports["vals"] = None
                 continue
 
             vals = in_msg.value.as_struct(fbp_capnp.IP).content.as_list(
@@ -49,7 +91,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if len(vals) > 1:
                 to_coord = to_instance.copy()
                 geo.set_xy(to_coord, vals[0], vals[1])
-                await ports["out"].write(
+                await ports["coord"].write(
                     value=fbp_capnp.IP.new_message(content=to_coord)
                 )
             else:
@@ -69,25 +111,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "to_name": "wgs84",
-    "list_type": "float",
-    "opt:to_name": "wgs84",
-    "opt:list_type": "float",  # float | int
-    "port:conf": "[TOML string] -> component configuration",
-    "port:vals": "[list[float | int] -> values to convert into coord",
-    "port:coord": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> coord to output",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Read array (pair) of values and convert into geo coord"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

@@ -13,16 +13,49 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import csv
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
+
+meta = {
+    "category": {
+        "id": "spotpy",
+        "name": "Spotpy"
+    },
+    "component": {
+        "info": {
+            "id": "028290bb-a38c-4599-9948-fc73723e9654",
+            "name": "create SpotPy calibration params",
+            "description": "Creates/sets up parameters for Spotpy calibration."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "params",
+                "contentType": "Text (JSON list)",
+                "desc": "output spotpy calibration params as json list string"
+            }
+        ],
+        "defaultConfig": {
+            "path_to_calibrate_csv": {
+                "value": "calibratethese.csv",
+                "type": "string",
+                "desc": "path to csv file with parameters to calibrate"
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -69,21 +102,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "path_to_calibrate_csv": "calibratethese.csv",  # path to csv file with calibration parameter information
-    "port:conf": "[TOML string] -> component configuration",
-    "port:params": "[str]",  # output spotpy calibration params as json list string
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Load the calibration parameters"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

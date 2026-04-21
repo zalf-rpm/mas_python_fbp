@@ -13,16 +13,62 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from zalfmas_capnp_schemas_with_stubs import fbp_capnp, common_capnp
 from zalfmas_common import common, geo
 from zalfmas_common import rect_ascii_grid_management as ragm
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "geo",
+        "name": "Geo"
+    },
+    "component": {
+        "info": {
+            "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
+            "name": "get lat/lon grid value",
+            "description": "Get value from a lat/lon grid."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "geo.capnp:LatLon",
+                "desc": "Lat/Lon coordinate to get the value at."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "common.capnp:Value",
+                "desc": "Value at the given lat/lon coordinate."
+            }
+        ],
+        "defaultConfig": {
+            "path_to_grid": {
+                "value": None,
+                "type": "string",
+                "desc": "Path to the lat/lon grid file."
+            },
+            "type": {
+                "value": "int",
+                "type": ["int", "float"],
+                "desc": "Type of value to read from grid."
+            },
+            "debug_out": {
+                "value": True,
+                "type": "bool",
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -52,7 +98,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             in_ip = msg.value.as_struct(fbp_capnp.IP)
             ll = in_ip.content.as_struct(geo.name_to_struct_type("latlon"))
             val = grid_data["value"](ll.lat, ll.lon)
-            out_ip = fbp_capnp.IP.new_message(content=str(val))
+            if config["type"] == "int":
+                cval = common_capnp.Value.new_message(i64=val)
+            else:
+                cval = common_capnp.Value.new_message(f64=val)
+            out_ip = fbp_capnp.IP.new_message(content=cval)
             common.copy_and_set_fbp_attrs(in_ip, out_ip)
             await ports["out"].write(value=out_ip)
 
@@ -63,25 +113,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "path_to_grid": None,
-    "type": "int",  # int | float
-    "debug_out": True,  # true | false
-    "split_at": ",",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[geo_capnp:LatLon]",  # coordinate
-    "port:out": "[str]",  # value
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get data a supplied coordinate from grid"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

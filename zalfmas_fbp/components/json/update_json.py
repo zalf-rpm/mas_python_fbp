@@ -13,16 +13,75 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "json",
+        "name": "JSON"
+    },
+    "component": {
+        "info": {
+            "id": "67b31990-452a-4058-8a99-6785be345216",
+            "name": "Update JSON",
+            "description": "Update JSON datastructures."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "JSON text which is supposed to be updated and changed."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "The updated JSON text."
+            }
+        ],
+        "defaultConfig": {
+            "types": {
+                "value": {
+                    "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
+                },
+                "type": "object",
+                "desc": "Define the loadable type the attribute being referenced has."
+            },
+            "update": {
+                "value": [
+                    ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
+                    ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
+                    ["customId_ex", "<-", 1],
+                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+                ],
+                "type": "array",
+                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+            },
+            "replace": {
+                "value": [],
+                "type": "array",
+                "desc": "List of replacement operations to perform on the JSON structure."
+            },
+            "add": {
+                "value": [],
+                "type": "array",
+                "desc": "List of addition operations to perform on the JSON structure."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -187,29 +246,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    # "update": {
-    #     "customId": {"id": 1, "bla": 2},
-    #     "customId2": 5,
-    #     "params": {"siteParameters": {"Latitude": 100}},
-    #     "cropRotationTemplates.WW.0.worksteps = 5": None,
-    #     "cropRotationTemplates": {"WW": {"0": {"worksteps": 5}}},
-    #     "cropRotationTemplates.WW.0.1.worksteps = 5": None,
-    #     "cropRotationTemplates.WW.0.1.worksteps = '@some_attr'": None,
-    #     "cropRotationTemplates": {"WW": {"0": {"1": {"worksteps": 5}}}},
-    # },
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[JSON string]",
-    "port:out": "[JSON string] -> updated JSON string",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Update JSON datastructure.")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

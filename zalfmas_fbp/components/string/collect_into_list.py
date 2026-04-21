@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,48 @@ from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+meta = {
+    "category": {
+        "id": "string",
+        "name": "String"
+    },
+    "component": {
+        "info": {
+            "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+            "name": "Collect into list",
+            "description": "Collects values (parsed out of a string) into a list."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text"
+            }, {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "List[Text | Float64 | Int64]"
+            }
+        ],
+        "defaultConfig": {
+            "no_of_elements": {
+                "value": 0,
+                "type": "int",
+                "desc": "Number of elements to collect into array. no_of_elements <= 0 means collect all elements from upstream. This means the component waits for the 'in' port to close, before sending a message on out."
+            },
+            "cast_to": {
+                "value": "text",
+                "type": ["text", "float", "int"],
+                "desc": "Cast received value on 'in' port to either text, float or int values."
+            }
+        }
+    }
+}
+
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
@@ -29,7 +70,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     )
     await p.update_config_from_port(config, ports["conf"])
 
-    no_of_elements = 0 if "no_of_elements" == "all" else int(config["no_of_elements"])
+    no_of_elements = config["no_of_elements"]
 
     cast_to = None
     if config["cast_to"] == "float":
@@ -52,7 +93,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     while ports["in"] and ports["out"]:
         try:
             elems = []
-            while no_of_elements == 0 or len(elems) < no_of_elements:
+            while no_of_elements <= 0 or len(elems) < no_of_elements:
                 in_msg = await ports["in"].read()
                 if in_msg.which() == "done":
                     ports["in"] = None
@@ -83,22 +124,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "no_of_elements": "all",
-    "cast_to": "text",
-    "opt:cast_to": "[text | float | int] -> cast text elements to these types",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "string -> string to add to array",
-    "port:out": "[list[text | float | int]] -> output list cast to cast_to type",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Split a string.")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

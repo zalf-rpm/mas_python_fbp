@@ -13,15 +13,63 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "ip",
+        "name": "IP (Flow packages)"
+    },
+    "categoryId": "ip",
+    "component": {
+        "info": {
+            "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
+            "name": "lift attributes",
+            "description": "Lift attributes."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Input message with any content containing some structured attributes."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata."
+            }
+        ],
+        "defaultConfig": {
+            "lift_from_attr": {
+                "value": "name",
+                "type": "string",
+                "desc": "Attribute to read from IP."
+            },
+            "lift_from_type": {
+                "value": "schema.capnp:Type",
+                "type": "string",
+                "desc": "Capnp struct type to read from attribute."
+            },
+            "lifted_attrs": {
+                "value": ["attr1", "attr2", "attr3"],
+                "type": "List",
+                "desc": "Attributes to lift from struct into metadata."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -47,7 +95,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             ).as_struct(lift_from_type)
 
             out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-            lifted_attrs = config["lifted_attrs"].split(",")
+            lifted_attrs = config["lifted_attrs"]
             attrs = []
             for attr in in_ip.attributes:
                 attrs.append(attr)
@@ -70,27 +118,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "lift_from_attr": "name",
-    "lift_from_type": "schema.capnp:Type",
-    "lifted_attrs": "attr1,attr2,attr3",
-    "opt:lift_from_attr": "[string (name)] -> attribute to read",
-    "opt:lift_from_type": "[struct_capnp:Type] -> capnp struct type to read from attribute",
-    "opt:lifted_attrs": "[string (attr1,attr2,attr3,...)] -> which attributes of struct to lift one level up out of struct into metadata",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[]",
-    "port:out": "[]",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Lift fields out of in message attributes"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

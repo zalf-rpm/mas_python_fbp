@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,48 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "ip",
+        "name": "IP (Flow packages)"
+    },
+    "component": {
+        "info": {
+            "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
+            "name": "add attribute",
+            "description": "Add attribute to incoming IP."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Arbitrary content."
+            }, {
+                "name": "attr",
+                "contentType": "AnyPointer",
+                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."
+            }
+        ],
+        "defaultConfig": {
+            "to_attr": {
+                "value": "attr",
+                "type": "Text",
+                "desc": "The attribute's name to add to the outgoing message."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -61,22 +102,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "to_attr": "attr",
-    "opt:to_attr": "[string] -> store received content from connected 'attr' port under 'to_attr' name in attributes section of IP",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[anypointer] -> arbitrary content",
-    "port:attr": "[anypointer] -> arbitrary content to store as attached attribute with name 'to_attr'",
-    "port:out": "[IP + attr] -> IP (from in port) and attribute 'to_attr' containing content from attr port",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Add attribute to IP")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

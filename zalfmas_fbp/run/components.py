@@ -14,10 +14,20 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import argparse
+import asyncio
+import json
 import subprocess as sp
 import sys
 
-import tomlkit as tk
+import capnp
+
+
+def run_component_from_metadata(func, meta):
+    parser = create_default_fbp_component_args_parser(meta["component"]["info"]["description"])
+    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(
+        parser, meta
+    )
+    asyncio.run(capnp.run(func(port_infos_reader_sr, default_config)))
 
 
 def create_default_fbp_component_args_parser(component_description):
@@ -29,16 +39,28 @@ def create_default_fbp_component_args_parser(component_description):
         help="Sturdy ref to reader capability for receiving sturdy refs to connected channels (via ports)",
     )
     parser.add_argument(
-        "--output_toml_config",
+        "--output_json_default_config",
         "-o",
         action="store_true",
-        help="Output TOML configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
+        help="Output JSON configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
     )
     parser.add_argument(
-        "--write_toml_config",
+        "--output_json_component_metadata",
+        "-O",
+        action="store_true",
+        help="Output JSON component metadata at commandline. To be used for configuring component service.",
+    )
+    parser.add_argument(
+        "--write_json_default_config",
         "-w",
         type=str,
-        help="Create a TOML configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
+        help="Output JSON configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
+    )
+    parser.add_argument(
+        "--write_json_component_metadata",
+        "-W",
+        type=str,
+        help="Output JSON component metadata in the current directory. To be used for configuring component service.",
     )
     parser.add_argument(
         "--name",
@@ -49,66 +71,37 @@ def create_default_fbp_component_args_parser(component_description):
     return parser
 
 
-def handle_default_fpb_component_args(parser, config: dict = None):
+def handle_default_fpb_component_args(parser, component_meta: dict = None):
     args = parser.parse_args()
-    if config is None:
-        config = {}
-    remove_keys = []
-
-    def create_toml():
-        doc = tk.document()
-        doc.add(
-            tk.comment(
-                f"{parser.prog} FBP component configuration (data and documentation)"
-            )
-        )
-        doc.add(
-            tk.comment(
-                "The 'defaults' section shows the configuration settings in TOML format which can be send to the config port of the component."
-            )
-        )
-        defaults = tk.table()
-        ports = tk.table()
-        options = tk.table()
-        if config:
-            for k, v in config.items():
-                if v is None:
-                    continue
-                if "port:" in k:
-                    ports.add(k[5:], v)
-                    remove_keys.append(k)
-                elif "opt:" in k:
-                    options.add(k[4:], v)
-                    remove_keys.append(k)
-                else:
-                    defaults.add(k, v)
-        if len(defaults) > 0:
-            doc.add("defaults", defaults)
-        if len(options) > 0:
-            doc.add("options", options)
-        if len(ports) > 0:
-            doc.add("ports", ports)
-        return doc
+    if component_meta and (dc := component_meta.get("component", {}).get("defaultConfig", None)):
+        default_config = {k: v.get("value", v) if v and type(v) is dict else v for k, v in dc.items()}
+    else:
+        default_config = {}
 
     if args.name is not None:
-        config["name"] = args.name
+        default_config["name"] = args.name
 
     port_infos_reader_sr = None
-    if args.output_toml_config:
-        print(tk.dumps(create_toml()))
+    if args.output_json_default_config:
+        print(json.dumps(default_config, indent=4))
         exit(0)
-    elif args.write_toml_config:
-        with open(args.write_toml_config, "w") as _:
-            tk.dump(create_toml(), _)
+    elif args.write_json_default_config:
+        with open(args.write_json_default_config, "w") as _:
+            json.dump(default_config, _, indent=4)
+            exit(0)
+    elif args.output_json_component_metadata:
+        print(json.dumps(component_meta, indent=4))
+        exit(0)
+    elif args.write_json_component_metadata:
+        with open(args.write_json_component_metadata, "w") as _:
+            json.dump(component_meta, _, indent=4)
             exit(0)
     elif args.port_infos_reader_sr is not None:
         port_infos_reader_sr = args.port_infos_reader_sr
     else:
         parser.error("argument port_infos_reader_sr: expected sturdy ref")
 
-    for k in remove_keys:
-        del config[k]
-    return port_infos_reader_sr, config, args
+    return port_infos_reader_sr, default_config, args
 
 
 def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
@@ -117,20 +110,6 @@ def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
         pte_split[0] = sys.executable
     proc = sp.Popen(
         pte_split + [port_infos_reader_sr] + ([f'--name="{name}"'] if name else []),
-        # stdout=sp.PIPE, stderr=sp.STDOUT,
-        text=True,
-    )
-    return proc
-
-
-def start_local_process_component(
-    path_to_executable, process_cap_writer_sr, name=None
-) -> sp.Popen[str]:
-    pte_split = list(path_to_executable.split(" "))
-    if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
-        pte_split[0] = sys.executable
-    proc = sp.Popen(
-        pte_split + [f"--writer_sr={process_cap_writer_sr}"],
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
     )

@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -21,6 +20,43 @@ from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "string",
+        "name": "String"
+    },
+    "component": {
+        "info": {
+            "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+            "name": "split string",
+            "description": "Splits a string along delimiter."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text"
+            }, {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text"
+            }
+        ],
+        "defaultConfig": {
+            "split_at": {
+                "value": ",",
+                "type": "string",
+                "desc": "Split string at this character."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -63,21 +99,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: {config['name']} process finished")
 
 
-default_config = {
-    "name": "split_string",
-    "split_at": ",",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> string to split",
-    "port:out": "[list[text | float | int]] -> output split list cast to cast_to type",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Split a string.")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

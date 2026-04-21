@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,60 @@ from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
 from zalfmas_fbp.run import ports as p
+
+meta = {
+    "category": {
+        "id": "geo",
+        "name": "Geo"
+    },
+    "component": {
+        "info": {
+            "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
+            "name": "Proj transform coords",
+            "description": "Transform coordinates using the Proj library."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                "desc": "Input geo coordinate.",
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+                "desc": "Output geo coordinate.",
+            }
+        ],
+        "defaultConfig": {
+            "from_name": {
+                "value": "LatLon",
+                "type": "string",
+                "desc": "Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+            },
+            "to_name": {
+                "value": "LatLon",
+                "type": "string",
+                "desc": "Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+            },
+            "from_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Attribute name to use as the input coordinate."
+            },
+            "to_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Attribute name to use as the output."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -67,29 +120,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "from_name": "utm32n",
-    "to_name": "latlon",
-    "from_attr": None,
-    "to_attr": None,
-    "opt:from_name": "[string (known name like utm32n)] -> source CRS -> refer to know name in zalfmas_common.geo lib",
-    "opt:to_name": "[string (known name like latlon)] -> target CRS -> refer to know name in zalfmas_common.geo lib",
-    "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
-    "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> input geo coord",
-    "port:out": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> transformed geo coord",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

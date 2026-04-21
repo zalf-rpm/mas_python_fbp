@@ -13,13 +13,11 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
 import os
 import time
 from datetime import date, datetime, timedelta
 
-import capnp
 import numpy as np
 from netCDF4 import Dataset
 from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, model_capnp
@@ -28,8 +26,38 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-
 from ..geo import get_lat_lon_grid_value as shared
+
+meta = {
+    "category": {
+        "id": "producers",
+        "name": "Producers"
+    },
+    "component": {
+        "info": {
+            "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+            "name": "africa calibration producer",
+            "description": "Producer to work in an Africa calibration flow."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf"
+            }, {
+                "name": "coords"
+            }, {
+                "name": "region"
+            }, {
+                "name": "params"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "env"
+            }
+        ]
+    }
+}
 
 
 def check_for_nill_dates(mgmt):
@@ -347,9 +375,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
         # read template sim.json
         with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("sim.json", config["sim.json"])
-            )
+                os.path.join(
+                    config["path_to_repo"], setup.get("sim.json", config["sim.json"])
+                )
         ) as _:
             sim_json = json.load(_)
         # change start and end date according to setup
@@ -364,9 +392,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
         # read template site.json
         with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("site.json", config["site.json"])
-            )
+                os.path.join(
+                    config["path_to_repo"], setup.get("site.json", config["site.json"])
+                )
         ) as _:
             site_json = json.load(_)
 
@@ -375,9 +403,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
         # read template crop.json
         with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("crop.json", config["crop.json"])
-            )
+                os.path.join(
+                    config["path_to_repo"], setup.get("crop.json", config["crop.json"])
+                )
         ) as _:
             crop_json = json.load(_)
             # set current crop
@@ -455,9 +483,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     elif ws["type"] == "Tillage" and "Tillage date" in mgmt:
                         ws["date"] = shared.mgmt_date_to_rel_date(mgmt["Tillage date"])
                     elif (
-                        ws["type"] == "MineralFertilization"
-                        and mgmt[:2] == "N "
-                        and mgmt[-5:] == " date"
+                            ws["type"] == "MineralFertilization"
+                            and mgmt[:2] == "N "
+                            and mgmt[-5:] == " date"
                     ):
                         app_no = int(ws["application"])
                         app_str = str(app_no) + ["st", "nd", "rd", "th"][app_no - 1]
@@ -639,13 +667,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "calibration producer for africa"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

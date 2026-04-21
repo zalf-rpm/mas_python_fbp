@@ -13,15 +13,46 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "ip",
+        "name": "IP (Flow packages)"
+    },
+    "component": {
+        "info": {
+            "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
+            "name": "copy",
+            "description": "Copy IP to multiple outputs."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }, {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "The IP to copy to all attached outports"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "type": "array",
+                "contentType": "AnyPointer",
+                "desc": "Copied IP for each attached outport"
+            }
+        ]
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -52,21 +83,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_config = {
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[]",
-    "port:out": "[]",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Copy IP to all attached array out ports"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

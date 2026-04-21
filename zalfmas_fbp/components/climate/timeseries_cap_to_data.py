@@ -13,15 +13,51 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
-import capnp
 from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "climate",
+        "name": "Climate"
+    },
+    "component": {
+        "info": {
+            "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
+            "name": "timeseries capability -> data",
+            "description": "Get the actual data from a timeseries capability."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in"
+            }, {
+                "name": "conf"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out"
+            }
+        ],
+        "defaultConfig": {
+            "to_attr": None,
+            "from_attr": None,
+            "subrange_start": None,
+            "subrange_start_type": "iso-date",
+            "subrange_end": None,
+            "subrange_end_type": "iso-date",
+            "subheader": ["tavg", "precip"],
+            "transposed": False,
+            "maintain_substreams": False
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -164,13 +200,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Retrieve timeseries data from capability and forward data downstream"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

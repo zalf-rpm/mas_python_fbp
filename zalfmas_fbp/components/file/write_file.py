@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -22,6 +21,64 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "file",
+        "name": "File"
+    },
+    "component": {
+        "info": {
+            "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
+            "name": "write file",
+            "description": "Write input into a file."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text",
+                "desc": "The input data to be written to a file."
+            }, {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [],
+        "defaultConfig": {
+            "id_attr": {
+                "value": "id",
+                "type": "string",
+                "desc": "The attribute to get id for the filepattern from"
+            },
+            "from_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "Instead of the IP content, get the content from that 'attr'."
+            },
+            "filepath_pattern": {
+                "value": "csv_{id}.csv",
+                "type": "string",
+                "desc": "The pattern to use for the filename. Can contain {id} as placeholder for the id attribute."
+            },
+            "path_to_out_dir": {
+                "value": "path to output dir",
+                "type": "string",
+                "desc": "The path to the output directory where the files will be written."
+            },
+            "append": {
+                "value": False,
+                "type": "bool",
+                "desc": "If True, append to existing files instead of overwriting them."
+            },
+            "debug": {
+                "value": False,
+                "type": "bool",
+                "desc": "If True, print debug information to the console."
+            }
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -71,36 +128,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-"""
-#id_attr = "id"
-#from_attr = 
-#filepath_pattern = "csv_{id}.csv"
-#path_to_out_dir = "path to output dir"
-#append = false
-#debug = false
-"""
-default_config = {
-    "id_attr": "id",
-    "from_attr": None,
-    "filepath_pattern": "csv_{id}.csv",
-    "path_to_out_dir": "/home/berg/GitHub/mas-infrastructure/src/python/fbp/out/",
-    "append": False,
-    "debug": False,
-    "opt:from_attr": "[name:string] -> get file content from attibute set in 'from_attr'",
-    "opt:append": "[true | false] -> open file to be written in append mode or overwrite mode ",
-    "opt:debug": "[true | false] -> if true output filepath to console",
-    "opt:file": "[string] -> path to file to read",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> write string to file",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Write a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":

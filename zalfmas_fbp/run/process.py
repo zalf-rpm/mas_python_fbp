@@ -12,8 +12,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import os
+import subprocess as sp
+import sys
 
 import capnp
 from mas.schema.common import common_capnp
@@ -43,6 +46,7 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
             self,
+            metadata: dict = None,
             con_man: common.ConnectionManager = None,
             id: str | None = None,
             name: str | None = None,
@@ -51,8 +55,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man if con_man else common.ConnectionManager())
 
-        self.in_ports_config = {}
-        self.out_ports_config = {}
+        self.metadata = metadata if metadata else {}
         self.configuration = {}
         self.in_ports = {}
         self.out_ports = {}
@@ -60,8 +63,53 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.process_state = "stopped"  # states: started, stopped, canceled
         self.state_transition_callbacks = []
 
+        self.init_from_metadata()
+
+    def init_from_metadata(self):
+        default_config = {}
+        if self.meta:
+            try:
+                default_config = {k: v["value"] for k, v in self.meta["component"]["defaultConfig"].items()}
+                self.name = self.meta["component"]["info"]["name"]
+                self.description = self.meta["component"]["info"]["description"]
+            except Exception as e:
+                logger.warning(
+                    f"Some metadata could not be used for initializing the process component. Exception: {e}")
+        for k, v in default_config.items():
+            val = None
+            vt = type(v)
+            if vt is str:
+                val = common_capnp.Value.new_message(t=",")
+            elif vt is int:
+                val = common_capnp.Value.new_message(i64=v)
+            elif vt is float:
+                val = common_capnp.Value.new_message(f64=v)
+            elif vt is bool:
+                val = common_capnp.Value.new_message(b=v)
+            elif vt is dict:
+                val = common_capnp.Value.new_message(t=json.dumps(v))
+            elif vt is list and len(vt) > 0 and type(vt[0]) is int:
+                if all(map(lambda x: type(x) is int, v)):
+                    val = common_capnp.Value.new_message(li64=v)
+            elif vt is list and len(vt) > 0 and type(vt[0]) is float:
+                if all(map(lambda x: type(x) is float, v)):
+                    val = common_capnp.Value.new_message(lf64=v)
+            elif vt is list and len(vt) > 0 and type(vt[0]) is bool:
+                if all(map(lambda x: type(x) is bool, v)):
+                    val = common_capnp.Value.new_message(lb=v)
+            elif vt is list and len(vt) > 0 and type(vt[0]) is str:
+                if all(map(lambda x: type(x) is str, v)):
+                    val = common_capnp.Value.new_message(lt=v)
+
+            if val:
+                self.config[k]: dict[str, common_capnp.ValueBuilder] = val
+
     def is_canceled(self):
         return self.process_state == "canceled"
+
+    @property
+    def meta(self):
+        return self.metadata
 
     @property
     def config(self):
@@ -127,8 +175,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     #     val  @1 :Common.Value;
     # }
     # setConfigEntry @7 ConfigEntry;
-    async def setConfigEntry(self, name: str, value: common_capnp.ValueReader, _context, **kwargs):
-        self.config[name] = value
+    async def setConfigEntry_context(self, context):
+        ps = context.params
+        self.config[ps.name] = ps.val.as_builder()
+        # print(f"received config entry: {ps.name} with value: {ps.val}")
 
     async def process_started(self):
         await self.transition_to_state("started")
@@ -218,36 +268,25 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             if serve_bootstrap:
                 host = host if host else common.get_public_ip()
                 import socket
-
-                if (
-                        len(
-                            ip4_socks := list(
-                                filter(
-                                    lambda s: s.family == socket.AddressFamily.AF_INET,
-                                    server.sockets,
-                                )
-                            )
-                        )
-                        > 0
-                ):
+                l = list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))
+                if len(ip4_socks := l) > 0:
                     port = ip4_socks[0].getsockname()[1]
                 print(f"Process({self.name}) SR: capnp://{host}:{port}")
             await server.serve_forever()
 
 
-def parse_cmd_args_and_serve_process(p: Process):
-    parser, args = create_default_args_parser(component_description=p.description)
-    logger.setLevel(args.log_level)
-    asyncio.run(
-        capnp.run(
-            p.serve(
-                writer_sr=args.writer_sr,
-                serve_bootstrap=args.serve_bootstrap,
-                host=args.host,
-                port=args.port,
-            )
-        )
+def start_local_process_component(
+        path_to_executable, process_cap_writer_sr, name=None
+) -> sp.Popen[str]:
+    pte_split = list(path_to_executable.split(" "))
+    if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
+        pte_split[0] = sys.executable
+    proc = sp.Popen(
+        pte_split + [process_cap_writer_sr],
+        # stdout=sp.PIPE, stderr=sp.STDOUT,
+        text=True,
     )
+    return proc
 
 
 def create_default_args_parser(
@@ -255,11 +294,34 @@ def create_default_args_parser(
 ):
     parser = argparse.ArgumentParser(description=component_description)
     parser.add_argument(
-        "-w",
-        "--writer_sr",
+        "process_cap_writer_sr",
         type=str,
-        default=None,
-        help="SturdyRef to the Writer<fbp.capnp::Process>. Writes process capability on startup to writer.",
+        nargs="?",
+        help="SturdyRef to the Writer[fbp.capnp:Process]. Writes process capability on startup to writer.",
+    )
+    parser.add_argument(
+        "--output_json_default_config",
+        "-o",
+        action="store_true",
+        help="Output JSON configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
+    )
+    parser.add_argument(
+        "--output_json_component_metadata",
+        "-O",
+        action="store_true",
+        help="Output JSON component metadata at commandline. To be used for configuring component service.",
+    )
+    parser.add_argument(
+        "--write_json_default_config",
+        "-w",
+        type=str,
+        help="Output JSON configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
+    )
+    parser.add_argument(
+        "--write_json_component_metadata",
+        "-W",
+        type=str,
+        help="Output JSON component metadata in the current directory. To be used for configuring component service.",
     )
     parser.add_argument(
         "-b",
@@ -287,4 +349,41 @@ def create_default_args_parser(
         default="WARNING",
         help="Set logging level.",
     )
-    return parser, parser.parse_args()
+    return parser
+
+
+def run_process_from_metadata_and_cmd_args(p: Process, component_meta):
+    parser = create_default_args_parser(component_description=p.description)
+    args = parser.parse_args()
+    if component_meta:
+        default_config = {k: v["value"] for k, v in component_meta["component"]["defaultConfig"].items()}
+    else:
+        default_config = {}
+    if args.output_json_default_config:
+        print(json.dumps(default_config, indent=4))
+        exit(0)
+    elif args.write_json_default_config:
+        with open(args.write_json_default_config, "w") as _:
+            json.dump(default_config, _, indent=4)
+            exit(0)
+    elif args.output_json_component_metadata:
+        print(json.dumps(component_meta, indent=4))
+        exit(0)
+    elif args.write_json_component_metadata:
+        with open(args.write_json_component_metadata, "w") as _:
+            json.dump(component_meta, _, indent=4)
+            exit(0)
+    logger.setLevel(args.log_level)
+    if args.process_cap_writer_sr:
+        asyncio.run(
+            capnp.run(
+                p.serve(
+                    writer_sr=args.process_cap_writer_sr,
+                    serve_bootstrap=args.serve_bootstrap,
+                    host=args.host,
+                    port=args.port,
+                )
+            )
+        )
+    else:
+        logger.error("A sturdy ref to a writer capability is necessary to start the process.")

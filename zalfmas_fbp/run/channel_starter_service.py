@@ -34,18 +34,19 @@ import zalfmas_fbp.run.channels as channels
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
-    def __init__(self, proc: Popen[bytes] | Popen[str], remove_from_service=None):
+    def __init__(self, proc: Popen[bytes] | Popen[str], remove_from_service_func=None):
         self.proc = proc
-        self.remove_from_service = remove_from_service
+        self.remove_from_service_func = remove_from_service_func
 
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
-            rt = self.proc.returncode == 0
+            # give it a sec to terminate
+            await asyncio.sleep(1)
+            context.results.success = self.proc.poll() is not None
             self.proc = None
-            if self.remove_from_service:
-                self.remove_from_service()
-            context.results.success = rt
+            if self.remove_from_service_func:
+                self.remove_from_service_func()
         context.results.success = False
 
 
@@ -62,16 +63,16 @@ class Params:
 
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
     def __init__(
-        self,
-        con_man: common.ConnectionManager,
-        path_to_channel: str,
-        id: str | None = None,
-        name: str | None = None,
-        description: str | None = None,
-        verbose: bool = False,
-        channel_host_name: str | None = None,
-        admin=None,
-        restorer=None,
+            self,
+            con_man: common.ConnectionManager,
+            path_to_channel: str,
+            id: str | None = None,
+            name: str | None = None,
+            description: str | None = None,
+            verbose: bool = False,
+            channel_host_name: str | None = None,
+            admin=None,
+            restorer=None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
 
@@ -130,7 +131,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     # }
 
     async def start_context(
-        self, context
+            self, context
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
@@ -178,7 +179,7 @@ async def main():
         logging.error("Need service section in config")
         return
 
-    config_service_section = cast(dict[str, str], config_service_section)
+    # config_service_section = cast(dict[str, str], config_service_section)
 
     path_to_channel = config_service_section.get("path_to_channel", None)
     if path_to_channel is None:
@@ -193,6 +194,7 @@ async def main():
         description=config_service_section.get("description", None),
         channel_host_name=config_service_section.get("channel_host", None),
         restorer=restorer,
+        verbose=config_service_section.get("verbose", False),
     )
 
     await service.create_startup_info_channel()

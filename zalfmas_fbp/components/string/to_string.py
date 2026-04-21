@@ -35,15 +35,15 @@ meta = {
     },
     "component": {
         "info": {
-            "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
-            "name": "split string2",
-            "description": "Splits a string along delimiter."
+            "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
+            "name": "to string",
+            "description": "Outputs input structures as string (if possible)."
         },
         "type": "process",
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "AnyStruct"
             }, {
                 "name": "conf",
                 "contentType": "common.capnp:StructuredText[JSON | TOML]"
@@ -56,23 +56,32 @@ meta = {
             }
         ],
         "defaultConfig": {
-            "split_at": {
-                "value": ",",
+            "struct_type": {
+                "value": None,
                 "type": "string",
-                "desc": "split string at this character"
+                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to."
             }
         }
     }
 }
 
 
-class SplitString(process.Process):
+class ToString(process.Process):
     def __init__(self, metadata, con_man: common.ConnectionManager = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
         await self.process_started()
         logger.info(f"{self.name} process started")
+
+        if self.config["struct_type"] is None:
+            t = None
+        else:
+            try:
+                t, _ = common.load_capnp_module(self.config["struct_type"].t)
+            except Exception as e:
+                logger.error(f"Failed to load Cap'n Proto module: {e}")
+                t = None
 
         while self.ip("in") and self.op("out"):
             if self.is_canceled():
@@ -83,15 +92,17 @@ class SplitString(process.Process):
                     self.close_ip("in")
                     continue
 
-                s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-                logger.info(f"{self.name} received: {s}")
-                s = s.rstrip()
-                vals = s.split(self.config["split_at"].t)
+                c = in_msg.value.as_struct(fbp_capnp.IP).content
+                if t:
+                    c = c.as_struct(t)
+                logger.info(f"{self.name} received: {c}")
 
-                for val in vals:
-                    out_ip = fbp_capnp.IP.new_message(content=val)
-                    await self.op("out").write(value=out_ip)
-                    logger.info(f"{self.name} sent: {val}")
+                c_str = str(c)
+                c_str = c_str.replace("<", "")
+                c_str = c_str.replace(">", "")
+                out_ip = fbp_capnp.IP.new_message(content=c_str)
+                await self.op("out").write(value=out_ip)
+                logger.info(f"{self.name} sent: {c_str}")
 
             except capnp.KjException as e:
                 logger.error(f"{self.name} RPC Exception: {e.description}")
@@ -103,7 +114,7 @@ class SplitString(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(SplitString(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(ToString(meta), meta)
 
 
 if __name__ == "__main__":

@@ -14,9 +14,13 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import asyncio
+import copy
 import json
+import logging
+import os.path
 import subprocess as sp
-from collections import defaultdict
+import sys
+from collections import defaultdict, Counter
 
 import capnp
 from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, registry_capnp
@@ -24,6 +28,13 @@ from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
+import zalfmas_fbp.run.process as process
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
@@ -37,14 +48,17 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
         self.proc: sp.Popen = None
+        self.stopped_callbacks = []
 
     async def start_context(
             self, context
-    ):  # start @0 (portInfosReaderSr :Text) -> (success :Bool);
+    ):  # start @0 (portInfosReaderSr :SturdyRef, name :Text, stoppedCb :StoppedCallback) -> (success :Bool);
         port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(
             context.params.portInfosReaderSr
         )
         name = context.params.name
+        if context.params._has("stoppedCb"):
+            self.stopped_callbacks.append(context.params.stoppedCb)
         self.proc = comp.start_local_component(
             self.path_to_executable, port_infos_reader_sr_str, name
         )
@@ -56,6 +70,8 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             rt = self.proc.returncode == 0
             self.proc = None
             context.results.success = rt
+            for scb in self.stopped_callbacks:
+                await scb.stopped()
         context.results.success = True
 
 
@@ -141,7 +157,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         )
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
         self.procs.append(
-            comp.start_local_process_component(
+            process.start_local_process_component(
                 self.path_to_executable, writer_sr_str, self.id
             )
         )
@@ -152,8 +168,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
     def __init__(
             self,
-            components: dict,
-            cmds: dict,
+            cat_id_to_name_and_component_holders: dict,
             id=None,
             name=None,
             description=None,
@@ -162,74 +177,119 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
         common.Persistable.__init__(self, restorer)
         common.Identifiable.__init__(self, id, name, description)
 
-        self._components = components
-        self._cat_id_to_component_holders = defaultdict(list)
-        self._cmds = cmds
-
-        for e in self._components["entries"]:
-            c = e["component"]
-            if "defaultConfig" in c:
-                dc_json = json.dumps(c["defaultConfig"])
-                c["defaultConfig"] = common_capnp.StructuredText.new_message(type="json", value=dc_json)
-            info = c["info"]
-            c_id = info["id"]
-            if c_id in self._cmds:
-                c["factory"] = {}
-                if c["type"] == "standard":
-                    c["factory"]["runnable"] = RunnableFactory(
-                        self._cmds[c_id],
-                        id=c_id,
-                        name=info.get("name", None),
-                        description=info.get("description", None),
-                    )
-                elif c["type"] == "process":
-                    c["factory"]["process"] = ProcessFactory(
-                        self._cmds[c_id],
-                        restorer=restorer,
-                        id=c_id,
-                        name=info.get("name", None),
-                        description=info.get("description", None),
-                    )
-            self._cat_id_to_component_holders[e["categoryId"]].append(
-                registry_capnp.Registry.Entry.new_message(
-                    categoryId=e["categoryId"],
-                    ref=common.IdentifiableHolder(fbp_capnp.Component.new_message(**c)),
-                    id=c_id,
-                    name=info.get("name", c_id),
-                )
-            )
+        self._cat_id_to_name_and_component_holders = cat_id_to_name_and_component_holders
 
     async def supportedCategories_context(
             self, context
     ):  # supportedCategories @0 () -> (cats :List(IdInformation));
-        context.results.cats = self._components["categories"]
+        cats = list(
+            [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()])
+        context.results.cats = cats
 
     async def categoryInfo_context(
             self, context
     ):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
         cat_id = context.params.categoryId
         r = context.results
-        for c in self._components["categories"]:
-            if c["id"] == cat_id:
-                r.id = c["id"]
-                r.name = c.get("name", r.id)
-                if "description" in c:
-                    r.description = c["description"]
+        if n_to_chs := self._cat_id_to_name_and_component_holders.get(cat_id):
+            r.id = cat_id
+            r.name = n_to_chs.get("name", r.id)
 
     async def entries_context(
             self, context
     ):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
         cat_id = context.params.categoryId
         r = context.results
-        if cat_id in self._cat_id_to_component_holders:
-            chs = self._cat_id_to_component_holders[cat_id]
+        if n_to_chs := self._cat_id_to_name_and_component_holders.get(cat_id):
+            chs = n_to_chs.get("component_holders")
         else:
             chs = []
-            for _, v in self._cat_id_to_component_holders.items():
-                chs.extend(v)
+            for _, v in self._cat_id_to_name_and_component_holders.items():
+                chs.extend(v.get("component_holders", []))
         r.init("entries", len(chs))
         for i, ch in enumerate(chs):
             r.entries[i] = ch
+
+
+def load_component_metadata(cmds, components_cache, restorer):
+    cat_id_to_name_and_component_holders = defaultdict(lambda: {"name": [], "component_holders": []})
+    for comp_id, cmd_str in cmds.items():
+        if comp_id == "id" or comp_id == "name" or comp_id[:3] == "___":
+            continue
+
+        comp_in_cache = components_cache and comp_id in components_cache
+        meta = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
+        if meta is None:
+            try:
+                pte_split = list(cmd_str.split(" "))
+                if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
+                    pte_split[0] = sys.executable
+                res = sp.run(pte_split + ["-O"], stdout=sp.PIPE, text=True)
+                if res is None:
+                    continue
+                meta = json.loads(res.stdout)
+                components_cache[comp_id] = copy.deepcopy(meta)
+            except Exception as e:
+                logger.warning(
+                    f"Couldn't execute component via '{pte_split + ['-O']}'. Exception: {e}")
+
+        try:
+            c = meta["component"]
+            info = c["info"]
+            c_id = info["id"]
+            if c_id != comp_id:
+                logger.warning(
+                    f"Component id={comp_id} in cmds is not the same as in referenced component (id={c_id})! Skipping component.")
+                continue
+
+            if "defaultConfig" in c:
+                dc_json = json.dumps(c["defaultConfig"])
+                c["defaultConfig"] = common_capnp.StructuredText.new_message(type="json", value=dc_json)
+
+            if c_id in cmds:
+                c["factory"] = {}
+                if c["type"] == "standard":
+                    c["factory"]["runnable"] = RunnableFactory(
+                        cmd_str,
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
+                elif c["type"] == "process":
+                    c["factory"]["process"] = ProcessFactory(
+                        cmd_str,
+                        restorer=restorer,
+                        id=c_id,
+                        name=info.get("name", None),
+                        description=info.get("description", None),
+                    )
+            cat_id = meta["category"]["id"]
+            cat_name = meta["category"].get("name", cat_id)
+            cat_id_to_name_and_component_holders[cat_id]["name"].append(cat_name)
+            cat_id_to_name_and_component_holders[cat_id]["component_holders"].append(
+                registry_capnp.Registry.Entry.new_message(
+                    categoryId=cat_id,
+                    ref=common.IdentifiableHolder(fbp_capnp.Component.new_message(**c)),
+                    id=c_id,
+                    name=info.get("name", c_id),
+                )
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"Some exception happend during retrieving metadata for component with id={comp_id}. Exception: {e}")
+
+    # if there are multiple names for the same category, use the one that appears most
+    for cat_id, n_to_cs in cat_id_to_name_and_component_holders.items():
+        if len(n_to_cs["name"]) > 1:
+            mc = Counter(n_to_cs["name"]).most_common(1)
+            cat_id_to_name_and_component_holders[cat_id]["name"] = mc[0][0] if len(mc) > 0 and len(
+                mc[0]) > 0 else "unknown"
+        else:
+            assert len(n_to_cs["name"]) == 1
+            cat_id_to_name_and_component_holders[cat_id]["name"] = n_to_cs["name"][0]
+
+    return cat_id_to_name_and_component_holders
 
 
 async def main():
@@ -239,16 +299,25 @@ async def main():
     )
     config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
 
-    with open(config["service"]["path_to_components_json"]) as f:
-        components = json.load(f)
+    # load components cache
+    if os.path.exists(config["service"]["path_to_components_cache_json"]):
+        with open(config["service"]["path_to_components_cache_json"]) as f:
+            components_cache = json.load(f)
+    else:
+        components_cache = {}
     with open(config["service"]["path_to_cmds_json"]) as f:
         cmds = json.load(f)
 
     cs = config.get("service", {})
     restorer = common.Restorer()
+
+    cat_id_to_name_and_component_holders = load_component_metadata(cmds, components_cache, restorer)
+    # update components cache
+    with open(config["service"]["path_to_components_cache_json"], "w") as f:
+        json.dump(components_cache, f, indent=4)
+
     service = Service(
-        components,
-        cmds,
+        cat_id_to_name_and_component_holders,
         id=cs.get("id", None),
         name=cs.get("name", None),
         description=cs.get("description", None),

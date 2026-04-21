@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import os
 
 import capnp
@@ -21,6 +20,56 @@ from zalfmas_capnp_schemas_with_stubs import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+meta = {
+    "category": {
+        "id": "file",
+        "name": "File"
+    },
+    "component": {
+        "info": {
+            "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+            "name": "read file",
+            "description": "Read a file and send full string or lines downstream."
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text",
+                "desc": "Output either full file content or each line as as separate message."
+            }
+        ],
+        "defaultConfig": {
+            "to_attr": {
+                "value": None,
+                "type": "string",
+                "desc": "store read file content into 'to_attr'"
+            },
+            "file": {
+                "value": "",
+                "type": "string",
+                "desc": "Path to file to read."
+            },
+            "lines_mode": {
+                "value": True,
+                "type": "bool",
+                "desc": "Send single lines if true else send whole file content at once."
+            },
+            "skip_lines": {
+                "value": 0,
+                "type": "int",
+                "desc": "If lines mode is true, skip that many lines at the beginning of the file."
+            },
+        }
+    }
+}
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -64,31 +113,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     print(f"{os.path.basename(__file__)}: process finished")
 
 
-default_toml = """
-to_attr = "" # [string] -> store read file content into 'to_attr'
-file = "" # [string] -> path to file to read
-lines_mode = true # [true | false] -> send single lines if true else send whole file content at once
-skip_lines = 0 # [int] -> if lines mode is true, skip that many lines at the beginning of the file
-"""
-
-default_config = {
-    "to_attr": None,
-    "file": None,
-    "lines_mode": False,
-    "skip_lines": 0,
-    "opt:to_attr": "[string] -> store read file content into 'to_attr'",
-    "opt:file": "[string] -> path to file to read",
-    "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
-    "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:out": "[string] -> lines or whole file read",
-}
-
-
 def main():
-    parser = c.create_default_fbp_component_args_parser("Read a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, meta)
 
 
 if __name__ == "__main__":
