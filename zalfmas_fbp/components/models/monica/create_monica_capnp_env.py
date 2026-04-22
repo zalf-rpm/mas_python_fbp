@@ -46,7 +46,7 @@ meta = {
                 "contentType": "soil.capnp:Profile | Text (JSON array)",
                 "desc": "Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers.",
             },
-            {"name": "in", "type": "Text (JSON)", "desc": "MONICA env json."},
+            {"name": "in", "contentType": "Text (JSON)", "desc": "MONICA env json."},
         ],
         "outPorts": [
             {

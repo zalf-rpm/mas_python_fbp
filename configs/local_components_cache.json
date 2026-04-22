@@ -938,7 +938,7 @@
                 },
                 {
                     "name": "in",
-                    "type": "Text (JSON)",
+                    "contentType": "Text (JSON)",
                     "desc": "MONICA env json."
                 }
             ],
