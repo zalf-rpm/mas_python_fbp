@@ -25,6 +25,8 @@ from zalfmas_capnp_schemas_with_stubs import (
     grid_capnp,
     model_capnp,
     soil_capnp,
+)
+from zalfmas_capnp_schemas_with_stubs import (
     management_capnp as mgmt_capnp,
 )
 from zalfmas_capnp_schemas_with_stubs.model.monica import sim_setup_capnp

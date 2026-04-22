@@ -21,7 +21,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from subprocess import Popen
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, override
 
 import capnp
 from mas.schema.common import common_capnp

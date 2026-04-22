@@ -21,7 +21,7 @@ import os.path
 import subprocess as sp
 from collections import Counter, defaultdict
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -47,13 +47,13 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
         self,
         path_to_executable,
-        id=None,
-        name=None,
-        description=None,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
-        self.proc: sp.Popen = None
+        self.proc: sp.Popen[str] | sp.Popen[bytes] | None = None
         self.stopped_callbacks = []
 
     async def start_context(
@@ -170,10 +170,10 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
     def __init__(
         self,
         cat_id_to_name_and_component_holders: dict,
-        id=None,
-        name=None,
-        description=None,
-        restorer=None,
+        id: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        restorer: common.Restorer | None = None,
     ):
         common.Persistable.__init__(self, restorer)
         common.Identifiable.__init__(self, id, name, description)

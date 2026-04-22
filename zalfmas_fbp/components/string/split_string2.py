@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 
 import capnp
-from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
@@ -49,7 +48,7 @@ meta = {
 
 
 class SplitString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager = None):
+    def __init__(self, metadata, con_man: common.ConnectionManager | None = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):

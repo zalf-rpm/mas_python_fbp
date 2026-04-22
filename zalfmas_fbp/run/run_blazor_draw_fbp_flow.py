@@ -20,9 +20,10 @@ import uuid
 from collections import defaultdict
 
 import capnp
-import channels as chans
 from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
 from zalfmas_common import common
+
+from zalfmas_fbp.run import channels as chans
 
 # def get_free_port():
 #    with socket.socket() as s:

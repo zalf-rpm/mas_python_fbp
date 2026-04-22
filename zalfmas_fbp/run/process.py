@@ -20,11 +20,11 @@ import sys
 from typing import TYPE_CHECKING
 
 import capnp
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 if TYPE_CHECKING:
-    from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
 from zalfmas_common import common
 
@@ -50,8 +50,7 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
         self,
-        metadata: dict = None,
-        con_man: common.ConnectionManager = None,
+        metadata: dict[str, Any] | None = None,
         con_man: common.ConnectionManager | None = None,
         id: str | None = None,
         name: str | None = None,
@@ -108,7 +107,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     val = common_capnp.Value.new_message(lt=v)
 
             if val:
-                self.config[k]: dict[str, common_capnp.ValueBuilder] = val
+                self.config[k] = val
 
     def is_canceled(self):
         return self.process_state == "canceled"
