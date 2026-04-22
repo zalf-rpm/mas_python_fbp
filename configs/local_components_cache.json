@@ -1448,7 +1448,7 @@
         },
         "component": {
             "info": {
-                "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
+                "id": "6c9346e6-71a7-4007-b403-2c78c845c1c7",
                 "name": "collect into list",
                 "description": "Collects values (parsed out of a string) into a list."
             },
