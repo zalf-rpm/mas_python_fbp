@@ -1,4 +1,4 @@
-FROM ghcr.io/prefix-dev/pixi:0.66.0 AS build
+FROM ghcr.io/prefix-dev/pixi:0.67.1 AS build
 
 # copy source code, pixi.toml and pixi.lock to the container
 COPY . /app
@@ -24,7 +24,7 @@ RUN useradd -m -s /bin/bash appuser
 COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
 COPY --from=build /shell-hook.sh /shell-hook.sh
 COPY --from=build /app/binaries /app/binaries
-COPY --from=build /app/configs /app/configs
+COPY --from=build --chown=appuser:appuser /app/configs /app/configs
 COPY --from=build /app/zalfmas_fbp /app/zalfmas_fbp
 
 EXPOSE 8000
