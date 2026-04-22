@@ -138,9 +138,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             ds = (await timeseries.dataT()).data if tsd.isTransposed else (await timeseries.data()).data
             tsd.init("data", len(ds))
             for i in range(len(ds)):
-                l = tsd.data.init(i, header_size)
+                row_data = tsd.data.init(i, header_size)
                 for j in range(header_size):
-                    l[j] = ds[i][j]
+                    row_data[j] = ds[i][j]
             se_date = await se_date_prom
             tsd.startDate = se_date.startDate
             tsd.endDate = se_date.endDate

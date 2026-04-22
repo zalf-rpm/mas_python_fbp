@@ -90,14 +90,14 @@ async def read_dict_from_port(port, text_type="toml"):
                     d = tomli.loads(st.value)
                 elif st.type == "json":
                     d = json.loads(st.value)
-            except:
+            except (KjException, TypeError, ValueError):
                 try:  # if structured text fails, try as plain text and use config_type parameter
-                    str = ip.content.as_text()
+                    text_value = ip.content.as_text()
                     if text_type == "toml":
-                        d = tomli.loads(str)
+                        d = tomli.loads(text_value)
                     elif text_type == "json":
-                        d = json.loads(str)
-                except:
+                        d = json.loads(text_value)
+                except (KjException, TypeError, ValueError):
                     pass
         except Exception as e:
             print(f"{os.path.basename(__file__)} read_dict_from_port. Exception: {e}")

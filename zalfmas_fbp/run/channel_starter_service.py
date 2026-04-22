@@ -54,11 +54,12 @@ class StopChannelProcess(service_capnp.Stoppable.Server):
             self.proc.terminate()
             # give it a sec to terminate
             await asyncio.sleep(1)
-            context.results.success = self.proc.poll() is not None
+            stopped = self.proc.poll() is not None
             self.proc = None
             if self.remove_from_service:
                 _ = self.remove_from_service()
-            context.results.success = rt
+            context.results.success = stopped
+            return
         context.results.success = False
 
 

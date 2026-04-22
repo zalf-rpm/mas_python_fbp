@@ -109,14 +109,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
                     break
-                for l in ls:
-                    rc = l.customData[0].value.as_struct(geo_capnp.RowCol)
+                for location in ls:
+                    rc = location.customData[0].value.as_struct(geo_capnp.RowCol)
                     attrs = [{"key": "id", "value": f"row-{rc.row}_col-{rc.col}"}]
                     if config["to_attr"]:
-                        attrs.append({"key": config["to_attr"], "value": l.timeSeries})
+                        attrs.append({"key": config["to_attr"], "value": location.timeSeries})
                     out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                     if not config["to_attr"]:
-                        out_ip.content = l.timeSeries
+                        out_ip.content = location.timeSeries
                     await ports["ts"].write(value=out_ip)
             if config["create_substream"]:
                 await ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))

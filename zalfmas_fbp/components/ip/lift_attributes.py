@@ -69,7 +69,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     lift_from_type = common.load_capnp_module(config["lift_from_type"])
     lft_fieldnames = lift_from_type.schema.fieldnames
-    lift_from_attr_name = config["lift_from_attr"]
 
     while ports["in"] and ports["out"]:
         try:

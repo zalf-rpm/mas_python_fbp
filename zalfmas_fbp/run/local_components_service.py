@@ -19,6 +19,7 @@ import json
 import logging
 import os.path
 import subprocess as sp
+import sys
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from typing import TYPE_CHECKING, override

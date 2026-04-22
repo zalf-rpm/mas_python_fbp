@@ -82,7 +82,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     if ports["out"]:
         try:
             with open(config["file"]) as _:
-                key_to_data = {}
                 # determine seperator char
                 dialect = csv.Sniffer().sniff(_.read(), delimiters=";,\t")
                 _.seek(0)

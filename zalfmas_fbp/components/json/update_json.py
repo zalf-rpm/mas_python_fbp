@@ -176,13 +176,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         else:
                             j[k] = v
 
-            def create_nested_dict(l: list) -> dict:
+            def create_nested_dict(path_parts: list) -> dict:
                 res_dict = {}
                 d = res_dict
                 prev_d = d
                 prev_key = None
                 assign_result = False
-                for val in l:
+                for val in path_parts:
                     if assign_result:
                         prev_d[prev_key] = val
                         continue
@@ -201,8 +201,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         try:
                             nested_dict = create_nested_dict(co)
                             change(j_content, nested_dict, allowed_operation=op)
-                        except:
-                            pass
+                        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
+                            print(f"{os.path.basename(__file__)}: couldn't apply {op} operation {co}: {e}")
 
             out_ip = fbp_capnp.IP.new_message(
                 content=json.dumps(j_content),

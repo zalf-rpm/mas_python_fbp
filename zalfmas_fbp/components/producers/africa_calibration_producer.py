@@ -142,7 +142,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         _.write(f"config: {config}\n")
 
     s_resolution = {"5min": 5 / 60.0, "30sec": 30 / 3600.0}[config["resolution"]]
-    s_res_scale_factor = {"5min": 60.0, "30sec": 3600.0}[config["resolution"]]
 
     region_to_lat_lon_bounds = {
         "nigeria": {"tl": {"lat": 14.0, "lon": 2.7}, "br": {"lat": 4.25, "lon": 14.7}},
@@ -310,8 +309,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         ensmem = setup["ensmem"]
         crop = setup["crop"]
 
-        lat_lon_bounds = region_to_lat_lon_bounds.get(region)
-
         if setup["region"] == "nigeria":
             planting = setup["planting"].lower()
             nitrogen = setup["nitrogen"].lower()
@@ -353,7 +350,6 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         if setup["start_date"]:
             sim_json["climate.csv-options"]["start-date"] = str(setup["start_date"])
         if setup["end_date"]:
-            end_year = int(setup["end_date"].split("-")[0])
             sim_json["climate.csv-options"]["end-date"] = str(setup["end_date"])
         sim_json["include-file-base-path"] = os.path.join(config["path_to_repo"], sim_json["include-file-base-path"])
 

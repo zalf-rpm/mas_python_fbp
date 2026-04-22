@@ -91,9 +91,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # print("split_string vals:", vals)
 
             req = ports["out"].write_request()
-            l = init_list(req.value.as_struct(fbp_capnp.IP).content, len(vals))
+            values_list = init_list(req.value.as_struct(fbp_capnp.IP).content, len(vals))
             for i, val in enumerate(vals):
-                l[i] = val
+                values_list[i] = val
             await req.send()
             # await ports["out"].write(value=vals)
 

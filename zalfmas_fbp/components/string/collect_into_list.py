@@ -57,17 +57,20 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     no_of_elements = config["no_of_elements"]
 
-    cast_to = None
-    if config["cast_to"] == "float":
-        cast_to = lambda v: float(v)
-    elif config["cast_to"] == "int":
-        cast_to = lambda v: int(v)
+    def cast_value(value: str):
+        if config["cast_to"] == "float":
+            return float(value)
+        if config["cast_to"] == "int":
+            return int(value)
+        return value
 
-    init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Text), len_)
-    if config["cast_to"] == "float":
-        init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Float64), len_)
-    elif config["cast_to"] == "int":
-        init_list = lambda any_p, len_: any_p.init_as_list(capnp._ListSchema(capnp.types.Int64), len_)
+    def init_list(any_pointer, length):
+        list_type = capnp.types.Text
+        if config["cast_to"] == "float":
+            list_type = capnp.types.Float64
+        elif config["cast_to"] == "int":
+            list_type = capnp.types.Int64
+        return any_pointer.init_as_list(capnp._ListSchema(list_type), length)
 
     while ports["in"] and ports["out"]:
         try:
@@ -81,14 +84,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
                 elems.append(s)
 
-            if cast_to:
-                elems = list(map(cast_to, elems))
+            if config["cast_to"] != "text":
+                elems = [cast_value(elem) for elem in elems]
             print(f"{os.path.basename(__file__)}:", elems)
 
             req = ports["out"].write_request()
-            l = init_list(req.value.as_struct(fbp_capnp.IP).content, len(elems))
+            values_list = init_list(req.value.as_struct(fbp_capnp.IP).content, len(elems))
             for i, val in enumerate(elems):
-                l[i] = val
+                values_list[i] = val
             await req.send()
 
         except capnp.KjException as e:

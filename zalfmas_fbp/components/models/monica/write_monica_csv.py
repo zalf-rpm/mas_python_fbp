@@ -128,7 +128,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         ):
                             writer.writerow(row)
 
-                        if len(results) > 0 and type(results[0]) == dict:
+                        if len(results) > 0 and isinstance(results[0], dict):
                             for row in monica_io.write_output_obj(output_ids, results):
                                 writer.writerow(row)
                         else:

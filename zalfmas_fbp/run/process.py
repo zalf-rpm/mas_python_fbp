@@ -26,9 +26,8 @@ from mas.schema.fbp import fbp_capnp
 
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
+    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
-from mas.schema.fbp.fbp_capnp.types.clients import StateTransitionClient
 from zalfmas_common import common
 
 logger = logging.getLogger(__name__)
@@ -68,7 +67,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.metadata: dict[str, Any] = metadata if metadata else {}
         self.configuration: dict[str, Any] = {}
         self.in_ports: dict[str, ReaderClient | None] = {}
-        self.out_ports: dict[str, WriterClient | None] = {}
+        self.out_ports: dict[str, WriterClient | list[WriterClient | None] | None] = {}
         self.tasks = []
         self.process_state: ProcessStateEnum = "stopped"  # states: started, stopped, canceled
         self.state_transition_callbacks: list[StateTransitionClient] = []
@@ -266,8 +265,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 host = host if host else common.get_public_ip()
                 import socket
 
-                l = list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))
-                if len(ip4_socks := l) > 0:
+                ipv4_sockets = list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))
+                if len(ip4_socks := ipv4_sockets) > 0:
                     port = ip4_socks[0].getsockname()[1]
                 print(f"Process({self.name}) SR: capnp://{host}:{port}")
             await server.serve_forever()
