@@ -17,7 +17,8 @@ import logging
 import os
 import subprocess as sp
 import sys
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -27,6 +28,7 @@ from mas.schema.fbp import fbp_capnp
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
+from mas.schema.fbp.fbp_capnp.types.clients import StateTransitionClient
 from zalfmas_common import common
 
 logger = logging.getLogger(__name__)
@@ -39,11 +41,14 @@ logging.basicConfig(
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
     def __init__(
         self,
-        callback,  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
+        callback: Callable[
+            [ProcessStateEnum, ProcessStateEnum], None
+        ],  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
     ):
-        self.callback = callback
+        self.callback: Callable[[ProcessStateEnum, ProcessStateEnum], None] = callback
 
     # stateChanged @0 (old :State, new :State);
+    @override
     async def stateChanged(self, old, new, _context, **kwargs):
         self.callback(old, new)
 
@@ -60,13 +65,13 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man if con_man else common.ConnectionManager())
 
-        self.metadata = metadata if metadata else {}
-        self.configuration = {}
+        self.metadata: dict[str, Any] = metadata if metadata else {}
+        self.configuration: dict[str, Any] = {}
         self.in_ports: dict[str, ReaderClient | None] = {}
         self.out_ports: dict[str, WriterClient | None] = {}
         self.tasks = []
         self.process_state: ProcessStateEnum = "stopped"  # states: started, stopped, canceled
-        self.state_transition_callbacks = []
+        self.state_transition_callbacks: list[StateTransitionClient] = []
 
         self.init_from_metadata()
 
@@ -75,8 +80,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         if self.meta:
             try:
                 default_config = {k: v["value"] for k, v in self.meta["component"]["defaultConfig"].items()}
-                self.name = self.meta["component"]["info"]["name"]
-                self.description = self.meta["component"]["info"]["description"]
+                self.name: str = self.meta["component"]["info"]["name"]
+                self.description: str = self.meta["component"]["info"]["description"]
             except Exception as e:
                 logger.warning(
                     f"Some metadata could not be used for initializing the process component. Exception: {e}"
@@ -165,7 +170,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     async def configEntries(self, _context, **kwargs):
         return list(
             map(
-                lambda k, v: fbp_capnp.ConfigEntry.new_message(name=k, val=v),
+                lambda k, v: fbp_capnp.Process.ConfigEntry.new_message(name=k, val=v),
                 self.config.items(),
             )
         )
@@ -196,6 +201,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             await cb.stateChanged(prev_state, self.process_state)
 
     # start @5 () -> (started: Bool, finishedSuccessfully :Bool);
+    @override
     async def start(self, _context, **kwargs):
         # only call run, if run has finished already
         if self.process_state == "started" or self.process_state == "canceled":
@@ -204,6 +210,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         await self.run()
 
     # stop @6 ();
+    @override
     async def stop(self, _context, **kwargs):
         await self.close_out_ports()
         await self.transition_to_state("canceled")
@@ -212,6 +219,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         logger.warning("run method unimplemented")
 
     # state @8 (transitionCallback :StateTransition) -> (currentState :State);
+    @override
     async def state(self, transitionCallback, _context, **kwargs):
         if transitionCallback:
             self.state_transition_callbacks.append(transitionCallback)
@@ -248,7 +256,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             await writer.write(value=self)
             logging.info(f"wrote process cap into {writer_sr}")
 
-        async def new_connection(stream):
+        async def new_connection(stream: capnp.AsyncIoStream):
             await capnp.TwoPartyServer(stream, bootstrap=self if serve_bootstrap else None).on_disconnect()
 
         port = port if port else 0
@@ -265,7 +273,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             await server.serve_forever()
 
 
-def start_local_process_component(path_to_executable, process_cap_writer_sr, name=None) -> sp.Popen[str]:
+def start_local_process_component(path_to_executable, process_cap_writer_sr, name: str | None = None) -> sp.Popen[str]:
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
         pte_split[0] = sys.executable

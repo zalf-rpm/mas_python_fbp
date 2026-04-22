@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -48,18 +49,23 @@ meta = {
 
 
 class SplitString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager | None = None):
+    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
+    @override
     async def run(self):
         await self.process_started()
         logger.info(f"{self.name} process started")
 
-        while self.ip("in") and self.op("out"):
+        while True:
+            in_port = self.ip("in")
+            out_port = self.op("out")
+            if not in_port or not out_port:
+                break
             if self.is_canceled():
                 break
             try:
-                in_msg = await self.ip("in").read()
+                in_msg = await in_port.read()
                 if in_msg.which() == "done":
                     self.close_ip("in")
                     continue
@@ -71,7 +77,7 @@ class SplitString(process.Process):
 
                 for val in vals:
                     out_ip = fbp_capnp.IP.new_message(content=val)
-                    await self.op("out").write(value=out_ip)
+                    await out_port.write(value=out_ip)
                     logger.info(f"{self.name} sent: {val}")
 
             except capnp.KjException as e:
