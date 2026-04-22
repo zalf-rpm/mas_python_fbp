@@ -159,7 +159,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 value=json.dumps(json_env), structure={"json": None}
             )
 
-            out_ip = common_capnp.IP.new_message()
+            out_ip = fbp_capnp.IP.new_message()
 
             if "to_attr" in config and len(config["to_attr"]) > 0:
                 attrs[config["to_attr"]] = capnp_env
