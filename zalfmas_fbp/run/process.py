@@ -26,6 +26,7 @@ from mas.schema.fbp import fbp_capnp
 # from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
+    from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
 from zalfmas_common import common
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.in_ports: dict[str, ReaderClient | None] = {}
         self.out_ports: dict[str, WriterClient | None] = {}
         self.tasks = []
-        self.process_state = "stopped"  # states: started, stopped, canceled
+        self.process_state: ProcessStateEnum = "stopped"  # states: started, stopped, canceled
         self.state_transition_callbacks = []
 
         self.init_from_metadata()
@@ -185,7 +186,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     async def process_stopped(self):
         await self.transition_to_state("stopped")
 
-    async def transition_to_state(self, new_state):
+    async def transition_to_state(self, new_state: ProcessStateEnum):
         if new_state == self.process_state:
             return
 
