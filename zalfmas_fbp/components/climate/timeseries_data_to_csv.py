@@ -17,7 +17,8 @@ import io
 import os
 from datetime import date, timedelta
 
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c

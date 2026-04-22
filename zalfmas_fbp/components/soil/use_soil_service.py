@@ -15,7 +15,9 @@
 
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp, soil_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.soil import soil_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c

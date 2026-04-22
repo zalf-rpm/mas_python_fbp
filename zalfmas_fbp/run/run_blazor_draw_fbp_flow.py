@@ -20,7 +20,8 @@ import uuid
 from collections import defaultdict
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import channels as chans

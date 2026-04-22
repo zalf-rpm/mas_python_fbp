@@ -17,8 +17,9 @@ import os
 from datetime import date, timedelta
 
 from pyproj import CRS
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp
-from zalfmas_capnp_schemas_with_stubs import management_capnp as mgmt_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.management import management_capnp as mgmt_capnp
 from zalfmas_common import common, geo
 from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 

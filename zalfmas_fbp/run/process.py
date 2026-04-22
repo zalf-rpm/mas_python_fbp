@@ -24,7 +24,6 @@ import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
-# from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, persistence_capnp
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum

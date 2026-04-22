@@ -17,19 +17,15 @@ import json
 import os
 import uuid
 
-from zalfmas_capnp_schemas_with_stubs import (
-    climate_capnp,
-    common_capnp,
-    fbp_capnp,
-    geo_capnp,
-    grid_capnp,
-    model_capnp,
-    soil_capnp,
-)
-from zalfmas_capnp_schemas_with_stubs import (
-    management_capnp as mgmt_capnp,
-)
-from zalfmas_capnp_schemas_with_stubs.model.monica import sim_setup_capnp
+from mas.schema.climate import climate_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.grid import grid_capnp
+from mas.schema.model import model_capnp
+from mas.schema.soil import soil_capnp
+from mas.schema.management import management_capnp as mgmt_capnp
+from mas.schema.model.monica import sim_setup_capnp
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c

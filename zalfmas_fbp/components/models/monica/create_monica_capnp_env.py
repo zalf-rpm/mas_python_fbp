@@ -16,13 +16,11 @@
 import json
 import os
 
-from zalfmas_capnp_schemas_with_stubs import (
-    climate_capnp,
-    common_capnp,
-    fbp_capnp,
-    model_capnp,
-    soil_capnp,
-)
+from mas.schema.climate import climate_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.model import model_capnp
+from mas.schema.soil import soil_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p

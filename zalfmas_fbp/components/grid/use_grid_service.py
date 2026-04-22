@@ -16,12 +16,10 @@
 import os
 
 from pymep.realParser import eval as mep_eval
-from zalfmas_capnp_schemas_with_stubs import (
-    common_capnp,
-    fbp_capnp,
-    geo_capnp,
-    grid_capnp,
-)
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.grid import grid_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
