@@ -348,55 +348,55 @@ def create_default_args_parser(
     component_description: str,
 ):
     parser = argparse.ArgumentParser(description=component_description)
-    parser.add_argument(
+    _ = parser.add_argument(
         "process_cap_writer_sr",
         type=str,
         nargs="?",
         help="SturdyRef to the Writer[fbp.capnp:Process]. Writes process capability on startup to writer.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output_json_default_config",
         "-o",
         action="store_true",
         help="Output JSON configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output_json_component_metadata",
         "-O",
         action="store_true",
         help="Output JSON component metadata at commandline. To be used for configuring component service.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--write_json_default_config",
         "-w",
         type=str,
         help="Output JSON configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--write_json_component_metadata",
         "-W",
         type=str,
         help="Output JSON component metadata in the current directory. To be used for configuring component service.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-b",
         "--serve_bootstrap",
         action="store_true",
         help="Serve process as the bootstrap object.>",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--host",
         type=str,
         default=None,
         help="Host to be used when serving the process.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--port",
         type=int,
         default=None,
         help="Port to be used when serving the process.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "-l",
         "--log_level",
         type=str,
