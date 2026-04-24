@@ -43,14 +43,14 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["cs"] and ports["ds"]:
+    while pc.in_ports["cs"] and pc.out_ports["ds"]:
         try:
             service = (
                 service_cap.cast_as(climate_capnp.Service)
-                if (service_cap := await ports.read_or_connect("cs")) is not None
+                if (service_cap := await pc.read_or_connect("cs")) is not None
                 else None
             )
             if service is None:
@@ -63,7 +63,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
 
             info = await info_prom
             if config["create_substream"]:
-                ports["ds"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
+                pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             for meta_plus_data in datasets if datasets else []:
                 attrs = []
                 if config["to_attr"]:
@@ -71,14 +71,14 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
                 out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                 if not config["to_attr"]:
                     out_ip.content = meta_plus_data.data
-                await ports["ds"].write(value=out_ip)
+                await pc.out_ports["ds"].write(value=out_ip)
             if config["create_substream"]:
-                ports["ds"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
+                pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

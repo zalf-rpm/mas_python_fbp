@@ -52,8 +52,8 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     debug_out = config["debug_out"]
     if not config["path_to_grid"]:
@@ -65,12 +65,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         print_path=debug_out,
     )
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            msg = await ports["in"].read()
+            msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 break
 
             in_ip = msg.value.as_struct(fbp_capnp.IP)
@@ -82,12 +82,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 cval = common_capnp.Value.new_message(f64=val)
             out_ip = fbp_capnp.IP.new_message(content=cval)
             common.copy_and_set_fbp_attrs(in_ip, out_ip)
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

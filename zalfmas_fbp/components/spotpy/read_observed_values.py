@@ -64,19 +64,19 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["conf", "country_ids"], outs=["out"]
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     # get default country ids
     country_ids = config["default_country_ids"]
 
-    while ports["country_ids"] and ports["out"]:
+    while pc.in_ports["country_ids"] and pc.out_ports["out"]:
         try:
-            msg = await ports["country_ids"].read()
+            msg = await pc.in_ports["country_ids"].read()
             if msg.which() == "done":
-                ports["country_ids"] = None
+                pc.in_ports["country_ids"] = None
                 continue
             country_ids_ip = msg.value.as_struct(fbp_capnp.IP)
             c_ids_txt = country_ids_ip.content.as_text()
@@ -117,12 +117,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 content=json.dumps(crop_to_country_to_year_to_value.get(config["crop"], {})),
             )
 
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

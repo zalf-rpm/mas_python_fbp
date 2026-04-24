@@ -102,18 +102,18 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "latlon", "service"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     service = None
-    if ports["service"]:
+    if pc.in_ports["service"]:
         service = (
             service_cap.cast_as(soil_capnp.Service)
-            if (service_cap := await ports.read_or_connect("service")) is not None
+            if (service_cap := await pc.read_or_connect("service")) is not None
             else None
         )
         if not service:
@@ -122,11 +122,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     mandatory = config["mandatory"]
     optional = config["optional"]
-    while ports["latlon"] and ports["out"] and service:
+    while pc.in_ports["latlon"] and pc.out_ports["out"] and service:
         try:
-            in_msg = await ports["latlon"].read()
+            in_msg = await pc.in_ports["latlon"].read()
             if in_msg.which() == "done":
-                ports["latlon"] = None
+                pc.in_ports["latlon"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -150,12 +150,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip,
                     **({config["to_attr"]: profile} if config["to_attr"] else {}),
                 )
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception :", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

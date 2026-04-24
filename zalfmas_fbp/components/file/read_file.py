@@ -57,11 +57,11 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     skip_lines = config["skip_lines"]
-    if config["file"] and ports["out"]:
+    if config["file"] and pc.out_ports["out"]:
         try:
             with open(config["file"]) as _:
                 if config["lines_mode"]:
@@ -75,7 +75,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             out_ip.attributes = [{"key": config["to_attr"], "value": line}]
                         else:
                             out_ip.content = line
-                        await ports["out"].write(value=out_ip)
+                        await pc.out_ports["out"].write(value=out_ip)
                 else:
                     file_content = _.read()
                     out_ip = fbp_capnp.IP.new_message()
@@ -83,7 +83,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]
                     else:
                         out_ip.content = file_content
-                    await ports["out"].write(value=out_ip)
+                    await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
             print(
@@ -91,7 +91,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 e.description,
             )
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

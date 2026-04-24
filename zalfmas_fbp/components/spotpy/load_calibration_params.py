@@ -16,6 +16,7 @@
 import csv
 import json
 import os
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 
@@ -50,9 +51,9 @@ meta = {
 }
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await pp.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["params"])
-    await pp.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await pp.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["params"])
+    await pp.update_config_from_port(config, pc.in_ports["conf"])
 
     params = []
     if config["path_to_calibrate_csv"]:
@@ -79,16 +80,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     p["derive_function"] = lambda _, _2: eval(row[8])
                 params.append(p)
 
-    if ports["params"]:
+    if pc.out_ports["params"]:
         try:
             params_ip = fbp_capnp.IP.new_message(content=json.dumps(params))
-            ports["params"].write(value=params_ip).wait()
-            await ports["params"].close()
+            pc.out_ports["params"].write(value=params_ip).wait()
+            await pc.out_ports["params"].close()
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

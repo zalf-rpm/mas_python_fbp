@@ -55,14 +55,14 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["ds"] and ports["ts"]:
+    while pc.in_ports["ds"] and pc.out_ports["ts"]:
         try:
-            ds_msg = await ports["ds"].read()
+            ds_msg = await pc.in_ports["ds"].read()
             if ds_msg.which() == "done":
-                ports["ds"] = None
+                pc.in_ports["ds"] = None
                 continue
 
             ds_ip = ds_msg.value.as_struct(fbp_capnp.IP)
@@ -70,11 +70,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # pass through brackets as we just want to preserve structure for downstream components
             if ds_ip.type == "openBracket":
                 if config["maintain_incoming_substreams"]:
-                    await ports["ts"].write(ds_ip)
+                    await pc.out_ports["ts"].write(ds_ip)
                 continue
             elif ds_ip.type == "closeBracket":
                 if config["maintain_incoming_substreams"]:
-                    await ports["ts"].write(ds_ip)
+                    await pc.out_ports["ts"].write(ds_ip)
 
             dataset = None
             try:
@@ -84,7 +84,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     dataset = (
                         dataset_cap.cast_as(climate_capnp.Dataset)
                         if (
-                            dataset_cap := await ports.connection_manager.try_connect(
+                            dataset_cap := await pc.connection_manager.try_connect(
                                 ds_ip.content.as_text(),
                                 retry_secs=1,
                             )
@@ -106,7 +106,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # callback = await callback_prom
 
             if config["create_substream"]:
-                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
+                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             while True:
                 ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
@@ -119,14 +119,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                     if not config["to_attr"]:
                         out_ip.content = location.timeSeries
-                    await ports["ts"].write(value=out_ip)
+                    await pc.out_ports["ts"].write(value=out_ip)
             if config["create_substream"]:
-                await ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
+                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

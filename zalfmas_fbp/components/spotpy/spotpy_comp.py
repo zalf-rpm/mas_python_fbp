@@ -180,22 +180,26 @@ def print_status_final(sampler_status, stream):
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
-        ins=["config", "init_params", "obs_values", "sim_values"],
+        ins=["conf", "init_params", "obs_values", "sim_values"],
         outs=["sampled_params", "best"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["sampled_params"] and ports["sim_values"] and (ports["init_params"] or ports["obs_values"]):
+    while (
+        pc.out_ports["sampled_params"]
+        and pc.in_ports["sim_values"]
+        and (pc.in_ports["init_params"] or pc.in_ports["obs_values"])
+    ):
         db_dir = None
         try:
             spotpy_params = None
-            if ports["init_params"]:
+            if pc.in_ports["init_params"]:
                 try:
-                    init_params = await p.update_config_from_port({}, ports["init_params"])
+                    init_params = await p.update_config_from_port({}, pc.in_ports["init_params"])
                     if not init_params:
-                        ports["init_params"] = None
+                        pc.in_ports["init_params"] = None
                         continue
 
                     spotpy_params = []
@@ -215,12 +219,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             obs_values = None
             param_set_id = None
-            if ports["obs_values"]:
+            if pc.in_ports["obs_values"]:
                 try:
-                    msg = await ports["obs_values"].read()
+                    msg = await pc.in_ports["obs_values"].read()
                     # check for end of data from in port
                     if msg.which() == "done":
-                        ports["obs_values"] = None
+                        pc.in_ports["obs_values"] = None
                         continue
 
                     obs_values_ip = msg.value.as_struct(fbp_capnp.IP)
@@ -235,7 +239,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     print(f"{os.path.basename(__file__)} Exception:", e)
                     continue
 
-            spot_setup = SpotPySetup(spotpy_params, obs_values, ports["sampled_params"], ports["sim_values"])
+            spot_setup = SpotPySetup(
+                spotpy_params, obs_values, pc.out_ports["sampled_params"], pc.in_ports["sim_values"]
+            )
 
             rep = config["repetitions"]  # initial number was 10
             db_dir = tempfile.TemporaryDirectory()
@@ -251,11 +257,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # pcento = percent change allowed in kstop loops before convergence
             sampler.sample(rep, ngs=len(spotpy_params) * 2, peps=0.001, pcento=0.001)
 
-            if ports["best"]:
+            if pc.out_ports["best"]:
                 best_out_stream = io.StringIO()
                 print_status_final(sampler.status, best_out_stream)
                 best_ip = fbp_capnp.IP.new_message(content=best_out_stream.getvalue())
-                await ports["best"].write(value=best_ip)
+                await pc.out_ports["best"].write(value=best_ip)
 
             results = spotpy.analyser.load_csv_results(path_to_spotpy_db)
             # Plot how the objective function was minimized during sampling
@@ -280,7 +286,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         if db_dir:
             db_dir.cleanup()
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

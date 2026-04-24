@@ -49,8 +49,8 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     def create_capnp_date(py_date):  # isodate):
         # py_date = date.fromisoformat(isodate)
@@ -62,11 +62,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         capnp_date.month = py_date.month
         capnp_date.day = py_date.day
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -74,11 +74,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # pass through brackets as we just want to preserve structure for downstream components
             if in_ip.type == "openBracket":
                 if config["maintain_substreams"]:
-                    await ports["out"].write(in_ip)
+                    await pc.out_ports["out"].write(in_ip)
                 continue
             elif in_ip.type == "closeBracket":
                 if config["maintain_substreams"]:
-                    await ports["out"].write(in_ip)
+                    await pc.out_ports["out"].write(in_ip)
 
             attr = common.get_fbp_attr(in_ip, config["from_attr"])
             cap_or_sr = attr if attr else in_ip.content
@@ -90,7 +90,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     timeseries = (
                         timeseries_cap.cast_as(climate_capnp.TimeSeries)
                         if (
-                            timeseries_cap := await ports.connection_manager.try_connect(
+                            timeseries_cap := await pc.connection_manager.try_connect(
                                 cap_or_sr.as_text(),
                                 retry_secs=1,
                             )
@@ -155,12 +155,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if not config["to_attr"]:
                 out_ip.content = tsd
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {}))
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

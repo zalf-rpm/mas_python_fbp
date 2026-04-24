@@ -87,19 +87,19 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["conf", "climate", "soil", "in"], outs=["out"]
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     timeseries = None
     soil_profile = None
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -111,10 +111,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             capnp_env = model_capnp.Env.new_message()
 
-            if ports["climate"]:
+            if pc.in_ports["climate"]:
                 timeseries = (
                     timeseries_cap.cast_as(climate_capnp.TimeSeries)
-                    if (timeseries_cap := await ports.read_or_connect("climate")) is not None
+                    if (timeseries_cap := await pc.read_or_connect("climate")) is not None
                     else None
                 )
                 if timeseries:
@@ -132,10 +132,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 else:
                     json_env["pathToClimateCSV"] = timeseries
 
-            if ports["soil"]:
+            if pc.in_ports["soil"]:
                 soil_profile = (
                     soil_profile_cap.cast_as(soil_capnp.Profile)
-                    if (soil_profile_cap := await ports.read_or_connect("soil")) is not None
+                    if (soil_profile_cap := await pc.read_or_connect("soil")) is not None
                     else None
                 )
                 if soil_profile:
@@ -165,12 +165,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip.content = capnp_env
 
             out_ip.attributes = list([{"key": k, "value": v} for k, v in attrs.items()])
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

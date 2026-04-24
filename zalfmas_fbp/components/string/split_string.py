@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import os
+from typing import Any
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -40,18 +41,18 @@ meta = {
 }
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
-    await p.update_config_from_port(config, ports["conf"])
-    if ports["conf"]:
+    _ = await p.update_config_from_port(config, pc.in_ports["conf"])
+    if pc.in_ports["conf"]:
         print(f"{os.path.basename(__file__)}: {config['name']} updated config from config port")
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
@@ -61,7 +62,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
                 print(f"{os.path.basename(__file__)}: {config['name']} sent:", val)
 
         except capnp.KjException as e:
@@ -72,7 +73,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if e.type in ["DISCONNECTED"]:
                 break
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: {config['name']} process finished")
 
 

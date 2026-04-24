@@ -59,10 +59,8 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "vals"], outs=["coord"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "vals"], outs=["coord"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     to_instance = geo.name_to_struct_instance(config["to_name"])
     if config["list_type"] == "float":
@@ -70,18 +68,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     else:
         list_schema_type = capnp._ListSchema(capnp.types.Int64)
 
-    while ports["vals"] and ports["coord"]:
+    while pc.in_ports["vals"] and pc.out_ports["coord"]:
         try:
-            in_msg = await ports["vals"].read()
+            in_msg = await pc.in_ports["vals"].read()
             if in_msg.which() == "done":
-                ports["vals"] = None
+                pc.in_ports["vals"] = None
                 continue
 
             vals = in_msg.value.as_struct(fbp_capnp.IP).content.as_list(list_schema_type)
             if len(vals) > 1:
                 to_coord = to_instance.copy()
                 geo.set_xy(to_coord, vals[0], vals[1])
-                await ports["coord"].write(value=fbp_capnp.IP.new_message(content=to_coord))
+                await pc.out_ports["coord"].write(value=fbp_capnp.IP.new_message(content=to_coord))
             else:
                 raise Exception("Not enough values in list. Need at least two for a coordinate.")
 
@@ -93,7 +91,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if e.type in ["DISCONNECTED"]:
                 break
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

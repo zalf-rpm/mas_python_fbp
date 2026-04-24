@@ -22,10 +22,10 @@ from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
 from mas.schema.grid import grid_capnp
-from mas.schema.model import model_capnp
-from mas.schema.soil import soil_capnp
 from mas.schema.management import management_capnp as mgmt_capnp
+from mas.schema.model import model_capnp
 from mas.schema.model.monica import sim_setup_capnp
+from mas.schema.soil import soil_capnp
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
@@ -134,15 +134,15 @@ def get_value(list_or_value):
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -297,12 +297,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 content=capnp_env,
                 attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),
             )
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

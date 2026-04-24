@@ -34,6 +34,8 @@ from zalfmas_common import common
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
 
+ArrayWriterPorts = list["WriterClient | None"]
+
 
 def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if type(config_val) is str and len(config_val) > 0 and config_val[0] == "@" and config_val[1:] in attrs:
@@ -69,14 +71,14 @@ def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_tex
 
 
 # toml or json
-async def update_config_from_port(config, port, config_type="toml"):
+async def update_config_from_port(config: dict[str, Any], port: ReaderClient | None, config_type: str = "toml"):
     if port:
         if xxx_config := await read_dict_from_port(port, config_type):
             config.update(xxx_config)
     return config
 
 
-async def read_dict_from_port(port, text_type="toml"):
+async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
     d = {}
     if port:
         try:
@@ -104,11 +106,11 @@ async def read_dict_from_port(port, text_type="toml"):
     return d
 
 
-async def read_dict_from_port_done(ports, port_name, text_type="json", set_port_to_none_if_done=True):
-    if port_name in ports.ins:
-        d = await read_dict_from_port(ports[port_name], text_type=text_type)
+async def read_dict_from_port_done(pc, port_name, text_type="json", set_port_to_none_if_done=True):
+    if port_name in pc.in_ports:
+        d = await read_dict_from_port(pc.in_ports[port_name], text_type=text_type)
         if d is None and set_port_to_none_if_done:
-            ports[port_name] = None
+            pc.in_ports[port_name] = None
         return d
     return None
 
@@ -119,58 +121,34 @@ class PortConnector:
         ins: Sequence[str] | None = None,
         outs: Sequence[str] | None = None,
         connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
         self.in_ports: dict[str, ReaderClient | None] = {n: None for n in ins} if ins else {}
-        self.out_ports: dict[str, WriterClient | list[WriterClient | None] | None] = (
-            {n: None for n in outs} if outs else {}
-        )
+        self.out_ports: dict[str, WriterClient | None] = {n: None for n in outs} if outs else {}
+        self.array_out_ports: dict[str, ArrayWriterPorts] = {n: [] for n in array_outs} if array_outs else {}
         self.con_man: common.ConnectionManager = (
             connection_manager if connection_manager else common.ConnectionManager()
         )
         self.port_infos_reader: ReaderClient | None = None
 
-    # make in_ports a property
-    @property
-    def ins(self) -> dict[str, ReaderClient | None]:
-        return self.in_ports
-
-    # make out_ports a property
-    @property
-    def outs(self) -> dict[str, WriterClient | list[WriterClient | None] | None]:
-        return self.out_ports
-
     @property
     def connection_manager(self):
         return self.con_man
 
-    def __getitem__(self, key: str) -> ReaderClient | WriterClient | list[WriterClient | None] | dict[str, Any] | None:
-        if key in self.in_ports and key in self.out_ports:
-            return {
-                "in": self.in_ports[key],
-                "out": self.out_ports[key],
-            }
-        if key in self.in_ports:
-            return self.in_ports[key]
-        if key in self.out_ports:
-            return self.out_ports[key]
-        return None
+    def _set_in_port(self, name: str, port: ReaderClient | None) -> None:
+        self.in_ports[name] = port
 
-    def __setitem__(self, key: str, value) -> None:
-        if (
-            key in self.in_ports
-            and key in self.out_ports
-            and isinstance(value, dict)
-            and "in" in value
-            and "out" in value
-        ):
-            self.in_ports[key] = value["in"]
-            self.out_ports[key] = value["out"]
-            return
-        if key in self.in_ports:
-            self.in_ports[key] = value
-            return
-        if key in self.out_ports:
-            self.out_ports[key] = value
+    def _set_out_port(self, name: str, port: WriterClient | None) -> None:
+        if name in self.array_out_ports:
+            self.array_out_ports[name].append(port)
+        else:
+            self.out_ports[name] = port
+
+    def _set_array_out_ports(self, name: str, array_ports: ArrayWriterPorts) -> None:
+        if name in self.out_ports:
+            self.out_ports.pop(name, None)
+        self.array_out_ports[name] = array_ports
 
     async def close_out_ports(
         self,
@@ -178,29 +156,25 @@ class PortConnector:
         print_exception: bool = True,
         wait_for_port_infos_reader_done: bool = True,
     ):
-        for name, ps in self.out_ports.items():
-            # is an array out port
-            if isinstance(ps, list):
-                for i, p in enumerate(ps):
-                    if p is not None:
-                        try:
-                            await p.close()
-                            if print_info:
-                                print(f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'")
-                        except Exception as e:
-                            if print_exception:
-                                print(
-                                    f"{os.path.basename(__file__)}: Exception closing array out port '{name}[{i}]': {e}"
-                                )
-            # is a single out port
-            elif ps is not None:
+        for name, port in self.out_ports.items():
+            if port is not None:
                 try:
-                    await ps.close()
+                    await port.close()
                     if print_info:
                         print(f"{os.path.basename(__file__)}: closed out port '{name}'")
                 except Exception as e:
                     if print_exception:
                         print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
+        for name, array_ports in self.array_out_ports.items():
+            for i, port in enumerate(array_ports):
+                if port is not None:
+                    try:
+                        await port.close()
+                        if print_info:
+                            print(f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'")
+                    except Exception as e:
+                        if print_exception:
+                            print(f"{os.path.basename(__file__)}: Exception closing array out port '{name}[{i}]': {e}")
 
         if wait_for_port_infos_reader_done:
             if self.port_infos_reader:
@@ -214,8 +188,10 @@ class PortConnector:
         ins: Sequence[str] | None = None,
         outs: Sequence[str] | None = None,
         connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_cmd_config(config)
         return pc
 
@@ -229,14 +205,14 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.in_ports[port_name] = None
+                        self._set_in_port(port_name, None)
                     else:
                         reader = await self.con_man.try_connect(
                             v,
                             retry_secs=1,
                         )
-                        self.in_ports[port_name] = (
-                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
+                        self._set_in_port(
+                            port_name, reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
                         )
                 elif k.endswith("out_sr"):
                     port_name = k[:-7]
@@ -245,14 +221,14 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.out_ports[port_name] = None
+                        self._set_out_port(port_name, None)
                     else:
                         writer = await self.con_man.try_connect(
                             v,
                             retry_secs=1,
                         )
-                        self.out_ports[port_name] = (
-                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
+                        self._set_out_port(
+                            port_name, writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
                         )
                 elif k.endswith("out_srs"):
                     port_name = k[:-8]
@@ -261,7 +237,7 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.out_ports[port_name] = None
+                        self._set_array_out_ports(port_name, [])
                     else:
                         writers: list[WriterClient | None] = []
                         for out_sr in v.split("|"):
@@ -270,21 +246,21 @@ class PortConnector:
                                 retry_secs=1,
                             )
                             writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
-                        self.out_ports[port_name] = writers
+                        self._set_array_out_ports(port_name, writers)
         except Exception as e:
             print(
                 f"{os.path.basename(__file__)}: Exception connecting to ports via CMD config:\n{config}\n Exception: {e}"
             )
 
     async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
-        in_port = self.ins[in_port_id]
+        in_port = self.in_ports[in_port_id]
         if in_port is None:
             return None
 
         try:
             msg = await in_port.read()
             if msg.which() == "done":
-                self.ins[in_port_id] = None
+                self.in_ports[in_port_id] = None
                 return None
         except KjException:
             return None
@@ -311,8 +287,10 @@ class PortConnector:
         ins: Sequence[str] | None = None,
         outs: Sequence[str] | None = None,
         connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_port_infos_reader(port_infos_reader_sr)
         return pc
 
@@ -337,8 +315,8 @@ class PortConnector:
                             n2sr.sr,
                             retry_secs=1,
                         )
-                        self.in_ports[port_name] = (
-                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
+                        self._set_in_port(
+                            port_name, reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
                         )
 
             for n2sr in pis.outPorts:
@@ -349,8 +327,8 @@ class PortConnector:
                             n2sr.sr,
                             retry_secs=1,
                         )
-                        self.out_ports[port_name] = (
-                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
+                        self._set_out_port(
+                            port_name, writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
                         )
                     elif len(n2sr.srs) > 0:
                         writers: list[WriterClient | None] = []
@@ -361,7 +339,7 @@ class PortConnector:
                                     retry_secs=1,
                                 )
                                 writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
-                        self.out_ports[port_name] = writers
+                        self._set_array_out_ports(port_name, writers)
 
         except Exception as e:
             print(
@@ -374,8 +352,10 @@ class PortConnector:
         ins: Sequence[str] | None = None,
         outs: Sequence[str] | None = None,
         connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_str(config_toml_str)
         return pc
 
@@ -386,10 +366,11 @@ class PortConnector:
             for port_name, data in toml_config["ports"]["in"].items():
                 sr = data.get("sr", None)
                 sr = None if sr == "" else sr
-                self.in_ports[port_name] = (
+                self._set_in_port(
+                    port_name,
                     reader_cap.cast_as(fbp_capnp.Channel.Reader)
                     if sr and (reader_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
-                    else None
+                    else None,
                 )
 
             for port_name, data in toml_config["ports"]["out"].items():
@@ -403,14 +384,15 @@ class PortConnector:
                             if sr and (writer_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
                             else None
                         )
-                    self.out_ports[port_name] = writers
+                    self._set_array_out_ports(port_name, writers)
                 else:
                     sr = data.get("sr", None)
                     sr = None if sr == "" else sr
-                    self.out_ports[port_name] = (
+                    self._set_out_port(
+                        port_name,
                         writer_cap.cast_as(fbp_capnp.Channel.Writer)
                         if sr and (writer_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
-                        else None
+                        else None,
                     )
 
         except Exception as e:
@@ -424,8 +406,10 @@ class PortConnector:
         ins: Sequence[str] | None = None,
         outs: Sequence[str] | None = None,
         connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_reader_sr(config_reader_sr)
         return pc
 

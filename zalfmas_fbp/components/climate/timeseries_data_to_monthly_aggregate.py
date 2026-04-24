@@ -67,16 +67,16 @@ def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["conf", "in"], outs=None
     )  # outs taken from infos
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["in"] and len(list(filter(None, ports.outs))) > 0:
+    while pc.in_ports["in"] and len(list(filter(None, pc.out_ports.values()))) > 0:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -89,7 +89,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             vars = aggregate_monthly(data.header, data.data, capnp_date_to_py_date(data.startDate))
 
-            for var, out_p in ports.outs.items():
+            for var, out_p in pc.out_ports.items():
                 rs, cs = id.as_text().split("_")
                 r = rs.split("-")[1].zfill(3)
                 c = cs.split("-")[1].zfill(3)
@@ -104,7 +104,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

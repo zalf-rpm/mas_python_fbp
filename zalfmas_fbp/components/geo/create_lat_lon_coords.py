@@ -78,12 +78,12 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "ids", "region"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     s_resolution = {"5min": 5 / 60.0, "30sec": 30 / 3600.0}[config["resolution"]]
     s_res_scale_factor = {"5min": 60.0, "30sec": 3600.0}[config["resolution"]]
@@ -115,21 +115,21 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     create_substream = config["create_substream"]
 
     # at least one input port has to be connected
-    while ports["out"] and (ports["region"] or ports["ids"]):
+    while pc.out_ports["out"] and (pc.in_ports["region"] or pc.in_ports["ids"]):
         try:
-            if ports["region"]:
-                msg = await ports["region"].read()
+            if pc.in_ports["region"]:
+                msg = await pc.in_ports["region"].read()
                 if msg.which() == "done":
-                    ports["region"] = None
+                    pc.in_ports["region"] = None
                     continue
                 else:
                     region_ip = msg.value.as_struct(fbp_capnp.IP)
                     region = region_ip.content.as_text()
 
-            if ports["ids"]:
-                msg = await ports["ids"].read()
+            if pc.in_ports["ids"]:
+                msg = await pc.in_ports["ids"].read()
                 if msg.which() == "done":
-                    ports["ids"] = None
+                    pc.in_ports["ids"] = None
                     continue
                 else:
                     ids_ip = msg.value.as_struct(fbp_capnp.IP)
@@ -146,7 +146,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         )
 
         if do_stream and create_substream:
-            await ports["out"].write(value=fbp_capnp.IP.new_message(type="openBracket"))
+            await pc.out_ports["out"].write(value=fbp_capnp.IP.new_message(type="openBracket"))
         lat_lons = []
         for lat_scaled in lats_scaled:
             lat = lat_scaled / s_res_scale_factor
@@ -170,21 +170,21 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon),
                     )
                     out_ip = fbp_capnp.IP.new_message(content=id_and_ll)
-                    await ports["out"].write(value=out_ip)
+                    await pc.out_ports["out"].write(value=out_ip)
                 else:
                     lat_lons.append([lat, lon, id])
 
         if do_stream:
             if create_substream:
-                await ports["out"].write(value=fbp_capnp.IP.new_message(type="closeBracket"))
+                await pc.out_ports["out"].write(value=fbp_capnp.IP.new_message(type="closeBracket"))
         else:
             try:
                 out_ip = fbp_capnp.IP.new_message(content=json.dumps(lat_lons))
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
             except Exception as e:
                 print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

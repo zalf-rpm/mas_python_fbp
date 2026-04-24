@@ -19,10 +19,10 @@ import time
 from datetime import date, datetime, timedelta
 
 import numpy as np
-from netCDF4 import Dataset
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.model import model_capnp
+from netCDF4 import Dataset
 from zalfmas_common import csv
 from zalfmas_common.model import monica_io
 
@@ -88,10 +88,10 @@ def mgmt_date_to_rel_date(mgmt_date):
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["conf", "coords", "region", "params"], outs=["env"]
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     PATHS = {
         # adjust the local path to your environment
@@ -271,31 +271,31 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     start_component_time = time.perf_counter()
     # as long as we get parameters, we create the envs
-    while ports["env"] and ports["params"] and (ports["coords"] or ports["region"]):
+    while pc.out_ports["env"] and pc.in_ports["params"] and (pc.in_ports["coords"] or pc.in_ports["region"]):
         sent_env_count = 0
         try:
-            if ports["region"]:
-                msg = ports["region"].read().wait()
+            if pc.in_ports["region"]:
+                msg = pc.in_ports["region"].read().wait()
                 if msg.which() == "done":
-                    ports["region"] = None
+                    pc.in_ports["region"] = None
                 else:
                     region_ip = msg.value.as_struct(fbp_capnp.IP)
                     region = region_ip.content.as_text()
 
             # read the coordinates
-            if ports["coords"]:
-                msg = ports["coords"].read().wait()
+            if pc.in_ports["coords"]:
+                msg = pc.in_ports["coords"].read().wait()
                 if msg.which() == "done":
-                    ports["coords"] = None
+                    pc.in_ports["coords"] = None
                 else:
                     coords_ip = msg.value.as_struct(fbp_capnp.IP)
                     coords = json.loads(coords_ip.content.as_text())
 
             # read the parameters to be calibrated
-            if ports["params"]:
-                msg = ports["params"].read().wait()
+            if pc.in_ports["params"]:
+                msg = pc.in_ports["params"].read().wait()
                 if msg.which() == "done":
-                    ports["params"] = None
+                    pc.in_ports["params"] = None
                     continue
                 else:
                     params_ip = msg.value.as_struct(fbp_capnp.IP)
@@ -529,7 +529,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             }
 
             try:
-                await ports["env"].write(
+                await pc.out_ports["env"].write(
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
@@ -552,7 +552,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 "nodata": True,
             }
             try:
-                await ports["env"].write(
+                await pc.out_ports["env"].write(
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
@@ -577,7 +577,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     with open(path_to_out_file, "a") as _:
         _.write(print_str)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

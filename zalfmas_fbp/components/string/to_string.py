@@ -54,7 +54,7 @@ meta = {
 
 
 class ToString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager = None):
+    def __init__(self, metadata, con_man: common.ConnectionManager | None = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
@@ -70,18 +70,18 @@ class ToString(process.Process):
                 logger.error(f"Failed to load Cap'n Proto module: {e}")
                 t = None
 
-        while self.input_port("in") and self.output_port("out"):
+        while self.in_ports["in"] and self.out_ports["out"]:
             if self.is_canceled():
                 break
             try:
-                in_port = self.input_port("in")
-                out_port = self.output_port("out")
+                in_port = self.in_ports["in"]
+                out_port = self.out_ports["out"]
                 if not in_port or not out_port:
                     break
 
                 in_msg = await in_port.read()
                 if in_msg.which() == "done":
-                    self.close_input_port("in")
+                    self.in_ports["in"] = None
                     continue
 
                 c = in_msg.value.as_struct(fbp_capnp.IP).content

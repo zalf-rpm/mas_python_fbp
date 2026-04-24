@@ -16,10 +16,10 @@
 import os
 from datetime import date, timedelta
 
-from pyproj import CRS
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
 from mas.schema.management import management_capnp as mgmt_capnp
+from pyproj import CRS
 from zalfmas_common import common, geo
 from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
@@ -43,12 +43,12 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     wgs84_crs = CRS.from_epsg(4326)
     utm32n_crs = CRS.from_epsg(25832)
@@ -67,9 +67,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         except OSError:
             print("Couldn't read file:", path_to_csv)
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
                 continue
 
@@ -86,7 +86,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if ilr_interpolate is None or seed_harvest_cs is None:
                 common.copy_and_set_fbp_attrs(in_ip, out_ip)
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
             else:
                 ilr_dates = mgmt_capnp.ILRDates.new_message()
 
@@ -197,12 +197,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip,
                     **({config["to_attr"]: ilr_dates} if config["to_attr"] else {}),
                 )
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

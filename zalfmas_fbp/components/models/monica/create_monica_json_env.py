@@ -44,16 +44,16 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr, ins=["conf", "sim", "crop", "site"], outs=["out"]
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["sim"] and ports["crop"] and ports["site"] and ports["out"]:
+    while pc.in_ports["sim"] and pc.in_ports["crop"] and pc.in_ports["site"] and pc.out_ports["out"]:
         try:
-            sim = await p.read_dict_from_port_done(ports, "sim")
-            crop = await p.read_dict_from_port_done(ports, "crop")
-            site = await p.read_dict_from_port_done(ports, "site")
+            sim = await p.read_dict_from_port_done(pc, "sim")
+            crop = await p.read_dict_from_port_done(pc, "crop")
+            site = await p.read_dict_from_port_done(pc, "site")
 
             if sim and crop and site:
                 env_template = monica_io.create_env_json_from_json_config(
@@ -71,12 +71,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]
                 else:
                     out_ip.content = json.dumps(env_template)
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
 
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

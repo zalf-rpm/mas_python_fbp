@@ -69,8 +69,8 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     struct_type, _ = common.load_capnp_module(config["struct_type"])
     struct_fieldnames = struct_type.schema.fieldnames
@@ -79,7 +79,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     id_col = col_to_field_names.get(config["id_col"], config["id_col"])
     send_ids = config["send_ids"] if config["send_ids"] is not None else None
 
-    if ports["out"]:
+    if pc.out_ports["out"]:
         try:
             with open(config["file"]) as _:
                 # determine seperator char
@@ -127,7 +127,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             out_ip.attributes = [{"key": config["to_attr"], "value": val}]
                         else:
                             out_ip.content = val
-                        await ports["out"].write(value=out_ip)
+                        await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
             print(
@@ -135,7 +135,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 e.description,
             )
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

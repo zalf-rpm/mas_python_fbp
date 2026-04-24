@@ -15,11 +15,11 @@
 
 import os
 
-from pymep.realParser import eval as mep_eval
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
 from mas.schema.grid import grid_capnp
+from pymep.realParser import eval as mep_eval
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
@@ -79,18 +79,18 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in", "service"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     service = None
-    if ports["service"]:
+    if pc.in_ports["service"]:
         service = (
             service_cap.cast_as(grid_capnp.Service)
-            if (service_cap := await ports.read_or_connect("service")) is not None
+            if (service_cap := await pc.read_or_connect("service")) is not None
             else None
         )
         if not service:
@@ -98,10 +98,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             return
 
     try:
-        while ports["in"] and ports["out"] and service:
-            in_msg = ports["in"].read().wait()
+        while pc.in_ports["in"] and pc.out_ports["out"] and service:
+            in_msg = pc.in_ports["in"].read().wait()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -150,12 +150,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             # copy old attributes and potentially add new one
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
     except Exception as e:
         print(f"{os.path.basename(__file__)} Exception :", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

@@ -42,19 +42,21 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr, ins=["conf", "in"], array_outs=["out"]
+    )
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["in"] and any(ports["out"]):
+    while pc.in_ports["in"] and any(pc.array_out_ports["out"]):
         try:
-            msg = await ports["in"].read()
+            msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = msg.value.as_struct(fbp_capnp.IP)
-            for out_p in ports["out"]:
+            for out_p in pc.array_out_ports["out"]:
                 if out_p:
                     out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
                     common.copy_and_set_fbp_attrs(in_ip, out_ip)
@@ -63,7 +65,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         except Exception as e:
             print(f"{os.path.basename(__file__)} Exception:", e)
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 

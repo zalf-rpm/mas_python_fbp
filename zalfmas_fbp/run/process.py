@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
 from zalfmas_common import common
 
-ArrayReaderPorts = list["ReaderClient | None"]
 ArrayWriterPorts = list["WriterClient | None"]
 
 logger = logging.getLogger(__name__)
@@ -69,7 +68,6 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.metadata: dict[str, Any] = metadata if metadata else {}
         self.configuration: dict[str, Any] = {}
         self.in_ports: dict[str, ReaderClient | None] = {}
-        self.array_in_ports: dict[str, ArrayReaderPorts] = {}
         self.out_ports: dict[str, WriterClient | None] = {}
         self.array_out_ports: dict[str, ArrayWriterPorts] = {}
         self.tasks = []
@@ -92,7 +90,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         }
 
     def init_from_metadata(self):
-        default_config = {}
+        default_config: dict[str, Any] = {}
         if self.meta:
             try:
                 component_meta = self.meta["component"]
@@ -100,11 +98,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 self.name: str = component_meta["info"]["name"]
                 self.description: str = component_meta["info"]["description"]
                 for port_info in component_meta.get("inPorts", []):
-                    name = port_info["name"]
-                    if self._is_array_port(port_info):
-                        self.array_in_ports.setdefault(name, [])
-                    else:
-                        self.in_ports.setdefault(name, None)
+                    _ = self.in_ports.setdefault(port_info["name"], None)
                 for port_info in component_meta.get("outPorts", []):
                     name = port_info["name"]
                     if self._is_array_port(port_info):
@@ -155,41 +149,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     def config(self):
         return self.configuration
 
-    def input_port(self, port_name: str):
-        return self.in_ports.get(port_name, None)
-
-    def close_input_port(self, port_name: str):
-        if port_name in self.in_ports:
-            self.in_ports[port_name] = None
-
-    def array_input_port(self, port_name: str):
-        return self.array_in_ports.get(port_name, [])
-
-    def close_array_input_port(self, port_name: str):
-        if port_name in self.array_in_ports:
-            self.array_in_ports[port_name] = []
-
-    def output_port(self, port_name: str):
-        return self.out_ports.get(port_name, None)
-
-    def close_output_port(self, port_name: str):
-        if port_name in self.out_ports:
-            self.out_ports[port_name] = None
-
-    def array_output_port(self, port_name: str):
-        return self.array_out_ports.get(port_name, [])
-
-    def close_array_output_port(self, port_name: str):
-        if port_name in self.array_out_ports:
-            self.array_out_ports[port_name] = []
-
     # inPorts @0 () -> (ports :List(Component.Port));
     async def inPorts(self, _context, **kwargs):
         component_meta = self.meta.get("component", {})
         in_port_infos = {p["name"]: p for p in component_meta.get("inPorts", [])}
-        ports = [self._port_message(k, in_port_infos.get(k), "standard") for k in self.in_ports]
-        ports.extend(self._port_message(k, in_port_infos.get(k), "array") for k in self.array_in_ports)
-        return ports
+        return [self._port_message(k, in_port_infos.get(k), "standard") for k in self.in_ports]
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectInPort(self, name: str, sturdyRef, _context, **kwargs):
@@ -198,10 +162,6 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             if (reader_cap := await self.con_man.try_connect(sturdyRef)) is not None
             else None
         )
-        if name in self.array_in_ports:
-            self.array_in_ports[name].append(reader)
-            return reader is not None
-
         self.in_ports[name] = reader
         return self.in_ports[name] is not None
 

@@ -95,9 +95,9 @@ This is the pattern used by `string/split_string.py`, `file/read_file.py`, `cons
 
 1. Connect ports with `PortConnector.create_from_port_infos_reader(...)`.
 2. Optionally merge config from the `conf` port with `update_config_from_port(...)`.
-3. Read from `ports["in"]`.
-4. Write `fbp_capnp.IP` messages to `ports["out"]`.
-5. On shutdown, call `await ports.close_out_ports()`.
+3. Read from `pc.in_ports["in"]`.
+4. Write `fbp_capnp.IP` messages to `pc.out_ports["out"]`.
+5. On shutdown, call `await pc.close_out_ports()`.
 
 ### What is important about this variant
 
@@ -114,22 +114,22 @@ import zalfmas_fbp.run.ports as p
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["in"] and ports["out"]:
-        msg = await ports["in"].read()
+    while pc.in_ports["in"] and pc.out_ports["out"]:
+        msg = await pc.in_ports["in"].read()
         if msg.which() == "done":
-            ports["in"] = None
+            pc.in_ports["in"] = None
             continue
 
         ...
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
 
 
 def main():
@@ -168,8 +168,8 @@ class SplitString(process.Process):
         await self.process_started()
 
         while True:
-            in_port = self.input_port("in")
-            out_port = self.output_port("out")
+            in_port = self.in_ports["in"]
+            out_port = self.out_ports["out"]
             if not in_port or not out_port:
                 break
             if self.is_canceled():
@@ -177,7 +177,7 @@ class SplitString(process.Process):
 
             in_msg = await in_port.read()
             if in_msg.which() == "done":
-                self.close_input_port("in")
+                self.in_ports["in"] = None
                 continue
 
             ...
@@ -191,8 +191,8 @@ def main():
 
 ### What is important about this variant
 
-- `self.input_port("name")` and `self.output_port("name")` are the main accessors for standard ports.
-- `self.array_input_port("name")` and `self.array_output_port("name")` access array ports.
+- `self.in_ports["name"]` and `self.out_ports["name"]` are the main accessors for standard ports.
+- `self.array_out_ports["name"]` accesses array output ports.
 - `self.config` is managed by the base class.
 - Config entries are stored as **Cap'n Proto value objects**, not plain Python values. For example, `split_string2.py` reads the delimiter with `self.config["split_at"].t`.
 - You are responsible for the lifecycle inside `run()`: startup, shutdown, cancel handling, and any explicit output-port closing you need.
@@ -204,7 +204,7 @@ In the `standard` variant, configuration is usually pulled from the `conf` input
 
 In the `process` variant, that does **not** happen automatically.
 
-`split_string2.py` still declares a `conf` port in metadata, but its implementation reads the delimiter from `self.config`, not from `self.input_port("conf")`. That means:
+`split_string2.py` still declares a `conf` port in metadata, but its implementation reads the delimiter from `self.config`, not from `self.in_ports["conf"]`. That means:
 
 - declare a `conf` port only if you really plan to consume it
 - if you want config from that port, read it explicitly in `run()`
