@@ -29,6 +29,9 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
 from zalfmas_common import common
 
+ArrayReaderPorts = list["ReaderClient | None"]
+ArrayWriterPorts = list["WriterClient | None"]
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
@@ -66,20 +69,48 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.metadata: dict[str, Any] = metadata if metadata else {}
         self.configuration: dict[str, Any] = {}
         self.in_ports: dict[str, ReaderClient | None] = {}
-        self.out_ports: dict[str, WriterClient | list[WriterClient | None] | None] = {}
+        self.array_in_ports: dict[str, ArrayReaderPorts] = {}
+        self.out_ports: dict[str, WriterClient | None] = {}
+        self.array_out_ports: dict[str, ArrayWriterPorts] = {}
         self.tasks = []
         self.process_state: ProcessStateEnum = "stopped"  # states: started, stopped, canceled
         self.state_transition_callbacks: list[StateTransitionClient] = []
 
         self.init_from_metadata()
 
+    @staticmethod
+    def _is_array_port(port_info: dict[str, Any]) -> bool:
+        return port_info.get("type") == "array"
+
+    @staticmethod
+    def _port_message(name: str, port_info: dict[str, Any] | None, port_type: str):
+        port_info = port_info or {}
+        return {
+            "name": name,
+            "type": port_type,
+            "contentType": port_info.get("contentType", "Text"),
+        }
+
     def init_from_metadata(self):
         default_config = {}
         if self.meta:
             try:
-                default_config = {k: v["value"] for k, v in self.meta["component"]["defaultConfig"].items()}
-                self.name: str = self.meta["component"]["info"]["name"]
-                self.description: str = self.meta["component"]["info"]["description"]
+                component_meta = self.meta["component"]
+                default_config = {k: v["value"] for k, v in component_meta.get("defaultConfig", {}).items()}
+                self.name: str = component_meta["info"]["name"]
+                self.description: str = component_meta["info"]["description"]
+                for port_info in component_meta.get("inPorts", []):
+                    name = port_info["name"]
+                    if self._is_array_port(port_info):
+                        self.array_in_ports.setdefault(name, [])
+                    else:
+                        self.in_ports.setdefault(name, None)
+                for port_info in component_meta.get("outPorts", []):
+                    name = port_info["name"]
+                    if self._is_array_port(port_info):
+                        self.array_out_ports.setdefault(name, [])
+                    else:
+                        self.out_ports.setdefault(name, None)
             except Exception as e:
                 logger.warning(
                     f"Some metadata could not be used for initializing the process component. Exception: {e}"
@@ -124,44 +155,76 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     def config(self):
         return self.configuration
 
-    def ip(self, port_name: str):
+    def input_port(self, port_name: str):
         return self.in_ports.get(port_name, None)
 
-    def close_ip(self, port_name: str):
+    def close_input_port(self, port_name: str):
         if port_name in self.in_ports:
             self.in_ports[port_name] = None
 
-    def op(self, port_name: str):
+    def array_input_port(self, port_name: str):
+        return self.array_in_ports.get(port_name, [])
+
+    def close_array_input_port(self, port_name: str):
+        if port_name in self.array_in_ports:
+            self.array_in_ports[port_name] = []
+
+    def output_port(self, port_name: str):
         return self.out_ports.get(port_name, None)
 
-    def close_op(self, port_name: str):
+    def close_output_port(self, port_name: str):
         if port_name in self.out_ports:
             self.out_ports[port_name] = None
 
+    def array_output_port(self, port_name: str):
+        return self.array_out_ports.get(port_name, [])
+
+    def close_array_output_port(self, port_name: str):
+        if port_name in self.array_out_ports:
+            self.array_out_ports[port_name] = []
+
     # inPorts @0 () -> (ports :List(Component.Port));
     async def inPorts(self, _context, **kwargs):
-        return list([{"name": k, "type": "standard", "contentType": "Text"} for k, v in self.in_ports.items()])
+        component_meta = self.meta.get("component", {})
+        in_port_infos = {p["name"]: p for p in component_meta.get("inPorts", [])}
+        ports = [self._port_message(k, in_port_infos.get(k), "standard") for k in self.in_ports]
+        ports.extend(self._port_message(k, in_port_infos.get(k), "array") for k in self.array_in_ports)
+        return ports
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectInPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.in_ports[name] = (
+        reader = (
             reader_cap.cast_as(fbp_capnp.Channel.Reader)
             if (reader_cap := await self.con_man.try_connect(sturdyRef)) is not None
             else None
         )
+        if name in self.array_in_ports:
+            self.array_in_ports[name].append(reader)
+            return reader is not None
+
+        self.in_ports[name] = reader
         return self.in_ports[name] is not None
 
     # outPorts @2 () -> (ports :List(Component.Port));
     async def outPorts(self, _context, **kwargs):
-        return list([{"name": k, "type": "standard", "contentType": "Text"} for k, v in self.out_ports.items()])
+        component_meta = self.meta.get("component", {})
+        out_port_infos = {p["name"]: p for p in component_meta.get("outPorts", [])}
+        ports = [self._port_message(k, out_port_infos.get(k), "standard") for k in self.out_ports]
+        ports.extend(self._port_message(k, out_port_infos.get(k), "array") for k in self.array_out_ports)
+        return ports
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
     async def connectOutPort(self, name: str, sturdyRef, _context, **kwargs):
-        self.out_ports[name] = (
+        writer = (
             writer_cap.cast_as(fbp_capnp.Channel.Writer)
             if (writer_cap := await self.con_man.try_connect(sturdyRef)) is not None
             else None
         )
+        if name in self.array_out_ports:
+            self.array_out_ports[name].append(writer)
+            return writer is not None
+
+        self.out_ports[name] = writer
         return self.out_ports[name] is not None
 
     # configEntries @4 () -> (config :List(ConfigEntry));
@@ -224,23 +287,21 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return self.process_state
 
     async def close_out_ports(self):
-        for name, ps in self.out_ports.items():
-            # is an array out port
-            if isinstance(ps, list):
-                for i, p in enumerate(ps):
-                    if p is not None:
-                        try:
-                            await p.close()
-                            logger.info(f"closed array out port '{name}[{i}]'")
-                        except Exception as e:
-                            logger.error(f"Exception closing array out port '{name}[{i}]': {e}")
-            # is a single out port
-            elif ps is not None:
+        for name, port in self.out_ports.items():
+            if port is not None:
                 try:
-                    await ps.close()
+                    await port.close()
                     logger.info(f"closed out port '{name}'")
                 except Exception as e:
                     logger.error(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
+        for name, ports in self.array_out_ports.items():
+            for i, port in enumerate(ports):
+                if port is not None:
+                    try:
+                        await port.close()
+                        logger.info(f"closed array out port '{name}[{i}]'")
+                    except Exception as e:
+                        logger.error(f"Exception closing array out port '{name}[{i}]': {e}")
 
     async def serve(
         self,

@@ -70,13 +70,18 @@ class ToString(process.Process):
                 logger.error(f"Failed to load Cap'n Proto module: {e}")
                 t = None
 
-        while self.ip("in") and self.op("out"):
+        while self.input_port("in") and self.output_port("out"):
             if self.is_canceled():
                 break
             try:
-                in_msg = await self.ip("in").read()
+                in_port = self.input_port("in")
+                out_port = self.output_port("out")
+                if not in_port or not out_port:
+                    break
+
+                in_msg = await in_port.read()
                 if in_msg.which() == "done":
-                    self.close_ip("in")
+                    self.close_input_port("in")
                     continue
 
                 c = in_msg.value.as_struct(fbp_capnp.IP).content
@@ -88,7 +93,7 @@ class ToString(process.Process):
                 c_str = c_str.replace("<", "")
                 c_str = c_str.replace(">", "")
                 out_ip = fbp_capnp.IP.new_message(content=c_str)
-                await self.op("out").write(value=out_ip)
+                await out_port.write(value=out_ip)
                 logger.info(f"{self.name} sent: {c_str}")
 
             except capnp.KjException as e:

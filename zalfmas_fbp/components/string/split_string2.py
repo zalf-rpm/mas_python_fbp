@@ -58,8 +58,8 @@ class SplitString(process.Process):
         logger.info(f"{self.name} process started")
 
         while True:
-            in_port = self.ip("in")
-            out_port = self.op("out")
+            in_port = self.input_port("in")
+            out_port = self.output_port("out")
             if not in_port or not out_port:
                 break
             if self.is_canceled():
@@ -67,7 +67,7 @@ class SplitString(process.Process):
             try:
                 in_msg = await in_port.read()
                 if in_msg.which() == "done":
-                    self.close_ip("in")
+                    self.close_input_port("in")
                     continue
 
                 s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
