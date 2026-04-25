@@ -66,7 +66,7 @@ class ToString(process.Process):
         else:
             try:
                 t, _ = common.load_capnp_module(self.config["struct_type"].t)
-            except Exception as e:
+            except (AttributeError, ImportError, RuntimeError, TypeError, ValueError) as e:
                 logger.error("Failed to load Cap'n Proto module: %s", e)
                 t = None
 

@@ -16,6 +16,7 @@
 import logging
 import os
 
+from capnp.lib.capnp import KjException
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
@@ -88,7 +89,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             timeseries = None
             try:
                 timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
-            except Exception:
+            except (KjException, TypeError):
                 try:
                     timeseries = (
                         timeseries_cap.cast_as(climate_capnp.TimeSeries)
@@ -101,7 +102,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         is not None
                         else None
                     )
-                except Exception as e:
+                except (KjException, RuntimeError, OSError, TypeError) as e:
                     logger.error("Error: Couldn't connect to timeseries. %s Exception: %s", cap_or_sr, e)
                     continue
             if timeseries is None:

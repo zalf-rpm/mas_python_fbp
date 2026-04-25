@@ -16,6 +16,7 @@
 import logging
 import os
 
+from capnp.lib.capnp import KjException
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
@@ -82,7 +83,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             dataset = None
             try:
                 dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
-            except Exception:
+            except (KjException, TypeError):
                 try:
                     dataset = (
                         dataset_cap.cast_as(climate_capnp.Dataset)
@@ -95,7 +96,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         is not None
                         else None
                     )
-                except Exception as e:
+                except (KjException, RuntimeError, OSError, TypeError) as e:
                     logger.error("Error: Couldn't connect to dataset. Exception: %s", e)
                     continue
             if dataset is None:

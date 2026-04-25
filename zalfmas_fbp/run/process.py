@@ -105,7 +105,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                         self.array_out_ports.setdefault(name, [])
                     else:
                         self.out_ports.setdefault(name, None)
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 logger.warning(
                     "Some metadata could not be used for initializing the process component. Exception: %s", e
                 )
@@ -252,7 +252,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 try:
                     await port.close()
                     logger.info("closed out port '%s'", name)
-                except Exception as e:
+                except (capnp.KjException, RuntimeError) as e:
                     logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
         for name, ports in self.array_out_ports.items():
             for i, port in enumerate(ports):
@@ -260,7 +260,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     try:
                         await port.close()
                         logger.info("closed array out port '%s[%s]'", name, i)
-                    except Exception as e:
+                    except (capnp.KjException, RuntimeError) as e:
                         logger.error("Exception closing array out port '%s[%s]': %s", name, i, e)
 
     async def serve(

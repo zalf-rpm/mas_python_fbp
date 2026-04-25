@@ -53,7 +53,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             try:
                 logger.info("%s", in_ip.content.as_text())
-            except Exception:
+            except (capnp.KjException, TypeError):
                 logger.info("%s", in_ip.content)
 
         except capnp.KjException as e:

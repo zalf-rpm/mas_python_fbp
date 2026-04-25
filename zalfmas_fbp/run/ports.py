@@ -164,7 +164,7 @@ class PortConnector:
                     await port.close()
                     if print_info:
                         logger.info("%s: closed out port '%s'", os.path.basename(__file__), name)
-                except Exception as e:
+                except (KjException, RuntimeError) as e:
                     if print_exception:
                         logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
         for name, array_ports in self.array_out_ports.items():
@@ -174,7 +174,7 @@ class PortConnector:
                         await port.close()
                         if print_info:
                             logger.info("%s: closed array out port '%s[%s]'", os.path.basename(__file__), name, i)
-                    except Exception as e:
+                    except (KjException, RuntimeError) as e:
                         if print_exception:
                             logger.error(
                                 "%s: Exception closing array out port '%s[%s]': %s",
@@ -282,7 +282,7 @@ class PortConnector:
                     ip.content.as_text(),
                     retry_secs=1,
                 )
-            except Exception as e:
+            except (KjException, RuntimeError, OSError, TypeError) as e:
                 logger.error(
                     "%s: Error: Couldn't connect to capability from port '%s'. Exception: %s",
                     os.path.basename(__file__),
@@ -440,7 +440,7 @@ class PortConnector:
                 return
             config_msg = await config_reader.read()
             await self.connect_from_toml_str(config_msg.value.as_text())
-        except Exception as e:
+        except (KjException, RuntimeError, OSError, TypeError, ValueError, KeyError) as e:
             logger.error(
                 "%s: Exception connecting to config reader via sr (%s): %s",
                 os.path.basename(__file__),

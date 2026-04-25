@@ -226,7 +226,7 @@ def load_component_metadata(cmds, components_cache, restorer):
                     continue
                 meta = json.loads(res.stdout)
                 components_cache[comp_id] = copy.deepcopy(meta)
-            except Exception as e:
+            except (json.JSONDecodeError, OSError, RuntimeError, sp.SubprocessError, TypeError, ValueError) as e:
                 logger.warning("Couldn't execute component via '%s'. Exception: %s", pte_split + ["-O"], e)
 
         try:
@@ -274,7 +274,7 @@ def load_component_metadata(cmds, components_cache, restorer):
                 )
             )
 
-        except Exception as e:
+        except (capnp.KjException, KeyError, TypeError, ValueError) as e:
             logger.warning(
                 "Some exception happend during retrieving metadata for component with id=%s. Exception: %s",
                 comp_id,
