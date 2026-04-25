@@ -15,6 +15,7 @@
 
 import asyncio
 import io
+import logging
 import os
 import tempfile
 import time
@@ -27,6 +28,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "spotpy", "name": "Spotpy"},
@@ -94,7 +97,7 @@ class SpotPySetup:
             out_ip = fbp_capnp.IP.new_message(content=n2p_list)
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self.sampled_params_out_p.write(value=out_ip))
-            print(f"{os.path.basename(__file__)} {datetime.now()} sent params to monica setup: {vector}")
+            logger.info("%s %s sent params to monica setup: %s", os.path.basename(__file__), datetime.now(), vector)
             if self.log_out_p:
                 loop.run_until_complete(
                     self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"})
@@ -117,8 +120,8 @@ class SpotPySetup:
                     )
                 )
             assert len(sim_values) == len(self.observations)
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} {datetime.now()} exception: {e}")
+        except Exception:
+            logger.exception("%s %s exception", os.path.basename(__file__), datetime.now())
 
         return sim_values
 
@@ -130,53 +133,38 @@ class SpotPySetup:
 
 
 def print_status_final(sampler_status, stream):
-    print("\n*** Final SPOTPY summary ***")
-    print(
-        "Total Duration: " + str(round((time.time() - sampler_status.starttime), 2)) + " seconds",
-        file=stream,
-    )
-    print("Total Repetitions:", sampler_status.rep, file=stream)
+    stream.write("\n*** Final SPOTPY summary ***\n")
+    stream.write(f"Total Duration: {round((time.time() - sampler_status.starttime), 2)} seconds\n")
+    stream.write(f"Total Repetitions: {sampler_status.rep}\n")
 
     if sampler_status.optimization_direction == "minimize":
-        print(
-            f"Minimal objective value: {sampler_status.objectivefunction_min:g}",
-            file=stream,
-        )
-        print("Corresponding parameter setting:", file=stream)
+        stream.write(f"Minimal objective value: {sampler_status.objectivefunction_min:g}\n")
+        stream.write("Corresponding parameter setting:\n")
         for i in range(sampler_status.parameters):
             text = f"{sampler_status.parnames[i]}: {sampler_status.params_min[i]:g}"
-            print(text, file=stream)
+            stream.write(f"{text}\n")
 
     if sampler_status.optimization_direction == "maximize":
-        print(
-            f"Maximal objective value: {sampler_status.objectivefunction_max:g}",
-            file=stream,
-        )
-        print("Corresponding parameter setting:", file=stream)
+        stream.write(f"Maximal objective value: {sampler_status.objectivefunction_max:g}\n")
+        stream.write("Corresponding parameter setting:\n")
         for i in range(sampler_status.parameters):
             text = f"{sampler_status.parnames[i]}: {sampler_status.params_max[i]:g}"
-            print(text, file=stream)
+            stream.write(f"{text}\n")
 
     if sampler_status.optimization_direction == "grid":
-        print(
-            f"Minimal objective value: {sampler_status.objectivefunction_min:g}",
-            file=stream,
-        )
-        print("Corresponding parameter setting:", file=stream)
+        stream.write(f"Minimal objective value: {sampler_status.objectivefunction_min:g}\n")
+        stream.write("Corresponding parameter setting:\n")
         for i in range(sampler_status.parameters):
             text = f"{sampler_status.parnames[i]}: {sampler_status.params_min[i]:g}"
-            print(text, file=stream)
+            stream.write(f"{text}\n")
 
-        print(
-            f"Maximal objective value: {sampler_status.objectivefunction_max:g}",
-            file=stream,
-        )
-        print("Corresponding parameter setting:", file=stream)
+        stream.write(f"Maximal objective value: {sampler_status.objectivefunction_max:g}\n")
+        stream.write("Corresponding parameter setting:\n")
         for i in range(sampler_status.parameters):
             text = f"{sampler_status.parnames[i]}: {sampler_status.params_max[i]:g}"
-            print(text, file=stream)
+            stream.write(f"{text}\n")
 
-    print("******************************\n", file=stream)
+    stream.write("******************************\n\n")
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -210,11 +198,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             par_name += f"_{par['array']}"
                         spotpy_params.append(spotpy.parameter.Uniform(**par))
                     if len(spotpy_params) == 0:
-                        print(f"{os.path.basename(__file__)}: no parameters to calibrate!")
+                        logger.warning("%s: no parameters to calibrate!", os.path.basename(__file__))
                         continue
 
-                except Exception as e:
-                    print(f"{os.path.basename(__file__)} Exception:", e)
+                except Exception:
+                    logger.exception("%s Exception", os.path.basename(__file__))
                     continue
 
             obs_values = None
@@ -233,10 +221,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             param_set_id = attr.value.as_text()
                     obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
                     if not obs_values or len(obs_values) == 0:
-                        print(f"{os.path.basename(__file__)}: no observed values to calibrate!")
+                        logger.warning("%s: no observed values to calibrate!", os.path.basename(__file__))
                         continue
-                except Exception as e:
-                    print(f"{os.path.basename(__file__)} Exception:", e)
+                except Exception:
+                    logger.exception("%s Exception", os.path.basename(__file__))
                     continue
 
             spot_setup = SpotPySetup(
@@ -280,14 +268,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             )
             plt.close(fig)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
         if db_dir:
             db_dir.cleanup()
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

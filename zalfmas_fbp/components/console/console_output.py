@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
 import capnp
@@ -20,6 +21,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "console", "name": "Console"},
@@ -38,7 +41,7 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
-    print(f"{os.path.basename(__file__)}: connected port(s)")
+    logger.info("%s: connected port(s)", os.path.basename(__file__))
 
     while pc.in_ports["in"]:
         try:
@@ -49,20 +52,17 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             try:
-                print(in_ip.content.as_text())
+                logger.info("%s", in_ip.content.as_text())
             except Exception:
-                print(in_ip.content)
+                logger.info("%s", in_ip.content)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: RPC Exception: %s", os.path.basename(__file__), e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

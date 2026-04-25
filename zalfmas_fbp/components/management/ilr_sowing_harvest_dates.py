@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 from datetime import date, timedelta
 
@@ -25,6 +26,8 @@ from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "management", "name": "Management"},
@@ -59,13 +62,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         path_to_csv = config["path_to_ilr_csv"].get(crop_id, None)
         if not path_to_csv:
             continue
-        print("Read data and created ILR seed/harvest interpolator:", path_to_csv)
+        logger.info("Read data and created ILR seed/harvest interpolator: %s", path_to_csv)
         try:
             ilr_seed_harvest_data[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
                 crop_id, path_to_csv, wgs84_crs, utm32n_crs
             )
         except OSError:
-            print("Couldn't read file:", path_to_csv)
+            logger.error("Couldn't read file: %s", path_to_csv)
 
     while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
@@ -199,11 +202,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 )
                 await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

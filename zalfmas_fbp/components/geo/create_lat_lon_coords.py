@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
 from mas.schema.common import common_capnp
@@ -23,6 +24,8 @@ from zalfmas_common import rect_ascii_grid_management as grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "geo", "name": "Geo"},
@@ -106,11 +109,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         },
     }
 
-    ids_grid = grid.load_grid_cached(config["path_to_ids_grid"], int)
+    country_ids_data = grid.load_grid_cached(config["path_to_ids_grid"], int)
 
     # get just default values for region and ids
     region = config["region"]
-    ids = json.loads(config["ids"])
+    country_ids = json.loads(config["ids"])
     do_stream = config["stream"]
     create_substream = config["create_substream"]
 
@@ -133,9 +136,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     continue
                 else:
                     ids_ip = msg.value.as_struct(fbp_capnp.IP)
-                    ids = list(ids_ip.content.as_list())
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+                    country_ids = list(ids_ip.content.as_list())
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
         lat_lon_bounds = region_to_lat_lon_bounds.get(region)
 
@@ -150,7 +153,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         lat_lons = []
         for lat_scaled in lats_scaled:
             lat = lat_scaled / s_res_scale_factor
-            print(str(round(lat, 2)), end=" ", flush=True)
+            logger.debug("%s latitude %.2f", os.path.basename(__file__), round(lat, 2))
 
             lons_scaled = range(
                 int(lat_lon_bounds["tl"]["lon"] * s_res_scale_factor),
@@ -166,7 +169,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                 if do_stream:
                     id_and_ll = common_capnp.Pair.new_message(
-                        fst=common_capnp.Value.new_message(i64=id),
+                        fst=common_capnp.Value.new_message(i64=country_id),
                         snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon),
                     )
                     out_ip = fbp_capnp.IP.new_message(content=id_and_ll)
@@ -181,11 +184,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             try:
                 out_ip = fbp_capnp.IP.new_message(content=json.dumps(lat_lons))
                 await pc.out_ports["out"].write(value=out_ip)
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+            except Exception:
+                logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
 from mas.schema.climate import climate_capnp
@@ -24,6 +25,8 @@ from mas.schema.soil import soil_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "models/monica", "name": "Models/MONICA"},
@@ -167,11 +170,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip.attributes = list([{"key": k, "value": v} for k, v in attrs.items()])
             await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

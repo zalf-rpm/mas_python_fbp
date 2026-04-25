@@ -59,7 +59,7 @@ class ToString(process.Process):
 
     async def run(self):
         await self.process_started()
-        logger.info(f"{self.name} process started")
+        logger.info("%s process started", self.name)
 
         if self.config["struct_type"] is None:
             t = None
@@ -67,7 +67,7 @@ class ToString(process.Process):
             try:
                 t, _ = common.load_capnp_module(self.config["struct_type"].t)
             except Exception as e:
-                logger.error(f"Failed to load Cap'n Proto module: {e}")
+                logger.error("Failed to load Cap'n Proto module: %s", e)
                 t = None
 
         while self.in_ports["in"] and self.out_ports["out"]:
@@ -87,21 +87,21 @@ class ToString(process.Process):
                 c = in_msg.value.as_struct(fbp_capnp.IP).content
                 if t:
                     c = c.as_struct(t)
-                logger.info(f"{self.name} received: {c}")
+                logger.info("%s received: %s", self.name, c)
 
                 c_str = str(c)
                 c_str = c_str.replace("<", "")
                 c_str = c_str.replace(">", "")
                 out_ip = fbp_capnp.IP.new_message(content=c_str)
                 await out_port.write(value=out_ip)
-                logger.info(f"{self.name} sent: {c_str}")
+                logger.info("%s sent: %s", self.name, c_str)
 
             except capnp.KjException as e:
-                logger.error(f"{self.name} RPC Exception: {e.description}")
+                logger.error("%s RPC Exception: %s", self.name, e.description)
                 if e.type in ["DISCONNECTED"]:
                     break
 
-        logger.info(f"{self.name} process finished")
+        logger.info("%s process finished", self.name)
         await self.process_stopped()
 
 

@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 import time
 from datetime import date, datetime, timedelta
@@ -30,6 +31,8 @@ import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
 from ..geo import get_lat_lon_grid_value as shared
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "producers", "name": "Producers"},
@@ -135,11 +138,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         try:
             os.makedirs(config["path_to_out"])
         except OSError:
-            print(
-                "run-calibration-producer.py: Couldn't create dir:",
-                config["path_to_out"],
-                "!",
-            )
+            logger.error("run-calibration-producer.py: Couldn't create dir: %s !", config["path_to_out"])
     with open(path_to_out_file, "a") as _:
         _.write(f"config: {config}\n")
 
@@ -169,7 +168,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     # read setup from csv file
     setups = csv.read_csv(config["setups-file"], key="run-id")
     run_setups = json.loads(config["run-setups"])
-    print("read sim setups: ", config["setups-file"])
+    logger.info("read sim setups: %s", config["setups-file"])
 
     # open netcdfs
     path_to_soil_netcdfs = paths["path-to-soil-dir"] + "/" + config["resolution"] + "/"
@@ -258,7 +257,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     setup = None
     if len(run_setups) > 1 and run_setups[0] not in setups:
-        print("More than one setup given or given setup not in list of setups.")
+        logger.error("More than one setup given or given setup not in list of setups.")
         exit(1)
     else:
         setup_id = run_setups[0]
@@ -300,8 +299,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 else:
                     params_ip = msg.value.as_struct(fbp_capnp.IP)
                     params = json.loads(params_ip.content.as_text())
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
             continue
 
         start_setup_time = time.perf_counter()
@@ -538,8 +537,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         )
                     )
                 )
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+            except Exception:
+                logger.exception("%s Exception", os.path.basename(__file__))
                 continue
 
             sent_env_count += 1
@@ -561,24 +560,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         )
                     )
                 )
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+            except Exception:
+                logger.exception("%s Exception", os.path.basename(__file__))
                 continue
 
         stop_setup_time = time.perf_counter()
         print_str = f"{os.path.basename(__file__)}: {datetime.now()} Sending {sent_env_count} envs took {stop_setup_time - start_setup_time} seconds\n"
-        print(print_str)
+        logger.info("%s", print_str.rstrip())
         with open(path_to_out_file, "a") as _:
             _.write(print_str)
 
     stop_component_time = time.perf_counter()
     print_str = f"{os.path.basename(__file__)}: {datetime.now()} Running component took {stop_component_time - start_component_time} seconds\n"
-    print(print_str)
+    logger.info("%s", print_str.rstrip())
     with open(path_to_out_file, "a") as _:
         _.write(print_str)
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

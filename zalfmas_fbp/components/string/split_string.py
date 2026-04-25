@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 from typing import Any
 
@@ -21,6 +22,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "string", "name": "String"},
@@ -43,10 +46,10 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
+    logger.info("%s: %s connected port(s)", os.path.basename(__file__), config["name"])
     _ = await p.update_config_from_port(config, pc.in_ports["conf"])
     if pc.in_ports["conf"]:
-        print(f"{os.path.basename(__file__)}: {config['name']} updated config from config port")
+        logger.info("%s: %s updated config from config port", os.path.basename(__file__), config["name"])
 
     while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
@@ -56,25 +59,22 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 continue
 
             s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-            print(f"{os.path.basename(__file__)}: {config['name']} received:", s)
+            logger.info("%s: %s received: %s", os.path.basename(__file__), config["name"], s)
             s = s.rstrip()
             vals = s.split(config["split_at"])
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)
                 await pc.out_ports["out"].write(value=out_ip)
-                print(f"{os.path.basename(__file__)}: {config['name']} sent:", val)
+                logger.info("%s: %s sent: %s", os.path.basename(__file__), config["name"], val)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: {config['name']} process finished")
+    logger.info("%s: %s process finished", os.path.basename(__file__), config["name"])
 
 
 def main():

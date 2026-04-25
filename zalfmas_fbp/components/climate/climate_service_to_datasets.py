@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
 from mas.schema.climate import climate_capnp
@@ -20,6 +21,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "climate", "name": "Climate"},
@@ -75,11 +78,11 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
             if config["create_substream"]:
                 pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

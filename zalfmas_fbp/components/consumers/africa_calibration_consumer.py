@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 from collections import defaultdict
 from datetime import datetime
@@ -22,6 +23,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "consumers", "name": "Consumers"},
@@ -49,11 +52,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         try:
             os.makedirs(config["path_to_out"])
         except OSError:
-            print(
-                "run-calibration-consumer.py: Couldn't create dir:",
-                config["path_to_out"],
-                "!",
-            )
+            logger.error("run-calibration-consumer.py: Couldn't create dir: %s !", config["path_to_out"])
     with open(path_to_out_file, "a") as _:
         _.write(f"config: {config}\n")
 
@@ -79,7 +78,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 envs_received += 1
 
                 out_str = f"{os.path.basename(__file__)}: received result customId: {custom_id}\n"
-                print(out_str)
+                logger.info("%s", out_str.rstrip())
                 with open(path_to_out_file, "a") as _:
                     _.write(out_str)
 
@@ -93,7 +92,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             if no_of_envs_expected == envs_received:
                 out_str = f"{os.path.basename(__file__)}: {datetime.now()} last expected env received\n"
-                print(out_str)
+                logger.info("%s", out_str.rstrip())
                 with open(path_to_out_file, "a") as _:
                     _.write(out_str)
 
@@ -115,11 +114,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if close_out_port:
                     pc.in_ports["result"] = None
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

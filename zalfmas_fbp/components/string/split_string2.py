@@ -55,7 +55,7 @@ class SplitString(process.Process):
     @override
     async def run(self):
         await self.process_started()
-        logger.info(f"{self.name} process started")
+        logger.info("%s process started", self.name)
 
         while self.in_ports["in"] and self.out_ports["out"]:
             if self.is_canceled():
@@ -67,21 +67,21 @@ class SplitString(process.Process):
                     continue
 
                 s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-                logger.info(f"{self.name} received: {s}")
+                logger.info("%s received: %s", self.name, s)
                 s = s.rstrip()
                 vals = s.split(self.config["split_at"].t)
 
                 for val in vals:
                     out_ip = fbp_capnp.IP.new_message(content=val)
                     await self.out_ports["out"].write(value=out_ip)
-                    logger.info(f"{self.name} sent: {val}")
+                    logger.info("%s sent: %s", self.name, val)
 
             except capnp.KjException as e:
-                logger.error(f"{self.name} RPC Exception: {e.description}")
+                logger.error("%s RPC Exception: %s", self.name, e.description)
                 if e.type in ["DISCONNECTED"]:
                     break
 
-        logger.info(f"{self.name} process finished")
+        logger.info("%s process finished", self.name)
         await self.process_stopped()
 
 

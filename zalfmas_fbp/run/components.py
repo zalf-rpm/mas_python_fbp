@@ -81,14 +81,14 @@ def handle_default_fpb_component_args(parser, component_meta: dict = None):
 
     port_infos_reader_sr = None
     if args.output_json_default_config:
-        print(json.dumps(default_config, indent=4))
+        sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
         with open(args.write_json_default_config, "w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
-        print(json.dumps(component_meta, indent=4))
+        sys.stdout.write(json.dumps(component_meta, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
         with open(args.write_json_component_metadata, "w") as _:

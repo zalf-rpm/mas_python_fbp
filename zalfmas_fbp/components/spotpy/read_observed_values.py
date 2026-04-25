@@ -15,6 +15,7 @@
 
 import csv
 import json
+import logging
 import os
 from collections import defaultdict
 
@@ -22,6 +23,8 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "spotpy", "name": "Spotpy"},
@@ -119,11 +122,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

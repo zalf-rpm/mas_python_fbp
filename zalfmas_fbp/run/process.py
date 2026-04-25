@@ -107,7 +107,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                         self.out_ports.setdefault(name, None)
             except Exception as e:
                 logger.warning(
-                    f"Some metadata could not be used for initializing the process component. Exception: {e}"
+                    "Some metadata could not be used for initializing the process component. Exception: %s", e
                 )
         for k, v in default_config.items():
             val = None
@@ -251,17 +251,17 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             if port is not None:
                 try:
                     await port.close()
-                    logger.info(f"closed out port '{name}'")
+                    logger.info("closed out port '%s'", name)
                 except Exception as e:
-                    logger.error(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
+                    logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
         for name, ports in self.array_out_ports.items():
             for i, port in enumerate(ports):
                 if port is not None:
                     try:
                         await port.close()
-                        logger.info(f"closed array out port '{name}[{i}]'")
+                        logger.info("closed array out port '%s[%s]'", name, i)
                     except Exception as e:
-                        logger.error(f"Exception closing array out port '{name}[{i}]': {e}")
+                        logger.error("Exception closing array out port '%s[%s]': %s", name, i, e)
 
     async def serve(
         self,
@@ -273,7 +273,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         if writer_sr and len(writer_sr) > 0 and (writer_cap := await self.con_man.try_connect(writer_sr)) is not None:
             writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
             await writer.write(value=self)
-            logging.info(f"wrote process cap into {writer_sr}")
+            logger.info("wrote process cap into %s", writer_sr)
 
         async def new_connection(stream: capnp.AsyncIoStream):
             await capnp.TwoPartyServer(stream, bootstrap=self if serve_bootstrap else None).on_disconnect()
@@ -288,7 +288,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 ipv4_sockets = list(filter(lambda s: s.family == socket.AddressFamily.AF_INET, server.sockets))
                 if len(ip4_socks := ipv4_sockets) > 0:
                     port = ip4_socks[0].getsockname()[1]
-                print(f"Process({self.name}) SR: capnp://{host}:{port}")
+                logger.info("Process(%s) SR: capnp://%s:%s", self.name, host, port)
             await server.serve_forever()
 
 
@@ -375,14 +375,14 @@ def run_process_from_metadata_and_cmd_args(p: Process, component_meta):
     else:
         default_config = {}
     if args.output_json_default_config:
-        print(json.dumps(default_config, indent=4))
+        sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
         with open(args.write_json_default_config, "w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
-        print(json.dumps(component_meta, indent=4))
+        sys.stdout.write(json.dumps(component_meta, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
         with open(args.write_json_component_metadata, "w") as _:

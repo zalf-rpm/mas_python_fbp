@@ -13,6 +13,7 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import subprocess as sp
 import sys
@@ -25,6 +26,8 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import channels as chans
+
+logger = logging.getLogger(__name__)
 
 # def get_free_port():
 #    with socket.socket() as s:
@@ -55,7 +58,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         flow_json = json.load(_)
 
     if not flow_json:
-        print(f"{os.path.basename(__file__)} error: could not read flow file")
+        logger.error("%s error: could not read flow file", os.path.basename(__file__))
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
@@ -258,11 +261,11 @@ async def start_flow_via_port_infos_sr(config: dict):
         for piw in port_infos_writers:
             piw.close()
 
-        print(f"{os.path.basename(__file__)}: all components finished")
+        logger.info("%s: all components finished", os.path.basename(__file__))
 
         for channel in channels:
             channel.terminate()
-        print(f"{os.path.basename(__file__)}: all channels terminated")
+        logger.info("%s: all channels terminated", os.path.basename(__file__))
 
     except Exception as e:
         for process in process_id_to_process.values():
@@ -271,7 +274,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         for channel in channels:
             channel.terminate()
 
-        print(f"exception terminated {os.path.basename(__file__)} early. Exception:", e)
+        logger.exception("exception terminated %s early. Exception: %s", os.path.basename(__file__), e)
 
 
 if __name__ == "__main__":

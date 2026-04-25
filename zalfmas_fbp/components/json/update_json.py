@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
 from mas.schema.fbp import fbp_capnp
@@ -21,6 +22,8 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "json", "name": "JSON"},
@@ -202,7 +205,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             nested_dict = create_nested_dict(co)
                             change(j_content, nested_dict, allowed_operation=op)
                         except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
-                            print(f"{os.path.basename(__file__)}: couldn't apply {op} operation {co}: {e}")
+                            logger.warning(
+                                "%s: couldn't apply %s operation %s: %s",
+                                os.path.basename(__file__),
+                                op,
+                                co,
+                                e,
+                            )
 
             out_ip = fbp_capnp.IP.new_message(
                 content=json.dumps(j_content),
@@ -210,11 +219,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             )
             await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

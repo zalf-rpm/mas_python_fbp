@@ -14,12 +14,15 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
 from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "data/transform", "name": "Data/Transform"},
@@ -73,11 +76,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message(content=json.dumps(out_list))
             await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

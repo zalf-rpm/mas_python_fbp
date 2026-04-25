@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import csv
+import logging
 import os
 
 import capnp
@@ -22,6 +23,8 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "file", "name": "File"},
@@ -130,13 +133,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
 
 ArrayWriterPorts = list["WriterClient | None"]
+logger = logging.getLogger(__name__)
 
 
 def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
@@ -101,8 +103,8 @@ async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
                         d = json.loads(text_value)
                 except (KjException, TypeError, ValueError):
                     pass
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} read_dict_from_port. Exception: {e}")
+        except Exception:
+            logger.exception("%s read_dict_from_port.", os.path.basename(__file__))
     return d
 
 
@@ -161,20 +163,26 @@ class PortConnector:
                 try:
                     await port.close()
                     if print_info:
-                        print(f"{os.path.basename(__file__)}: closed out port '{name}'")
+                        logger.info("%s: closed out port '%s'", os.path.basename(__file__), name)
                 except Exception as e:
                     if print_exception:
-                        print(f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}")
+                        logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
         for name, array_ports in self.array_out_ports.items():
             for i, port in enumerate(array_ports):
                 if port is not None:
                     try:
                         await port.close()
                         if print_info:
-                            print(f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'")
+                            logger.info("%s: closed array out port '%s[%s]'", os.path.basename(__file__), name, i)
                     except Exception as e:
                         if print_exception:
-                            print(f"{os.path.basename(__file__)}: Exception closing array out port '{name}[{i}]': {e}")
+                            logger.error(
+                                "%s: Exception closing array out port '%s[%s]': %s",
+                                os.path.basename(__file__),
+                                name,
+                                i,
+                                e,
+                            )
 
         if wait_for_port_infos_reader_done:
             if self.port_infos_reader:
@@ -247,9 +255,9 @@ class PortConnector:
                             )
                             writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via CMD config:\n{config}\n Exception: {e}"
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via CMD config:\n%s", os.path.basename(__file__), config
             )
 
     async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
@@ -275,9 +283,11 @@ class PortConnector:
                     retry_secs=1,
                 )
             except Exception as e:
-                print(
-                    f"{os.path.basename(__file__)}: Error: Couldn't connect to capability from port '{in_port_id}'."
-                    f" Exception: {e}"
+                logger.error(
+                    "%s: Error: Couldn't connect to capability from port '%s'. Exception: %s",
+                    os.path.basename(__file__),
+                    in_port_id,
+                    e,
                 )
                 return None
 
@@ -341,9 +351,11 @@ class PortConnector:
                                 writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
 
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via port infos reader SR:\n{port_infos_reader_sr}\n Exception: {e}"
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via port infos reader SR:\n%s",
+                os.path.basename(__file__),
+                port_infos_reader_sr,
             )
 
     @staticmethod
@@ -395,9 +407,11 @@ class PortConnector:
                         else None,
                     )
 
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via toml:\n{toml_config}\n Exception: {e}"
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via toml:\n%s",
+                os.path.basename(__file__),
+                toml_config,
             )
 
     @staticmethod
@@ -427,6 +441,9 @@ class PortConnector:
             config_msg = await config_reader.read()
             await self.connect_from_toml_str(config_msg.value.as_text())
         except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to config reader via sr ({config_reader_sr}): {e}"
+            logger.error(
+                "%s: Exception connecting to config reader via sr (%s): %s",
+                os.path.basename(__file__),
+                config_reader_sr,
+                e,
             )

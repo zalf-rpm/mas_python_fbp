@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
 import capnp
@@ -21,6 +22,8 @@ from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
 from zalfmas_fbp.run import ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "geo", "name": "Geo"},
@@ -94,15 +97,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

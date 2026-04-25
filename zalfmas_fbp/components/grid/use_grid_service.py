@@ -13,6 +13,7 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
 from mas.schema.common import common_capnp
@@ -24,6 +25,8 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+
+logger = logging.getLogger(__name__)
 
 meta = {
     "category": {"id": "grid", "name": "Grid"},
@@ -94,7 +97,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             else None
         )
         if not service:
-            print(f"{os.path.basename(__file__)} No soil service could be received or connected to.")
+            logger.error("%s No grid service could be received or connected to.", os.path.basename(__file__))
             return
 
     try:
@@ -152,11 +155,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
             await pc.out_ports["out"].write(value=out_ip)
 
-    except Exception as e:
-        print(f"{os.path.basename(__file__)} Exception :", e)
+    except Exception:
+        logger.exception("%s Exception", os.path.basename(__file__))
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

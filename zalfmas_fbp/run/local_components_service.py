@@ -227,7 +227,7 @@ def load_component_metadata(cmds, components_cache, restorer):
                 meta = json.loads(res.stdout)
                 components_cache[comp_id] = copy.deepcopy(meta)
             except Exception as e:
-                logger.warning(f"Couldn't execute component via '{pte_split + ['-O']}'. Exception: {e}")
+                logger.warning("Couldn't execute component via '%s'. Exception: %s", pte_split + ["-O"], e)
 
         try:
             c = meta["component"]
@@ -235,7 +235,9 @@ def load_component_metadata(cmds, components_cache, restorer):
             c_id = info["id"]
             if c_id != comp_id:
                 logger.warning(
-                    f"Component id={comp_id} in cmds is not the same as in referenced component (id={c_id})! Skipping component."
+                    "Component id=%s in cmds is not the same as in referenced component (id=%s)! Skipping component.",
+                    comp_id,
+                    c_id,
                 )
                 continue
 
@@ -274,7 +276,9 @@ def load_component_metadata(cmds, components_cache, restorer):
 
         except Exception as e:
             logger.warning(
-                f"Some exception happend during retrieving metadata for component with id={comp_id}. Exception: {e}"
+                "Some exception happend during retrieving metadata for component with id=%s. Exception: %s",
+                comp_id,
+                e,
             )
 
     # if there are multiple names for the same category, use the one that appears most
