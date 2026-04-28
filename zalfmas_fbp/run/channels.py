@@ -14,13 +14,14 @@ import subprocess as sp
 import uuid
 
 
-def start_first_channel(path_to_channel: str, name: str | None = None):
+def start_first_channel(path_to_channel: str, name: str | None = None, log_level: str | None = None):
     chan = sp.Popen(
         [
             path_to_channel,
             f"--name=chan_{sanitize_channel_name(name) if name and len(name) > 0 else str(uuid.uuid4())}",
             "--output_srs",
-        ],
+        ]
+        + ([f"--log_level={log_level}"] if log_level else []),
         stdout=sp.PIPE,
         text=True,
     )
@@ -63,6 +64,7 @@ def start_channel(
     reader_srts: str | None = None,
     writer_srts: str | None = None,
     buffer_size: int = 1,
+    log_level: str | None = None,
 ):
     return sp.Popen(
         [
@@ -79,6 +81,7 @@ def start_channel(
         + ([f"--host={host}"] if host else [])
         + ([f"--local_host={host}"] if host else [])
         + ([f"--port={port}"] if port else [])
+        + ([f"--log_level={log_level}"] if log_level else [])
         + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
         + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT

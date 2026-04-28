@@ -29,13 +29,12 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
 from zalfmas_common import common
 
+from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+
 ArrayWriterPorts = list["WriterClient | None"]
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
@@ -292,12 +291,17 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             await server.serve_forever()
 
 
-def start_local_process_component(path_to_executable, process_cap_writer_sr, name: str | None = None) -> sp.Popen[str]:
+def start_local_process_component(
+    path_to_executable,
+    process_cap_writer_sr,
+    name: str | None = None,
+    log_level: str | None = None,
+) -> sp.Popen[str]:
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
         pte_split[0] = sys.executable
     proc = sp.Popen(
-        pte_split + [process_cap_writer_sr],
+        pte_split + [process_cap_writer_sr] + ([f"--log_level={log_level}"] if log_level else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
     )
@@ -356,20 +360,14 @@ def create_default_args_parser(
         default=None,
         help="Port to be used when serving the process.",
     )
-    _ = parser.add_argument(
-        "-l",
-        "--log_level",
-        type=str,
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default="WARNING",
-        help="Set logging level.",
-    )
+    add_log_level_argument(parser)
     return parser
 
 
 def run_process_from_metadata_and_cmd_args(p: Process, component_meta):
     parser = create_default_args_parser(component_description=p.description)
     args = parser.parse_args()
+    configure_logging(args.log_level)
     if component_meta:
         default_config = {k: v["value"] for k, v in component_meta["component"]["defaultConfig"].items()}
     else:
@@ -388,7 +386,6 @@ def run_process_from_metadata_and_cmd_args(p: Process, component_meta):
         with open(args.write_json_component_metadata, "w") as _:
             json.dump(component_meta, _, indent=4)
             exit(0)
-    logger.setLevel(args.log_level)
     if args.process_cap_writer_sr:
         asyncio.run(
             capnp.run(

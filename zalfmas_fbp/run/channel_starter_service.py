@@ -31,10 +31,14 @@ from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.channels as channels
+from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.readers import StartupInfoReader
     from mas.schema.service.service_capnp.types.clients import AdminClient
+
+logger = logging.getLogger(__name__)
+configure_logging(default_level="INFO")
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
@@ -183,21 +187,23 @@ async def main():
         component_description="local start channels service",
         default_config_path="./configs/channel_starter_service.toml",
     )
-    config, _ = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    add_log_level_argument(parser, default_level="INFO")
+    config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    configure_logging(args.log_level)
 
     restorer = common.Restorer()
     con_man = common.ConnectionManager(restorer)
 
     config_service_section = config.get("service")
     if not isinstance(config_service_section, dict):
-        logging.error("Need service section in config")
+        logger.error("Need service section in config")
         return
 
     # config_service_section = cast(dict[str, str], config_service_section)
 
     path_to_channel = config_service_section.get("path_to_channel", None)
     if path_to_channel is None:
-        logging.error("Need path to channel binary")
+        logger.error("Need path to channel binary")
         return
 
     service = StartChannelsService(

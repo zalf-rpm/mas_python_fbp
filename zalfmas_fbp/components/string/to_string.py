@@ -22,12 +22,10 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 
 meta = {
     "category": {"id": "string", "name": "String"},

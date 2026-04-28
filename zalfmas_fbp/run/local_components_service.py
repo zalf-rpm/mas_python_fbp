@@ -21,7 +21,7 @@ import os.path
 import subprocess as sp
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, override
 
 import capnp
@@ -33,12 +33,10 @@ from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging(default_level="INFO")
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ProcessClient
@@ -48,23 +46,31 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
         self,
         path_to_executable,
+        log_level: str = "WARNING",
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable = path_to_executable
+        self.log_level = log_level
         self.proc: sp.Popen[str] | sp.Popen[bytes] | None = None
-        self.stopped_callbacks = []
+        self.stopped_callbacks: list[Any] = []
 
     async def start_context(
         self, context
     ):  # start @0 (portInfosReaderSr :SturdyRef, name :Text, stoppedCb :StoppedCallback) -> (success :Bool);
         port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(context.params.portInfosReaderSr)
         name = context.params.name
-        if context.params._has("stoppedCb"):
+        has_field = getattr(context.params, "_has", None)
+        if callable(has_field) and has_field("stoppedCb"):
             self.stopped_callbacks.append(context.params.stoppedCb)
-        self.proc = comp.start_local_component(self.path_to_executable, port_infos_reader_sr_str, name)
+        self.proc = comp.start_local_component(
+            self.path_to_executable,
+            port_infos_reader_sr_str,
+            name,
+            log_level=self.log_level,
+        )
         context.results.success = self.proc.poll() is None
 
     @override
@@ -83,12 +89,14 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
     def __init__(
         self,
         path_to_executable: str,
+        log_level: str = "WARNING",
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable: str = path_to_executable
+        self.log_level = log_level
         self.runnables: list[Runnable] = []
         self.count: int = 0
 
@@ -98,6 +106,7 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
         self.count += 1
         r = Runnable(
             self.path_to_executable,
+            log_level=self.log_level,
             id=f"{self.id}_{self.count}",
             name=f"{self.name} {self.count}",
             description=self.description,
@@ -109,8 +118,8 @@ class RunnableFactory(fbp_capnp.Runnable.Factory.Server, common.Identifiable):
 class ProcessWriter(fbp_capnp.Channel.Writer.Server):
     def __init__(self):
         self.process_cap: ProcessClient | None = None
-        self.process_cap_received_future = asyncio.Future()
-        self.unregister_writer: Callable[..., None] | None = None
+        self.process_cap_received_future: asyncio.Future[ProcessClient] = asyncio.Future()
+        self.unregister_writer: Callable[[], Awaitable[None]] | None = None
 
     # struct Msg {
     #   union {
@@ -134,12 +143,14 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         self,
         path_to_executable: str,
         restorer: common.Restorer,
+        log_level: str = "WARNING",
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable: str = path_to_executable
+        self.log_level = log_level
         self.procs: list[sp.Popen[str]] = []
         # self.proc_writers = []
         self.count: int = 0
@@ -162,7 +173,14 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
 
         writer.unregister_writer = unsave  # lambda: self.restorer.unsave(unsave_sr_token)
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
-        self.procs.append(process.start_local_process_component(self.path_to_executable, writer_sr_str, self.id))
+        self.procs.append(
+            process.start_local_process_component(
+                self.path_to_executable,
+                writer_sr_str,
+                self.id,
+                log_level=self.log_level,
+            )
+        )
         process_cap = await writer.process_cap_received_future
         return process_cap
 
@@ -208,8 +226,15 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             r.entries[i] = ch
 
 
-def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, Any], restorer: common.Restorer):
-    cat_id_to_name_and_component_holders = defaultdict(lambda: {"name": [], "component_holders": []})
+def load_component_metadata(
+    cmds: dict[str, str],
+    components_cache: dict[str, Any],
+    restorer: common.Restorer,
+    log_level: str = "WARNING",
+):
+    cat_id_to_name_and_component_holders: defaultdict[str, dict[str, Any]] = defaultdict(
+        lambda: {"name": [], "component_holders": []}
+    )
     for comp_id, cmd_str in cmds.items():
         if comp_id == "id" or comp_id == "name" or comp_id[:3] == "___":
             continue
@@ -217,8 +242,8 @@ def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, An
         comp_in_cache = components_cache and comp_id in components_cache
         meta: dict[str, Any] | None = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
         if meta is None:
+            pte_split = list(cmd_str.split(" "))
             try:
-                pte_split = list(cmd_str.split(" "))
                 if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
                     pte_split[0] = sys.executable
                 res = sp.run(pte_split + ["-O"], stdout=sp.PIPE, text=True)
@@ -228,6 +253,10 @@ def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, An
                 components_cache[comp_id] = copy.deepcopy(meta)
             except (json.JSONDecodeError, OSError, RuntimeError, sp.SubprocessError, TypeError, ValueError) as e:
                 logger.warning("Couldn't execute component via '%s'. Exception: %s", pte_split + ["-O"], e)
+                continue
+
+        if meta is None:
+            continue
 
         try:
             c = meta["component"]
@@ -250,6 +279,7 @@ def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, An
                 if c["type"] == "standard":
                     c["factory"]["runnable"] = RunnableFactory(
                         cmd_str,
+                        log_level=log_level,
                         id=c_id,
                         name=info.get("name", None),
                         description=info.get("description", None),
@@ -258,6 +288,7 @@ def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, An
                     c["factory"]["process"] = ProcessFactory(
                         cmd_str,
                         restorer=restorer,
+                        log_level=log_level,
                         id=c_id,
                         name=info.get("name", None),
                         description=info.get("description", None),
@@ -300,7 +331,9 @@ async def main():
         component_description="local FBP component start service",
         default_config_path="./configs/local_components_service.toml",
     )
+    add_log_level_argument(parser, default_level="INFO")
     config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    configure_logging(args.log_level)
 
     # load components cache
     if os.path.exists(config["service"]["path_to_components_cache_json"]):
@@ -314,7 +347,12 @@ async def main():
     cs = config.get("service", {})
     restorer = common.Restorer()
 
-    cat_id_to_name_and_component_holders = load_component_metadata(cmds, components_cache, restorer)
+    cat_id_to_name_and_component_holders = load_component_metadata(
+        cmds,
+        components_cache,
+        restorer,
+        log_level=args.log_level,
+    )
     # update components cache
     with open(config["service"]["path_to_components_cache_json"], "w") as f:
         json.dump(components_cache, f, indent=4)
