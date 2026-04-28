@@ -68,7 +68,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             return int(value)
         return value
 
-    def init_list(any_pointer, length):
+    def init_list(any_pointer: capnp.lib.capnp._DynamicObjectBuilder, length: int):
         list_type = capnp.types.Text
         if config["cast_to"] == "float":
             list_type = capnp.types.Float64

@@ -18,6 +18,7 @@ import asyncio
 import json
 import subprocess as sp
 import sys
+from typing import Any
 
 import capnp
 
@@ -69,7 +70,7 @@ def create_default_fbp_component_args_parser(component_description):
     return parser
 
 
-def handle_default_fpb_component_args(parser, component_meta: dict = None):
+def handle_default_fpb_component_args(parser, component_meta: dict[str, Any] | None = None):
     args = parser.parse_args()
     if component_meta and (dc := component_meta.get("component", {}).get("defaultConfig", None)):
         default_config = {k: v.get("value", v) if v and type(v) is dict else v for k, v in dc.items()}

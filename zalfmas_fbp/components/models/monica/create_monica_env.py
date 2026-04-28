@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import uuid
+from typing import Any
 
 from mas.schema.climate import climate_capnp
 from mas.schema.common import common_capnp
@@ -136,7 +137,7 @@ def get_value(list_or_value):
     return list_or_value[0] if isinstance(list_or_value, list) else list_or_value
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 

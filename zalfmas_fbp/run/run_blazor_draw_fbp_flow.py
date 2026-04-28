@@ -19,6 +19,7 @@ import subprocess as sp
 import sys
 import uuid
 from collections import defaultdict
+from typing import Any
 
 import capnp
 from mas.schema.common import common_capnp
@@ -43,7 +44,7 @@ standalone_config = {
 }
 
 
-async def start_flow_via_port_infos_sr(config: dict):
+async def start_flow_via_port_infos_sr(config: dict[str, Any]):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
 
     # use_infiniband = config["use_infiniband"]

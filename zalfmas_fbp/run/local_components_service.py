@@ -22,7 +22,7 @@ import subprocess as sp
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Callable
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -170,7 +170,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
     def __init__(
         self,
-        cat_id_to_name_and_component_holders: dict,
+        cat_id_to_name_and_component_holders: dict[str, Any],
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
@@ -208,14 +208,14 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             r.entries[i] = ch
 
 
-def load_component_metadata(cmds, components_cache, restorer):
+def load_component_metadata(cmds: dict[str, str], components_cache: dict[str, Any], restorer: common.Restorer):
     cat_id_to_name_and_component_holders = defaultdict(lambda: {"name": [], "component_holders": []})
     for comp_id, cmd_str in cmds.items():
         if comp_id == "id" or comp_id == "name" or comp_id[:3] == "___":
             continue
 
         comp_in_cache = components_cache and comp_id in components_cache
-        meta = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
+        meta: dict[str, Any] | None = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
         if meta is None:
             try:
                 pte_split = list(cmd_str.split(" "))
