@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
 
 import geopandas as gpd
+import pyarrow.parquet as pq
 from mas.schema.common import common_capnp
 from rasterio.crs import CRS
 from rasterio.io import MemoryFile
@@ -87,6 +89,7 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
     assert filtered.crs is not None
     assert filtered.crs.to_epsg() == 25833
     assert filtered["id"].to_list() == [1, 3]
+    assert _geo_metadata_from_bytes(geoparquet_bytes)["columns"]["geometry"]["crs"] is not None
 
 
 def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_output(tmp_path: Path) -> None:
@@ -116,6 +119,7 @@ def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_o
     geoparquet_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
     filtered = gpd.read_parquet(cast(Any, BytesIO(geoparquet_bytes)))
     assert filtered["id"].to_list() == [1, 3]
+    assert _geo_metadata_from_bytes(geoparquet_bytes)["columns"]["geometry"]["crs"] is not None
 
 
 def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_priority(tmp_path: Path) -> None:
@@ -152,6 +156,7 @@ def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_prio
     assert relabeled["priority"].to_list() == [7, 7]
     assert relabeled.crs is not None
     assert relabeled.crs.to_epsg() == 25833
+    assert _geo_metadata_from_bytes(output_bytes)["columns"]["geometry"]["crs"] is not None
 
 
 def test_relabel_geoparquet_uses_mapping_priority_column(tmp_path: Path) -> None:
@@ -224,6 +229,7 @@ def test_write_geoparquet_writes_readable_file_to_configured_path(tmp_path: Path
     assert written["priority"].to_list() == [7]
     assert written.crs is not None
     assert written.crs.to_epsg() == 25833
+    assert _geo_metadata_from_path(output_path)["columns"]["geometry"]["crs"] is not None
 
 
 def test_write_geoparquet_preserve_compression_writes_original_bytes(tmp_path: Path) -> None:
@@ -269,3 +275,13 @@ def _geoparquet_bytes(frame: gpd.GeoDataFrame) -> bytes:
     output = BytesIO()
     frame.to_parquet(output, index=False, write_covering_bbox=True)
     return output.getvalue()
+
+
+def _geo_metadata_from_bytes(geoparquet_bytes: bytes) -> dict[str, Any]:
+    metadata = pq.read_metadata(BytesIO(geoparquet_bytes)).metadata or {}
+    return json.loads(metadata[b"geo"])
+
+
+def _geo_metadata_from_path(path: Path) -> dict[str, Any]:
+    metadata = pq.read_metadata(path).metadata or {}
+    return json.loads(metadata[b"geo"])

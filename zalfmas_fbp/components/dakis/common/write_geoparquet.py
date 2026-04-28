@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import os
-from io import BytesIO
+from contextlib import closing
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import Any, Literal, cast
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Literal
 
-import geopandas as gpd
+from zalfmas_fbp.components.dakis.common.duckdb_utils import (
+    connect,
+    normalize_parquet_compression,
+    query_to_parquet_bytes,
+)
 
 type ParquetCompression = Literal["snappy", "gzip", "brotli", "lz4", "zstd"]
-
-_SUPPORTED_COMPRESSIONS: set[str] = {"snappy", "gzip", "brotli", "lz4", "zstd"}
 
 
 def write_geoparquet_bytes(
@@ -37,18 +39,18 @@ def write_geoparquet_bytes(
 
 
 def _maybe_recompress(geoparquet_bytes: bytes, compression: str) -> bytes:
-    frame = _read_geoparquet(geoparquet_bytes)
     normalized = compression.strip().lower()
     if normalized in ("", "preserve", "none"):
         return geoparquet_bytes
-    if normalized not in _SUPPORTED_COMPRESSIONS:
-        msg = f"Unsupported GeoParquet compression: {compression}"
-        raise ValueError(msg)
+    normalized = normalize_parquet_compression(normalized)
 
-    output = BytesIO()
-    frame.to_parquet(output, index=False, compression=cast(ParquetCompression, normalized), write_covering_bbox=True)
-    return output.getvalue()
-
-
-def _read_geoparquet(geoparquet_bytes: bytes) -> gpd.GeoDataFrame:
-    return gpd.read_parquet(cast(Any, BytesIO(geoparquet_bytes)))
+    with TemporaryDirectory() as temp_dir:
+        input_path = Path(temp_dir) / "input.parquet"
+        input_path.write_bytes(geoparquet_bytes)
+        with closing(connect()) as connection:
+            return query_to_parquet_bytes(
+                connection,
+                "SELECT * FROM parquet_scan(?)",
+                [str(input_path)],
+                compression=normalized,
+            )
