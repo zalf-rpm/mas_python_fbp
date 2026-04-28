@@ -52,7 +52,12 @@ class FilterGeoparquetByRaster(process.Process):
         await self.process_started()
         logger.info("%s process started", self.name)
 
-        while self.in_ports["in"] and self.out_ports["out"] and self.out_ports["raster"]:
+        if self.out_ports["out"] is None:
+            logger.warning("%s out port not connected; cannot forward filtered GeoParquet", self.name)
+        if self.out_ports["raster"] is None:
+            logger.info("%s raster output not connected; skipping raster forwarding", self.name)
+
+        while self.in_ports["in"] and self.out_ports["out"]:
             if self.is_canceled():
                 break
 
@@ -60,7 +65,7 @@ class FilterGeoparquetByRaster(process.Process):
                 in_port = self.in_ports["in"]
                 out_port = self.out_ports["out"]
                 raster_port = self.out_ports["raster"]
-                if not in_port or not out_port or not raster_port:
+                if not in_port or not out_port:
                     break
 
                 in_msg = await in_port.read()
@@ -75,7 +80,8 @@ class FilterGeoparquetByRaster(process.Process):
                 )
 
                 await out_port.write(value=_data_ip(geoparquet_bytes))
-                await raster_port.write(value=_data_ip(raster_bytes))
+                if raster_port:
+                    await raster_port.write(value=_data_ip(raster_bytes))
                 logger.info("%s sent %s GeoParquet bytes", self.name, len(geoparquet_bytes))
 
             except capnp.KjException as e:

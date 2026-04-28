@@ -89,6 +89,35 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
     assert filtered["id"].to_list() == [1, 3]
 
 
+def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_output(tmp_path: Path) -> None:
+    source_path = tmp_path / "source.parquet"
+    source = gpd.GeoDataFrame(
+        {
+            "id": [1, 2, 3],
+            "geometry": [
+                box(2, 2, 4, 4),
+                box(20, 20, 22, 22),
+                box(8, 8, 12, 12),
+            ],
+        },
+        crs="EPSG:25833",
+    )
+    source.to_parquet(source_path, index=False, write_covering_bbox=True)
+
+    raster_bytes = _test_raster_bytes()
+    component = FilterGeoparquetByRaster(filter_geoparquet_meta)
+    component.config["geoparquet_path"] = common_capnp.Value.new_message(t=str(source_path))
+
+    result = run_process_component(
+        component,
+        inputs={"in": [_raster_message(raster_bytes), done_message()]},
+    )
+
+    geoparquet_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
+    filtered = gpd.read_parquet(cast(Any, BytesIO(geoparquet_bytes)))
+    assert filtered["id"].to_list() == [1, 3]
+
+
 def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_priority(tmp_path: Path) -> None:
     mapping_path = tmp_path / "mapping.csv"
     mapping_path.write_text("code,lucode\n1,11\n2,12\n", encoding="utf-8")
