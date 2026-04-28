@@ -19,6 +19,8 @@ from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster impo
 from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster import (
     meta as filter_geoparquet_meta,
 )
+from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import RelabelGeoparquet
+from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import meta as relabel_meta
 
 
 def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() -> None:
@@ -85,6 +87,93 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
     assert filtered["id"].to_list() == [1, 3]
 
 
+def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_priority(tmp_path: Path) -> None:
+    mapping_path = tmp_path / "mapping.csv"
+    mapping_path.write_text("code,lucode\n1,11\n2,12\n", encoding="utf-8")
+
+    source = gpd.GeoDataFrame(
+        {
+            "code": [1, 2, 999],
+            "extra": ["drop", "drop", "drop"],
+            "geometry": [box(0, 0, 1, 1), box(2, 2, 3, 3), box(4, 4, 5, 5)],
+        },
+        crs="EPSG:25833",
+    )
+    source_bytes = _geoparquet_bytes(source)
+
+    component = RelabelGeoparquet(relabel_meta)
+    component.config["mapping_csv_path"] = common_capnp.Value.new_message(t=str(mapping_path))
+    component.config["default_priority"] = common_capnp.Value.new_message(i64=7)
+
+    result = run_process_component(
+        component,
+        inputs={"in": [_raster_message(source_bytes), done_message()]},
+    )
+
+    output_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
+    relabeled = gpd.read_parquet(cast(Any, BytesIO(output_bytes)))
+
+    assert relabel_meta["component"]["defaultConfig"]["mapping_csv_path"]["value"] == (
+        "resources/mappings/invekos_to_lulc.csv"
+    )
+    assert relabeled.columns.to_list() == ["lucode", "priority", "geometry"]
+    assert relabeled["lucode"].to_list() == [11, 12]
+    assert relabeled["priority"].to_list() == [7, 7]
+    assert relabeled.crs is not None
+    assert relabeled.crs.to_epsg() == 25833
+
+
+def test_relabel_geoparquet_uses_mapping_priority_column(tmp_path: Path) -> None:
+    mapping_path = tmp_path / "mapping.csv"
+    mapping_path.write_text("code,lucode,priority\n1,11,3\n2,12,4\n", encoding="utf-8")
+
+    source = gpd.GeoDataFrame(
+        {
+            "code": [1, 2],
+            "geometry": [box(0, 0, 1, 1), box(2, 2, 3, 3)],
+        },
+        crs="EPSG:25833",
+    )
+    component = RelabelGeoparquet(relabel_meta)
+    component.config["mapping_csv_path"] = common_capnp.Value.new_message(t=str(mapping_path))
+
+    result = run_process_component(
+        component,
+        inputs={"in": [_raster_message(_geoparquet_bytes(source)), done_message()]},
+    )
+
+    output_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
+    relabeled = gpd.read_parquet(cast(Any, BytesIO(output_bytes)))
+    assert relabeled["priority"].to_list() == [3, 4]
+
+
+def test_relabel_geoparquet_accepts_translation_csv_on_port() -> None:
+    source = gpd.GeoDataFrame(
+        {
+            "code": [1, 2],
+            "geometry": [box(0, 0, 1, 1), box(2, 2, 3, 3)],
+        },
+        crs="EPSG:25833",
+    )
+    component = RelabelGeoparquet(relabel_meta)
+
+    result = run_process_component(
+        component,
+        inputs={
+            "translation": [
+                _raster_message(b"code,lucode,priority\n1,11,3\n2,12,4\n"),
+                done_message(),
+            ],
+            "in": [_raster_message(_geoparquet_bytes(source)), done_message()],
+        },
+    )
+
+    output_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
+    relabeled = gpd.read_parquet(cast(Any, BytesIO(output_bytes)))
+    assert relabeled["lucode"].to_list() == [11, 12]
+    assert relabeled["priority"].to_list() == [3, 4]
+
+
 def _test_raster_bytes() -> bytes:
     with MemoryFile() as memory_file:
         with memory_file.open(
@@ -104,3 +193,9 @@ def _test_raster_bytes() -> bytes:
 
 def _raster_message(raster_bytes: bytes):
     return ip_message(common_capnp.Value.new_message(d=raster_bytes))
+
+
+def _geoparquet_bytes(frame: gpd.GeoDataFrame) -> bytes:
+    output = BytesIO()
+    frame.to_parquet(output, index=False, write_covering_bbox=True)
+    return output.getvalue()
