@@ -216,6 +216,50 @@ Prefer the `process` style when the surrounding system expects a long-lived proc
 
 Prefer the `standard` style when you want to match the dominant style in this repository and you only need the usual port-driven runnable behavior.
 
+## Bracket IPs and substreams
+
+The FBP `IP` schema has a lightweight grouping mechanism via `IP.type`:
+
+- `standard` for normal data messages
+- `openBracket` to mark the start of a substream
+- `closeBracket` to mark the end of a substream
+
+Use this when a component needs to send a logical group of messages in chunks while preserving the group boundary:
+
+```python
+await out_port.write(value=fbp_capnp.IP.new_message(type="openBracket", content=group_id))
+
+for item in items:
+    await out_port.write(value=fbp_capnp.IP.new_message(content=item))
+
+await out_port.write(value=fbp_capnp.IP.new_message(type="closeBracket", content=group_id))
+```
+
+Consumers that understand substreams usually either preserve the bracket IPs or flatten them, depending on config:
+
+```python
+in_ip = msg.value.as_struct(fbp_capnp.IP)
+
+if in_ip.type == "openBracket":
+    if config["maintain_substreams"]:
+        await out_port.write(value=in_ip)
+    continue
+
+if in_ip.type == "closeBracket":
+    if config["maintain_substreams"]:
+        await out_port.write(value=in_ip)
+    continue
+```
+
+Existing examples:
+
+- `climate/climate_service_to_datasets.py` can create a substream around a climate service's datasets.
+- `climate/datasets_to_timeseries.py` can preserve incoming substreams and can create a substream around each dataset's time series.
+- `climate/timeseries_cap_to_data.py` can preserve or flatten incoming substreams.
+- `geo/create_lat_lon_coords.py` can bracket streamed coordinate output when `stream` and `create_substream` are enabled.
+
+There is no shared helper abstraction for bracketed streams yet; the pattern is implemented directly in components. When writing bracket IPs, make sure every async `write(...)` is awaited.
+
 ## A practical checklist for adding a new component
 
 1. Pick the category folder.
