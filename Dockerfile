@@ -26,6 +26,7 @@ COPY --from=build /shell-hook.sh /shell-hook.sh
 COPY --from=build /app/binaries /app/binaries
 COPY --from=build --chown=appuser:appuser /app/configs /app/configs
 COPY --from=build /app/zalfmas_fbp /app/zalfmas_fbp
+RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
 
 EXPOSE 8000
 
