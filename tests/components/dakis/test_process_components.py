@@ -21,6 +21,8 @@ from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster impo
 )
 from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import RelabelGeoparquet
 from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import meta as relabel_meta
+from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import WriteGeoparquet
+from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import meta as write_geoparquet_meta
 
 
 def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() -> None:
@@ -172,6 +174,45 @@ def test_relabel_geoparquet_accepts_translation_csv_on_port() -> None:
     relabeled = gpd.read_parquet(cast(Any, BytesIO(output_bytes)))
     assert relabeled["lucode"].to_list() == [11, 12]
     assert relabeled["priority"].to_list() == [3, 4]
+
+
+def test_write_geoparquet_writes_readable_file_to_configured_path(tmp_path: Path) -> None:
+    output_path = tmp_path / "nested" / "out.parquet"
+    geoparquet_bytes = _geoparquet_bytes(
+        gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833")
+    )
+    component = WriteGeoparquet(write_geoparquet_meta)
+    component.config["output_path"] = common_capnp.Value.new_message(t=str(output_path))
+
+    run_process_component(
+        component,
+        inputs={"in": [_raster_message(geoparquet_bytes), done_message()]},
+        outputs=(),
+    )
+
+    written = gpd.read_parquet(output_path)
+    assert written["lucode"].to_list() == [11]
+    assert written["priority"].to_list() == [7]
+    assert written.crs is not None
+    assert written.crs.to_epsg() == 25833
+
+
+def test_write_geoparquet_preserve_compression_writes_original_bytes(tmp_path: Path) -> None:
+    output_path = tmp_path / "out.parquet"
+    geoparquet_bytes = _geoparquet_bytes(
+        gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833")
+    )
+    component = WriteGeoparquet(write_geoparquet_meta)
+    component.config["output_path"] = common_capnp.Value.new_message(t=str(output_path))
+    component.config["compression"] = common_capnp.Value.new_message(t="preserve")
+
+    run_process_component(
+        component,
+        inputs={"in": [_raster_message(geoparquet_bytes), done_message()]},
+        outputs=(),
+    )
+
+    assert output_path.read_bytes() == geoparquet_bytes
 
 
 def _test_raster_bytes() -> bytes:
