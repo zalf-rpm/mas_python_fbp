@@ -16,6 +16,10 @@ dependencies = [
   "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas@new-typing-module",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
+  "pydantic (>=2.13.3,<3.0.0)",
+  "geojson-pydantic (>=2.1.1,<3.0.0)",
+  "rasterio (>=1.5.0,<2.0.0)",
+  "pytest (>=9.0.3,<10.0.0)",
 ]
 
 [build-system]
