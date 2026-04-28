@@ -15,6 +15,7 @@
 
 import logging
 import os
+import sys
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -52,9 +53,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             try:
-                logger.info("%s", in_ip.content.as_text())
+                sys.stdout.write(f"{in_ip.content.as_text()}\n")
             except (capnp.KjException, TypeError):
-                logger.info("%s", in_ip.content)
+                sys.stdout.write(f"{in_ip.content}\n")
+            sys.stdout.flush()
 
         except capnp.KjException as e:
             logger.error("%s: RPC Exception: %s", os.path.basename(__file__), e.description)

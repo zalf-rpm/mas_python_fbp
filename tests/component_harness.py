@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 from mas.schema.fbp import fbp_capnp
 
+import zalfmas_fbp.run.ports as ports
 import zalfmas_fbp.run.process as process
+
+type StandardComponentRunner = Callable[[str, dict[str, Any]], Coroutine[Any, Any, None]]
 
 
 @dataclass
@@ -61,6 +64,27 @@ def run_process_component(
     asyncio.run(component.run())
 
     return writer
+
+
+def run_standard_component(
+    run_component: StandardComponentRunner,
+    port_connector: ports.PortConnector,
+    monkeypatch: Any,
+    *,
+    config: dict[str, Any] | None = None,
+) -> None:
+    async def create_from_port_infos_reader(
+        _port_infos_reader_sr: str,
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: Any = None,
+        *,
+        array_outs: Sequence[str] | None = None,
+    ) -> ports.PortConnector:
+        return port_connector
+
+    monkeypatch.setattr(ports.PortConnector, "create_from_port_infos_reader", create_from_port_infos_reader)
+    asyncio.run(run_component("test-port-infos-reader", config or {}))
 
 
 def ip_message(content: Any) -> PortMessage:
