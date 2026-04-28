@@ -24,7 +24,7 @@ meta = {
     "category": {"id": "dakis", "name": "DAKIS"},
     "component": {
         "info": {
-            "id": "b822f996-67da-4826-9e91-3712b795e648",
+            "id": "2a1a5561-fee4-4c21-9b0d-e7626db1585e",
             "name": "create empty raster",
             "description": "Create an empty compressed in-memory raster from a GeoJSON bbox.",
         },

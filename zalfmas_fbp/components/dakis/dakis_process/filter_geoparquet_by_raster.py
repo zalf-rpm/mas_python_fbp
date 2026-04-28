@@ -24,7 +24,7 @@ meta = {
     "category": {"id": "dakis", "name": "DAKIS"},
     "component": {
         "info": {
-            "id": "d50aebae-0f79-4395-abd1-c03d874e2730",
+            "id": "22023991-782c-4c2c-ae72-8e8a19e9f24a",
             "name": "filter geoparquet by raster",
             "description": "Select GeoParquet geometries overlapping a raster and forward both datasets.",
         },

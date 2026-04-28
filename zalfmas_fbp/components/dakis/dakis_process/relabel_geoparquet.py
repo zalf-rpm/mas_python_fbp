@@ -24,7 +24,7 @@ meta = {
     "category": {"id": "dakis", "name": "DAKIS"},
     "component": {
         "info": {
-            "id": "46faab69-412c-4c70-b27d-68fcaa853dd8",
+            "id": "9db20ca7-ba92-4179-8f54-8e9945893421",
             "name": "relabel geoparquet",
             "description": "Relabel GeoParquet geometries using a CSV mapping table.",
         },

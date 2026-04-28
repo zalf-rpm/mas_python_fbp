@@ -24,7 +24,7 @@ meta = {
     "category": {"id": "dakis", "name": "DAKIS"},
     "component": {
         "info": {
-            "id": "bf812f76-4672-4c62-9f7d-e0aeaf7d4d02",
+            "id": "d2f24a18-7210-44b9-9741-eec72f299715",
             "name": "write geoparquet",
             "description": "Write received GeoParquet bytes to disk.",
         },
