@@ -113,7 +113,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             val = None
             vt = type(v)
             if vt is str:
-                val = common_capnp.Value.new_message(t=",")
+                val = common_capnp.Value.new_message(t=v)
             elif vt is int:
                 val = common_capnp.Value.new_message(i64=v)
             elif vt is float:
@@ -122,16 +122,16 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 val = common_capnp.Value.new_message(b=v)
             elif vt is dict:
                 val = common_capnp.Value.new_message(t=json.dumps(v))
-            elif vt is list and len(vt) > 0 and type(vt[0]) is int:
+            elif vt is list and len(v) > 0 and type(v[0]) is int:
                 if all(map(lambda x: type(x) is int, v)):
                     val = common_capnp.Value.new_message(li64=v)
-            elif vt is list and len(vt) > 0 and type(vt[0]) is float:
+            elif vt is list and len(v) > 0 and type(v[0]) is float:
                 if all(map(lambda x: type(x) is float, v)):
                     val = common_capnp.Value.new_message(lf64=v)
-            elif vt is list and len(vt) > 0 and type(vt[0]) is bool:
+            elif vt is list and len(v) > 0 and type(v[0]) is bool:
                 if all(map(lambda x: type(x) is bool, v)):
                     val = common_capnp.Value.new_message(lb=v)
-            elif vt is list and len(vt) > 0 and type(vt[0]) is str:
+            elif vt is list and len(v) > 0 and type(v[0]) is str:
                 if all(map(lambda x: type(x) is str, v)):
                     val = common_capnp.Value.new_message(lt=v)
 
@@ -191,7 +191,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     async def configEntries(self, _context, **kwargs):
         return list(
             map(
-                lambda k, v: fbp_capnp.Process.ConfigEntry.new_message(name=k, val=v),
+                lambda item: fbp_capnp.Process.ConfigEntry.new_message(name=item[0], val=item[1]),
                 self.config.items(),
             )
         )

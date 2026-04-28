@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -61,11 +62,13 @@ class ToString(process.Process):
         await self.process_started()
         logger.info("%s process started", self.name)
 
-        if self.config["struct_type"] is None:
+        struct_type = self.config.get("struct_type")
+        if struct_type is None:
             t = None
         else:
             try:
-                t, _ = common.load_capnp_module(self.config["struct_type"].t)
+                t: Any
+                t, _ = common.load_capnp_module(struct_type.t)
             except (AttributeError, ImportError, RuntimeError, TypeError, ValueError) as e:
                 logger.error("Failed to load Cap'n Proto module: %s", e)
                 t = None
