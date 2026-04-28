@@ -1,0 +1,1 @@
+"""DAKIS component tests."""
