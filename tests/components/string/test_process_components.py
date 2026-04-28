@@ -12,11 +12,13 @@ def test_split_string2_uses_default_config_and_writes_split_values() -> None:
 
     writer = run_process_component(
         component,
-        in_messages=[
-            ip_message("alpha,beta,gamma\n"),
-            done_message(),
-        ],
-    )
+        inputs={
+            "in": [
+                ip_message("alpha,beta,gamma\n"),
+                done_message(),
+            ]
+        },
+    ).output()
 
     assert component.config["split_at"].t == ","
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
@@ -27,10 +29,12 @@ def test_to_string_can_start_with_default_config() -> None:
 
     writer = run_process_component(
         component,
-        in_messages=[
-            ip_message("alpha"),
-            done_message(),
-        ],
-    )
+        inputs={
+            "in": [
+                ip_message("alpha"),
+                done_message(),
+            ]
+        },
+    ).output()
 
     assert len(writer.values) == 1

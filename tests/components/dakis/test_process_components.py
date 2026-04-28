@@ -12,11 +12,13 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
 
     writer = run_process_component(
         component,
-        in_messages=[
-            ip_message("[12.0, 52.0, 12.01, 52.01]"),
-            done_message(),
-        ],
-    )
+        inputs={
+            "in": [
+                ip_message("[12.0, 52.0, 12.01, 52.01]"),
+                done_message(),
+            ]
+        },
+    ).output()
 
     assert component.config["epsg"].i64 == 25833
     assert component.config["resolution_m"].f64 == 100.0
