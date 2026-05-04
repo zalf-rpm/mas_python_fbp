@@ -7,8 +7,7 @@ from typing import Any, cast
 
 from mas.schema.fbp import fbp_capnp
 
-import zalfmas_fbp.run.ports as ports
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import ports, process
 
 type StandardComponentRunner = Callable[[str, dict[str, Any]], Coroutine[Any, Any, None]]
 
@@ -69,10 +68,16 @@ class InMemoryWriter:
 class ComponentRunResult:
     inputs: dict[str, InMemoryReader]
     outputs: dict[str, InMemoryWriter]
+    array_outputs: dict[str, list[InMemoryWriter]] | None = None
     port_connector: ports.PortConnector | None = None
 
     def output(self, name: str = "out") -> InMemoryWriter:
         return self.outputs[name]
+
+    def array_output(self, name: str = "out") -> list[InMemoryWriter]:
+        if self.array_outputs is None:
+            raise KeyError(name)
+        return self.array_outputs[name]
 
 
 def run_process_component(
@@ -80,16 +85,29 @@ def run_process_component(
     *,
     inputs: Mapping[str, Sequence[PortMessage]],
     outputs: Sequence[str] = ("out",),
+    array_outputs: Mapping[str, int] | None = None,
 ) -> ComponentRunResult:
     readers, writers = _make_ports(inputs, outputs)
+    array_writers = _make_array_ports(array_outputs)
     for name, reader in readers.items():
-        component.in_ports[name] = cast(Any, reader)
+        component.in_ports[name] = cast("Any", reader)
     for name, writer in writers.items():
-        component.out_ports[name] = cast(Any, writer)
+        component.out_ports[name] = cast("Any", writer)
+    for name, port_writers in array_writers.items():
+        component.array_out_ports[name] = cast("Any", list(port_writers))
 
-    asyncio.run(component.run())
+    asyncio.run(_start_process_component(component))
 
-    return ComponentRunResult(inputs=readers, outputs=writers)
+    return ComponentRunResult(inputs=readers, outputs=writers, array_outputs=array_writers)
+
+
+async def _start_process_component(component: process.Process) -> None:
+    await component.start(cast("Any", None))
+    if component._run_task is None:
+        raise AssertionError("Process component did not create a run task.")
+    await component._run_task
+    if component._run_exception is not None:
+        raise component._run_exception
 
 
 def run_standard_component(
@@ -102,8 +120,8 @@ def run_standard_component(
 ) -> ComponentRunResult:
     readers, writers = _make_ports(inputs, outputs)
     port_connector = ports.PortConnector(ins=list(readers), outs=list(writers))
-    port_connector.in_ports.update(cast(dict[str, Any], readers))
-    port_connector.out_ports.update(cast(dict[str, Any], writers))
+    port_connector.in_ports.update(cast("dict[str, Any]", readers))
+    port_connector.out_ports.update(cast("dict[str, Any]", writers))
 
     async def create_from_port_infos_reader(
         _port_infos_reader_sr: str,
@@ -140,3 +158,9 @@ def _make_ports(
     readers = {name: InMemoryReader(messages) for name, messages in inputs.items()}
     writers = {name: InMemoryWriter() for name in outputs}
     return readers, writers
+
+
+def _make_array_ports(array_outputs: Mapping[str, int] | None) -> dict[str, list[InMemoryWriter]]:
+    if array_outputs is None:
+        return {}
+    return {name: [InMemoryWriter() for _ in range(count)] for name, count in array_outputs.items()}

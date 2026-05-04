@@ -17,11 +17,10 @@ from __future__ import annotations
 import logging
 from typing import Any, override
 
-import capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -52,35 +51,25 @@ class SplitString(process.Process):
 
     @override
     async def run(self):
-        await self.process_started()
-        logger.info("%s process started", self.name)
+        logger.info("%s process running", self.name)
 
-        while self.in_ports["in"] and self.out_ports["out"]:
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
-            try:
-                in_msg = await self.in_ports["in"].read()
-                if in_msg.which() == "done":
-                    self.in_ports["in"] = None
-                    continue
 
-                s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-                logger.info("%s received: %s", self.name, s)
-                s = s.rstrip()
-                vals = s.split(self.config["split_at"].t)
+            s = in_msg.content.as_text()
+            logger.info("%s received: %s", self.name, s)
+            vals = s.rstrip().split(self.config["split_at"].t)
 
-                for val in vals:
-                    out_ip = fbp_capnp.IP.new_message(content=val)
-                    await self.out_ports["out"].write(value=out_ip)
-                    logger.info("%s sent: %s", self.name, val)
-
-            except capnp.KjException as e:
-                logger.error("%s RPC Exception: %s", self.name, e.description)
-                if e.type in ["DISCONNECTED"]:
-                    break
+            for val in vals:
+                out_ip = fbp_capnp.IP.new_message(content=val)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s process finished", self.name)
+                    return
+                logger.info("%s sent: %s", self.name, val)
 
         logger.info("%s process finished", self.name)
-        await self.process_stopped()
 
 
 def main():

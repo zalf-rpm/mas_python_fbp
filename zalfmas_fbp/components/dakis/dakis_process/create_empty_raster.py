@@ -6,13 +6,12 @@ from __future__ import annotations
 import logging
 from typing import Any, override
 
-import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
 from zalfmas_fbp.components.dakis.common.raster import create_empty_raster_bytes, parse_geojson_bbox
+from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -47,25 +46,15 @@ class CreateEmptyRaster(process.Process):
 
     @override
     async def run(self):
-        await self.process_started()
-        logger.info("%s process started", self.name)
+        logger.info("%s process running", self.name)
 
-        while self.in_ports["in"] and self.out_ports["out"]:
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
 
             try:
-                in_port = self.in_ports["in"]
-                out_port = self.out_ports["out"]
-                if not in_port or not out_port:
-                    break
-
-                in_msg = await in_port.read()
-                if in_msg.which() == "done":
-                    self.in_ports["in"] = None
-                    continue
-
-                bbox_text = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
+                bbox_text = in_msg.content.as_text()
                 bbox = parse_geojson_bbox(bbox_text)
                 raster_bytes = create_empty_raster_bytes(
                     bbox,
@@ -75,18 +64,15 @@ class CreateEmptyRaster(process.Process):
                 )
 
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))
-                await out_port.write(value=out_ip)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s process finished", self.name)
+                    return
                 logger.info("%s sent raster with %s bytes", self.name, len(raster_bytes))
 
-            except capnp.KjException as e:
-                logger.error("%s RPC Exception: %s", self.name, e.description)
-                if e.type in ["DISCONNECTED"]:
-                    break
             except (TypeError, ValueError):
                 logger.exception("%s failed to create raster", self.name)
 
         logger.info("%s process finished", self.name)
-        await self.process_stopped()
 
 
 def main():

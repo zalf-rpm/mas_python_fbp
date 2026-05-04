@@ -4,16 +4,20 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, override
+from typing import TYPE_CHECKING, Any, override
 
 import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
 from zalfmas_fbp.components.dakis.common.relabel import relabel_geoparquet_bytes
+from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -73,38 +77,25 @@ class RelabelGeoparquet(process.Process):
 
     @override
     async def run(self):
-        await self.process_started()
-        logger.info("%s process started", self.name)
+        logger.info("%s process running", self.name)
 
         mapping_csv_path = str(self.config["mapping_csv_path"].t)
         mapping_csv_bytes = None
 
-        while self.in_ports["in"] and self.out_ports["out"]:
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
 
             try:
-                in_port = self.in_ports["in"]
-                out_port = self.out_ports["out"]
-                if not in_port or not out_port:
-                    break
+                translation_msg = await self.read_in("translation")
+                if translation_msg is not None:
+                    mapping_csv_path, mapping_csv_bytes = _read_translation(
+                        translation_msg,
+                        fallback_path=mapping_csv_path,
+                    )
 
-                if self.in_ports["translation"]:
-                    translation_msg = await self.in_ports["translation"].read()
-                    if translation_msg.which() == "done":
-                        self.in_ports["translation"] = None
-                    else:
-                        mapping_csv_path, mapping_csv_bytes = _read_translation(
-                            translation_msg.value.as_struct(fbp_capnp.IP),
-                            fallback_path=mapping_csv_path,
-                        )
-
-                in_msg = await in_port.read()
-                if in_msg.which() == "done":
-                    self.in_ports["in"] = None
-                    continue
-
-                geoparquet_bytes = bytes(in_msg.value.as_struct(fbp_capnp.IP).content.as_struct(common_capnp.Value).d)
+                geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 output_bytes = relabel_geoparquet_bytes(
                     geoparquet_bytes,
                     mapping_csv_path=mapping_csv_path,
@@ -115,7 +106,9 @@ class RelabelGeoparquet(process.Process):
                     default_priority=self.config["default_priority"].i64,
                 )
 
-                await out_port.write(value=_data_ip(output_bytes))
+                if not await self.write_out("out", _data_ip(output_bytes)):
+                    logger.info("%s process finished", self.name)
+                    return
                 logger.info("%s sent %s relabeled GeoParquet bytes", self.name, len(output_bytes))
 
             except capnp.KjException as e:
@@ -126,18 +119,17 @@ class RelabelGeoparquet(process.Process):
                 logger.exception("%s failed to relabel GeoParquet", self.name)
 
         logger.info("%s process finished", self.name)
-        await self.process_stopped()
 
 
 def main():
     process.run_process_from_metadata_and_cmd_args(RelabelGeoparquet(meta), meta)
 
 
-def _data_ip(data: bytes) -> Any:
+def _data_ip(data: bytes) -> IPBuilder:
     return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=data))
 
 
-def _read_translation(ip: Any, *, fallback_path: str) -> tuple[str, bytes | None]:
+def _read_translation(ip: IPReader, *, fallback_path: str) -> tuple[str, bytes | None]:
     try:
         return fallback_path, bytes(ip.content.as_struct(common_capnp.Value).d)
     except (capnp.KjException, TypeError):

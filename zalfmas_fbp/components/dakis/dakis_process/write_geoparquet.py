@@ -6,13 +6,11 @@ from __future__ import annotations
 import logging
 from typing import Any, override
 
-import capnp
 from mas.schema.common import common_capnp
-from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
 from zalfmas_fbp.components.dakis.common.write_geoparquet import write_geoparquet_bytes
+from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -51,24 +49,15 @@ class WriteGeoparquet(process.Process):
 
     @override
     async def run(self):
-        await self.process_started()
-        logger.info("%s process started", self.name)
+        logger.info("%s process running", self.name)
 
-        while self.in_ports["in"]:
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
 
             try:
-                in_port = self.in_ports["in"]
-                if not in_port:
-                    break
-
-                in_msg = await in_port.read()
-                if in_msg.which() == "done":
-                    self.in_ports["in"] = None
-                    continue
-
-                geoparquet_bytes = bytes(in_msg.value.as_struct(fbp_capnp.IP).content.as_struct(common_capnp.Value).d)
+                geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 output_path = write_geoparquet_bytes(
                     geoparquet_bytes,
                     output_path=self.config["output_path"].t,
@@ -76,15 +65,10 @@ class WriteGeoparquet(process.Process):
                 )
                 logger.info("%s wrote GeoParquet to %s", self.name, output_path)
 
-            except capnp.KjException as e:
-                logger.error("%s RPC Exception: %s", self.name, e.description)
-                if e.type in ["DISCONNECTED"]:
-                    break
             except (OSError, TypeError, ValueError):
                 logger.exception("%s failed to write GeoParquet", self.name)
 
         logger.info("%s process finished", self.name)
-        await self.process_stopped()
 
 
 def main():

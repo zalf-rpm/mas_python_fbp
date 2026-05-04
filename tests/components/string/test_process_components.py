@@ -16,7 +16,7 @@ def test_split_string2_uses_default_config_and_writes_split_values() -> None:
             "in": [
                 ip_message("alpha,beta,gamma\n"),
                 done_message(),
-            ]
+            ],
         },
     ).output()
 
@@ -33,7 +33,7 @@ def test_to_string_can_start_with_default_config() -> None:
             "in": [
                 ip_message("alpha"),
                 done_message(),
-            ]
+            ],
         },
     ).output()
 
