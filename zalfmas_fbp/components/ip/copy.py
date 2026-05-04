@@ -13,14 +13,25 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+from __future__ import annotations
+
 import logging
 import os
+import sys
+from typing import TYPE_CHECKING, Any, override
+
+if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path = [path for path in sys.path if os.path.abspath(path or os.getcwd()) != script_dir]
 
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import process
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
 
@@ -32,48 +43,50 @@ meta = {
             "name": "copy",
             "description": "Copy IP to multiple outputs.",
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {"name": "in", "contentType": "AnyPointer", "desc": "The IP to copy to all attached outports"},
         ],
         "outPorts": [
-            {"name": "out", "type": "array", "contentType": "AnyPointer", "desc": "Copied IP for each attached outport"}
+            {
+                "name": "out",
+                "type": "array",
+                "contentType": "AnyPointer",
+                "desc": "Copied IP for each attached outport",
+            },
         ],
     },
 }
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], array_outs=["out"]
-    )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class Copy(process.Process):
+    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+        process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
-    while pc.in_ports["in"] and any(pc.array_out_ports["out"]):
-        try:
-            msg = await pc.in_ports["in"].read()
-            # check for end of data from in port
-            if msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
 
-            in_ip = msg.value.as_struct(fbp_capnp.IP)
-            for out_p in pc.array_out_ports["out"]:
-                if out_p:
-                    out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-                    common.copy_and_set_fbp_attrs(in_ip, out_ip)
-                    await out_p.write(value=out_ip)
+        while any(self.array_out_ports["out"]):
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                break
 
-        except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            out_ip = _copy_ip(in_ip)
+            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, out_ip):
+                break
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+        logger.info("%s process finished", self.name)
+
+
+def _copy_ip(in_ip: IPReader) -> IPBuilder:
+    out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
+    common.copy_and_set_fbp_attrs(in_ip, out_ip)
+    return out_ip
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    process.run_process_from_metadata_and_cmd_args(Copy(meta), meta)
 
 
 if __name__ == "__main__":

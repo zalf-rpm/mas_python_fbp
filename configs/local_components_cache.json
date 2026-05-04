@@ -716,12 +716,8 @@
                 "name": "copy",
                 "description": "Copy IP to multiple outputs."
             },
-            "type": "standard",
+            "type": "process",
             "inPorts": [
-                {
-                    "name": "conf",
-                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
-                },
                 {
                     "name": "in",
                     "contentType": "AnyPointer",
