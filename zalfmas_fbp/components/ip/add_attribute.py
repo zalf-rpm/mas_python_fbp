@@ -44,10 +44,14 @@ meta = {
             },
         ],
         "outPorts": [
-            {"name": "out", "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."}
+            {"name": "out", "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."},
         ],
         "defaultConfig": {
-            "to_attr": {"value": "attr", "type": "Text", "desc": "The attribute's name to add to the outgoing message."}
+            "to_attr": {
+                "value": "attr",
+                "type": "Text",
+                "desc": "The attribute's name to add to the outgoing message.",
+            },
         },
     },
 }
@@ -55,7 +59,9 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in", "attr"], outs=["out"]
+        port_infos_reader_sr,
+        ins=["conf", "in", "attr"],
+        outs=["out"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 

@@ -56,7 +56,7 @@ meta = {
                 "name": "out",
                 "contentType": "model.capnp:Env",
                 "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component.",
-            }
+            },
         ],
         "defaultConfig": {
             "from_attr": {
@@ -91,7 +91,9 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "climate", "soil", "in"], outs=["out"]
+        port_infos_reader_sr,
+        ins=["conf", "climate", "soil", "in"],
+        outs=["out"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -157,7 +159,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     json_env["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile
 
             capnp_env.rest = common_capnp.StructuredText.new_message(
-                value=json.dumps(json_env), structure={"json": None}
+                value=json.dumps(json_env),
+                structure={"json": None},
             )
 
             out_ip = fbp_capnp.IP.new_message()

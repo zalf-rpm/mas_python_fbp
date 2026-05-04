@@ -45,9 +45,7 @@ def relabel_geoparquet_bytes(
             priority_alias = quote_identifier(priority_column)
             default_priority_value = int(default_priority)
             if priority_column in mapping_columns:
-                priority_expression = (
-                    f"COALESCE(mapping.{quote_identifier(priority_column)}, {default_priority_value}) AS {priority_alias}"
-                )
+                priority_expression = f"COALESCE(mapping.{quote_identifier(priority_column)}, {default_priority_value}) AS {priority_alias}"
             else:
                 priority_expression = f"{default_priority_value} AS {priority_alias}"
 

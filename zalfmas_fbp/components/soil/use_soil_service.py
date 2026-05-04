@@ -140,7 +140,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
 
             profiles = await service.profilesAt(
-                coord, {"mandatory": mandatory, "optional": optional, "onlyRawData": config["only_raw_data"]}
+                coord,
+                {"mandatory": mandatory, "optional": optional, "onlyRawData": config["only_raw_data"]},
             ).profiles
             if len(profiles) > 0:
                 profile = profiles[0]

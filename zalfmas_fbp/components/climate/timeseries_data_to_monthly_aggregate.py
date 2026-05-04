@@ -56,8 +56,8 @@ def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
     def aggregate_values(var, values):
         if var == "precip":  # sum precipition
             return sum(values)
-        else:  # average all other values
-            return sum(values) / len(values)
+        # average all other values
+        return sum(values) / len(values)
 
     vars = {}
     for var, rest1 in grouped_data.items():
@@ -71,7 +71,9 @@ def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=None
+        port_infos_reader_sr,
+        ins=["conf", "in"],
+        outs=None,
     )  # outs taken from infos
     await p.update_config_from_port(config, pc.in_ports["conf"])
 

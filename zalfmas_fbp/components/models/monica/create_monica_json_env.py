@@ -48,7 +48,9 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "sim", "crop", "site"], outs=["out"]
+        port_infos_reader_sr,
+        ins=["conf", "sim", "crop", "site"],
+        outs=["out"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -65,11 +67,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         "site": site,
                         "sim": sim,
                         "climate": "",
-                    }
+                    },
                 )
 
                 out_ip = fbp_capnp.IP.new_message()
-                to_attr = config.get("to_attr", None)
+                to_attr = config.get("to_attr")
                 if to_attr and len(to_attr.as_text()) > 0:
                     out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]
                 else:

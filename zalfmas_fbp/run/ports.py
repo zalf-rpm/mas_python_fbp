@@ -47,14 +47,12 @@ def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=F
             attr_val = attrs[config_val[1:]]
         if as_struct:
             return attr_val.as_struct(as_struct), True
-        elif as_interface:
+        if as_interface:
             return attr_val.as_interface(as_interface), True
-        elif as_text:
+        if as_text:
             return attr_val.as_text(), True
-        else:
-            return attr_val, True
-    else:
-        return config_val, False
+        return attr_val, True
+    return config_val, False
 
 
 def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
@@ -68,8 +66,7 @@ def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_tex
             as_text=as_text,
             remove=remove,
         )
-    else:
-        return None, None
+    return None, None
 
 
 # toml or json
@@ -126,12 +123,10 @@ class PortConnector:
         *,
         array_outs: Sequence[str] | None = None,
     ):
-        self.in_ports: dict[str, ReaderClient | None] = {n: None for n in ins} if ins else {}
-        self.out_ports: dict[str, WriterClient | None] = {n: None for n in outs} if outs else {}
+        self.in_ports: dict[str, ReaderClient | None] = dict.fromkeys(ins) if ins else {}
+        self.out_ports: dict[str, WriterClient | None] = dict.fromkeys(outs) if outs else {}
         self.array_out_ports: dict[str, ArrayWriterPorts] = {n: [] for n in array_outs} if array_outs else {}
-        self.con_man: common.ConnectionManager = (
-            connection_manager if connection_manager else common.ConnectionManager()
-        )
+        self.con_man: common.ConnectionManager = connection_manager or common.ConnectionManager()
         self.port_infos_reader: ReaderClient | None = None
 
     @property
@@ -220,7 +215,8 @@ class PortConnector:
                             retry_secs=1,
                         )
                         self._set_in_port(
-                            port_name, reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
+                            port_name,
+                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None,
                         )
                 elif k.endswith("out_sr"):
                     port_name = k[:-7]
@@ -236,7 +232,8 @@ class PortConnector:
                             retry_secs=1,
                         )
                         self._set_out_port(
-                            port_name, writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
+                            port_name,
+                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None,
                         )
                 elif k.endswith("out_srs"):
                     port_name = k[:-8]
@@ -257,7 +254,9 @@ class PortConnector:
                         self._set_array_out_ports(port_name, writers)
         except Exception:
             logger.exception(
-                "%s: Exception connecting to ports via CMD config:\n%s", os.path.basename(__file__), config
+                "%s: Exception connecting to ports via CMD config:\n%s",
+                os.path.basename(__file__),
+                config,
             )
 
     async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
@@ -326,7 +325,8 @@ class PortConnector:
                             retry_secs=1,
                         )
                         self._set_in_port(
-                            port_name, reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None
+                            port_name,
+                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None,
                         )
 
             for n2sr in pis.outPorts:
@@ -338,7 +338,8 @@ class PortConnector:
                             retry_secs=1,
                         )
                         self._set_out_port(
-                            port_name, writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None
+                            port_name,
+                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None,
                         )
                     elif len(n2sr.srs) > 0:
                         writers: list[WriterClient | None] = []
@@ -394,7 +395,7 @@ class PortConnector:
                         writers.append(
                             writer_cap.cast_as(fbp_capnp.Channel.Writer)
                             if sr and (writer_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
-                            else None
+                            else None,
                         )
                     self._set_array_out_ports(port_name, writers)
                 else:

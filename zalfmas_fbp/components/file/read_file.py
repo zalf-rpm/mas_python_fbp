@@ -39,7 +39,7 @@ meta = {
                 "name": "out",
                 "contentType": "Text",
                 "desc": "Output either full file content or each line as as separate message.",
-            }
+            },
         ],
         "defaultConfig": {
             "to_attr": {"value": None, "type": "string", "desc": "store read file content into 'to_attr'"},
@@ -68,7 +68,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         try:
             with open(config["file"]) as _:
                 if config["lines_mode"]:
-                    for line in _.readlines():
+                    for line in _:
                         if skip_lines > 0:
                             skip_lines -= 1
                             continue

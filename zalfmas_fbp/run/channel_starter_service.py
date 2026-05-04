@@ -30,7 +30,7 @@ from mas.schema.service import service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
-import zalfmas_fbp.run.channels as channels
+from zalfmas_fbp.run import channels
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 
 if TYPE_CHECKING:
@@ -151,7 +151,8 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
 
     @override
     async def start_context(
-        self, context
+        self,
+        context,
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()

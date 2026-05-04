@@ -67,7 +67,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
             info = await info_prom
             if config["create_substream"]:
                 pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
-            for meta_plus_data in datasets if datasets else []:
+            for meta_plus_data in datasets or []:
                 attrs = []
                 if config["to_attr"]:
                     attrs.append({"key": config["to_attr"], "value": meta_plus_data.data})

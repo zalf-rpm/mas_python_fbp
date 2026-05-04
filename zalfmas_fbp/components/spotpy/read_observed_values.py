@@ -48,7 +48,7 @@ meta = {
                 "name": "out",
                 "contentType": "Text",
                 "desc": "{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield",
-            }
+            },
         ],
         "defaultConfig": {
             "path_to_yield_data": {"value": "data/FAO_yield_data.csv", "type": "string", "desc": "path to yield data"},
@@ -68,7 +68,9 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "country_ids"], outs=["out"]
+        port_infos_reader_sr,
+        ins=["conf", "country_ids"],
+        outs=["out"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 

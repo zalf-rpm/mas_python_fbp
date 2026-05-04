@@ -165,24 +165,12 @@ class SplitString(process.Process):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
-        await self.process_started()
-
         while True:
-            in_port = self.in_ports["in"]
-            out_port = self.out_ports["out"]
-            if not in_port or not out_port:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
-            if self.is_canceled():
-                break
-
-            in_msg = await in_port.read()
-            if in_msg.which() == "done":
-                self.in_ports["in"] = None
-                continue
 
             ...
-
-        await self.process_stopped()
 
 
 def main():
@@ -191,11 +179,11 @@ def main():
 
 ### What is important about this variant
 
-- `self.in_ports["name"]` and `self.out_ports["name"]` are the main accessors for standard ports.
+- `self.read_in("name")` and `self.write_out("name", value=...)` are the stop-aware accessors for standard ports.
 - `self.array_out_ports["name"]` accesses array output ports.
 - `self.config` is managed by the base class.
 - Config entries are stored as **Cap'n Proto value objects**, not plain Python values. For example, `split_string2.py` reads the delimiter with `self.config["split_at"].t`.
-- You are responsible for the lifecycle inside `run()`: startup, shutdown, cancel handling, and any explicit output-port closing you need.
+- The base class owns lifecycle transitions, stop handling, and output-port cleanup. `run()` should only implement component work.
 - The startup path is different from the `standard` style: the helper expects a `process_cap_writer_sr`, not a `port_infos_reader_sr`.
 
 ### Very important difference from the `standard` style

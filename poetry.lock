@@ -1090,14 +1090,14 @@ testing = ["coverage", "pytest", "pytest-benchmark"]
 
 [[package]]
 name = "poetry-core"
-version = "2.3.2"
+version = "2.4.0"
 description = "Poetry PEP 517 Build Backend"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "poetry_core-2.3.2-py3-none-any.whl", hash = "sha256:23df641b64f87fbb4ce1873c1915a4d4bb1b7d808c596e4307edc073e68d7234"},
-    {file = "poetry_core-2.3.2.tar.gz", hash = "sha256:20cb71be27b774628da9f384effd9183dfceb53bcef84063248a8672aa47031f"},
+    {file = "poetry_core-2.4.0-py3-none-any.whl", hash = "sha256:4305848477da00272bebd3f615bbec87f64bd117cdb858ab660b626a06a9d96c"},
+    {file = "poetry_core-2.4.0.tar.gz", hash = "sha256:4e8c7496cf797998ffc493f2e23eba4b038c894c08eadacdcdf688945de6b43a"},
 ]
 
 [[package]]
@@ -2194,7 +2194,7 @@ pycapnp = ">=2.2.1,<3.0.0"
 type = "git"
 url = "https://github.com/zalf-rpm/mas_capnproto_schemas"
 reference = "new-typing-module"
-resolved_reference = "3a7e1ba575a5c5c5a6e476ba0d2bf90224cb617c"
+resolved_reference = "61e30c27f1f72d79804e991a1302e644502e3708"
 
 [[package]]
 name = "zalfmas-common"
@@ -2250,4 +2250,4 @@ zalfmas-common = ">=0.1.35,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "d29ce6e2e61f6c2a9af6ab3e47987abb478677d124cf8fa5e0d2c22f13a27bcf"
+content-hash = "877c1e573d4bb57361d13827aa8cdf7f8ca746c362c22a969478e238f303ec53"

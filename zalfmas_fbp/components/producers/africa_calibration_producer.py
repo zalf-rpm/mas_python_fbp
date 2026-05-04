@@ -92,7 +92,9 @@ def mgmt_date_to_rel_date(mgmt_date):
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "coords", "region", "params"], outs=["env"]
+        port_infos_reader_sr,
+        ins=["conf", "coords", "region", "params"],
+        outs=["env"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -106,7 +108,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             "monica-path-to-climate-dir": "/run/user/1000/gvfs/sftp:host=login01.cluster.zalf.de,user=rpm/beegfs/common/data/climate/",
             # mounted path to archive accessable by monica executable
             "path-to-data-dir": os.path.join(
-                config["path_to_repo"], "data/"
+                config["path_to_repo"],
+                "data/",
             ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
@@ -127,7 +130,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             "monica-path-to-climate-dir": "/monica_data/climate-data/",
             # mounted path to archive accessable by monica executable
             "path-to-data-dir": os.path.join(
-                config["path_to_repo"], "data/"
+                config["path_to_repo"],
+                "data/",
             ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
@@ -213,8 +217,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         for elem2 in soil_data.keys():
             for i in range(8):
                 if np.ma.is_masked(soil_vars[elem2][i, row, col]):
-                    if i < layer_depth:
-                        layer_depth = i
+                    layer_depth = min(layer_depth, i)
                     break
         layer_depth -= 1
 
@@ -251,7 +254,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             soil_vars["clay"][i, row, col] * soil_data["clay"]["conv_factor"],
                             "fraction",
                         ],
-                    }
+                    },
                 )
         return layers
 
@@ -296,9 +299,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if msg.which() == "done":
                     pc.in_ports["params"] = None
                     continue
-                else:
-                    params_ip = msg.value.as_struct(fbp_capnp.IP)
-                    params = json.loads(params_ip.content.as_text())
+                params_ip = msg.value.as_struct(fbp_capnp.IP)
+                params = json.loads(params_ip.content.as_text())
         except Exception:
             logger.exception("%s Exception", os.path.basename(__file__))
             continue
@@ -341,7 +343,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         )
         height_data = shared.load_grid_cached(paths["path-to-data-dir"] + "/../" + setup["path_to_dem_asc_grid"], float)
         slope_data = shared.load_grid_cached(
-            paths["path-to-data-dir"] + "/../" + setup["path_to_slope_asc_grid"], float
+            paths["path-to-data-dir"] + "/../" + setup["path_to_slope_asc_grid"],
+            float,
         )
 
         # read template sim.json
@@ -382,7 +385,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
         # create environment template from json templates
         env_template = monica_io.create_env_json_from_json_config(
-            {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""}
+            {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""},
         )
 
         c_lon_0 = -179.75
@@ -532,10 +535,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
-                                value=json.dumps(env_template), structure={"json": None}
-                            )
-                        )
-                    )
+                                value=json.dumps(env_template),
+                                structure={"json": None},
+                            ),
+                        ),
+                    ),
                 )
             except Exception:
                 logger.exception("%s Exception", os.path.basename(__file__))
@@ -555,10 +559,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
-                                value=json.dumps(env_template), structure={"json": None}
-                            )
-                        )
-                    )
+                                value=json.dumps(env_template),
+                                structure={"json": None},
+                            ),
+                        ),
+                    ),
                 )
             except Exception:
                 logger.exception("%s Exception", os.path.basename(__file__))

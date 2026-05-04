@@ -100,7 +100,7 @@ class SpotPySetup:
             logger.info("%s %s sent params to monica setup: %s", os.path.basename(__file__), datetime.now(), vector)
             if self.log_out_p:
                 loop.run_until_complete(
-                    self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"})
+                    self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"}),
                 )
 
             in_msg = loop.run_until_complete(self.sim_values_in_p.read())
@@ -115,9 +115,9 @@ class SpotPySetup:
                     self.log_out_p.write(
                         value={
                             "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                            f"{len(self.observations)}"
-                        }
-                    )
+                            f"{len(self.observations)}",
+                        },
+                    ),
                 )
             assert len(sim_values) == len(self.observations)
         except Exception:
@@ -228,7 +228,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     continue
 
             spot_setup = SpotPySetup(
-                spotpy_params, obs_values, pc.out_ports["sampled_params"], pc.in_ports["sim_values"]
+                spotpy_params,
+                obs_values,
+                pc.out_ports["sampled_params"],
+                pc.in_ports["sim_values"],
             )
 
             rep = config["repetitions"]  # initial number was 10

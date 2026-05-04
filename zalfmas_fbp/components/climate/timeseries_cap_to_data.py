@@ -80,12 +80,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if config["maintain_substreams"]:
                     await pc.out_ports["out"].write(in_ip)
                 continue
-            elif in_ip.type == "closeBracket":
+            if in_ip.type == "closeBracket":
                 if config["maintain_substreams"]:
                     await pc.out_ports["out"].write(in_ip)
 
             attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            cap_or_sr = attr if attr else in_ip.content
+            cap_or_sr = attr or in_ip.content
             timeseries = None
             try:
                 timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)

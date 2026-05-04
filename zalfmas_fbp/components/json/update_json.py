@@ -93,9 +93,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             def as_type(attr_val, capnp_type_desc: str):
                 if capnp_type_desc.lower() == "text":
                     return attr_val.as_text()
-                else:
-                    struct_type, _ = common.load_capnp_module(capnp_type_desc)
-                    return attr_val.as_struct(struct_type)
+                struct_type, _ = common.load_capnp_module(capnp_type_desc)
+                return attr_val.as_struct(struct_type)
 
             # allowed_operation = update | replace | add
             # update = structures of j and spec have to match exactly
@@ -132,12 +131,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             elif allowed_operation == "replace":
                                 j[i] = v
                         # access a dict
-                        else:
-                            # j[k] is a pointer, so we can recurse
-                            if type(j[k]) in [list, dict]:
-                                change(j[k], v, allowed_operation)
-                            elif allowed_operation == "replace":
-                                j[k] = v
+                        # j[k] is a pointer, so we can recurse
+                        elif type(j[k]) in [list, dict]:
+                            change(j[k], v, allowed_operation)
+                        elif allowed_operation == "replace":
+                            j[k] = v
                     # a list as value is treated as sub object access if the first element is an attribute (@) access
                     elif type(v) is list:
                         # attribute access
@@ -173,11 +171,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             j[i] = attr_val
                         else:
                             j[k] = attr_val
+                    elif i and type(j) is list:
+                        j[i] = v
                     else:
-                        if i and type(j) is list:
-                            j[i] = v
-                        else:
-                            j[k] = v
+                        j[k] = v
 
             def create_nested_dict(path_parts: list) -> dict:
                 res_dict = {}

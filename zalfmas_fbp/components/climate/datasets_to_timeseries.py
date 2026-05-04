@@ -76,7 +76,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if config["maintain_incoming_substreams"]:
                     await pc.out_ports["ts"].write(ds_ip)
                 continue
-            elif ds_ip.type == "closeBracket":
+            if ds_ip.type == "closeBracket":
                 if config["maintain_incoming_substreams"]:
                     await pc.out_ports["ts"].write(ds_ip)
 

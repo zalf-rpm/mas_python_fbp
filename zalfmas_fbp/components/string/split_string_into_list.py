@@ -48,7 +48,7 @@ meta = {
                 "value": "text",
                 "type": ["text", "float", "int"],
                 "desc": "Cast text elements to any of these types.",
-            }
+            },
         },
     },
 }

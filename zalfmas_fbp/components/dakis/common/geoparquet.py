@@ -16,13 +16,12 @@ type Bounds = tuple[float, float, float, float]
 
 
 def raster_bounds_and_crs(raster_bytes: bytes) -> tuple[Bounds, CRS]:
-    with MemoryFile(raster_bytes) as memory_file:
-        with memory_file.open() as dataset:
-            if dataset.crs is None:
-                msg = "Raster does not define a CRS."
-                raise ValueError(msg)
-            bounds = dataset.bounds
-            return (bounds.left, bounds.bottom, bounds.right, bounds.top), dataset.crs
+    with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
+        if dataset.crs is None:
+            msg = "Raster does not define a CRS."
+            raise ValueError(msg)
+        bounds = dataset.bounds
+        return (bounds.left, bounds.bottom, bounds.right, bounds.top), dataset.crs
 
 
 def overlapping_geometries_as_geoparquet(raster_bytes: bytes, geoparquet_path: str | Path) -> bytes:
@@ -43,9 +42,7 @@ def overlapping_geometries_as_geoparquet(raster_bytes: bytes, geoparquet_path: s
         filters: list[str] = []
         params: list[Any] = [str(path)]
         if "bbox" in columns:
-            filters.append(
-                "bbox.xmin <= ? AND bbox.xmax >= ? AND bbox.ymin <= ? AND bbox.ymax >= ?"
-            )
+            filters.append("bbox.xmin <= ? AND bbox.xmax >= ? AND bbox.ymin <= ? AND bbox.ymax >= ?")
             params.extend([query_bounds[2], query_bounds[0], query_bounds[3], query_bounds[1]])
 
         filters.append("ST_Intersects(geometry, ST_GeomFromText(?))")
@@ -73,7 +70,4 @@ def geoparquet_crs(path: str | Path) -> CRS | None:
 
 def _bounds_as_polygon_wkt(bounds: Bounds) -> str:
     min_x, min_y, max_x, max_y = bounds
-    return (
-        f"POLYGON(({min_x} {min_y}, {max_x} {min_y}, {max_x} {max_y}, "
-        f"{min_x} {max_y}, {min_x} {min_y}))"
-    )
+    return f"POLYGON(({min_x} {min_y}, {max_x} {min_y}, {max_x} {max_y}, {min_x} {max_y}, {min_x} {min_y}))"

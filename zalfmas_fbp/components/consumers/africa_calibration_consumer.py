@@ -43,7 +43,9 @@ meta = {
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "result"], outs=["year_to_yield"]
+        port_infos_reader_sr,
+        ins=["conf", "result"],
+        outs=["year_to_yield"],
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 

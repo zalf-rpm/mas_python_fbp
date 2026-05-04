@@ -73,7 +73,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
         if "config" in node
     }
     for link in flow_json["links"]:
-        tc = node_id_to_config.get(link["target"]["nodeId"], None)
+        tc = node_id_to_config.get(link["target"]["nodeId"])
         if tc and link["target"]["port"] == "conf":
             tc["generate_iip"] = False
     for node_id, conf in node_id_to_config.items():
@@ -88,7 +88,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                 {
                     "out": {"nodeId": iip_id, "port": "Right"},
                     "in": {"nodeId": node_id, "port": "conf"},
-                }
+                },
             )
 
     # read path file(s)
@@ -117,7 +117,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
         if "component" in node:
             cmd = node["component"]["cmd"]
         elif component_id:
-            cmd = component_id_to_cmd.get(component_id, None)
+            cmd = component_id_to_cmd.get(component_id)
         if not cmd:
             continue
 
@@ -156,8 +156,8 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                                 "nodeId": in_port["nodeId"],
                                 "port": in_port["port"],
                             },
-                        }
-                    ).encode()
+                        },
+                    ).encode(),
                 )
                 .decode("ascii")
                 .rstrip("=")
@@ -179,7 +179,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                 first_writer_sr,
                 no_of_channels=no_of_components,
                 name=config_chan_id,
-            )
+            ),
         )
         config_chans = []
         port_infos_writers = []
@@ -198,7 +198,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                 config_srs = config_chans.pop()
                 for i in range(process_id_to_parallel_count.get(process_id, 1)):
                     process_id_to_process[process_id] = sp.Popen(
-                        process_id_to_popen_args[process_id] + [config_srs["readerSR"]]
+                        process_id_to_popen_args[process_id] + [config_srs["readerSR"]],
                     )
                     # connect to the current components config channel and send port information, then close it
                     if (port_infos_writer_cap := await con_man.try_connect(config_srs["writerSR"])) is None:
@@ -252,7 +252,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                     process_id_to_process_srs[out_process_id]["outPorts"][out_port_name] = info.writerSRs[0]
                 process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = info.readerSRs[0]
 
-        for process_id in process_id_to_popen_args.keys():
+        for process_id in process_id_to_popen_args:
             await check_and_run_process(process_id)
 
         for process_id in sink_process_ids:  # process_id_to_process.values():

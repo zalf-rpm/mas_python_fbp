@@ -40,7 +40,7 @@ meta = {
             {"name": "in", "contentType": "geo.capnp:LatLon", "desc": "Lat/Lon coordinate to get the value at."},
         ],
         "outPorts": [
-            {"name": "out", "contentType": "common.capnp:Value", "desc": "Value at the given lat/lon coordinate."}
+            {"name": "out", "contentType": "common.capnp:Value", "desc": "Value at the given lat/lon coordinate."},
         ],
         "defaultConfig": {
             "path_to_grid": {"value": None, "type": "string", "desc": "Path to the lat/lon grid file."},

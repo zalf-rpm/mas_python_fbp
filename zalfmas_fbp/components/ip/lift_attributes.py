@@ -47,7 +47,7 @@ meta = {
                 "name": "out",
                 "contentType": "AnyPointer",
                 "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
-            }
+            },
         ],
         "defaultConfig": {
             "lift_from_attr": {"value": "name", "type": "string", "desc": "Attribute to read from IP."},
@@ -95,7 +95,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             {
                                 "key": l_attr_name,
                                 "value": lift_from_attr.__getattr__(l_attr_name),
-                            }
+                            },
                         )
             out_ip.attributes = attrs
             await pc.out_ports["out"].write(value=out_ip)

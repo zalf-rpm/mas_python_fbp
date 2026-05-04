@@ -41,14 +41,14 @@ meta = {
                 "name": "params",
                 "contentType": "Text (JSON list)",
                 "desc": "output spotpy calibration params as json list string",
-            }
+            },
         ],
         "defaultConfig": {
             "path_to_calibrate_csv": {
                 "value": "calibratethese.csv",
                 "type": "string",
                 "desc": "path to csv file with parameters to calibrate",
-            }
+            },
         },
     },
 }

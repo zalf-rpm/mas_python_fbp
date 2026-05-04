@@ -47,7 +47,7 @@ meta = {
                 "name": "out",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
                 "desc": "Output geo coordinate.",
-            }
+            },
         ],
         "defaultConfig": {
             "from_name": {

@@ -47,7 +47,7 @@ def _validate_bbox(value: Any) -> BBox:
         msg = "Missing GeoJSON bbox."
         raise ValueError(msg)
 
-    return cast(BBox, bbox)
+    return cast("BBox", bbox)
 
 
 def create_empty_raster_bytes(

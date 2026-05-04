@@ -46,7 +46,7 @@ meta = {
                 "name": "out",
                 "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
                 "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
-            }
+            },
         ],
         "defaultConfig": {
             "stream": {
@@ -125,18 +125,16 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if msg.which() == "done":
                     pc.in_ports["region"] = None
                     continue
-                else:
-                    region_ip = msg.value.as_struct(fbp_capnp.IP)
-                    region = region_ip.content.as_text()
+                region_ip = msg.value.as_struct(fbp_capnp.IP)
+                region = region_ip.content.as_text()
 
             if pc.in_ports["ids"]:
                 msg = await pc.in_ports["ids"].read()
                 if msg.which() == "done":
                     pc.in_ports["ids"] = None
                     continue
-                else:
-                    ids_ip = msg.value.as_struct(fbp_capnp.IP)
-                    country_ids = list(ids_ip.content.as_list())
+                ids_ip = msg.value.as_struct(fbp_capnp.IP)
+                country_ids = list(ids_ip.content.as_list())
         except Exception:
             logger.exception("%s Exception", os.path.basename(__file__))
 

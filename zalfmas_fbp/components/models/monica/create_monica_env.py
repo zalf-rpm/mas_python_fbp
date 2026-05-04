@@ -57,7 +57,7 @@ meta = {
                 "name": "out",
                 "contentType": "model.capnp:Env",
                 "desc": "Env structure ready to be sent to a MONICA instance.",
-            }
+            },
         ],
         "defaultConfig": {
             "sim_json": {"value": "sim.json", "type": "Text", "desc": "Path to sim.json file."},
@@ -124,7 +124,7 @@ def create_env(sim, crop, site, crop_id):
 
     # create environment template from json templates
     env_template = monica_io.create_env_json_from_json_config(
-        {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""}
+        {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""},
     )
 
     env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
@@ -153,7 +153,11 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             attrs = {kv.key: kv.value for kv in in_ip.attributes}
             if "coord" in config:
                 ll_coord, is_capnp = p.get_config_val(
-                    config, "coord", attrs, as_struct=geo_capnp.LatLonCoord, remove=True
+                    config,
+                    "coord",
+                    attrs,
+                    as_struct=geo_capnp.LatLonCoord,
+                    remove=True,
                 )
                 ll_coord = ll_coord if is_capnp else geo_capnp.LatLonCoord.new_message(**ll_coord)
             else:
@@ -203,7 +207,11 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
             if setup.elevation and "dgm" in config:
                 height_nn, is_capnp = p.get_config_val(
-                    config, "dgm", attrs, as_struct=grid_capnp.Grid.Value, remove=True
+                    config,
+                    "dgm",
+                    attrs,
+                    as_struct=grid_capnp.Grid.Value,
+                    remove=True,
                 )
                 env_template["params"]["siteParameters"]["heightNN"] = height_nn.f if is_capnp else height_nn
 
@@ -235,7 +243,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     stage_ts = orig_stage_ts
                     logger.warning(
                         "The provided StageTemperatureSum array is not "
-                        "sufficiently long. Falling back to original StageTemperatureSum"
+                        "sufficiently long. Falling back to original StageTemperatureSum",
                     )
 
                 env_template["cropRotation"][0]["worksteps"][0]["crop"]["cropParams"]["cultivar"][

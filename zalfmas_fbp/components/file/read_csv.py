@@ -41,7 +41,7 @@ meta = {
                 "name": "out",
                 "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
                 "desc": "A single row from the CSV file sent as Setup struct.",
-            }
+            },
         ],
         "defaultConfig": {
             "id_col": {"value": "id", "type": "string", "desc": "The column to be used to unique identify a row."},

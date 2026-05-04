@@ -51,7 +51,7 @@ meta = {
                 "name": "out",
                 "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
                 "desc": "Output grid value at given coordinate.",
-            }
+            },
         ],
         "defaultConfig": {
             "as_common_value": {
@@ -120,9 +120,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if config.get("as_common_value", False):
                     if grid_value.which() == "f":
                         return common_capnp.Value.new_message(f64=grid_value.f)
-                    elif grid_value.which() == "i":
+                    if grid_value.which() == "i":
                         return common_capnp.Value.new_message(i64=grid_value.i)
-                    elif grid_value.which() == "ui":
+                    if grid_value.which() == "ui":
                         return common_capnp.Value.new_message(ui64=grid_value.ui)
                 return grid_value
 

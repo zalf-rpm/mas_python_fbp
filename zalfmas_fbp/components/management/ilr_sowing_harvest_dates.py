@@ -65,7 +65,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         logger.info("Read data and created ILR seed/harvest interpolator: %s", path_to_csv)
         try:
             ilr_seed_harvest_data[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
-                crop_id, path_to_csv, wgs84_crs, utm32n_crs
+                crop_id,
+                path_to_csv,
+                wgs84_crs,
+                utm32n_crs,
             )
         except OSError:
             logger.error("Couldn't read file: %s", path_to_csv)
