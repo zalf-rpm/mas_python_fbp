@@ -4,13 +4,9 @@ import asyncio
 import sys
 from collections.abc import Iterator
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
-import zalfmas_fbp.run.channel_starter_service as channel_starter_service
-import zalfmas_fbp.run.channels as channels
-import zalfmas_fbp.run.components as components
-import zalfmas_fbp.run.local_components_service as local_components_service
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import channel_starter_service, channels, components, local_components_service, process
 
 
 class DummyProcess:
@@ -30,6 +26,40 @@ class DummyStdout:
 
     def readline(self) -> str:
         return next(self._lines, "")
+
+
+class ManagedDummyProcess:
+    def __init__(self):
+        self.returncode: int | None = None
+        self.terminated = False
+        self.killed = False
+        self.wait_calls = 0
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+        self.returncode = 0
+
+    def kill(self) -> None:
+        self.killed = True
+        self.returncode = -9
+
+    def wait(self, timeout: float | None = None) -> int:
+        self.wait_calls += 1
+        if self.returncode is None:
+            raise local_components_service.sp.TimeoutExpired("managed-dummy", timeout or 0)
+        return self.returncode
+
+
+class DummyProcessCap:
+    def __init__(self):
+        self.stop_called = False
+
+    async def stop(self) -> SimpleNamespace:
+        self.stop_called = True
+        return SimpleNamespace(stopped=True)
 
 
 def test_start_local_component_appends_log_level(monkeypatch: Any) -> None:
@@ -64,9 +94,15 @@ def test_start_local_process_component_appends_log_level(monkeypatch: Any) -> No
 
     monkeypatch.setattr(process.sp, "Popen", fake_popen)
 
-    process.start_local_process_component("python process.py", "writer-sr", log_level="DEBUG")
+    process.start_local_process_component("python process.py", "writer-sr", name="demo", log_level="DEBUG")
 
-    assert captured["args"] == [sys.executable, "process.py", "writer-sr", "--log_level=DEBUG"]
+    assert captured["args"] == [
+        sys.executable,
+        "process.py",
+        "writer-sr",
+        '--name="demo"',
+        "--log_level=DEBUG",
+    ]
     assert captured["kwargs"]["text"] is True
 
 
@@ -134,13 +170,80 @@ def test_runnable_passes_log_level_to_child_component(monkeypatch: Any) -> None:
         results=SimpleNamespace(),
     )
 
-    asyncio.run(runnable.start_context(context))
+    asyncio.run(runnable.start_context(cast("Any", context)))
 
     assert captured["path_to_executable"] == "/tmp/component"
     assert captured["port_infos_reader_sr"] == "reader-sr"
     assert captured["name"] == "demo"
     assert captured["log_level"] == "CRITICAL"
     assert context.results.success is True
+
+
+def test_process_handle_close_stops_child_and_terminates_runtime() -> None:
+    async def run_test() -> None:
+        process_cap = DummyProcessCap()
+        proc = ManagedDummyProcess()
+        removed: list[ManagedDummyProcess] = []
+        handle = local_components_service.ProcessHandle(
+            cast("Any", process_cap),
+            cast("Any", proc),
+            cast("Any", removed.append),
+        )
+
+        assert await handle.process() is process_cap
+        assert await handle.alive() is True
+
+        assert await handle.close() is True
+
+        assert process_cap.stop_called is True
+        assert proc.terminated is True
+        assert proc.killed is False
+        assert removed == [proc]
+        assert await handle.alive() is False
+
+    asyncio.run(run_test())
+
+
+def test_process_factory_create_returns_process_handle(monkeypatch: Any) -> None:
+    async def run_test() -> None:
+        process_cap = DummyProcessCap()
+        proc = ManagedDummyProcess()
+
+        class DummyWriter:
+            def __init__(self):
+                self.unregister_writer = None
+                self.process_cap_received_future = asyncio.Future()
+                self.process_cap_received_future.set_result(cast("Any", process_cap))
+
+        class DummyRestorer:
+            async def save_cap(self, _cap: object) -> tuple[str, str]:
+                return "writer-token", "unsave-token"
+
+            async def unsave(self, _token: str) -> None:
+                return None
+
+            def sturdy_ref_str(self, _token: str) -> str:
+                return "writer-sr"
+
+        monkeypatch.setattr(local_components_service, "ProcessWriter", DummyWriter)
+        monkeypatch.setattr(
+            local_components_service.process,
+            "start_local_process_component",
+            lambda *_args, **_kwargs: proc,
+        )
+
+        factory = local_components_service.ProcessFactory(
+            "/tmp/process",
+            restorer=cast("Any", DummyRestorer()),
+        )
+
+        handle = await factory.create(cast("Any", None))
+
+        assert isinstance(handle, local_components_service.ProcessHandle)
+        assert await handle.process() is process_cap
+        assert factory.procs == [proc]
+
+    asyncio.run(run_test())
 
 
 def test_channel_service_does_not_pass_log_level_to_startup_channel(monkeypatch: Any) -> None:
@@ -159,7 +262,7 @@ def test_channel_service_does_not_pass_log_level_to_startup_channel(monkeypatch:
     monkeypatch.setattr(channel_starter_service.channels, "start_first_channel", fake_start_first_channel)
 
     service = channel_starter_service.StartChannelsService(
-        con_man=SimpleNamespace(),
+        con_man=cast("Any", SimpleNamespace()),
         path_to_channel="/tmp/channel",
     )
 
@@ -199,10 +302,10 @@ def test_channel_service_does_not_pass_log_level_to_started_channel(monkeypatch:
     monkeypatch.setattr(channel_starter_service.channels, "start_channel", fake_start_channel)
 
     service = channel_starter_service.StartChannelsService(
-        con_man=SimpleNamespace(),
+        con_man=cast("Any", SimpleNamespace()),
         path_to_channel="/tmp/channel",
     )
-    service.first_reader = SimpleNamespace()
+    service.first_reader = cast("Any", SimpleNamespace())
     service.first_writer_sr = "writer-sr"
 
     async def fake_get_start_infos(_chan: DummyProcess, _chan_id: str, _no_of_chans: int) -> list[Any]:
@@ -223,7 +326,7 @@ def test_channel_service_does_not_pass_log_level_to_started_channel(monkeypatch:
         results=SimpleNamespace(),
     )
 
-    asyncio.run(service.start_context(context))
+    asyncio.run(service.start_context(cast("Any", context)))
 
     assert captured["path_to_channel"] == "/tmp/channel"
     assert captured["startup_info_writer_sr"] == "writer-sr"

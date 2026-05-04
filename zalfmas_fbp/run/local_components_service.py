@@ -12,6 +12,7 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import asyncio
 import copy
@@ -22,6 +23,7 @@ import subprocess as sp
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, override
 
 import capnp
@@ -32,7 +34,7 @@ from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,12 @@ configure_logging(default_level="INFO")
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import ProcessClient
+
+
+PopenT = sp.Popen[str] | sp.Popen[bytes]
+PROCESS_HANDLE_STOP_TIMEOUT_SECONDS = 5.0
+PROCESS_HANDLE_TERMINATE_TIMEOUT_SECONDS = 5.0
+PROCESS_HANDLE_KILL_TIMEOUT_SECONDS = 5.0
 
 
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
@@ -58,7 +66,8 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         self.stopped_callbacks: list[Any] = []
 
     async def start_context(
-        self, context
+        self,
+        context,
     ):  # start @0 (portInfosReaderSr :SturdyRef, name :Text, stoppedCb :StoppedCallback) -> (success :Bool);
         port_infos_reader_sr_str = common.sturdy_ref_str_from_sr(context.params.portInfosReaderSr)
         name = context.params.name
@@ -138,6 +147,62 @@ class ProcessWriter(fbp_capnp.Channel.Writer.Server):
                 await self.unregister_writer()
 
 
+class ProcessHandle(fbp_capnp.Process.ProcessHandle.Server):
+    def __init__(
+        self,
+        process_cap: ProcessClient,
+        proc: PopenT,
+        remove_proc: Callable[[PopenT], None],
+    ):
+        self.process_cap = process_cap
+        self.proc: PopenT | None = proc
+        self.remove_proc = remove_proc
+        self.stop_timeout_seconds = PROCESS_HANDLE_STOP_TIMEOUT_SECONDS
+        self.terminate_timeout_seconds = PROCESS_HANDLE_TERMINATE_TIMEOUT_SECONDS
+        self.kill_timeout_seconds = PROCESS_HANDLE_KILL_TIMEOUT_SECONDS
+
+    @override
+    async def process(self, _context=None, **kwargs):
+        return self.process_cap
+
+    @override
+    async def alive(self, _context=None, **kwargs) -> bool:
+        return self.proc is not None and self.proc.poll() is None
+
+    @override
+    async def close(self, _context=None, **kwargs) -> bool:
+        if self.proc is None:
+            return True
+
+        await self._request_process_stop()
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            if not await self._wait_for_exit(self.terminate_timeout_seconds):
+                self.proc.kill()
+                await self._wait_for_exit(self.kill_timeout_seconds)
+
+        closed = self.proc.poll() is not None
+        if closed:
+            self.remove_proc(self.proc)
+            self.proc = None
+        return closed
+
+    async def _request_process_stop(self) -> None:
+        try:
+            await asyncio.wait_for(self.process_cap.stop(), timeout=self.stop_timeout_seconds)
+        except (TimeoutError, capnp.KjException, RuntimeError) as e:
+            logger.warning("Could not cooperatively stop process before terminating runtime: %s", e)
+
+    async def _wait_for_exit(self, timeout: float) -> bool:
+        if self.proc is None:
+            return True
+        try:
+            await asyncio.to_thread(self.proc.wait, timeout=timeout)
+        except sp.TimeoutExpired:
+            return False
+        return self.proc.poll() is not None
+
+
 class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
     def __init__(
         self,
@@ -151,7 +216,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         self.path_to_executable: str = path_to_executable
         self.log_level = log_level
-        self.procs: list[sp.Popen[str]] = []
+        self.procs: list[PopenT] = []
         # self.proc_writers = []
         self.count: int = 0
         self.restorer: common.Restorer = restorer
@@ -160,7 +225,11 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         for proc in self.procs:
             proc.terminate()
 
-    # create @0 () -> (r :Process);
+    def _remove_proc(self, proc: PopenT) -> None:
+        with suppress(ValueError):
+            self.procs.remove(proc)
+
+    # create @0 () -> (out :ProcessHandle);
     @override
     async def create(self, _context, **kwargs):
         self.count += 1
@@ -173,16 +242,15 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
 
         writer.unregister_writer = unsave  # lambda: self.restorer.unsave(unsave_sr_token)
         writer_sr_str = self.restorer.sturdy_ref_str(save_sr_token)
-        self.procs.append(
-            process.start_local_process_component(
-                self.path_to_executable,
-                writer_sr_str,
-                self.id,
-                log_level=self.log_level,
-            )
+        proc = process.start_local_process_component(
+            self.path_to_executable,
+            writer_sr_str,
+            self.id,
+            log_level=self.log_level,
         )
+        self.procs.append(proc)
         process_cap = await writer.process_cap_received_future
-        return process_cap
+        return ProcessHandle(process_cap, proc, self._remove_proc)
 
 
 class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persistable):
@@ -201,7 +269,7 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
 
     async def supportedCategories_context(self, context):  # supportedCategories @0 () -> (cats :List(IdInformation));
         cats = list(
-            [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()]
+            [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()],
         )
         context.results.cats = cats
 
@@ -233,7 +301,7 @@ def load_component_metadata(
     log_level: str = "WARNING",
 ):
     cat_id_to_name_and_component_holders: defaultdict[str, dict[str, Any]] = defaultdict(
-        lambda: {"name": [], "component_holders": []}
+        lambda: {"name": [], "component_holders": []},
     )
     for comp_id, cmd_str in cmds.items():
         if comp_id == "id" or comp_id == "name" or comp_id[:3] == "___":
@@ -302,7 +370,7 @@ def load_component_metadata(
                     ref=common.IdentifiableHolder(fbp_capnp.Component.new_message(**c)),
                     id=c_id,
                     name=info.get("name", c_id),
-                )
+                ),
             )
 
         except (capnp.KjException, KeyError, TypeError, ValueError) as e:
