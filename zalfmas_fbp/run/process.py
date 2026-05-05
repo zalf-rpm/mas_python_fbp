@@ -716,11 +716,14 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
         strategy = ArrayOutStrategy(strategy)
         if strategy == ArrayOutStrategy.BROADCAST:
-            wrote_any = False
-            for i, port in enumerate(ports):
-                if port is not None:
-                    wrote_any = await self._write_array_out_port(name, i, port, message) or wrote_any
-            return wrote_any
+            active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
+            if not active_ports:
+                return False
+
+            results = await asyncio.gather(
+                *(self._write_array_out_port(name, i, port, message) for i, port in active_ports),
+            )
+            return any(results)
 
         start_index = self._array_out_next_indices.get(name, 0)
         for offset in range(len(ports)):

@@ -49,6 +49,28 @@ class _DelayedReader(InMemoryReader):
         return await super().read()
 
 
+class _BlockingWriter(InMemoryWriter):
+    def __init__(self, release: asyncio.Event):
+        super().__init__()
+        self.release = release
+        self.started = asyncio.Event()
+
+    async def write(self, value: Any) -> None:
+        self.started.set()
+        await self.release.wait()
+        await super().write(value)
+
+
+class _SignalingWriter(InMemoryWriter):
+    def __init__(self):
+        super().__init__()
+        self.written = asyncio.Event()
+
+    async def write(self, value: Any) -> None:
+        await super().write(value)
+        self.written.set()
+
+
 class _StopAwareProcess(process.Process):
     async def run(self) -> None:
         while not self.stopping:
@@ -163,6 +185,28 @@ def test_write_array_out_broadcast_writes_to_all_connected_ports() -> None:
     assert wrote is True
     assert text_outputs(first) == ["alpha"]
     assert text_outputs(second) == ["alpha"]
+
+
+def test_write_array_out_broadcast_does_not_block_other_ports_behind_a_slow_writer() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_array_port_meta())
+        release = asyncio.Event()
+        blocking = _BlockingWriter(release)
+        ready = _SignalingWriter()
+        component.array_out_ports["out"] = [cast("Any", blocking), cast("Any", ready)]
+
+        write_task = asyncio.create_task(component.write_array_out("out", "broadcast", _text_ip("alpha")))
+
+        await blocking.started.wait()
+        await asyncio.wait_for(ready.written.wait(), timeout=0.1)
+        assert text_outputs(ready) == ["alpha"]
+        assert text_outputs(blocking) == []
+
+        release.set()
+        assert await write_task is True
+        assert text_outputs(blocking) == ["alpha"]
+
+    asyncio.run(run_test())
 
 
 def test_write_array_out_round_robin_uses_next_port() -> None:
