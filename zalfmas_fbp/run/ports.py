@@ -18,10 +18,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tomllib
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-import tomli
 from capnp.lib.capnp import (
     KjException,
     _CapabilityClient,
@@ -88,14 +88,14 @@ async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
             try:  # first try to read as structured text
                 st = ip.content.as_struct(common_capnp.StructuredText)
                 if st.type == "toml":
-                    d = tomli.loads(st.value)
+                    d = tomllib.loads(st.value)
                 elif st.type == "json":
                     d = json.loads(st.value)
             except (KjException, TypeError, ValueError):
                 try:  # if structured text fails, try as plain text and use config_type parameter
                     text_value = ip.content.as_text()
                     if text_type == "toml":
-                        d = tomli.loads(text_value)
+                        d = tomllib.loads(text_value)
                     elif text_type == "json":
                         d = json.loads(text_value)
                 except (KjException, TypeError, ValueError):
@@ -373,7 +373,7 @@ class PortConnector:
         return pc
 
     async def connect_from_toml_str(self, config_toml_str: str):
-        toml_config = tomli.loads(config_toml_str)
+        toml_config = tomllib.loads(config_toml_str)
 
         try:
             for port_name, data in toml_config["ports"]["in"].items():

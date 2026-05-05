@@ -2242,4 +2242,4 @@ zalfmas-common = ">=0.1.35,<0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "8d0eddd738e20f2c8a41f48f60b18310ac7de08ea07ef34d7488f8e9950b9245"
+content-hash = "37480d94cd21ff52ae00ff4130a571a047319d9a50139031c13ed1818f8dbba1"
