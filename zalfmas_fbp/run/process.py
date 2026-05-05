@@ -32,6 +32,7 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 )
 
 if TYPE_CHECKING:
+    from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
@@ -216,7 +217,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             self.config[key] = self._config_value_from_python(value)
 
     @staticmethod
-    def _load_config_text(text: str, config_type: str) -> dict[str, Any]:
+    def _load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
         normalized_type = config_type or "toml"
         if isinstance(normalized_type, str):
             normalized_type = normalized_type.lower()
