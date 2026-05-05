@@ -22,6 +22,7 @@
   "cb6720d6-bc33-445d-b2c1-aa3842219c81": "python -m zalfmas_fbp.components.grid.use_grid_service",
   "1d442f41-dee4-4973-ad99-09855af1d7ad": "python -m zalfmas_fbp.components.ip.add_attribute",
   "b1e875af-4ee7-4937-8824-17d185216ec4": "python -m zalfmas_fbp.components.ip.copy",
+  "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d": "python -m zalfmas_fbp.components.ip.load_balancer",
   "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
   "67b31990-452a-4058-8a99-6785be345216": "python -m zalfmas_fbp.components.json.update_json",
   "bc9f8bfd-db77-49ed-a347-a26bb37084d1": "python -m zalfmas_fbp.components.management.ilr_sowing_harvest_dates",
