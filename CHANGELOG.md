@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.2.33](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.32...v0.2.33) (2026-05-05)
+
+
+### Features
+
+* add documentation on how to create a component ([f07c32c](https://github.com/zalf-rpm/mas_python_fbp/commit/f07c32c84cea07b9f19cde130b8e53810d380104))
+* add first dakis component for creating and empty geotiff ([ccfb4b1](https://github.com/zalf-rpm/mas_python_fbp/commit/ccfb4b1bf4e7480782d267573df96b4846fbb2f9))
+* align the process and the port connector variant further and improve type safety by adding proper accessors ([868ac4e](https://github.com/zalf-rpm/mas_python_fbp/commit/868ac4ea0264f742aa54caa4d45b41d56bfd006a))
+* **dakis:** filter geoparquet by raster ([44f6d4d](https://github.com/zalf-rpm/mas_python_fbp/commit/44f6d4d93ea129a22c5baa8ec65d3c6ed94ef343))
+* **dakis:** relabel geoparquet geometries ([355fce0](https://github.com/zalf-rpm/mas_python_fbp/commit/355fce0689205e43f2f9de794b0d6d25429d0574))
+* **dakis:** write geoparquet to disk ([177db6a](https://github.com/zalf-rpm/mas_python_fbp/commit/177db6ae598fac9508fa8ddbc02718d914178b1d))
+* differntiate array ports and normal ports and clear up function and variable names ([2b666e4](https://github.com/zalf-rpm/mas_python_fbp/commit/2b666e471558a54aca13af07984fa6ec31db1512))
+* **process:** add array ports and lifecycle helpers ([aaa153a](https://github.com/zalf-rpm/mas_python_fbp/commit/aaa153ae2698d8a6c96809762d6ba28b4c9d49cd))
+* **process:** add managed process handles ([e716529](https://github.com/zalf-rpm/mas_python_fbp/commit/e71652922521da2e2cba6e4d1b37710cd4970a84))
+* switch from print to logger ([1e3bcd5](https://github.com/zalf-rpm/mas_python_fbp/commit/1e3bcd51fa7697987ac254b58c2317037122743f))
+* switch to duckdb for more efficient querying ([c5b83a6](https://github.com/zalf-rpm/mas_python_fbp/commit/c5b83a6207e2d882ebff204ec02a527f916f32df))
+
+
+### Bug Fixes
+
+* **console:** write output to stdout ([529da11](https://github.com/zalf-rpm/mas_python_fbp/commit/529da1144eb34f43a0d11581a0918d37e73df6f3))
+* docker image permissions to edit the components cache ([0e89dd3](https://github.com/zalf-rpm/mas_python_fbp/commit/0e89dd3ac44e5bf726c115a074e72a8c3ea5a9c6))
+* ensure output dir with proper permissions exists ([01d602e](https://github.com/zalf-rpm/mas_python_fbp/commit/01d602e42f6f4fb1641897c76ff602abbe115b70))
+* missing import of Counter ([db9fa12](https://github.com/zalf-rpm/mas_python_fbp/commit/db9fa122d0f9273eb8100e79f993f3d2b999a170))
+* **process:** handle default config values ([d66236e](https://github.com/zalf-rpm/mas_python_fbp/commit/d66236e6ff8c08c30f5185d2f7781fb85972b2f7))
+* uuid of split string into list service ([ddddb04](https://github.com/zalf-rpm/mas_python_fbp/commit/ddddb04dfe1cc8b54effaebc27977e02673e66eb))
+* wrong config key ([226dbcc](https://github.com/zalf-rpm/mas_python_fbp/commit/226dbccffe3e60bed1cf91948f167976fbf2d5d4))
+* wrong schema for IP instantiation ([284bdb0](https://github.com/zalf-rpm/mas_python_fbp/commit/284bdb0fbaf46371e319803df9520d0b6dd32545))
+
+
+### Documentation
+
+* **components:** document bracket substreams ([7177bcb](https://github.com/zalf-rpm/mas_python_fbp/commit/7177bcb73213fb2236b9d6bf46ae5304e64c0909))
+
 ## [0.2.32](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.31...v0.2.32) (2026-04-21)
 
 
