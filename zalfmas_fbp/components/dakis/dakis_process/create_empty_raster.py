@@ -47,6 +47,8 @@ class CreateEmptyRaster(process.Process):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
         while True:
             in_msg = await self.read_in("in")

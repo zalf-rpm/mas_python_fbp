@@ -57,6 +57,8 @@ class ToString(process.Process):
 
     async def run(self):
         logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
         struct_type = self.config.get("struct_type")
         if struct_type is None:

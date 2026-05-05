@@ -61,3 +61,29 @@ def test_to_string_can_start_with_default_config() -> None:
     ).output()
 
     assert len(writer.values) == 1
+
+
+def test_to_string_reads_conf_port_before_processing_input() -> None:
+    component = ToString(to_string_meta)
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message(
+                    common_capnp.StructuredText.new_message(
+                        type="toml",
+                        value='struct_type = "mas.schema.common.common_capnp:Value"',
+                    ),
+                ),
+                done_message(),
+            ],
+            "in": [
+                ip_message(common_capnp.Value.new_message(t="alpha")),
+                done_message(),
+            ],
+        },
+    ).output()
+
+    assert component.config["struct_type"].t == "mas.schema.common.common_capnp:Value"
+    assert text_outputs(writer) == ['(t = "alpha")']

@@ -53,6 +53,39 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
         assert dataset.compression.value == "ZSTD"
 
 
+def test_create_empty_raster_reads_conf_port_before_processing_input() -> None:
+    component = CreateEmptyRaster(meta)
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message(
+                    common_capnp.StructuredText.new_message(
+                        type="toml",
+                        value='epsg = 4326\nresolution_m = 50.0\ncompression = "lzw"',
+                    ),
+                ),
+                done_message(),
+            ],
+            "in": [
+                ip_message("[12.0, 52.0, 12.01, 52.01]"),
+                done_message(),
+            ],
+        },
+    ).output()
+
+    assert component.config["epsg"].i64 == 4326
+    assert component.config["resolution_m"].f64 == 50.0
+    assert component.config["compression"].t == "lzw"
+
+    raster_bytes = bytes(writer.values[0].content.as_struct(common_capnp.Value).d)
+    with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
+        assert dataset.crs.to_epsg() == 4326
+        assert dataset.res == (50.0, 50.0)
+        assert dataset.compression.value == "LZW"
+
+
 def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tmp_path: Path) -> None:
     source_path = tmp_path / "source.parquet"
     source = gpd.GeoDataFrame(
