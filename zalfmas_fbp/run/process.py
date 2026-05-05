@@ -44,6 +44,7 @@ from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_log
 
 ArrayReaderPorts = list["ReaderClient | None"]
 ArrayWriterPorts = list["WriterClient | None"]
+ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ class ArrayInStrategy(StrEnum):
 class ArrayOutStrategy(StrEnum):
     BROADCAST = "broadcast"
     ROUND_ROBIN = "round_robin"
+    NEXT_AVAILABLE = "next_available"
 
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
@@ -160,6 +162,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.out_ports: dict[str, WriterClient | None] = {}
         self.array_out_ports: dict[str, ArrayWriterPorts] = {}
         self._array_out_next_indices: dict[str, int] = {}
+        self._array_out_write_tasks: dict[str, ArrayOutWriteTasks] = {}
         self._run_task: asyncio.Task[None] | None = None
         self._run_exception: BaseException | None = None
         self._stop_requested: asyncio.Event = asyncio.Event()
@@ -258,6 +261,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     if self._is_array_port(port_info):
                         self.array_out_ports.setdefault(name, [])
                         self._array_out_next_indices.setdefault(name, 0)
+                        self._array_out_write_tasks.setdefault(name, [])
                     else:
                         self.out_ports.setdefault(name, None)
             except (KeyError, TypeError, ValueError) as e:
@@ -330,6 +334,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             index = len(self.array_out_ports[name])
             self.array_out_ports[name].append(writer)
             self._array_out_next_indices.setdefault(name, 0)
+            self._ensure_array_out_write_task_slots(name, self.array_out_ports[name])
             return ConnectoutportResultTuple(
                 writer is not None,
                 PortDisconnect(self.array_out_ports, name, writer, index=index),
@@ -725,6 +730,9 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             )
             return any(results)
 
+        if strategy == ArrayOutStrategy.NEXT_AVAILABLE:
+            return await self._write_array_out_next_available(name, ports, message)
+
         start_index = self._array_out_next_indices.get(name, 0)
         for offset in range(len(ports)):
             port_index = (start_index + offset) % len(ports)
@@ -737,6 +745,101 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 return True
 
         return False
+
+    def _ensure_array_out_write_task_slots(
+        self,
+        name: str,
+        ports: ArrayWriterPorts,
+    ) -> ArrayOutWriteTasks:
+        tasks = self._array_out_write_tasks.setdefault(name, [])
+        if len(tasks) < len(ports):
+            tasks.extend([None] * (len(ports) - len(tasks)))
+        return tasks
+
+    async def _consume_array_out_write_task(self, name: str, port_index: int) -> bool:
+        tasks = self._array_out_write_tasks.get(name)
+        if tasks is None or port_index >= len(tasks):
+            return False
+
+        task = tasks[port_index]
+        if task is None:
+            return False
+
+        tasks[port_index] = None
+        try:
+            return await task
+        except asyncio.CancelledError:
+            return False
+
+    async def _wait_for_next_available_array_out_port(
+        self,
+        name: str,
+        ports: ArrayWriterPorts,
+    ) -> tuple[int, WriterClient] | None:
+        tasks = self._ensure_array_out_write_task_slots(name, ports)
+        while not self._stop_requested.is_set():
+            for port_index, task in enumerate(tasks[: len(ports)]):
+                if task is not None and task.done():
+                    await self._consume_array_out_write_task(name, port_index)
+
+            active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
+            if not active_ports:
+                return None
+
+            start_index = self._array_out_next_indices.get(name, 0)
+            for offset in range(len(ports)):
+                port_index = (start_index + offset) % len(ports)
+                port = ports[port_index]
+                if port is None:
+                    continue
+                if tasks[port_index] is None:
+                    self._array_out_next_indices[name] = (port_index + 1) % len(ports)
+                    return port_index, port
+
+            active_tasks: dict[asyncio.Task[bool], int] = {
+                cast("asyncio.Task[bool]", tasks[i]): i
+                for i, _port in active_ports
+                if tasks[i] is not None
+            }
+            if not active_tasks:
+                return None
+
+            stop_task = asyncio.create_task(self._stop_requested.wait())
+            try:
+                done, _pending = await asyncio.wait(
+                    {*active_tasks, stop_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if stop_task in done:
+                    return None
+                for task in done:
+                    if task is stop_task:
+                        continue
+                    write_task = cast("asyncio.Task[bool]", task)
+                    await self._consume_array_out_write_task(name, active_tasks[write_task])
+            finally:
+                if not stop_task.done():
+                    stop_task.cancel()
+
+        return None
+
+    async def _write_array_out_next_available(
+        self,
+        name: str,
+        ports: ArrayWriterPorts,
+        message: IPBuilder,
+    ) -> bool:
+        next_port = await self._wait_for_next_available_array_out_port(name, ports)
+        if next_port is None:
+            return False
+
+        port_index, port = next_port
+        tasks = self._ensure_array_out_write_task_slots(name, ports)
+        tasks[port_index] = asyncio.create_task(
+            self._write_array_out_port(name, port_index, port, message),
+            name=f"{self.name or self.id}-{name}[{port_index}]-write",
+        )
+        return True
 
     async def _write_array_out_port(
         self,
@@ -780,9 +883,31 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     async def force_close_ports(self):
         await self.close_in_ports()
-        await self.close_out_ports()
+        await self.close_out_ports(cancel_pending_writes=True)
 
-    async def close_out_ports(self):
+    async def _finalize_array_out_write_tasks(self, *, cancel_pending: bool) -> None:
+        task_refs: list[tuple[str, int, asyncio.Task[bool]]] = []
+        for name, tasks in self._array_out_write_tasks.items():
+            for port_index, task in enumerate(tasks):
+                if task is None:
+                    continue
+                if task.done():
+                    await self._consume_array_out_write_task(name, port_index)
+                    continue
+                if cancel_pending:
+                    task.cancel()
+                task_refs.append((name, port_index, task))
+
+        if task_refs:
+            await asyncio.gather(*(task for _name, _port_index, task in task_refs), return_exceptions=True)
+            for name, port_index, _task in task_refs:
+                await self._consume_array_out_write_task(name, port_index)
+
+    async def close_out_ports(self, *, cancel_pending_writes: bool | None = None):
+        if cancel_pending_writes is None:
+            cancel_pending_writes = self._stop_requested.is_set()
+        await self._finalize_array_out_write_tasks(cancel_pending=cancel_pending_writes)
+
         for name, port in self.out_ports.items():
             if port is not None:
                 try:

@@ -209,6 +209,47 @@ def test_write_array_out_broadcast_does_not_block_other_ports_behind_a_slow_writ
     asyncio.run(run_test())
 
 
+def test_write_array_out_next_available_distributes_across_idle_ports() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_array_port_meta())
+        first = InMemoryWriter()
+        second = InMemoryWriter()
+        component.array_out_ports["out"] = [cast("Any", first), cast("Any", second)]
+
+        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("beta")) is True
+
+        await component.close_out_ports()
+
+        assert text_outputs(first) == ["alpha"]
+        assert text_outputs(second) == ["beta"]
+
+    asyncio.run(run_test())
+
+
+def test_write_array_out_next_available_uses_other_idle_port_while_one_write_is_blocked() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_array_port_meta())
+        release = asyncio.Event()
+        blocking = _BlockingWriter(release)
+        ready = _SignalingWriter()
+        component.array_out_ports["out"] = [cast("Any", blocking), cast("Any", ready)]
+
+        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        await blocking.started.wait()
+
+        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("beta")) is True
+        await asyncio.wait_for(ready.written.wait(), timeout=0.1)
+        assert text_outputs(ready) == ["beta"]
+        assert text_outputs(blocking) == []
+
+        release.set()
+        await component.close_out_ports()
+        assert text_outputs(blocking) == ["alpha"]
+
+    asyncio.run(run_test())
+
+
 def test_write_array_out_round_robin_uses_next_port() -> None:
     component = process.Process(metadata=_array_port_meta())
     first = InMemoryWriter()
@@ -224,16 +265,16 @@ def test_write_array_out_round_robin_uses_next_port() -> None:
     assert text_outputs(second) == ["beta", "gamma"]
 
 
-def test_write_array_out_rejects_next_available_strategy() -> None:
+def test_write_array_out_rejects_invalid_strategy() -> None:
     component = process.Process(metadata=_array_port_meta())
     component.array_out_ports["out"] = [cast("Any", InMemoryWriter())]
 
     try:
-        asyncio.run(component.write_array_out("out", "next_available", _text_ip("alpha")))
+        asyncio.run(component.write_array_out("out", "least_loaded", _text_ip("alpha")))
     except ValueError:
         pass
     else:
-        raise AssertionError("next_available is not an array output strategy")
+        raise AssertionError("least_loaded is not an array output strategy")
 
 
 def test_read_array_in_zip_returns_one_message_from_every_active_port() -> None:
