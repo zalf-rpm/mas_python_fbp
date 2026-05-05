@@ -192,7 +192,7 @@ In the `standard` variant, configuration is usually pulled from the `conf` input
 
 In the `process` variant, that does **not** happen automatically.
 
-`split_string2.py` still declares a `conf` port in metadata, but its implementation reads the delimiter from `self.config`, not from `self.in_ports["conf"]`. That means:
+`split_string2.py` now shows the explicit pattern: call `await self.update_config_from_port("conf")` in `run()` before processing data. That means:
 
 - declare a `conf` port only if you really plan to consume it
 - if you want config from that port, read it explicitly in `run()`

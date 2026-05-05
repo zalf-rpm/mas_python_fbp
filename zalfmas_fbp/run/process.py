@@ -17,7 +17,8 @@ import logging
 import os
 import subprocess as sp
 import sys
-from collections.abc import Callable, Iterable
+import tomllib
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Literal, cast, overload, override
@@ -180,6 +181,62 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             "contentType": port_info.get("contentType", "Text"),
         }
 
+    @staticmethod
+    def _config_value_from_python(value: Any):
+        value_type = type(value)
+        if value_type is str:
+            return common_capnp.Value.new_message(t=value)
+        if value_type is int:
+            return common_capnp.Value.new_message(i64=value)
+        if value_type is float:
+            return common_capnp.Value.new_message(f64=value)
+        if value_type is bool:
+            return common_capnp.Value.new_message(b=value)
+        if value_type is dict:
+            return common_capnp.Value.new_message(t=json.dumps(value))
+        if value_type is list and len(value) > 0 and type(value[0]) is int:
+            if all(type(item) is int for item in value):
+                return common_capnp.Value.new_message(li64=value)
+        if value_type is list and len(value) > 0 and type(value[0]) is float:
+            if all(type(item) is float for item in value):
+                return common_capnp.Value.new_message(lf64=value)
+        if value_type is list and len(value) > 0 and type(value[0]) is bool:
+            if all(type(item) is bool for item in value):
+                return common_capnp.Value.new_message(lb=value)
+        if value_type is list and len(value) > 0 and type(value[0]) is str:
+            if all(type(item) is str for item in value):
+                return common_capnp.Value.new_message(lt=value)
+        raise TypeError(f"Unsupported config value type: {value_type.__name__}")
+
+    def _apply_config_values(self, config_values: Mapping[str, Any]) -> None:
+        for key, value in config_values.items():
+            if value is None:
+                self.config.pop(key, None)
+                continue
+            self.config[key] = self._config_value_from_python(value)
+
+    @staticmethod
+    def _load_config_text(text: str, config_type: str) -> dict[str, Any]:
+        normalized_type = config_type or "toml"
+        if isinstance(normalized_type, str):
+            normalized_type = normalized_type.lower()
+        if normalized_type == "toml":
+            return dict(tomllib.loads(text))
+        if normalized_type == "json":
+            config = json.loads(text)
+            if type(config) is not dict:
+                raise TypeError("JSON config must decode to an object")
+            return config
+        raise ValueError(f"Unsupported config text type: {config_type}")
+
+    @classmethod
+    def _config_from_ip(cls, in_msg: IPReader) -> dict[str, Any]:
+        try:
+            structured_text = in_msg.content.as_struct(common_capnp.StructuredText)
+        except capnp.KjException:
+            return cls._load_config_text(in_msg.content.as_text(), "toml")
+        return cls._load_config_text(structured_text.value, structured_text.type)
+
     def init_from_metadata(self):
         default_config: dict[str, Any] = {}
         if self.meta:
@@ -207,34 +264,13 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     "Some metadata could not be used for initializing the process component. Exception: %s",
                     e,
                 )
-        for k, v in default_config.items():
-            val = None
-            vt = type(v)
-            if vt is str:
-                val = common_capnp.Value.new_message(t=v)
-            elif vt is int:
-                val = common_capnp.Value.new_message(i64=v)
-            elif vt is float:
-                val = common_capnp.Value.new_message(f64=v)
-            elif vt is bool:
-                val = common_capnp.Value.new_message(b=v)
-            elif vt is dict:
-                val = common_capnp.Value.new_message(t=json.dumps(v))
-            elif vt is list and len(v) > 0 and type(v[0]) is int:
-                if all(map(lambda x: type(x) is int, v)):
-                    val = common_capnp.Value.new_message(li64=v)
-            elif vt is list and len(v) > 0 and type(v[0]) is float:
-                if all(map(lambda x: type(x) is float, v)):
-                    val = common_capnp.Value.new_message(lf64=v)
-            elif vt is list and len(v) > 0 and type(v[0]) is bool:
-                if all(map(lambda x: type(x) is bool, v)):
-                    val = common_capnp.Value.new_message(lb=v)
-            elif vt is list and len(v) > 0 and type(v[0]) is str:
-                if all(map(lambda x: type(x) is str, v)):
-                    val = common_capnp.Value.new_message(lt=v)
-
-            if val:
-                self.config[k] = val
+        for key, value in default_config.items():
+            if value is None:
+                continue
+            try:
+                self.config[key] = self._config_value_from_python(value)
+            except TypeError as e:
+                logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
 
     @property
     def meta(self):
@@ -374,7 +410,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # stop @6 () -> (stopped :Bool);
     @override
-    async def stop(self, _context, **kwargs) -> bool:
+    async def stop(self, _context=None, **kwargs) -> bool:
         has_running_task = self._run_task is not None and not self._run_task.done()
         if not has_running_task and self.process_state in ("idle", "failed", "closed"):
             return False
@@ -466,6 +502,19 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         finally:
             if not stop_task.done():
                 _ = stop_task.cancel()
+
+    async def update_config_from_port(self, name: str = "conf") -> bool:
+        in_msg = await self.read_in(name)
+        if in_msg is None:
+            return False
+
+        try:
+            config_values = self._config_from_ip(in_msg)
+        except (capnp.KjException, json.JSONDecodeError, tomllib.TOMLDecodeError, TypeError, ValueError) as e:
+            raise ValueError(f"{self.name} received invalid config on port '{name}': {e}") from e
+
+        self._apply_config_values(config_values)
+        return True
 
     @overload
     async def read_array_in(

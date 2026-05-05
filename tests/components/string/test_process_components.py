@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from mas.schema.common import common_capnp
+
 from tests.component_harness import done_message, ip_message, run_process_component, text_outputs
 from zalfmas_fbp.components.string.split_string2 import SplitString
 from zalfmas_fbp.components.string.split_string2 import meta as split_string_meta
@@ -21,6 +23,27 @@ def test_split_string2_uses_default_config_and_writes_split_values() -> None:
     ).output()
 
     assert component.config["split_at"].t == ","
+    assert text_outputs(writer) == ["alpha", "beta", "gamma"]
+
+
+def test_split_string2_reads_conf_port_before_processing_input() -> None:
+    component = SplitString(split_string_meta)
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message(common_capnp.StructuredText.new_message(type="toml", value='split_at = ";"')),
+                done_message(),
+            ],
+            "in": [
+                ip_message("alpha;beta;gamma\n"),
+                done_message(),
+            ],
+        },
+    ).output()
+
+    assert component.config["split_at"].t == ";"
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
