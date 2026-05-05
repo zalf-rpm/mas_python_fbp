@@ -49,8 +49,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2b/0a/7b98e1e119878a27ba8618ca1e18b14f992ff1eda40f47bccccf4de44121/kiwisolver-1.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: git+https://github.com/zalf-rpm/mas_capnproto_schemas?rev=new-typing-module#61e30c27f1f72d79804e991a1302e644502e3708
-      - pypi: git+https://github.com/zalf-rpm/mas_python_common?rev=new-typing-module#0d84d9ef66d69dfcad7c90138b8373f518b7560e
       - pypi: https://files.pythonhosted.org/packages/8a/17/4402d0d14ccf1dfc70932600b68097fbbf9c898a4871d2cbbe79c7801a32/matplotlib-3.10.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/7b/7a/a8d32501bb95ecff342004a674720164f95ad616f269450b3bc13dc88ae3/netcdf4-1.7.4-cp311-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d1/73/a9d864e42a01896bb5974475438f16086be9ba1f0d19d0bb7a07427c4a8b/numpy-2.4.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
@@ -83,6 +81,8 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b5/11/87d6d29fb5d237229d67973a6c9e06e048f01cf4994dee194ab0ea841814/tomlkit-0.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/c2/0f/bcbd57c7fa9ef38226d2c0e745125b8ba4379d9db28218da20d4f3ea363f/zalfmas_capnp_schemas-0.1.61-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/a5/44/b0c7c5c465792874dae756adeb4afe3c2ad28c67287fdaa796ef3d7472a8/zalfmas_common-0.1.42-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1031,26 +1031,28 @@ packages:
   purls: []
   size: 119135
   timestamp: 1767016325805
-- pypi: git+https://github.com/zalf-rpm/mas_capnproto_schemas?rev=new-typing-module#61e30c27f1f72d79804e991a1302e644502e3708
+- pypi: https://files.pythonhosted.org/packages/c2/0f/bcbd57c7fa9ef38226d2c0e745125b8ba4379d9db28218da20d4f3ea363f/zalfmas_capnp_schemas-0.1.61-py3-none-any.whl
   name: zalfmas-capnp-schemas
-  version: 0.1.60
+  version: 0.1.61
+  sha256: dbde6355d9e58894de7e3607891b885faf6d6271f739db10134b0c272bd9ab16
   requires_dist:
   - pycapnp>=2.2.1,<3.0.0
   requires_python: '>=3.12,<3.14'
-- pypi: git+https://github.com/zalf-rpm/mas_python_common?rev=new-typing-module#0d84d9ef66d69dfcad7c90138b8373f518b7560e
+- pypi: https://files.pythonhosted.org/packages/a5/44/b0c7c5c465792874dae756adeb4afe3c2ad28c67287fdaa796ef3d7472a8/zalfmas_common-0.1.42-py3-none-any.whl
   name: zalfmas-common
-  version: 0.1.41
+  version: 0.1.42
+  sha256: ef96e30d7920d276ed19556fd0d71c037c5a409ce45f7cb84d9531d365e8fc1a
   requires_dist:
-  - pycapnp>=2.1.0,<3.0.0
-  - pysodium>=0.7.17,<0.8.0
-  - pyproj>=3.6.1,<4.0.0
-  - scipy>=1.13.1,<2.0.0
   - pandas>=2.2.2,<4.0.0
   - psutil>=7.0.0,<8.0.0
-  - tomlkit>=0.14.0,<0.15.0
-  - zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas@new-typing-module
-  - tomli>=2.3.0,<3.0.0
+  - pycapnp>=2.1.0,<3.0.0
+  - pyproj>=3.6.1,<4.0.0
+  - pysodium>=0.7.17,<0.8.0
   - pytest>=9.0.3,<10.0.0
+  - scipy>=1.13.1,<2.0.0
+  - tomli>=2.3.0,<3.0.0
+  - tomlkit>=0.14.0,<0.15.0
+  - zalfmas-capnp-schemas>=0.1.61,<0.2.0
   requires_python: '>=3.12,<3.14'
 - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
   name: zalfmas-services
