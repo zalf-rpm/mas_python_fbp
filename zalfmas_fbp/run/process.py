@@ -158,11 +158,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.out_ports: dict[str, WriterClient | None] = {}
         self.array_out_ports: dict[str, ArrayWriterPorts] = {}
         self._array_out_next_indices: dict[str, int] = {}
-        self.tasks = []
         self._run_task: asyncio.Task[None] | None = None
         self._run_exception: BaseException | None = None
         self._stop_requested: asyncio.Event = asyncio.Event()
-        self.soft_stop_timeout_seconds = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
+        self.soft_stop_timeout_seconds: float = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
         self.process_state: ProcessStateEnum = "idle"
         self.state_transition_callbacks: list[StateTransitionClient] = []
 
@@ -375,7 +374,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     # stop @6 () -> (stopped :Bool);
     @override
-    async def stop(self, _context=None, **kwargs) -> bool:
+    async def stop(self, _context, **kwargs) -> bool:
         has_running_task = self._run_task is not None and not self._run_task.done()
         if not has_running_task and self.process_state in ("idle", "failed", "closed"):
             return False
@@ -441,10 +440,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
-                task.cancel()
+                _ = task.cancel()
 
             if stop_task in done:
-                read_task.cancel()
+                _ = read_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await read_task
                 return None
@@ -455,8 +454,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 return None
             return msg.value.as_struct(fbp_capnp.IP)
         except asyncio.CancelledError:
-            read_task.cancel()
-            stop_task.cancel()
+            _ = read_task.cancel()
+            _ = stop_task.cancel()
             with suppress(asyncio.CancelledError):
                 await read_task
             raise
@@ -466,7 +465,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             return None
         finally:
             if not stop_task.done():
-                stop_task.cancel()
+                _ = stop_task.cancel()
 
     @overload
     async def read_array_in(
@@ -672,9 +671,6 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 if port is not None:
                     wrote_any = await self._write_array_out_port(name, i, port, message) or wrote_any
             return wrote_any
-
-        if strategy != ArrayOutStrategy.ROUND_ROBIN:
-            raise ValueError(f"Unsupported array output strategy: {strategy}")
 
         start_index = self._array_out_next_indices.get(name, 0)
         for offset in range(len(ports)):
