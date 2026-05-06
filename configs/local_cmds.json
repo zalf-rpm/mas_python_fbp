@@ -17,6 +17,7 @@
     "66ea3fce-80f7-4ab6-b77a-0966cb7c2793": "python -m zalfmas_fbp.components.geo.to_geo_coord",
     "cb6720d6-bc33-445d-b2c1-aa3842219c81": "python -m zalfmas_fbp.components.grid.use_grid_service",
     "1d442f41-dee4-4973-ad99-09855af1d7ad": "python -m zalfmas_fbp.components.ip.add_attribute",
+    "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0": "python -m zalfmas_fbp.components.ip.add_content",
     "b1e875af-4ee7-4937-8824-17d185216ec4": "python -m zalfmas_fbp.components.ip.copy",
     "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
     "67b31990-452a-4058-8a99-6785be345216": "python -m zalfmas_fbp.components.json.update_json",
@@ -32,7 +33,6 @@
     "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab": "python -m zalfmas_fbp.components.spotpy.spotpy_comp",
     "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c": "python -m zalfmas_fbp.components.string.split_string",
     "d44040ab-7d5a-44d1-94e8-3f79969edbd4": "python -m zalfmas_fbp.components.string.split_string2",
-    "6c9346e6-71a7-4007-b403-2c78c845c1c7": "python -m zalfmas_fbp.components.string.split_string_into_list",
     "4b260f85-eb1b-4109-87ec-b30d38a5631a": "python -m zalfmas_fbp.components.string.collect_into_list",
     "250488d8-7519-49a8-820e-0e981ffb2a71": "python -m zalfmas_fbp.components.string.to_string"
 }
