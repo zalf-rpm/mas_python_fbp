@@ -6,6 +6,8 @@ path_to_channel = "./binaries/channel"
 verbose = false
 # channel_host = "localhost"
 #fixed_sturdy_ref_token = "channel_starter"
+# Reuse service.gateways for spawned channel/readers/writers and return gateway refs.
+# register_channels_at_gateways = true
 
 #[[service.registries]]
 #name = "channel starter service"

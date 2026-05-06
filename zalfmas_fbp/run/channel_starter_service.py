@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, override
 import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
+from mas.schema.persistence import persistence_capnp
 from mas.schema.service import service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
@@ -88,6 +89,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         description: str | None = None,
         verbose: bool = False,
         channel_host_name: str | None = None,
+        channel_gateways: list[dict[str, str]] | None = None,
         admin: AdminClient | None = None,
         restorer: common.Restorer | None = None,
     ):
@@ -102,6 +104,8 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         self.chan_id_to_info: dict[str, list[StartupInfoReader]] = {}
         self.verbose: bool = verbose
         self.channel_host_name: str | None = channel_host_name
+        self.channel_gateways: list[dict[str, str]] = channel_gateways or []
+        self.gateway_heartbeat_tasks: list[asyncio.Task[None]] = []
 
     def __del__(self):
         for _, (chan, _) in self.channels.items():
@@ -138,6 +142,57 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             else:
                 self.chan_id_to_info[msg_chan_id].append(info)
         return start_infos
+
+    async def _register_at_gateway(self, cap, gateway_config: dict[str, str]):
+        gateway_sr = gateway_config.get("sturdy_ref")
+        if not gateway_sr:
+            raise ValueError("Channel gateway config is missing 'sturdy_ref'")
+
+        gateway_cap = await self.con_man.try_connect(gateway_sr)
+        if gateway_cap is None:
+            raise RuntimeError(f"Couldn't connect to channel gateway at sturdy_ref: {gateway_sr}")
+
+        gateway = gateway_cap.cast_as(persistence_capnp.Gateway)
+        res = await gateway.register(cap)
+        heartbeat = res.heartbeat
+        heartbeat_interval = res.secsHeartbeatInterval
+
+        async def beat_gateway_heartbeat():
+            while True:
+                await asyncio.sleep(heartbeat_interval)
+                await heartbeat.beat()
+
+        self.gateway_heartbeat_tasks.append(asyncio.create_task(beat_gateway_heartbeat()))
+        return res.sturdyRef
+
+    async def _gateway_ref_for_cap(self, cap):
+        last_error: Exception | None = None
+        for gateway_config in self.channel_gateways:
+            try:
+                return await self._register_at_gateway(cap, gateway_config)
+            except (capnp.KjException, RuntimeError, ValueError) as e:
+                last_error = e
+                logger.error("Error registering channel endpoint at gateway %s. Exception: %s", gateway_config, e)
+        raise RuntimeError("Couldn't register channel endpoint at any configured gateway") from last_error
+
+    async def _replace_startup_info_refs_with_gateway_refs(self, info: StartupInfoReader):
+        gateway_reader_srs = [await self._gateway_ref_for_cap(reader) for reader in info.readers]
+        gateway_writer_srs = [await self._gateway_ref_for_cap(writer) for writer in info.writers]
+        return {
+            "bufferSize": info.bufferSize,
+            "closeSemantics": info.closeSemantics,
+            "channelSR": await self._gateway_ref_for_cap(info.channel),
+            "readerSRs": gateway_reader_srs,
+            "writerSRs": gateway_writer_srs,
+            "channel": info.channel,
+            "readers": list(info.readers),
+            "writers": list(info.writers),
+        }
+
+    async def _replace_startup_infos_refs_with_gateway_refs(self, startup_infos: list[StartupInfoReader]):
+        if not self.channel_gateways:
+            return startup_infos
+        return [await self._replace_startup_info_refs_with_gateway_refs(info) for info in startup_infos]
 
     # struct Params {
     #    name            @0 :Text;       # name of channel
@@ -179,7 +234,8 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             chan,
             StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None)),
         )
-        context.results.startupInfos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
+        startup_infos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
+        context.results.startupInfos = await self._replace_startup_infos_refs_with_gateway_refs(startup_infos)
         context.results.stop = stop
 
 
@@ -206,6 +262,11 @@ async def main():
     if path_to_channel is None:
         logger.error("Need path to channel binary")
         return
+    register_channels_at_gateways = config_service_section.get("register_channels_at_gateways", False)
+    channel_gateways = config_service_section.get("gateways", None) if register_channels_at_gateways else None
+    if register_channels_at_gateways and not channel_gateways:
+        logger.error("Need service.gateways when register_channels_at_gateways is true")
+        return
 
     service = StartChannelsService(
         con_man=con_man,
@@ -214,6 +275,7 @@ async def main():
         name=config_service_section.get("name", None),
         description=config_service_section.get("description", None),
         channel_host_name=config_service_section.get("channel_host", None),
+        channel_gateways=channel_gateways,
         restorer=restorer,
         verbose=config_service_section.get("verbose", False),
     )

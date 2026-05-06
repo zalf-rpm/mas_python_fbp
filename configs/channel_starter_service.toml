@@ -8,6 +8,8 @@ path_to_channel = "./binaries/channel"
 verbose = false
 fixed_sturdy_ref_token = "local_mas_python_fbp_channel_starter"
 # channel_host = "localhost"
+# Reuse service.gateways for spawned channel/readers/writers and return gateway refs.
+register_channels_at_gateways = true
 
 #[[service.registries]]
 #name = "channel starter service"
