@@ -15,6 +15,7 @@
 
 import json
 import os
+from typing import Any, Optional, Tuple
 
 import tomli
 from capnp.lib.capnp import KjException
@@ -22,17 +23,20 @@ from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
 from zalfmas_common import common
 
 
-def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
+# get the value from attributes attrs if it is an attribute access, then return true in the tuple
+# else just return the original value and return false in the tuple
+def get_attr_val(name: Any, attrs: dict, as_struct: Optional[Any] = None, as_interface: Optional[Any] = None,
+                 as_text: bool = False, remove: bool = True) -> Tuple[Any, bool]:
     if (
-            type(config_val) is str
-            and len(config_val) > 0
-            and config_val[0] == "@"
-            and config_val[1:] in attrs
+            type(name) is str
+            and len(name) > 0
+            and name[0] == "@"
+            and name[1:] in attrs
     ):
         if remove:
-            attr_val = attrs.pop(config_val[1:])
+            attr_val = attrs.pop(name[1:])
         else:
-            attr_val = attrs[config_val[1:]]
+            attr_val = attrs[name[1:]]
         if as_struct:
             return attr_val.as_struct(as_struct), True
         elif as_interface:
@@ -42,7 +46,7 @@ def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=F
         else:
             return attr_val, True
     else:
-        return config_val, False
+        return name, False
 
 
 def get_config_val(
