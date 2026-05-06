@@ -332,3 +332,101 @@ def test_channel_service_does_not_pass_log_level_to_started_channel(monkeypatch:
     assert captured["startup_info_writer_sr"] == "writer-sr"
     assert captured["name"] == "demo"
     assert captured["log_level"] is None
+
+
+def test_channel_service_returns_gateway_refs_when_enabled(monkeypatch: Any) -> None:
+    registered_caps: list[Any] = []
+
+    class FakeGatewayCap:
+        def cast_as(self, _schema: Any) -> FakeGatewayCap:
+            return self
+
+        async def register(self, cap: Any) -> SimpleNamespace:
+            registered_caps.append(cap)
+
+            async def beat() -> None:
+                return None
+
+            return SimpleNamespace(
+                sturdyRef=f"gateway-sr-{len(registered_caps)}",
+                heartbeat=SimpleNamespace(beat=beat),
+                secsHeartbeatInterval=3600,
+            )
+
+    class FakeConnectionManager:
+        async def try_connect(self, sturdy_ref: str) -> FakeGatewayCap:
+            assert sturdy_ref == "capnp://gateway"
+            return FakeGatewayCap()
+
+    def fake_start_channel(
+        path_to_channel: str,
+        startup_info_id: str | None,
+        startup_info_writer_sr: str | None,
+        name: str | None = None,
+        verbose: bool = False,
+        host: str | None = None,
+        port: str | None = None,
+        no_of_channels: int = 1,
+        no_of_readers: int = 1,
+        no_of_writers: int = 1,
+        reader_srts: str | None = None,
+        writer_srts: str | None = None,
+        buffer_size: int = 1,
+        log_level: str | None = None,
+    ) -> DummyProcess:
+        return DummyProcess()
+
+    monkeypatch.setattr(channel_starter_service.channels, "start_channel", fake_start_channel)
+
+    service = channel_starter_service.StartChannelsService(
+        con_man=cast("Any", FakeConnectionManager()),
+        path_to_channel="/tmp/channel",
+        channel_gateways=[{"name": "test gateway", "sturdy_ref": "capnp://gateway"}],
+    )
+    service.first_reader = cast("Any", SimpleNamespace())
+    service.first_writer_sr = "writer-sr"
+
+    direct_info = SimpleNamespace(
+        bufferSize=2,
+        closeSemantics="fbp",
+        channelSR="direct-channel-sr",
+        readerSRs=["direct-reader-sr-1", "direct-reader-sr-2"],
+        writerSRs=["direct-writer-sr"],
+        channel="channel-cap",
+        readers=["reader-cap-1", "reader-cap-2"],
+        writers=["writer-cap"],
+    )
+
+    async def fake_get_start_infos(_chan: DummyProcess, _chan_id: str, _no_of_chans: int) -> list[Any]:
+        return [direct_info]
+
+    monkeypatch.setattr(service, "get_start_infos", fake_get_start_infos)
+
+    context = SimpleNamespace(
+        params=SimpleNamespace(
+            name="demo",
+            noOfChannels=1,
+            noOfReaders=2,
+            noOfWriters=1,
+            readerSrts=[],
+            writerSrts=[],
+            bufferSize=2,
+        ),
+        results=SimpleNamespace(),
+    )
+
+    asyncio.run(service.start_context(cast("Any", context)))
+
+    assert registered_caps == ["reader-cap-1", "reader-cap-2", "writer-cap", "channel-cap"]
+    assert context.results.startupInfos == [
+        {
+            "bufferSize": 2,
+            "closeSemantics": "fbp",
+            "channelSR": "gateway-sr-4",
+            "readerSRs": ["gateway-sr-1", "gateway-sr-2"],
+            "writerSRs": ["gateway-sr-3"],
+            "channel": "channel-cap",
+            "readers": ["reader-cap-1", "reader-cap-2"],
+            "writers": ["writer-cap"],
+        },
+    ]
