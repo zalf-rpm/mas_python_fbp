@@ -13,103 +13,98 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.grid import grid_capnp
 from pymep.realParser import eval as mep_eval
-from zalfmas_capnp_schemas_with_stubs import (
-    common_capnp,
-    fbp_capnp,
-    geo_capnp,
-    grid_capnp,
-)
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "grid",
-        "name": "Grid"
-    },
+    "category": {"id": "grid", "name": "Grid"},
     "component": {
         "info": {
             "id": "cb6720d6-bc33-445d-b2c1-aa3842219c81",
             "name": "Use grid service",
-            "description": "Use the grid service to get the grid value at a given Lat/Lon coord."
+            "description": "Use the grid service to get the grid value at a given Lat/Lon coord.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "geo.capnp:LatLonCoord", "desc": "The coordinate to get the value at."},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "geo.capnp:LatLonCoord",
-                "desc": "The coordinate to get the value at."
-            }, {
                 "name": "service",
                 "contentType": "grid.capnp:Service | SturdyRef",
-                "desc": "Capability or sturdy ref to service."
-            }
+                "desc": "Capability or sturdy ref to service.",
+            },
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
-                "desc": "Output grid value at given coordinate."
-            }
+                "desc": "Output grid value at given coordinate.",
+            },
         ],
         "defaultConfig": {
             "as_common_value": {
                 "value": False,
                 "type": "bool",
-                "desc": "Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value."
+                "desc": "Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value.",
             },
             "from_attr": {
                 "value": None,
                 "type": "string",
-                "desc": "Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord)."
+                "desc": "Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord).",
             },
             "to_attr": {
                 "value": None,
                 "type": "string",
-                "desc": "Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value)."
+                "desc": "Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value).",
             },
             "calc": {
                 "value": {
                     "f(gv)": None,
                 },
                 "type": "object",
-                "desc": "If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object."
-            }
-        }
-    }
+                "desc": "If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in", "service"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     service = None
-    if ports["service"]:
-        service = ports.read_or_connect("service", cast_as=grid_capnp.Service)
+    if pc.in_ports["service"]:
+        service = (
+            service_cap.cast_as(grid_capnp.Service)
+            if (service_cap := await pc.read_or_connect("service")) is not None
+            else None
+        )
         if not service:
-            print(
-                f"{os.path.basename(__file__)} No soil service could be received or connected to."
-            )
+            logger.error("%s No grid service could be received or connected to.", os.path.basename(__file__))
             return
 
     try:
-        while ports["in"] and ports["out"] and service:
-            in_msg = ports["in"].read().wait()
+        while pc.in_ports["in"] and pc.out_ports["out"] and service:
+            in_msg = pc.in_ports["in"].read().wait()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -125,9 +120,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 if config.get("as_common_value", False):
                     if grid_value.which() == "f":
                         return common_capnp.Value.new_message(f64=grid_value.f)
-                    elif grid_value.which() == "i":
+                    if grid_value.which() == "i":
                         return common_capnp.Value.new_message(i64=grid_value.i)
-                    elif grid_value.which() == "ui":
+                    if grid_value.which() == "ui":
                         return common_capnp.Value.new_message(ui64=grid_value.ui)
                 return grid_value
 
@@ -158,13 +153,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             # copy old attributes and potentially add new one
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
-    except Exception as e:
-        print(f"{os.path.basename(__file__)} Exception :", e)
+    except Exception:
+        logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

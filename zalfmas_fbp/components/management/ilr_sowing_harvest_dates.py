@@ -13,54 +13,45 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 from datetime import date, timedelta
 
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.management import management_capnp as mgmt_capnp
 from pyproj import CRS
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp
-from zalfmas_capnp_schemas_with_stubs import management_capnp as mgmt_capnp
 from zalfmas_common import common, geo
 from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "management",
-        "name": "Management"
-    },
+    "category": {"id": "management", "name": "Management"},
     "categoryId": "management",
     "component": {
         "info": {
             "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
             "name": "ILR seed/harvest dates",
-            "description": "Get closest ILR seed/harvest dates to lat/lon location."
+            "description": "Get closest ILR seed/harvest dates to lat/lon location.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf"
-            }, {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "conf"}, {"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     wgs84_crs = CRS.from_epsg(4326)
     utm32n_crs = CRS.from_epsg(25832)
@@ -71,32 +62,27 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         path_to_csv = config["path_to_ilr_csv"].get(crop_id, None)
         if not path_to_csv:
             continue
-        print("Read data and created ILR seed/harvest interpolator:", path_to_csv)
+        logger.info("Read data and created ILR seed/harvest interpolator: %s", path_to_csv)
         try:
-            ilr_seed_harvest_data[crop_id] = (
-                ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
-                    crop_id, path_to_csv, wgs84_crs, utm32n_crs
-                )
+            ilr_seed_harvest_data[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
+                crop_id,
+                path_to_csv,
+                wgs84_crs,
+                utm32n_crs,
             )
         except OSError:
-            print("Couldn't read file:", path_to_csv)
+            logger.error("Couldn't read file: %s", path_to_csv)
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            latlon = common.get_fbp_attr(in_ip, config["latlon_attr"]).as_struct(
-                geo_capnp.LatLonCoord
-            )
-            sowing_time = common.get_fbp_attr(
-                in_ip, config["sowing_time_attr"]
-            ).as_text()
-            harvest_time = common.get_fbp_attr(
-                in_ip, config["harvest_time_attr"]
-            ).as_text()
+            latlon = common.get_fbp_attr(in_ip, config["latlon_attr"]).as_struct(geo_capnp.LatLonCoord)
+            sowing_time = common.get_fbp_attr(in_ip, config["sowing_time_attr"]).as_text()
+            harvest_time = common.get_fbp_attr(in_ip, config["harvest_time_attr"]).as_text()
             crop_id = common.get_fbp_attr(in_ip, config["crop_id_attr"]).as_text()
 
             utm = geo.transform_from_to_geo_coord(latlon, "utm32n")
@@ -106,22 +92,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if ilr_interpolate is None or seed_harvest_cs is None:
                 common.copy_and_set_fbp_attrs(in_ip, out_ip)
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
             else:
                 ilr_dates = mgmt_capnp.ILRDates.new_message()
 
-                seed_harvest_data = ilr_seed_harvest_data[crop_id]["data"][
-                    seed_harvest_cs
-                ]
+                seed_harvest_data = ilr_seed_harvest_data[crop_id]["data"][seed_harvest_cs]
                 if seed_harvest_data:
                     is_winter_crop = ilr_seed_harvest_data[crop_id]["is-winter-crop"]
 
-                    if (
-                            sowing_time == "fixed"
-                    ):  # fixed indicates that regionally fixed sowing dates will be used
+                    if sowing_time == "fixed":  # fixed indicates that regionally fixed sowing dates will be used
                         sowing_date = seed_harvest_data["sowing-date"]
                     elif (
-                            sowing_time == "auto"
+                        sowing_time == "auto"
                     ):  # auto indicates that automatic sowing dates will be used that vary between regions
                         sowing_date = seed_harvest_data["latest-sowing-date"]
                     else:
@@ -132,12 +114,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         sd = date(2001, sds["month"], sds["day"])
                         sdoy = sd.timetuple().tm_yday
 
-                    if (
-                            harvest_time == "fixed"
-                    ):  # fixed indicates that regionally fixed harvest dates will be used
+                    if harvest_time == "fixed":  # fixed indicates that regionally fixed harvest dates will be used
                         harvest_date = seed_harvest_data["harvest-date"]
                     elif (
-                            harvest_time == "auto"
+                        harvest_time == "auto"
                     ):  # auto indicates that automatic harvest dates will be used that vary between regions
                         harvest_date = seed_harvest_data["latest-harvest-date"]
                     else:
@@ -157,13 +137,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     if sowing_time == "fixed" and harvest_time == "fixed":
                         # calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy-1))
                         if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=min(hdoy, sdoy - 1)
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
                         else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=hdoy
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
                         ilr_dates.sowing = seed_harvest_data["sowing-date"]
                         ilr_dates.harvest = {
                             "year": hds["year"],
@@ -175,13 +151,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                     elif sowing_time == "fixed" and harvest_time == "auto":
                         if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=min(hdoy, sdoy - 1)
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
                         else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=hdoy
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
                         ilr_dates.sowing = seed_harvest_data["sowing-date"]
                         ilr_dates.latestHarvest = {
                             "year": hds["year"],
@@ -197,9 +169,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             if esd > date(esd.year, 6, 20)
                             else {"year": sds["year"], "month": 6, "day": 20}
                         )  # "{:04d}-{:02d}-{:02d}".format(sds[0], 6, 20)
-                        calc_sowing_date = date(2000, 12, 31) + timedelta(
-                            days=max(hdoy + 1, sdoy)
-                        )
+                        calc_sowing_date = date(2000, 12, 31) + timedelta(days=max(hdoy + 1, sdoy))
                         ilr_dates.latestSowing = {
                             "year": sds["year"],
                             "month": calc_sowing_date.month,
@@ -216,13 +186,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             else {"year": sds["year"], "month": 6, "day": 20}
                         )  # "{:04d}-{:02d}-{:02d}".format(sds[0], 6, 20)
                         if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=min(hdoy, sdoy - 1)
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
                         else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(
-                                days=hdoy
-                            )
+                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
                         ilr_dates.latestSowing = seed_harvest_data["latest-sowing-date"]
                         ilr_dates.latestHarvest = {
                             "year": hds["year"],
@@ -237,13 +203,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip,
                     **({config["to_attr"]: ilr_dates} if config["to_attr"] else {}),
                 )
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

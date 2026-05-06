@@ -18,15 +18,16 @@ import asyncio
 import json
 import subprocess as sp
 import sys
+from typing import Any
 
 import capnp
+
+from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 
 
 def run_component_from_metadata(func, meta):
     parser = create_default_fbp_component_args_parser(meta["component"]["info"]["description"])
-    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(
-        parser, meta
-    )
+    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(parser, meta)
     asyncio.run(capnp.run(func(port_infos_reader_sr, default_config)))
 
 
@@ -68,11 +69,13 @@ def create_default_fbp_component_args_parser(component_description):
         type=str,
         help="Name of process to be started.",
     )
+    add_log_level_argument(parser)
     return parser
 
 
-def handle_default_fpb_component_args(parser, component_meta: dict = None):
+def handle_default_fpb_component_args(parser, component_meta: dict[str, Any] | None = None):
     args = parser.parse_args()
+    configure_logging(args.log_level)
     if component_meta and (dc := component_meta.get("component", {}).get("defaultConfig", None)):
         default_config = {k: v.get("value", v) if v and type(v) is dict else v for k, v in dc.items()}
     else:
@@ -83,14 +86,14 @@ def handle_default_fpb_component_args(parser, component_meta: dict = None):
 
     port_infos_reader_sr = None
     if args.output_json_default_config:
-        print(json.dumps(default_config, indent=4))
+        sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
         with open(args.write_json_default_config, "w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
-        print(json.dumps(component_meta, indent=4))
+        sys.stdout.write(json.dumps(component_meta, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
         with open(args.write_json_component_metadata, "w") as _:
@@ -104,12 +107,20 @@ def handle_default_fpb_component_args(parser, component_meta: dict = None):
     return port_infos_reader_sr, default_config, args
 
 
-def start_local_component(path_to_executable, port_infos_reader_sr, name=None):
+def start_local_component(
+    path_to_executable: str,
+    port_infos_reader_sr: str,
+    name: str | None = None,
+    log_level: str | None = None,
+):
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
         pte_split[0] = sys.executable
     proc = sp.Popen(
-        pte_split + [port_infos_reader_sr] + ([f'--name="{name}"'] if name else []),
+        pte_split
+        + [port_infos_reader_sr]
+        + ([f'--name="{name}"'] if name else [])
+        + ([f"--log_level={log_level}"] if log_level else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
     )

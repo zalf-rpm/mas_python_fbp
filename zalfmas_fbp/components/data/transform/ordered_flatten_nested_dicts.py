@@ -14,53 +14,41 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "data/transform",
-        "name": "Data/Transform"
-    },
+    "category": {"id": "data/transform", "name": "Data/Transform"},
     "component": {
         "info": {
             "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
             "name": "ordered flatten nested dicts",
-            "description": "ordered_flatten_nested_dicts"
+            "description": "ordered_flatten_nested_dicts",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf"
-            }, {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "conf"}, {"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     reverse = config["reverse"]
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -86,13 +74,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             ordered_flatten_dict(in_dict, out_list, reverse)
 
             out_ip = fbp_capnp.IP.new_message(content=json.dumps(out_list))
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

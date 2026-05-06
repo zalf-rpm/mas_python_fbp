@@ -13,16 +13,22 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import subprocess as sp
 import sys
 import uuid
 from collections import defaultdict
+from typing import Any
 
 import capnp
-import channels as chans
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
+
+from zalfmas_fbp.run import channels as chans
+
+logger = logging.getLogger(__name__)
 
 # def get_free_port():
 #    with socket.socket() as s:
@@ -38,7 +44,7 @@ standalone_config = {
 }
 
 
-async def start_flow_via_port_infos_sr(config: dict):
+async def start_flow_via_port_infos_sr(config: dict[str, Any]):
     common.update_config(config, sys.argv, print_config=True, allow_new_keys=False)
 
     # use_infiniband = config["use_infiniband"]
@@ -53,16 +59,12 @@ async def start_flow_via_port_infos_sr(config: dict):
         flow_json = json.load(_)
 
     if not flow_json:
-        print(f"{os.path.basename(__file__)} error: could not read flow file")
+        logger.error("%s error: could not read flow file", os.path.basename(__file__))
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
-    node_id_to_node = {
-        node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node
-    }
-    links = [
-        {"out": link["source"], "in": link["target"]} for link in flow_json["links"]
-    ]
+    node_id_to_node = {node["nodeId"]: node for node in flow_json["nodes"] if "nodeId" in node}
+    links = [{"out": link["source"], "in": link["target"]} for link in flow_json["links"]]
 
     # create config IIPs if a node has a defaultConfig but no connected config port
     node_id_to_config = {
@@ -71,7 +73,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         if "config" in node
     }
     for link in flow_json["links"]:
-        tc = node_id_to_config.get(link["target"]["nodeId"], None)
+        tc = node_id_to_config.get(link["target"]["nodeId"])
         if tc and link["target"]["port"] == "conf":
             tc["generate_iip"] = False
     for node_id, conf in node_id_to_config.items():
@@ -86,7 +88,7 @@ async def start_flow_via_port_infos_sr(config: dict):
                 {
                     "out": {"nodeId": iip_id, "port": "Right"},
                     "in": {"nodeId": node_id, "port": "conf"},
-                }
+                },
             )
 
     # read path file(s)
@@ -115,7 +117,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         if "component" in node:
             cmd = node["component"]["cmd"]
         elif component_id:
-            cmd = component_id_to_cmd.get(component_id, None)
+            cmd = component_id_to_cmd.get(component_id)
         if not cmd:
             continue
 
@@ -127,15 +129,13 @@ async def start_flow_via_port_infos_sr(config: dict):
     channels = []
 
     try:
-        first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(
-            config["path_to_channel"]
-        )
+        first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(config["path_to_channel"])
         channels.append(first_chan)
 
         con_man = common.ConnectionManager()
-        first_reader = await con_man.try_connect(
-            first_reader_sr, cast_as=fbp_capnp.Channel.Reader
-        )
+        if (first_reader_cap := await con_man.try_connect(first_reader_sr)) is None:
+            raise RuntimeError(f"Couldn't connect to startup reader {first_reader_sr}.")
+        first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
 
         process_id_to_process_srs = defaultdict(lambda: defaultdict(dict))
         # chan_id_to_in_out_sr_names = {}
@@ -156,24 +156,18 @@ async def start_flow_via_port_infos_sr(config: dict):
                                 "nodeId": in_port["nodeId"],
                                 "port": in_port["port"],
                             },
-                        }
-                    ).encode()
+                        },
+                    ).encode(),
                 )
                 .decode("ascii")
                 .rstrip("=")
             )
             # start channel
-            chan = chans.start_channel(
-                config["path_to_channel"], chan_id, first_writer_sr, name=chan_id
-            )
+            chan = chans.start_channel(config["path_to_channel"], chan_id, first_writer_sr, name=chan_id)
             channels.append(chan)
 
-            process_id_to_process_srs[out_port["nodeId"]]["outPorts"][
-                out_port["port"]
-            ] = None
-            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][in_port["port"]] = (
-                None
-            )
+            process_id_to_process_srs[out_port["nodeId"]]["outPorts"][out_port["port"]] = None
+            process_id_to_process_srs[in_port["nodeId"]]["inPorts"][in_port["port"]] = None
 
         # start one channel for the configuration of each component (as many channels in one channel service)
         no_of_components = len(process_id_to_popen_args)
@@ -185,7 +179,7 @@ async def start_flow_via_port_infos_sr(config: dict):
                 first_writer_sr,
                 no_of_channels=no_of_components,
                 name=config_chan_id,
-            )
+            ),
         )
         config_chans = []
         port_infos_writers = []
@@ -193,22 +187,10 @@ async def start_flow_via_port_infos_sr(config: dict):
 
         async def check_and_run_process(process_id):
             io_to_srs = process_id_to_process_srs[process_id]
-            if len(config_chans) > 0 and all(
-                [sr is not None for srs in io_to_srs.values() for _, sr in srs.items()]
-            ):
+            if len(config_chans) > 0 and all([sr is not None for srs in io_to_srs.values() for _, sr in srs.items()]):
                 port_infos_msg = fbp_capnp.PortInfos.new_message()
-                in_ports = list(
-                    [
-                        {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["inPorts"].items()
-                    ]
-                )
-                out_ports = list(
-                    [
-                        {"name": name, "sr": sr}
-                        for name, sr in io_to_srs["outPorts"].items()
-                    ]
-                )
+                in_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["inPorts"].items()])
+                out_ports = list([{"name": name, "sr": sr} for name, sr in io_to_srs["outPorts"].items()])
                 if len(out_ports) == 0:
                     sink_process_ids.append(process_id)
                 port_infos_msg.inPorts = in_ports
@@ -216,12 +198,12 @@ async def start_flow_via_port_infos_sr(config: dict):
                 config_srs = config_chans.pop()
                 for i in range(process_id_to_parallel_count.get(process_id, 1)):
                     process_id_to_process[process_id] = sp.Popen(
-                        process_id_to_popen_args[process_id] + [config_srs["readerSR"]]
+                        process_id_to_popen_args[process_id] + [config_srs["readerSR"]],
                     )
                     # connect to the current components config channel and send port information, then close it
-                    port_infos_writer = await con_man.try_connect(
-                        config_srs["writerSR"], cast_as=fbp_capnp.Channel.Writer
-                    )
+                    if (port_infos_writer_cap := await con_man.try_connect(config_srs["writerSR"])) is None:
+                        raise RuntimeError(f"Couldn't connect to config writer {config_srs['writerSR']}.")
+                    port_infos_writer = port_infos_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     await port_infos_writer.write(value=port_infos_msg)
                     # don't close port infos writer channel, but use it as signal for letting
                     # the component close down, because it has to stay alive to forward cap calls
@@ -238,9 +220,7 @@ async def start_flow_via_port_infos_sr(config: dict):
             no_of_startup_infos_still_to_be_received -= 1
             if chan_id == config_chan_id:
                 out_process_id = None
-                config_chans.append(
-                    {"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]}
-                )
+                config_chans.append({"readerSR": info.readerSRs[0], "writerSR": info.writerSRs[0]})
             else:
 
                 def decode_no_padding(encoded_str):
@@ -257,9 +237,9 @@ async def start_flow_via_port_infos_sr(config: dict):
                 in_port_name = chan_id["in"]["port"]
 
                 if out_process_id in iip_process_ids:
-                    out_writer = await con_man.try_connect(
-                        info.writerSRs[0], cast_as=fbp_capnp.Channel.Writer
-                    )
+                    if (out_writer_cap := await con_man.try_connect(info.writerSRs[0])) is None:
+                        raise RuntimeError(f"Couldn't connect to IIP writer {info.writerSRs[0]}.")
+                    out_writer = out_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     content = node_id_to_node[out_process_id]["content"]
                     out_ip = fbp_capnp.IP.new_message(content=content)
                     await out_writer.write(value=out_ip)
@@ -269,14 +249,10 @@ async def start_flow_via_port_infos_sr(config: dict):
                     # not needed anymore since we sent the IIP
                     del process_id_to_process_srs[out_process_id]
                 else:
-                    process_id_to_process_srs[out_process_id]["outPorts"][
-                        out_port_name
-                    ] = info.writerSRs[0]
-                process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = (
-                    info.readerSRs[0]
-                )
+                    process_id_to_process_srs[out_process_id]["outPorts"][out_port_name] = info.writerSRs[0]
+                process_id_to_process_srs[in_process_id]["inPorts"][in_port_name] = info.readerSRs[0]
 
-        for process_id in process_id_to_popen_args.keys():
+        for process_id in process_id_to_popen_args:
             await check_and_run_process(process_id)
 
         for process_id in sink_process_ids:  # process_id_to_process.values():
@@ -286,11 +262,11 @@ async def start_flow_via_port_infos_sr(config: dict):
         for piw in port_infos_writers:
             piw.close()
 
-        print(f"{os.path.basename(__file__)}: all components finished")
+        logger.info("%s: all components finished", os.path.basename(__file__))
 
         for channel in channels:
             channel.terminate()
-        print(f"{os.path.basename(__file__)}: all channels terminated")
+        logger.info("%s: all channels terminated", os.path.basename(__file__))
 
     except Exception as e:
         for process in process_id_to_process.values():
@@ -299,7 +275,7 @@ async def start_flow_via_port_infos_sr(config: dict):
         for channel in channels:
             channel.terminate()
 
-        print(f"exception terminated {os.path.basename(__file__)} early. Exception:", e)
+        logger.exception("exception terminated %s early. Exception: %s", os.path.basename(__file__), e)
 
 
 if __name__ == "__main__":

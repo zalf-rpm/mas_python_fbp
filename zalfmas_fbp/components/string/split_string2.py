@@ -15,91 +15,63 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, override
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 
 meta = {
-    "category": {
-        "id": "string",
-        "name": "String"
-    },
+    "category": {"id": "string", "name": "String"},
     "component": {
         "info": {
             "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
             "name": "split string2",
-            "description": "Splits a string along delimiter."
+            "description": "Splits a string along delimiter.",
         },
         "type": "process",
         "inPorts": [
-            {
-                "name": "in",
-                "contentType": "Text"
-            }, {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
+            {"name": "in", "contentType": "Text"},
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text"
-            }
-        ],
-        "defaultConfig": {
-            "split_at": {
-                "value": ",",
-                "type": "string",
-                "desc": "split string at this character"
-            }
-        }
-    }
+        "outPorts": [{"name": "out", "contentType": "Text"}],
+        "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "split string at this character"}},
+    },
 }
 
 
 class SplitString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager = None):
+    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
+    @override
     async def run(self):
-        await self.process_started()
-        logger.info(f"{self.name} process started")
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
-        while self.ip("in") and self.op("out"):
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
-            try:
-                in_msg = await self.ip("in").read()
-                if in_msg.which() == "done":
-                    self.close_ip("in")
-                    continue
 
-                s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-                logger.info(f"{self.name} received: {s}")
-                s = s.rstrip()
-                vals = s.split(self.config["split_at"].t)
+            s = in_msg.content.as_text()
+            logger.info("%s received: %s", self.name, s)
+            vals = s.rstrip().split(self.config["split_at"].t)
 
-                for val in vals:
-                    out_ip = fbp_capnp.IP.new_message(content=val)
-                    await self.op("out").write(value=out_ip)
-                    logger.info(f"{self.name} sent: {val}")
+            for val in vals:
+                out_ip = fbp_capnp.IP.new_message(content=val)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s process finished", self.name)
+                    return
+                logger.info("%s sent: %s", self.name, val)
 
-            except capnp.KjException as e:
-                logger.error(f"{self.name} RPC Exception: {e.description}")
-                if e.type in ["DISCONNECTED"]:
-                    break
-
-        logger.info(f"{self.name} process finished")
-        await self.process_stopped()
+        logger.info("%s process finished", self.name)
 
 
 def main():

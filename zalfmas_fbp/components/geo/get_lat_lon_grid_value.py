@@ -13,69 +13,50 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, common_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common, geo
 from zalfmas_common import rect_ascii_grid_management as ragm
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "geo",
-        "name": "Geo"
-    },
+    "category": {"id": "geo", "name": "Geo"},
     "component": {
         "info": {
             "id": "d8e349d6-e0e0-49cb-a24f-0b42358791a5",
             "name": "get lat/lon grid value",
-            "description": "Get value from a lat/lon grid."
+            "description": "Get value from a lat/lon grid.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "geo.capnp:LatLon",
-                "desc": "Lat/Lon coordinate to get the value at."
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "geo.capnp:LatLon", "desc": "Lat/Lon coordinate to get the value at."},
         ],
         "outPorts": [
-            {
-                "name": "out",
-                "contentType": "common.capnp:Value",
-                "desc": "Value at the given lat/lon coordinate."
-            }
+            {"name": "out", "contentType": "common.capnp:Value", "desc": "Value at the given lat/lon coordinate."},
         ],
         "defaultConfig": {
-            "path_to_grid": {
-                "value": None,
-                "type": "string",
-                "desc": "Path to the lat/lon grid file."
-            },
-            "type": {
-                "value": "int",
-                "type": ["int", "float"],
-                "desc": "Type of value to read from grid."
-            },
+            "path_to_grid": {"value": None, "type": "string", "desc": "Path to the lat/lon grid file."},
+            "type": {"value": "int", "type": ["int", "float"], "desc": "Type of value to read from grid."},
             "debug_out": {
                 "value": True,
                 "type": "bool",
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     debug_out = config["debug_out"]
     if not config["path_to_grid"]:
@@ -87,12 +68,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         print_path=debug_out,
     )
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            msg = await ports["in"].read()
+            msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 break
 
             in_ip = msg.value.as_struct(fbp_capnp.IP)
@@ -104,13 +85,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 cval = common_capnp.Value.new_message(f64=val)
             out_ip = fbp_capnp.IP.new_message(content=cval)
             common.copy_and_set_fbp_attrs(in_ip, out_ip)
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

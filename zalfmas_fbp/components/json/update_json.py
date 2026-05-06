@@ -14,88 +14,76 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "json",
-        "name": "JSON"
-    },
+    "category": {"id": "json", "name": "JSON"},
     "component": {
         "info": {
             "id": "67b31990-452a-4058-8a99-6785be345216",
             "name": "Update JSON",
-            "description": "Update JSON datastructures."
+            "description": "Update JSON datastructures.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "JSON text which is supposed to be updated and changed."
-            }
+                "desc": "JSON text which is supposed to be updated and changed.",
+            },
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text (JSON)",
-                "desc": "The updated JSON text."
-            }
-        ],
+        "outPorts": [{"name": "out", "contentType": "Text (JSON)", "desc": "The updated JSON text."}],
         "defaultConfig": {
             "types": {
-                "value": {
-                    "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
-                },
+                "value": {"@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"},
                 "type": "object",
-                "desc": "Define the loadable type the attribute being referenced has."
+                "desc": "Define the loadable type the attribute being referenced has.",
             },
             "update": {
                 "value": [
                     ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
                     ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
                     ["customId_ex", "<-", 1],
-                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"]
+                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"],
                 ],
                 "type": "array",
-                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match.",
             },
             "replace": {
                 "value": [],
                 "type": "array",
-                "desc": "List of replacement operations to perform on the JSON structure."
+                "desc": "List of replacement operations to perform on the JSON structure.",
             },
             "add": {
                 "value": [],
                 "type": "array",
-                "desc": "List of addition operations to perform on the JSON structure."
-            }
-        }
-    }
+                "desc": "List of addition operations to perform on the JSON structure.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             # check for end of data from in port
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -105,9 +93,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             def as_type(attr_val, capnp_type_desc: str):
                 if capnp_type_desc.lower() == "text":
                     return attr_val.as_text()
-                else:
-                    struct_type, _ = common.load_capnp_module(capnp_type_desc)
-                    return attr_val.as_struct(struct_type)
+                struct_type, _ = common.load_capnp_module(capnp_type_desc)
+                return attr_val.as_struct(struct_type)
 
             # allowed_operation = update | replace | add
             # update = structures of j and spec have to match exactly
@@ -144,33 +131,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             elif allowed_operation == "replace":
                                 j[i] = v
                         # access a dict
-                        else:
-                            # j[k] is a pointer, so we can recurse
-                            if type(j[k]) in [list, dict]:
-                                change(j[k], v, allowed_operation)
-                            elif allowed_operation == "replace":
-                                j[k] = v
+                        # j[k] is a pointer, so we can recurse
+                        elif type(j[k]) in [list, dict]:
+                            change(j[k], v, allowed_operation)
+                        elif allowed_operation == "replace":
+                            j[k] = v
                     # a list as value is treated as sub object access if the first element is an attribute (@) access
                     elif type(v) is list:
                         # attribute access
-                        if (
-                                len(v) >= 1
-                                and type(v[0]) is str
-                                and len(v[0]) > 0
-                                and v[0][0] == "@"
-                        ):
-                            attr_val, is_attr_val = p.get_attr_val(
+                        if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
+                            attr_val, is_capnp = p.get_attr_val(
                                 v[0],
                                 attrs,
                                 remove=False,
                             )
                             # attribute sub access
-                            if (
-                                    is_attr_val
-                                    and len(v) > 1
-                                    and "types" in config
-                                    and v[0] in config["types"]
-                            ):
+                            if is_capnp and len(v) > 1 and "types" in config and v[0] in config["types"]:
                                 attr_val = as_type(attr_val, config["types"][v[0]])
                                 is_json = False
                                 for field_name in v[1:]:
@@ -206,29 +182,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             attrs,
                             remove=False,
                         )
-                        if (
-                                is_attr_val
-                                and "types" in config
-                                and spec[k] in config["types"]
-                        ):
+                        if is_capnp and "types" in config and spec[k] in config["types"]:
                             attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
                             j[i] = attr_val
                         else:
                             j[k] = attr_val
+                    elif i and type(j) is list:
+                        j[i] = v
                     else:
-                        if i and type(j) is list:
-                            j[i] = v
-                        else:
-                            j[k] = v
+                        j[k] = v
 
-            def create_nested_dict(l: list) -> dict:
+            def create_nested_dict(path_parts: list) -> dict:
                 res_dict = {}
                 d = res_dict
                 prev_d = d
                 prev_key = None
                 assign_result = False
-                for val in l:
+                for val in path_parts:
                     if assign_result:
                         prev_d[prev_key] = val
                         continue
@@ -247,20 +218,26 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         try:
                             nested_dict = create_nested_dict(co)
                             change(j_content, nested_dict, allowed_operation=op)
-                        except:
-                            pass
+                        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
+                            logger.warning(
+                                "%s: couldn't apply %s operation %s: %s",
+                                os.path.basename(__file__),
+                                op,
+                                co,
+                                e,
+                            )
 
             out_ip = fbp_capnp.IP.new_message(
                 content=json.dumps(j_content),
                 attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),
             )
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

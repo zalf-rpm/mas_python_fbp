@@ -14,24 +14,31 @@ import subprocess as sp
 import uuid
 
 
-def start_first_channel(path_to_channel: str, name: str | None = None):
+def start_first_channel(path_to_channel: str, name: str | None = None, log_level: str | None = None):
     chan = sp.Popen(
         [
             path_to_channel,
             f"--name=chan_{sanitize_channel_name(name) if name and len(name) > 0 else str(uuid.uuid4())}",
             "--output_srs",
-        ],
+        ]
+        + ([f"--log_level={log_level}"] if log_level else []),
         stdout=sp.PIPE,
         text=True,
     )
     first_reader_sr = None
     first_writer_sr = None
+    stdout = chan.stdout
+    if stdout is None:
+        return chan, first_reader_sr, first_writer_sr
     while chan.poll() is None:
-        s = chan.stdout.readline().split("=", maxsplit=1)
-        id, sr = s if len(s) == 2 else (None, None)
-        if id and id.strip() == "readerSR":
+        s = stdout.readline().split("=", maxsplit=1)
+        id = None
+        sr = None
+        if len(s) == 2:
+            id, sr = s
+        if id and sr and id.strip() == "readerSR":
             first_reader_sr = sr.strip()
-        elif id and id.strip() == "writerSR":
+        elif id and sr and id.strip() == "writerSR":
             first_writer_sr = sr.strip()
         if first_reader_sr and first_writer_sr:
             break
@@ -44,19 +51,20 @@ def sanitize_channel_name(name: str):
 
 
 def start_channel(
-        path_to_channel: str,
-        startup_info_id: str | None,
-        startup_info_writer_sr: str | None,
-        name: str | None = None,
-        verbose: bool = False,
-        host: str | None = None,
-        port: str | None = None,
-        no_of_channels: int = 1,
-        no_of_readers: int = 1,
-        no_of_writers: int = 1,
-        reader_srts: str | None = None,
-        writer_srts: str | None = None,
-        buffer_size: int = 1,
+    path_to_channel: str,
+    startup_info_id: str | None,
+    startup_info_writer_sr: str | None,
+    name: str | None = None,
+    verbose: bool = False,
+    host: str | None = None,
+    port: str | None = None,
+    no_of_channels: int = 1,
+    no_of_readers: int = 1,
+    no_of_writers: int = 1,
+    reader_srts: str | None = None,
+    writer_srts: str | None = None,
+    buffer_size: int = 1,
+    log_level: str | None = None,
 ):
     return sp.Popen(
         [
@@ -73,10 +81,12 @@ def start_channel(
         + ([f"--host={host}"] if host else [])
         + ([f"--local_host={host}"] if host else [])
         + ([f"--port={port}"] if port else [])
+        + ([f"--log_level={log_level}"] if log_level else [])
         + ([f"--reader_srts={reader_srts}"] if reader_srts else [])
         + ([f"--writer_srts={writer_srts}"] if writer_srts else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT
     )
+
 
 # class Channel(fbp_capnp.Channel.Server, common.Identifiable, common.Persistable, serv.AdministrableService):
 #

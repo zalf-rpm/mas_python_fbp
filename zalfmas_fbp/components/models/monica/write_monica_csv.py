@@ -17,36 +17,34 @@
 
 import csv
 import json
+import logging
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "models/monica",
-        "name": "Models/MONICA"
-    },
+    "category": {"id": "models/monica", "name": "Models/MONICA"},
     "component": {
         "info": {
             "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
             "name": "Write MONICA CSV",
-            "description": "Write a MONICA CSV file."
+            "description": "Write a MONICA CSV file.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
                 "name": "in",
                 "contentType": "string (MONICA JSON result)",
                 "desc": "Receive MONICA JSON result.",
-            }
+            },
         ],
         "outPorts": [],
         "defaultConfig": {
@@ -65,11 +63,7 @@ meta = {
                 "type": "string",
                 "desc": "Name of attribute which contains id to use for file name pattern.",
             },
-            "from_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Get file content from attribute 'from_attr'."
-            },
+            "from_attr": {"value": None, "type": "string", "desc": "Get file content from attribute 'from_attr'."},
             "filepath_pattern": {
                 "value": "csv_{id}.csv",
                 "type": "string",
@@ -79,24 +73,22 @@ meta = {
                 "value": ",",
                 "type": "string",
                 "desc": "Like ','. Use this string as delimiter for csv output.",
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     count = 0
-    while ports["in"]:
+    while pc.in_ports["in"]:
         try:
-            in_msg = ports["in"].read().wait()
+            in_msg = pc.in_ports["in"].read().wait()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -104,9 +96,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             count += 1
             id_ = id_attr.as_text() if id_attr else str(count)
             out_path_attr = common.get_fbp_attr(in_ip, config["out_path_attr"])
-            out_path = (
-                out_path_attr.as_text() if out_path_attr else config["path_to_out_dir"]
-            )
+            out_path = out_path_attr.as_text() if out_path_attr else config["path_to_out_dir"]
 
             dir_ = out_path
             if os.path.isdir(dir_) and os.path.exists(dir_):
@@ -115,7 +105,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 try:
                     os.makedirs(dir_)
                 except OSError:
-                    print("c: Couldn't create dir:", dir_, "! Exiting.")
+                    logger.error("c: Couldn't create dir: %s ! Exiting.", dir_)
                     exit(1)
 
             filepath = os.path.join(dir_, config["file_pattern"].format(id=id_))
@@ -123,9 +113,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 writer = csv.writer(_, delimiter=config["delimiter"])
 
                 content_attr = common.get_fbp_attr(in_ip, config["from_attr"])
-                jstr = (
-                    content_attr.as_text() if content_attr else in_ip.content.as_text()
-                )
+                jstr = content_attr.as_text() if content_attr else in_ip.content.as_text()
                 j = json.loads(jstr)
 
                 for data_ in j.get("data", []):
@@ -136,14 +124,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     if len(results) > 0:
                         writer.writerow([orig_spec.replace('"', "")])
                         for row in monica_io.write_output_header_rows(
-                                output_ids,
-                                include_header_row=True,
-                                include_units_row=True,
-                                include_time_agg=False,
+                            output_ids,
+                            include_header_row=True,
+                            include_units_row=True,
+                            include_time_agg=False,
                         ):
                             writer.writerow(row)
 
-                        if len(results) > 0 and type(results[0]) == dict:
+                        if len(results) > 0 and isinstance(results[0], dict):
                             for row in monica_io.write_output_obj(output_ids, results):
                                 writer.writerow(row)
                         else:
@@ -152,11 +140,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                     writer.writerow([])
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

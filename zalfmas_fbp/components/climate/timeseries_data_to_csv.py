@@ -14,46 +14,37 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import io
+import logging
 import os
 from datetime import date, timedelta
 
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "climate",
-        "name": "Climate"
-    },
+    "category": {"id": "climate", "name": "Climate"},
     "component": {
         "info": {
             "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
             "name": "timeseries data -> csv",
-            "description": "Create CSV string out of timeseries data."
+            "description": "Create CSV string out of timeseries data.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "in"
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out"
-            }
-        ]
-    }
+        "inPorts": [{"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     def py_date(capnp_date):
         return date(year=capnp_date.year, month=capnp_date.month, day=capnp_date.day)
@@ -68,11 +59,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             csv_buffer.write(current_date.strftime("%Y-%m-%d") + "," + d_str + "\n")
         return csv_buffer.getvalue()
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -87,16 +78,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
                 out_ip.content = csv
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {})
-            )
-            await ports["out"].write(value=out_ip)
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {}))
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 default_config = {

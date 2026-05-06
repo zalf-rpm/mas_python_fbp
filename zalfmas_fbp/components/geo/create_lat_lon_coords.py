@@ -14,89 +14,79 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import json
+import logging
 import os
 
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp, common_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
 from zalfmas_common import rect_ascii_grid_management as grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "geo",
-        "name": "Geo"
-    },
+    "category": {"id": "geo", "name": "Geo"},
     "component": {
         "info": {
             "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
             "name": "create lat lon coords",
-            "description": "Create lat/lon coords for region."
+            "description": "Create lat/lon coords for region.",
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "ids",
-                "contentType": "List[int]",
-                "desc": "List of IDs to include in the output."
-            }, {
-                "name": "region",
-                "contentType": "string",
-                "desc": "The region we create the coords for."
-            }
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "ids", "contentType": "List[int]", "desc": "List of IDs to include in the output."},
+            {"name": "region", "contentType": "string", "desc": "The region we create the coords for."},
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
-                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs."
-            }
+                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
+            },
         ],
         "defaultConfig": {
             "stream": {
                 "value": False,
                 "type": "bool",
-                "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord."
+                "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord.",
             },
             "create_substream": {
                 "value": False,
                 "type": "bool",
-                "desc": "If true, creates for each set of region and ids, a new substream."
+                "desc": "If true, creates for each set of region and ids, a new substream.",
             },
-            "region": {
-                "value": "africa",
-                "type": ["nigeria", "africa", "earth"]
-            },
+            "region": {"value": "africa", "type": ["nigeria", "africa", "earth"]},
             "resolution": {
                 "value": "5min",
                 "type": ["5min", "30sec"],
-                "desc": "Select the resolution of the generated data."
+                "desc": "Select the resolution of the generated data.",
             },
             "ids": {
                 "value": [],
                 "type": "list[int]",
-                "desc": "List of IDs to include in the output, unless the 'ids' port is connected."
+                "desc": "List of IDs to include in the output, unless the 'ids' port is connected.",
             },
             "path_to_ids_grid": {
                 "value": "data/country-id_0.083deg_4326_wgs84_africa.asc",
                 "type": "string",
-                "desc": "Path to the ids grid file."
+                "desc": "Path to the ids grid file.",
             },
-        }
-    }
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "ids", "region"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     s_resolution = {"5min": 5 / 60.0, "30sec": 30 / 3600.0}[config["resolution"]]
     s_res_scale_factor = {"5min": 60.0, "30sec": 3600.0}[config["resolution"]]
@@ -119,36 +109,34 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         },
     }
 
-    ids_grid = grid.load_grid_cached(config["path_to_ids_grid"], int)
+    country_ids_data = grid.load_grid_cached(config["path_to_ids_grid"], int)
 
     # get just default values for region and ids
     region = config["region"]
-    ids = json.loads(config["ids"])
+    country_ids = json.loads(config["ids"])
     do_stream = config["stream"]
     create_substream = config["create_substream"]
 
     # at least one input port has to be connected
-    while ports["out"] and (ports["region"] or ports["ids"]):
+    while pc.out_ports["out"] and (pc.in_ports["region"] or pc.in_ports["ids"]):
         try:
-            if ports["region"]:
-                msg = await ports["region"].read()
+            if pc.in_ports["region"]:
+                msg = await pc.in_ports["region"].read()
                 if msg.which() == "done":
-                    ports["region"] = None
+                    pc.in_ports["region"] = None
                     continue
-                else:
-                    region_ip = msg.value.as_struct(fbp_capnp.IP)
-                    region = region_ip.content.as_text()
+                region_ip = msg.value.as_struct(fbp_capnp.IP)
+                region = region_ip.content.as_text()
 
-            if ports["ids"]:
-                msg = await ports["ids"].read()
+            if pc.in_ports["ids"]:
+                msg = await pc.in_ports["ids"].read()
                 if msg.which() == "done":
-                    ports["ids"] = None
+                    pc.in_ports["ids"] = None
                     continue
-                else:
-                    ids_ip = msg.value.as_struct(fbp_capnp.IP)
-                    ids = list(ids_ip.content.as_list())
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+                ids_ip = msg.value.as_struct(fbp_capnp.IP)
+                country_ids = list(ids_ip.content.as_list())
+        except Exception:
+            logger.exception("%s Exception", os.path.basename(__file__))
 
         lat_lon_bounds = region_to_lat_lon_bounds.get(region)
 
@@ -159,11 +147,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         )
 
         if do_stream and create_substream:
-            await ports["out"].write(value=fbp_capnp.IP.new_message(type="openBracket"))
+            await pc.out_ports["out"].write(value=fbp_capnp.IP.new_message(type="openBracket"))
         lat_lons = []
         for lat_scaled in lats_scaled:
             lat = lat_scaled / s_res_scale_factor
-            print(str(round(lat, 2)), end=" ", flush=True)
+            logger.debug("%s latitude %.2f", os.path.basename(__file__), round(lat, 2))
 
             lons_scaled = range(
                 int(lat_lon_bounds["tl"]["lon"] * s_res_scale_factor),
@@ -173,30 +161,32 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             for lon_scaled in lons_scaled:
                 lon = lon_scaled / s_res_scale_factor
 
-                id = ids_grid["value"](lat, lon, False)
-                if not id or len(ids) > 0 and id not in ids:
+                country_id = country_ids_data["value"](lat, lon, False)
+                if not country_id or (len(country_ids) > 0 and country_id not in country_ids):
                     continue
 
                 if do_stream:
-                    id_and_ll = common_capnp.Pair.new_message(fst=common_capnp.Value.new_message(i64=id),
-                                                              snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon))
+                    id_and_ll = common_capnp.Pair.new_message(
+                        fst=common_capnp.Value.new_message(i64=country_id),
+                        snd=geo_capnp.LatLonCoord.new_message(lat=lat, lon=lon),
+                    )
                     out_ip = fbp_capnp.IP.new_message(content=id_and_ll)
-                    await ports["out"].write(value=out_ip)
+                    await pc.out_ports["out"].write(value=out_ip)
                 else:
                     lat_lons.append([lat, lon, id])
 
         if do_stream:
             if create_substream:
-                await ports["out"].write(value=fbp_capnp.IP.new_message(type="closeBracket"))
+                await pc.out_ports["out"].write(value=fbp_capnp.IP.new_message(type="closeBracket"))
         else:
             try:
                 out_ip = fbp_capnp.IP.new_message(content=json.dumps(lat_lons))
-                await ports["out"].write(value=out_ip)
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+                await pc.out_ports["out"].write(value=out_ip)
+            except Exception:
+                logger.exception("%s Exception", os.path.basename(__file__))
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

@@ -14,81 +14,66 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import csv
+import logging
 import os
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "file",
-        "name": "File"
-    },
+    "category": {"id": "file", "name": "File"},
     "component": {
         "info": {
             "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
             "name": "read csv",
-            "description": "Read a csv file and send content as string downstream."
+            "description": "Read a csv file and send content as string downstream.",
         },
         "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
-        ],
+        "inPorts": [{"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"}],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "desc": "A single row from the CSV file sent as Setup struct."
-            }
+                "desc": "A single row from the CSV file sent as Setup struct.",
+            },
         ],
         "defaultConfig": {
-            "id_col": {
-                "value": "id",
-                "type": "string",
-                "desc": "The column to be used to unique identify a row."
-            },
+            "id_col": {"value": "id", "type": "string", "desc": "The column to be used to unique identify a row."},
             "col_to_field_names": {
                 "value": {},
                 "type": "object",
-                "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}."
+                "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}.",
             },
             "send_ids": {
                 "value": [],
                 "type": "list",
-                "desc": "Send only these ids as messages downstream. E.g. [1,2,3]"
+                "desc": "Send only these ids as messages downstream. E.g. [1,2,3]",
             },
-            "file": {
-                "value": "path to csv file",
-                "type": "string",
-                "desc": "The path to the CSV file to be read."
-            },
+            "file": {"value": "path to csv file", "type": "string", "desc": "The path to the CSV file to be read."},
             "struct_type": {
                 "value": "mas.schema.model.monica.sim_setup_capnp:Setup",
                 "type": "string",
-                "desc": "The Cap'n Proto struct type to fill from a CSV row."
+                "desc": "The Cap'n Proto struct type to fill from a CSV row.",
             },
             "to_attr": {
                 "value": None,
                 "type": "string",
-                "desc": "Instead of sending a row as IP content, send it in this attribute."
-            }
-        }
-    }
+                "desc": "Instead of sending a row as IP content, send it in this attribute.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     struct_type, _ = common.load_capnp_module(config["struct_type"])
     struct_fieldnames = struct_type.schema.fieldnames
@@ -97,10 +82,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     id_col = col_to_field_names.get(config["id_col"], config["id_col"])
     send_ids = config["send_ids"] if config["send_ids"] is not None else None
 
-    if ports["out"]:
+    if pc.out_ports["out"]:
         try:
             with open(config["file"]) as _:
-                key_to_data = {}
                 # determine seperator char
                 dialect = csv.Sniffer().sniff(_.read(), delimiters=";,\t")
                 _.seek(0)
@@ -140,24 +124,19 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         except ValueError:
                             continue
 
-                    if send_ids is None or (
-                            id_col in struct_fieldnames and val.__getattr__(id_col) in send_ids
-                    ):
+                    if send_ids is None or (id_col in struct_fieldnames and val.__getattr__(id_col) in send_ids):
                         out_ip = fbp_capnp.IP.new_message()
                         if config["to_attr"]:
                             out_ip.attributes = [{"key": config["to_attr"], "value": val}]
                         else:
                             out_ip.content = val
-                        await ports["out"].write(value=out_ip)
+                        await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():

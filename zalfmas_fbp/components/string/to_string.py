@@ -15,102 +15,82 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
-import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 
 meta = {
-    "category": {
-        "id": "string",
-        "name": "String"
-    },
+    "category": {"id": "string", "name": "String"},
     "component": {
         "info": {
             "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
             "name": "to string",
-            "description": "Outputs input structures as string (if possible)."
+            "description": "Outputs input structures as string (if possible).",
         },
         "type": "process",
         "inPorts": [
-            {
-                "name": "in",
-                "contentType": "AnyStruct"
-            }, {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }
+            {"name": "in", "contentType": "AnyStruct"},
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
         ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text"
-            }
-        ],
+        "outPorts": [{"name": "out", "contentType": "Text"}],
         "defaultConfig": {
             "struct_type": {
                 "value": None,
                 "type": "string",
-                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to."
-            }
-        }
-    }
+                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
+            },
+        },
+    },
 }
 
 
 class ToString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager = None):
+    def __init__(self, metadata, con_man: common.ConnectionManager | None = None):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
-        await self.process_started()
-        logger.info(f"{self.name} process started")
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
-        if self.config["struct_type"] is None:
+        struct_type = self.config.get("struct_type")
+        if struct_type is None:
             t = None
         else:
             try:
-                t, _ = common.load_capnp_module(self.config["struct_type"].t)
-            except Exception as e:
-                logger.error(f"Failed to load Cap'n Proto module: {e}")
+                t: Any
+                t, _ = common.load_capnp_module(struct_type.t)
+            except (AttributeError, ImportError, RuntimeError, TypeError, ValueError) as e:
+                logger.error("Failed to load Cap'n Proto module: %s", e)
                 t = None
 
-        while self.ip("in") and self.op("out"):
-            if self.is_canceled():
+        while True:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
                 break
-            try:
-                in_msg = await self.ip("in").read()
-                if in_msg.which() == "done":
-                    self.close_ip("in")
-                    continue
 
-                c = in_msg.value.as_struct(fbp_capnp.IP).content
-                if t:
-                    c = c.as_struct(t)
-                logger.info(f"{self.name} received: {c}")
+            c = in_msg.content
+            if t:
+                c = c.as_struct(t)
+            logger.info("%s received: %s", self.name, c)
 
-                c_str = str(c)
-                c_str = c_str.replace("<", "")
-                c_str = c_str.replace(">", "")
-                out_ip = fbp_capnp.IP.new_message(content=c_str)
-                await self.op("out").write(value=out_ip)
-                logger.info(f"{self.name} sent: {c_str}")
+            c_str = str(c)
+            c_str = c_str.replace("<", "")
+            c_str = c_str.replace(">", "")
+            out_ip = fbp_capnp.IP.new_message(content=c_str)
+            if not await self.write_out("out", out_ip):
+                logger.info("%s process finished", self.name)
+                return
+            logger.info("%s sent: %s", self.name, c_str)
 
-            except capnp.KjException as e:
-                logger.error(f"{self.name} RPC Exception: {e.description}")
-                if e.type in ["DISCONNECTED"]:
-                    break
-
-        logger.info(f"{self.name} process finished")
-        await self.process_stopped()
+        logger.info("%s process finished", self.name)
 
 
 def main():

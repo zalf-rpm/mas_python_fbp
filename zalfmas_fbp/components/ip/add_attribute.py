@@ -13,93 +13,84 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+import logging
 import os
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
 
+logger = logging.getLogger(__name__)
+
 meta = {
-    "category": {
-        "id": "ip",
-        "name": "IP (Flow packages)"
-    },
+    "category": {"id": "ip", "name": "IP (Flow packages)"},
     "component": {
         "info": {
             "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
             "name": "add attribute",
-            "description": "Add attribute to incoming IP."
+            "description": "Add attribute to incoming IP.",
         },
         "type": "standard",
         "inPorts": [
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "AnyPointer", "desc": "Arbitrary content."},
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
-                "name": "in",
-                "contentType": "AnyPointer",
-                "desc": "Arbitrary content."
-            }, {
                 "name": "attr",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
-            }
+                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'.",
+            },
         ],
         "outPorts": [
-            {
-                "name": "out",
-                "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."
-            }
+            {"name": "out", "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."},
         ],
         "defaultConfig": {
             "to_attr": {
                 "value": "attr",
                 "type": "Text",
-                "desc": "The attribute's name to add to the outgoing message."
-            }
-        }
-    }
+                "desc": "The attribute's name to add to the outgoing message.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in", "attr"], outs=["out"]
+    pc = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr,
+        ins=["conf", "in", "attr"],
+        outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     attr = None
-    while ports["in"] and (ports["attr"] or attr) and ports["out"]:
+    while pc.in_ports["in"] and (pc.in_ports["attr"] or attr) and pc.out_ports["out"]:
         try:
-            if ports["attr"]:
-                attr_msg = await ports["attr"].read()
+            if pc.in_ports["attr"]:
+                attr_msg = await pc.in_ports["attr"].read()
                 if attr_msg.which() == "done":
-                    ports["attr"] = None
+                    pc.in_ports["attr"] = None
                     continue
                 attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
                 attr = attr_ip.content
 
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
 
             out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: attr})
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", os.path.basename(__file__))
 
 
 def main():
