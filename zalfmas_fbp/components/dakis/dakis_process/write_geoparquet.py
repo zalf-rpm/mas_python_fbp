@@ -60,8 +60,8 @@ class WriteGeoparquet(process.Process):
                 geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 output_path = write_geoparquet_bytes(
                     geoparquet_bytes,
-                    output_path=self.config["output_path"].t,
-                    compression=self.config["compression"].t,
+                    output_path=self.config["output_path"],
+                    compression=self.config["compression"],
                 )
                 logger.info("%s wrote GeoParquet to %s", self.name, output_path)
 

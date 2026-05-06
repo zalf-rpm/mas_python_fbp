@@ -64,11 +64,11 @@ class ArrayOutStrategy(StrEnum):
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
     def __init__(
-        self,
-        callback: Callable[
-            [ProcessStateEnum, ProcessStateEnum],
-            None,
-        ],  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
+            self,
+            callback: Callable[
+                [ProcessStateEnum, ProcessStateEnum],
+                None,
+            ],  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
     ):
         self.callback: Callable[[ProcessStateEnum, ProcessStateEnum], None] = callback
 
@@ -80,12 +80,12 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
 
 class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
     def __init__(
-        self,
-        ports: dict[str, Any] | dict[str, list[Any]],
-        name: str,
-        port: Any,
-        *,
-        index: int | None = None,
+            self,
+            ports: dict[str, Any] | dict[str, list[Any]],
+            name: str,
+            port: Any,
+            *,
+            index: int | None = None,
     ):
         self.ports = ports
         self.name = name
@@ -144,12 +144,12 @@ class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
 
 class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
     def __init__(
-        self,
-        metadata: dict[str, Any] | None = None,
-        con_man: common.ConnectionManager | None = None,
-        id: str | None = None,
-        name: str | None = None,
-        description: str | None = None,
+            self,
+            metadata: dict[str, Any] | None = None,
+            con_man: common.ConnectionManager | None = None,
+            id: str | None = None,
+            name: str | None = None,
+            description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man or common.ConnectionManager())
@@ -196,28 +196,68 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             return common_capnp.Value.new_message(f64=value)
         if value_type is bool:
             return common_capnp.Value.new_message(b=value)
+        if value_type is list and len(value) > 0:
+            value_types_set = {type(item) for item in value}
+            if len(value_types_set) == 1:
+                vt0 = value_types_set.pop()
+                if vt0 is int:
+                    return common_capnp.Value.new_message(li64=value)
+                elif vt0 is float:
+                    return common_capnp.Value.new_message(lf64=value)
+                elif vt0 is bool:
+                    return common_capnp.Value.new_message(lb=value)
+                elif vt0 is str:
+                    return common_capnp.Value.new_message(lt=value)
+            else:
+                l = list([Process._config_value_from_python(v) for v in value])
+                return common_capnp.Value.new_message(lv=l)
         if value_type is dict:
-            return common_capnp.Value.new_message(t=json.dumps(value))
-        if value_type is list and len(value) > 0 and type(value[0]) is int:
-            if all(type(item) is int for item in value):
-                return common_capnp.Value.new_message(li64=value)
-        if value_type is list and len(value) > 0 and type(value[0]) is float:
-            if all(type(item) is float for item in value):
-                return common_capnp.Value.new_message(lf64=value)
-        if value_type is list and len(value) > 0 and type(value[0]) is bool:
-            if all(type(item) is bool for item in value):
-                return common_capnp.Value.new_message(lb=value)
-        if value_type is list and len(value) > 0 and type(value[0]) is str:
-            if all(type(item) is str for item in value):
-                return common_capnp.Value.new_message(lt=value)
+            l = []
+            for k, v in value.items():
+                l.append(common_capnp.Pair.new_message(fst=k, snd=Process._config_value_from_python(v)))
+            return common_capnp.Value.new_message(lpair=l)
+
         raise TypeError(f"Unsupported config value type: {value_type.__name__}")
+
+    @staticmethod
+    def _python_value_from_capnp_value(value: common_capnp.Value) -> Any:
+        value_type = value.which()
+        if value_type == "i64":
+            return value.i64
+        elif value_type == "f64":
+            return value.f64
+        elif value_type == "b":
+            return value.b
+        elif value_type == "t":
+            return value.t
+        elif value_type == "li64":
+            return list([v for v in value.li64])
+        elif value_type == "lf64":
+            return list([v for v in value.lf64])
+        elif value_type == "lb":
+            return list([v for v in value.b])
+        elif value_type == "lt":
+            return list([v for v in value.lt])
+        elif value_type == "lv":
+            return list([Process._python_value_from_capnp_value(v) for v in value.lv])
+        elif value_type == "lpair":
+            try:
+                d = {}
+                for p in value.lpair:
+                    if p._has("fst"):
+                        d[p.fst.as_text()] = Process._python_value_from_capnp_value(
+                            p.snd.as_struct(common_capnp.Value)) if p._has("snd") else None
+                return d
+            except Exception as e:
+                raise TypeError(f"Error unpacking dict (list of pairs): {e}")
+        raise TypeError(f"Unsupported config value type: {value_type}")
 
     def _apply_config_values(self, config_values: Mapping[str, Any]) -> None:
         for key, value in config_values.items():
             if value is None:
                 self.config.pop(key, None)
                 continue
-            self.config[key] = self._config_value_from_python(value)
+            self.config[key] = value  # self._config_value_from_python(value)
 
     @staticmethod
     def _load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
@@ -272,10 +312,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         for key, value in default_config.items():
             if value is None:
                 continue
-            try:
-                self.config[key] = self._config_value_from_python(value)
-            except TypeError as e:
-                logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
+            self.config[key] = value
+            # try:
+            #    self.config[key] = self._config_value_from_python(value)
+            # except TypeError as e:
+            #    logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
 
     @property
     def meta(self):
@@ -350,7 +391,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     async def configEntries(self, _context, **kwargs):
         return list(
             map(
-                lambda item: fbp_capnp.Process.ConfigEntry.new_message(name=item[0], val=item[1]),
+                lambda item: fbp_capnp.Process.ConfigEntry.new_message(name=item[0],
+                                                                       val=Process._config_value_from_python(item[1])),
                 self.config.items(),
             ),
         )
@@ -362,7 +404,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     # setConfigEntry @7 ConfigEntry;
     async def setConfigEntry_context(self, context):
         ps = context.params
-        self.config[ps.name] = ps.val.as_builder()
+        self.config[ps.name] = Process._python_value_from_capnp_value(ps.val)  # .as_builder()
         # print(f"received config entry: {ps.name} with value: {ps.val}")
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
@@ -524,22 +566,24 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
     @overload
     async def read_array_in(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader] | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
+    ) -> list[IPReader] | None:
+        ...
 
     @overload
     async def read_array_in(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
+    ) -> IPReader | None:
+        ...
 
     async def read_array_in(
-        self,
-        name: str,
-        strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
+            self,
+            name: str,
+            strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
     ) -> list[IPReader] | IPReader | None:
         strategy = ArrayInStrategy(strategy)
         if self._stop_requested.is_set():
@@ -617,10 +661,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 stop_task.cancel()
 
     async def _read_array_in_next_available(
-        self,
-        name: str,
-        active_ports: list[tuple[int, ReaderClient]],
-        ports: ArrayReaderPorts,
+            self,
+            name: str,
+            active_ports: list[tuple[int, ReaderClient]],
+            ports: ArrayReaderPorts,
     ) -> IPReader | None:
         buffers = self._array_in_buffers.setdefault(name, {})
         if buffers:
@@ -707,10 +751,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             return False
 
     async def write_array_out(
-        self,
-        name: str,
-        strategy: ArrayOutStrategy | str,
-        message: IPBuilder,
+            self,
+            name: str,
+            strategy: ArrayOutStrategy | str,
+            message: IPBuilder,
     ) -> bool:
         if self._stop_requested.is_set():
             return False
@@ -747,9 +791,9 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return False
 
     def _ensure_array_out_write_task_slots(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
+            self,
+            name: str,
+            ports: ArrayWriterPorts,
     ) -> ArrayOutWriteTasks:
         tasks = self._array_out_write_tasks.setdefault(name, [])
         if len(tasks) < len(ports):
@@ -772,9 +816,9 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             return False
 
     async def _wait_for_next_available_array_out_port(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
+            self,
+            name: str,
+            ports: ArrayWriterPorts,
     ) -> tuple[int, WriterClient] | None:
         tasks = self._ensure_array_out_write_task_slots(name, ports)
         while not self._stop_requested.is_set():
@@ -824,10 +868,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return None
 
     async def _write_array_out_next_available(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
-        message: IPBuilder,
+            self,
+            name: str,
+            ports: ArrayWriterPorts,
+            message: IPBuilder,
     ) -> bool:
         next_port = await self._wait_for_next_available_array_out_port(name, ports)
         if next_port is None:
@@ -842,11 +886,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return True
 
     async def _write_array_out_port(
-        self,
-        name: str,
-        port_index: int,
-        port: WriterClient,
-        message: IPBuilder,
+            self,
+            name: str,
+            port_index: int,
+            port: WriterClient,
+            message: IPBuilder,
     ) -> bool:
         try:
             await port.write(value=message)
@@ -927,11 +971,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                         logger.error("Exception closing array out port '%s[%s]': %s", name, i, e)
 
     async def serve(
-        self,
-        writer_sr: str | None = None,
-        serve_bootstrap: bool = False,
-        host: str | None = None,
-        port: int | None = None,
+            self,
+            writer_sr: str | None = None,
+            serve_bootstrap: bool = False,
+            host: str | None = None,
+            port: int | None = None,
     ):
         if writer_sr and len(writer_sr) > 0 and (writer_cap := await self.con_man.try_connect(writer_sr)) is not None:
             writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
@@ -960,10 +1004,10 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
 
 def start_local_process_component(
-    path_to_executable,
-    process_cap_writer_sr,
-    name: str | None = None,
-    log_level: str | None = None,
+        path_to_executable,
+        process_cap_writer_sr,
+        name: str | None = None,
+        log_level: str | None = None,
 ) -> sp.Popen[str]:
     pte_split = list(path_to_executable.split(" "))
     if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
@@ -980,7 +1024,7 @@ def start_local_process_component(
 
 
 def create_default_args_parser(
-    component_description: str,
+        component_description: str,
 ):
     parser = argparse.ArgumentParser(description=component_description)
     _ = parser.add_argument(

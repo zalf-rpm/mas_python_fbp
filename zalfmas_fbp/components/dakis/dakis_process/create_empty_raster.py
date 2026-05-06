@@ -60,9 +60,9 @@ class CreateEmptyRaster(process.Process):
                 bbox = parse_geojson_bbox(bbox_text)
                 raster_bytes = create_empty_raster_bytes(
                     bbox,
-                    epsg=self.config["epsg"].i64,
-                    resolution_m=self.config["resolution_m"].f64,
-                    compression=self.config["compression"].t,
+                    epsg=self.config["epsg"],
+                    resolution_m=self.config["resolution_m"],
+                    compression=self.config["compression"],
                 )
 
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))

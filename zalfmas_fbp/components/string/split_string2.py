@@ -17,7 +17,10 @@ from __future__ import annotations
 import logging
 from typing import Any, override
 
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
+
+common_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import process
@@ -62,7 +65,7 @@ class SplitString(process.Process):
 
             s = in_msg.content.as_text()
             logger.info("%s received: %s", self.name, s)
-            vals = s.rstrip().split(self.config["split_at"].t)
+            vals = s.rstrip().split(self.config["split_at"])
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)

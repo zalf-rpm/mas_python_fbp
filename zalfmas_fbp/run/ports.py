@@ -13,9 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import json
-import os
-from typing import Any, Optional, Tuple
 from __future__ import annotations
 
 import json
@@ -23,6 +20,7 @@ import logging
 import os
 import tomllib
 from collections.abc import Sequence
+from typing import Optional, Tuple
 from typing import TYPE_CHECKING, Any
 
 from capnp.lib.capnp import (
@@ -129,12 +127,12 @@ async def read_dict_from_port_done(pc, port_name, text_type="json", set_port_to_
 
 class PortConnector:
     def __init__(
-        self,
-        ins: Sequence[str] | None = None,
-        outs: Sequence[str] | None = None,
-        connection_manager: common.ConnectionManager | None = None,
-        *,
-        array_outs: Sequence[str] | None = None,
+            self,
+            ins: Sequence[str] | None = None,
+            outs: Sequence[str] | None = None,
+            connection_manager: common.ConnectionManager | None = None,
+            *,
+            array_outs: Sequence[str] | None = None,
     ):
         self.in_ports: dict[str, ReaderClient | None] = dict.fromkeys(ins) if ins else {}
         self.out_ports: dict[str, WriterClient | None] = dict.fromkeys(outs) if outs else {}
@@ -161,10 +159,10 @@ class PortConnector:
         self.array_out_ports[name] = array_ports
 
     async def close_out_ports(
-        self,
-        print_info: bool = False,
-        print_exception: bool = True,
-        wait_for_port_infos_reader_done: bool = True,
+            self,
+            print_info: bool = False,
+            print_exception: bool = True,
+            wait_for_port_infos_reader_done: bool = True,
     ):
         for name, port in self.out_ports.items():
             if port is not None:
@@ -200,12 +198,12 @@ class PortConnector:
 
     @staticmethod
     async def create_from_cmd_config(
-        config: dict[str, str | None],
-        ins: Sequence[str] | None = None,
-        outs: Sequence[str] | None = None,
-        connection_manager: common.ConnectionManager | None = None,
-        *,
-        array_outs: Sequence[str] | None = None,
+            config: dict[str, str | None],
+            ins: Sequence[str] | None = None,
+            outs: Sequence[str] | None = None,
+            connection_manager: common.ConnectionManager | None = None,
+            *,
+            array_outs: Sequence[str] | None = None,
     ):
         pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_cmd_config(config)
@@ -305,12 +303,12 @@ class PortConnector:
 
     @staticmethod
     async def create_from_port_infos_reader(
-        port_infos_reader_sr: str,
-        ins: Sequence[str] | None = None,
-        outs: Sequence[str] | None = None,
-        connection_manager: common.ConnectionManager | None = None,
-        *,
-        array_outs: Sequence[str] | None = None,
+            port_infos_reader_sr: str,
+            ins: Sequence[str] | None = None,
+            outs: Sequence[str] | None = None,
+            connection_manager: common.ConnectionManager | None = None,
+            *,
+            array_outs: Sequence[str] | None = None,
     ):
         pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_port_infos_reader(port_infos_reader_sr)
@@ -374,12 +372,12 @@ class PortConnector:
 
     @staticmethod
     async def create_from_toml_str(
-        config_toml_str: str,
-        ins: Sequence[str] | None = None,
-        outs: Sequence[str] | None = None,
-        connection_manager: common.ConnectionManager | None = None,
-        *,
-        array_outs: Sequence[str] | None = None,
+            config_toml_str: str,
+            ins: Sequence[str] | None = None,
+            outs: Sequence[str] | None = None,
+            connection_manager: common.ConnectionManager | None = None,
+            *,
+            array_outs: Sequence[str] | None = None,
     ):
         pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_str(config_toml_str)
@@ -430,12 +428,12 @@ class PortConnector:
 
     @staticmethod
     async def create_from_toml_reader_sr(
-        config_reader_sr: str,
-        ins: Sequence[str] | None = None,
-        outs: Sequence[str] | None = None,
-        connection_manager: common.ConnectionManager | None = None,
-        *,
-        array_outs: Sequence[str] | None = None,
+            config_reader_sr: str,
+            ins: Sequence[str] | None = None,
+            outs: Sequence[str] | None = None,
+            connection_manager: common.ConnectionManager | None = None,
+            *,
+            array_outs: Sequence[str] | None = None,
     ):
         pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_reader_sr(config_reader_sr)

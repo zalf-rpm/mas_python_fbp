@@ -79,7 +79,7 @@ class RelabelGeoparquet(process.Process):
     async def run(self):
         logger.info("%s process running", self.name)
 
-        mapping_csv_path = str(self.config["mapping_csv_path"].t)
+        mapping_csv_path = str(self.config["mapping_csv_path"])
         mapping_csv_bytes = None
 
         while True:
@@ -100,10 +100,10 @@ class RelabelGeoparquet(process.Process):
                     geoparquet_bytes,
                     mapping_csv_path=mapping_csv_path,
                     mapping_csv_bytes=mapping_csv_bytes,
-                    source_code_column=self.config["source_code_column"].t,
-                    target_code_column=self.config["target_code_column"].t,
-                    priority_column=self.config["priority_column"].t,
-                    default_priority=self.config["default_priority"].i64,
+                    source_code_column=self.config["source_code_column"],
+                    target_code_column=self.config["target_code_column"],
+                    priority_column=self.config["priority_column"],
+                    default_priority=self.config["default_priority"],
                 )
 
                 if not await self.write_out("out", _data_ip(output_bytes)):

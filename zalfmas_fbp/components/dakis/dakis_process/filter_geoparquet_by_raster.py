@@ -62,7 +62,7 @@ class FilterGeoparquetByRaster(process.Process):
                 raster_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 geoparquet_bytes = overlapping_geometries_as_geoparquet(
                     raster_bytes,
-                    self.config["geoparquet_path"].t,
+                    self.config["geoparquet_path"],
                 )
 
                 if not await self.write_out("out", _data_ip(geoparquet_bytes)):
