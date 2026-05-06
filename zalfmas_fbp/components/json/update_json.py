@@ -159,22 +159,39 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                 and len(v[0]) > 0
                                 and v[0][0] == "@"
                         ):
-                            attr_val, is_capnp = p.get_attr_val(
+                            attr_val, is_attr_val = p.get_attr_val(
                                 v[0],
                                 attrs,
                                 remove=False,
                             )
                             # attribute sub access
                             if (
-                                    is_capnp
+                                    is_attr_val
                                     and len(v) > 1
                                     and "types" in config
                                     and v[0] in config["types"]
                             ):
                                 attr_val = as_type(attr_val, config["types"][v[0]])
+                                is_json = False
                                 for field_name in v[1:]:
-                                    if attr_val._has(field_name):
-                                        attr_val = attr_val._get(field_name)
+                                    attr_dir = attr_val.__dir__()
+                                    # check if this is common.capnp/StructuredText
+                                    if "schema" in attr_dir and attr_val.schema.node.id == 17108059578820121684 and attr_val.type == "json":
+                                        is_json = True
+                                        attr_val = json.loads(attr_val.value)
+
+                                    # is array index
+                                    if type(field_name) == int:
+                                        if len(attr_val) > field_name:
+                                            attr_val = attr_val[field_name]
+                                    else:
+                                        # is json access
+                                        if is_json and field_name in attr_val:
+                                            attr_val = attr_val[field_name]
+                                        else:
+                                            # is struct access
+                                            if "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
+                                                attr_val = attr_val.__getattribute__(field_name)
                             v = attr_val
                         # access a list
                         if i and type(j) is list:
@@ -184,13 +201,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             j[k] = v
                     elif type(v) is str:
                         # use existing function to resolve values from attributes
-                        attr_val, is_capnp = p.get_attr_val(
+                        attr_val, is_attr_val = p.get_attr_val(
                             spec[k],
                             attrs,
                             remove=False,
                         )
                         if (
-                                is_capnp
+                                is_attr_val
                                 and "types" in config
                                 and spec[k] in config["types"]
                         ):

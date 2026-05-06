@@ -705,6 +705,49 @@
             }
         }
     },
+    "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "component": {
+            "info": {
+                "id": "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
+                "name": "Add content",
+                "description": "Add content to incoming IP, optionally moving the old to an attribute."
+            },
+            "type": "standard",
+            "inPorts": [
+                {
+                    "name": "conf",
+                    "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                },
+                {
+                    "name": "in",
+                    "contentType": "AnyPointer",
+                    "desc": "Arbitrary IP from upstream."
+                },
+                {
+                    "name": "content",
+                    "contentType": "AnyPointer",
+                    "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'"
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out",
+                    "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'."
+                }
+            ],
+            "defaultConfig": {
+                "to_attr": {
+                    "value": "attr",
+                    "type": "Text",
+                    "desc": "The attribute's name to add to the outgoing message."
+                }
+            }
+        }
+    },
     "b1e875af-4ee7-4937-8824-17d185216ec4": {
         "category": {
             "id": "ip",
