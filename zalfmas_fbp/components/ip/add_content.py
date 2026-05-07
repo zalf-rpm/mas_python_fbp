@@ -68,27 +68,27 @@ meta = {
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in", "content"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     new_content = None
-    while ports["in"] and (ports["content"] or new_content) and ports["out"]:
+    while pc.in_ports["in"] and (pc.in_ports["content"] or new_content) and pc.out_ports["out"]:
         try:
-            if ports["content"]:
-                content_msg = await ports["content"].read()
+            if pc.in_ports["content"]:
+                content_msg = await pc.in_ports["content"].read()
                 if content_msg.which() == "done":
-                    ports["content"] = None
+                    pc.in_ports["content"] = None
                     continue
                 content_ip = content_msg.value.as_struct(fbp_capnp.IP)
                 new_content = content_ip.content
 
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
 
@@ -97,7 +97,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: in_ip.content})
             else:
                 common.copy_and_set_fbp_attrs(in_ip, out_ip)
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
             print(
@@ -105,7 +105,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 e.description,
             )
 
-    await ports.close_out_ports()
+    await pc.close_out_ports()
     print(f"{os.path.basename(__file__)}: process finished")
 
 
