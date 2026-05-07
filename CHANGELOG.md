@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.34](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.33...v0.2.34) (2026-05-07)
+
+
+### Features
+
+* add loadbalancing component ([1eb5a3c](https://github.com/zalf-rpm/mas_python_fbp/commit/1eb5a3c23fe59e1b62854a5871840c897e37ce83))
+* add next available distribution strategy and make load balancer configurable in that regard ([9ea9de4](https://github.com/zalf-rpm/mas_python_fbp/commit/9ea9de48a83944cc9351a170c66cfa3d0464d949))
+* **channel-startup:** add config option to reususe registry for channel sturdyrefs for globally accessible channels ([ec219af](https://github.com/zalf-rpm/mas_python_fbp/commit/ec219afae4ff2268ba7baa74135ac9f2b5e25cd3))
+* **components:** apply startup conf handling ([af5dab9](https://github.com/zalf-rpm/mas_python_fbp/commit/af5dab9063e05b6754f0a078fa8e7b00d0960e91))
+* moved local config to Python datastructures instead of common_capnp:Value's ([5e8986a](https://github.com/zalf-rpm/mas_python_fbp/commit/5e8986a1fac3bd99405234771dd65917be3140b0))
+* **process:** add startup config support ([b7fe35e](https://github.com/zalf-rpm/mas_python_fbp/commit/b7fe35e0d2ddc385e904212b2bdf037d681d1250))
+
+
+### Bug Fixes
+
+* **array port:** broadcast strategy sending one by one instead of all at once ([4330ba8](https://github.com/zalf-rpm/mas_python_fbp/commit/4330ba84d770461ec2deb519d893457cbdab32d1))
+* fixed port access ([4e0337c](https://github.com/zalf-rpm/mas_python_fbp/commit/4e0337c99f255b0d1fc70c4166ca7e10bb8dd2b0))
+* remove .t accessor from distribution strategy in load balancer ([f50c10d](https://github.com/zalf-rpm/mas_python_fbp/commit/f50c10db8176612b97c35059c3325b7a45a2812a))
+* selectively turned off pyright errors ([730d0a7](https://github.com/zalf-rpm/mas_python_fbp/commit/730d0a795732796738144307587af86eb2ea6b58))
+* use correct type for config_type ([d6e3777](https://github.com/zalf-rpm/mas_python_fbp/commit/d6e377794c9cb3919882f8616b5b7338d6b6c3a3))
+* user correct type for value and lb instead of for boolean lists ([cf300fe](https://github.com/zalf-rpm/mas_python_fbp/commit/cf300fee75f26197461caed380e68352f20aa0c6))
+
 ## [0.2.33](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.32...v0.2.33) (2026-05-05)
 
 
