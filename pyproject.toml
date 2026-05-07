@@ -63,3 +63,6 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "T", "G", "BLE"]
 ignore = ["E501"]
+
+[tool.pyright]
+ignore = ["tests"]
