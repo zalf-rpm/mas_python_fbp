@@ -184,7 +184,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             attrs,
                             remove=False,
                         )
-                        if is_capnp and "types" in config and spec[k] in config["types"]:
+                        if is_attr_val and "types" in config and spec[k] in config["types"]:
                             attr_val = as_type(attr_val, config["types"][spec[k]])
                         if i and type(j) is list:
                             j[i] = attr_val
@@ -231,7 +231,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             out_ip = fbp_capnp.IP.new_message(
                 content=json.dumps(j_content),
-                attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),
+                attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
             )
             await pc.out_ports["out"].write(value=out_ip)
 

@@ -73,7 +73,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip = fbp_capnp.IP.new_message()
                 to_attr = config.get("to_attr")
                 if to_attr and len(to_attr.as_text()) > 0:
-                    out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]
+                    out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]  # pyright: ignore
                 else:
                     out_ip.content = json.dumps(env_template)
                 await pc.out_ports["out"].write(value=out_ip)

@@ -32,6 +32,7 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 )
 
 if TYPE_CHECKING:
+    from mas.schema.common.common_capnp.types.builders import PairListBuilder, ValueBuilder, ValueListBuilder
     from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
     from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
+
 from zalfmas_common import common
 
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
@@ -187,7 +189,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         }
 
     @staticmethod
-    def _config_value_from_python(value: Any):
+    def _config_value_from_python(value: Any) -> ValueBuilder:
         value_type = type(value)
         if value_type is str:
             return common_capnp.Value.new_message(t=value)
@@ -210,12 +212,12 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 if vt0 is str:
                     return common_capnp.Value.new_message(lt=value)
             else:
-                l = list([Process._config_value_from_python(v) for v in value])
-                return common_capnp.Value.new_message(lv=l)
+                l: ValueListBuilder = list([Process._config_value_from_python(v) for v in value])  # pyright: ignore
+                return common_capnp.Value.new_message(lv=l)  # pyright: ignore
         if value_type is dict:
-            l = []
+            l: PairListBuilder = []  # pyright: ignore
             for k, v in value.items():
-                l.append(common_capnp.Pair.new_message(fst=k, snd=Process._config_value_from_python(v)))
+                l.append(common_capnp.Pair.new_message(fst=k, snd=Process._config_value_from_python(v)))  # pyright: ignore
             return common_capnp.Value.new_message(lpair=l)
 
         raise TypeError(f"Unsupported config value type: {value_type.__name__}")

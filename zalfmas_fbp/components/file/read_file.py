@@ -75,7 +75,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
                         out_ip = fbp_capnp.IP.new_message()
                         if config["to_attr"] and len(config["to_attr"]) > 0:
-                            out_ip.attributes = [{"key": config["to_attr"], "value": line}]
+                            out_ip.attributes = [{"key": config["to_attr"], "value": line}]  # pyright: ignore
                         else:
                             out_ip.content = line
                         await pc.out_ports["out"].write(value=out_ip)
@@ -83,7 +83,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     file_content = _.read()
                     out_ip = fbp_capnp.IP.new_message()
                     if config["to_attr"] and len(config["to_attr"]) > 0:
-                        out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]
+                        out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]  # pyright: ignore
                     else:
                         out_ip.content = file_content
                     await pc.out_ports["out"].write(value=out_ip)
