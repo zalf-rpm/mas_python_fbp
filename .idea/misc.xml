@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Black">
-    <option name="sdkName" value="Poetry (mas_python_fbp) (2)" />
+    <option name="sdkName" value="mas_python_fbp" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="mas_python_fbp" project-jdk-type="Python SDK" />
 </project>
