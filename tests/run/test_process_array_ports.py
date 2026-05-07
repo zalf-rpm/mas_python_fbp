@@ -216,7 +216,9 @@ def test_write_array_out_next_available_distributes_across_idle_ports() -> None:
         second = InMemoryWriter()
         component.array_out_ports["out"] = [cast("Any", first), cast("Any", second)]
 
-        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        assert (
+            await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        )
         assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("beta")) is True
 
         await component.close_out_ports()
@@ -235,7 +237,9 @@ def test_write_array_out_next_available_uses_other_idle_port_while_one_write_is_
         ready = _SignalingWriter()
         component.array_out_ports["out"] = [cast("Any", blocking), cast("Any", ready)]
 
-        assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        assert (
+            await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        )
         await blocking.started.wait()
 
         assert await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("beta")) is True

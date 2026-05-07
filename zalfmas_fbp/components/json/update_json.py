@@ -152,7 +152,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                 for field_name in v[1:]:
                                     attr_dir = attr_val.__dir__()
                                     # check if this is common.capnp/StructuredText
-                                    if "schema" in attr_dir and attr_val.schema.node.id == 17108059578820121684 and attr_val.type == "json":
+                                    if (
+                                        "schema" in attr_dir
+                                        and attr_val.schema.node.id == 17108059578820121684
+                                        and attr_val.type == "json"
+                                    ):
                                         is_json = True
                                         attr_val = json.loads(attr_val.value)
 
@@ -160,14 +164,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                     if type(field_name) == int:
                                         if len(attr_val) > field_name:
                                             attr_val = attr_val[field_name]
-                                    else:
-                                        # is json access
-                                        if is_json and field_name in attr_val:
-                                            attr_val = attr_val[field_name]
-                                        else:
-                                            # is struct access
-                                            if "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
-                                                attr_val = attr_val.__getattribute__(field_name)
+                                    # is json access
+                                    elif is_json and field_name in attr_val:
+                                        attr_val = attr_val[field_name]
+                                    # is struct access
+                                    elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
+                                        attr_val = attr_val.__getattribute__(field_name)
                             v = attr_val
                         # access a list
                         if i and type(j) is list:

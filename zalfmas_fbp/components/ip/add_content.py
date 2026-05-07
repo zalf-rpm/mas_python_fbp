@@ -25,49 +25,53 @@ import zalfmas_fbp.run.ports as p
 meta = {
     "category": {
         "id": "ip",
-        "name": "IP (Flow packages)"
+        "name": "IP (Flow packages)",
     },
     "component": {
         "info": {
             "id": "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
             "name": "Add content",
-            "description": "Add content to incoming IP, optionally moving the old to an attribute."
+            "description": "Add content to incoming IP, optionally moving the old to an attribute.",
         },
         "type": "standard",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            }, {
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+            },
+            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary IP from upstream."
-            }, {
+                "desc": "Arbitrary IP from upstream.",
+            },
+            {
                 "name": "content",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'"
-            }
+                "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'",
+            },
         ],
         "outPorts": [
             {
                 "name": "out",
-                "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'."
-            }
+                "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
+            },
         ],
         "defaultConfig": {
             "to_attr": {
                 "value": "attr",
                 "type": "Text",
-                "desc": "The attribute's name to add to the outgoing message."
-            }
-        }
-    }
+                "desc": "The attribute's name to add to the outgoing message.",
+            },
+        },
+    },
 }
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
     ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in", "content"], outs=["out"]
+        port_infos_reader_sr,
+        ins=["conf", "in", "content"],
+        outs=["out"],
     )
     await p.update_config_from_port(config, ports["conf"])
 
