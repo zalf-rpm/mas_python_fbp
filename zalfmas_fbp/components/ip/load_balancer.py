@@ -68,7 +68,7 @@ class LoadBalancer(process.Process):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     def _distribution_strategy(self) -> process.ArrayOutStrategy:
-        strategy = process.ArrayOutStrategy(self.config["distribution_strategy"].t)
+        strategy = process.ArrayOutStrategy(self.config["distribution_strategy"])
         if strategy == process.ArrayOutStrategy.BROADCAST:
             raise ValueError("load balancer distribution_strategy must be 'round_robin' or 'next_available'")
         return strategy
