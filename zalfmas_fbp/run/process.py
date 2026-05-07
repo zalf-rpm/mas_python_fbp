@@ -33,6 +33,7 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 
 if TYPE_CHECKING:
     from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
+    from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
@@ -220,7 +221,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         raise TypeError(f"Unsupported config value type: {value_type.__name__}")
 
     @staticmethod
-    def _python_value_from_capnp_value(value: common_capnp.Value) -> Any:
+    def _python_value_from_capnp_value(value: ValueReader) -> Any:
         value_type = value.which()
         if value_type == "i64":
             return value.i64
@@ -235,7 +236,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         if value_type == "lf64":
             return list([v for v in value.lf64])
         if value_type == "lb":
-            return list([v for v in value.b])
+            return list([v for v in value.lb])
         if value_type == "lt":
             return list([v for v in value.lt])
         if value_type == "lv":
@@ -395,7 +396,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return list(
             map(
                 lambda item: fbp_capnp.Process.ConfigEntry.new_message(
-                    name=item[0], val=Process._config_value_from_python(item[1]),
+                    name=item[0],
+                    val=Process._config_value_from_python(item[1]),
                 ),
                 self.config.items(),
             ),
