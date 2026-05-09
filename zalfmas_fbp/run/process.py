@@ -18,6 +18,7 @@ import os
 import subprocess as sp
 import sys
 import tomllib
+import traceback
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
@@ -55,7 +56,7 @@ if TYPE_CHECKING:
     from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
-    from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
+    from mas.schema.fbp.fbp_capnp.types.enums import ProcessErrorInfoPhaseEnum, ProcessStateEnum
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
@@ -73,6 +74,44 @@ type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
 type RawConfig = dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
+
+
+class ProcessRuntimeError(RuntimeError):
+    def __init__(self, message: str, *, phase: str, port: str | None = None):
+        super().__init__(message)
+        self.phase = phase
+        self.port = port
+
+
+class ProcessConfigError(ValueError):
+    def __init__(self, message: str, *, port: str | None = None):
+        super().__init__(message)
+        self.phase = "config"
+        self.port = port
+
+
+class InputPortReadError(ProcessRuntimeError):
+    def __init__(self, process_name: str | None, port: str, message: str):
+        super().__init__(f"{process_name} failed reading input port '{port}': {message}", phase="read", port=port)
+
+
+class OutputPortWriteError(ProcessRuntimeError):
+    def __init__(self, process_name: str | None, port: str, message: str):
+        super().__init__(f"{process_name} failed writing output port '{port}': {message}", phase="write", port=port)
+
+
+@dataclass
+class ProcessErrorInfo:
+    process_id: str | None
+    process_name: str | None
+    phase: str
+    port: str | None
+    error_type: str
+    message: str
+    cause_type: str | None = None
+    cause_message: str | None = None
+    traceback: list[str] | None = None
+
 
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -257,6 +296,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self._array_out_write_tasks: dict[str, ArrayOutWriteTasks] = {}
         self._run_task: asyncio.Task[None] | None = None
         self._run_exception: BaseException | None = None
+        self._last_error: ProcessErrorInfo | None = None
         self._stop_requested: asyncio.Event = asyncio.Event()
         self.soft_stop_timeout_seconds: float = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
         self.process_state: ProcessStateEnum = "idle"
@@ -368,6 +408,54 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     def _apply_config_values(self, config_values: Mapping[str, ConfigValue | None]) -> None:
         self.apply_config_values(config_values)
+
+    def _record_error(self, exc: BaseException) -> None:
+        self._run_exception = exc
+        cause = exc.__cause__ or exc.__context__
+        self._last_error = ProcessErrorInfo(
+            process_id=self.id,
+            process_name=self.name,
+            phase=cast("str", getattr(exc, "phase", "run")),
+            port=cast("str | None", getattr(exc, "port", None)),
+            error_type=type(exc).__name__,
+            message=str(exc),
+            cause_type=type(cause).__name__ if cause is not None else None,
+            cause_message=str(cause) if cause is not None else None,
+            traceback=traceback.format_exception(type(exc), exc, exc.__traceback__) if exc.__traceback__ else None,
+        )
+
+    @staticmethod
+    def _schema_error_phase(phase: str) -> ProcessErrorInfoPhaseEnum:
+        match phase:
+            case "config":
+                return "config"
+            case "read":
+                return "read"
+            case "run":
+                return "run"
+            case "write":
+                return "write"
+            case "close":
+                return "close"
+            case _:
+                return "unknown"
+
+    def _last_error_message(self):
+        if self._last_error is None:
+            return fbp_capnp.Process.ErrorInfo.new_message(hasError=False)
+
+        return fbp_capnp.Process.ErrorInfo.new_message(
+            hasError=True,
+            processId=self._last_error.process_id or "",
+            processName=self._last_error.process_name or "",
+            phase=self._schema_error_phase(self._last_error.phase),
+            port=self._last_error.port or "",
+            errorType=self._last_error.error_type,
+            message=self._last_error.message,
+            causeType=self._last_error.cause_type or "",
+            causeMessage=self._last_error.cause_message or "",
+            traceback=self._last_error.traceback or [],
+        )
 
     @staticmethod
     def _load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
@@ -553,6 +641,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
         self._stop_requested = asyncio.Event()
         self._run_exception = None
+        self._last_error = None
         self._run_task = asyncio.create_task(self._run_wrapper(), name=f"{self.name or self.id}-run")
         return True
 
@@ -567,18 +656,24 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
             await self.transition_to_state("running")
             await self.run()
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as e:
             if not self._stop_requested.is_set():
                 final_state = "failed"
-                self._run_exception = sys.exception()
+                self._record_error(e)
                 logger.exception("%s run task was cancelled unexpectedly", self.name)
                 raise
-        except Exception:
+        except Exception as e:
             final_state = "failed"
-            self._run_exception = sys.exception()
+            self._record_error(e)
             logger.exception("%s process failed", self.name)
         finally:
-            await self.close_out_ports()
+            try:
+                await self.close_out_ports()
+            except Exception as e:
+                if final_state != "failed":
+                    final_state = "failed"
+                    self._record_error(e)
+                logger.exception("%s process failed while closing output ports", self.name)
             if self.process_state != "closed":
                 await self.transition_to_state(final_state)
             self._stop_requested.clear()
@@ -631,6 +726,11 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self.state_transition_callbacks.append(transitionCallback)
         return self.process_state
 
+    # lastError @9 () -> (info :ErrorInfo);
+    @override
+    async def lastError(self, _context=None, **kwargs):
+        return self._last_error_message()
+
     @property
     def stopping(self) -> bool:
         return self._stop_requested.is_set()
@@ -671,9 +771,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 await read_task
             raise
         except capnp.KjException as e:
-            logger.error("%s RPC exception reading input port '%s': %s", self.name, name, getattr(e, "description", e))
             self.in_ports[name] = None
-            return None
+            if self._stop_requested.is_set():
+                return None
+            description = str(getattr(e, "description", e))
+            logger.error("%s RPC exception reading input port '%s': %s", self.name, name, description)
+            raise InputPortReadError(self.name, name, description) from e
         finally:
             if not stop_task.done():
                 _ = stop_task.cancel()
@@ -686,7 +789,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         try:
             config_values = self._config_from_ip(in_msg)
         except (capnp.KjException, json.JSONDecodeError, tomllib.TOMLDecodeError, TypeError, ValueError) as e:
-            raise ValueError(f"{self.name} received invalid config on port '{name}': {e}") from e
+            raise ProcessConfigError(f"{self.name} received invalid config on port '{name}': {e}", port=name) from e
 
         self._apply_config_values(config_values)
         return True
@@ -752,16 +855,19 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     try:
                         msg = await read_task
                     except capnp.KjException as e:
+                        ports[port_index] = None
+                        if self._stop_requested.is_set():
+                            zip_finished = True
+                            continue
+                        description = str(getattr(e, "description", e))
                         logger.error(
                             "%s RPC exception reading array input port '%s[%s]': %s",
                             self.name,
                             name,
                             port_index,
-                            getattr(e, "description", e),
+                            description,
                         )
-                        ports[port_index] = None
-                        zip_finished = True
-                        continue
+                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
 
                     if msg.which() == "done":
                         ports[port_index] = None
@@ -777,6 +883,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         except asyncio.CancelledError:
             await self._cancel_tasks(read_tasks)
             _ = stop_task.cancel()
+            raise
+        except Exception:
+            await self._cancel_tasks(read_tasks)
             raise
         finally:
             if not stop_task.done():
@@ -818,15 +927,18 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     try:
                         msg = await read_task
                     except capnp.KjException as e:
+                        ports[port_index] = None
+                        if self._stop_requested.is_set():
+                            continue
+                        description = str(getattr(e, "description", e))
                         logger.error(
                             "%s RPC exception reading array input port '%s[%s]': %s",
                             self.name,
                             name,
                             port_index,
-                            getattr(e, "description", e),
+                            description,
                         )
-                        ports[port_index] = None
-                        continue
+                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
 
                     if msg.which() == "done":
                         ports[port_index] = None
@@ -842,6 +954,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             except asyncio.CancelledError:
                 await self._cancel_tasks(read_tasks)
                 _ = stop_task.cancel()
+                raise
+            except Exception:
+                await self._cancel_tasks(read_tasks)
                 raise
             finally:
                 if not stop_task.done():
@@ -868,9 +983,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             await port.write(value=message)
             return True
         except capnp.KjException as e:
-            logger.error("%s RPC exception writing output port '%s': %s", self.name, name, getattr(e, "description", e))
             self.out_ports[name] = None
-            return False
+            if self._stop_requested.is_set():
+                return False
+            description = str(getattr(e, "description", e))
+            logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
+            raise OutputPortWriteError(self.name, name, description) from e
 
     async def write_array_out(
         self,
@@ -891,9 +1009,21 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if not active_ports:
                 return False
 
-            results = await asyncio.gather(
-                *(self._write_array_out_port(name, i, port, message) for i, port in active_ports),
-            )
+            write_tasks = [
+                asyncio.create_task(
+                    self._write_array_out_port(name, i, port, message),
+                    name=f"{self.name or self.id}-{name}[{i}]-broadcast-write",
+                )
+                for i, port in active_ports
+            ]
+            try:
+                results = await asyncio.gather(*write_tasks)
+            except Exception:
+                for task in write_tasks:
+                    if not task.done():
+                        task.cancel()
+                _ = await asyncio.gather(*write_tasks, return_exceptions=True)
+                raise
             return any(results)
 
         if strategy == ArrayOutStrategy.NEXT_AVAILABLE:
@@ -1016,15 +1146,18 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             await port.write(value=message)
             return True
         except capnp.KjException as e:
+            self.array_out_ports[name][port_index] = None
+            if self._stop_requested.is_set():
+                return False
+            description = str(getattr(e, "description", e))
             logger.error(
                 "%s RPC exception writing array output port '%s[%s]': %s",
                 self.name,
                 name,
                 port_index,
-                getattr(e, "description", e),
+                description,
             )
-            self.array_out_ports[name][port_index] = None
-            return False
+            raise OutputPortWriteError(self.name, f"{name}[{port_index}]", description) from e
 
     async def close_in_ports(self):
         for name, port in self.in_ports.items():

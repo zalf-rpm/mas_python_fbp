@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 
 from tests.component_harness import InMemoryReader, InMemoryWriter, done_message, ip_message, text_outputs
@@ -48,6 +49,20 @@ class _DelayedReader(InMemoryReader):
     async def read(self):
         await asyncio.sleep(self.delay)
         return await super().read()
+
+
+class _BrokenReader:
+    async def read(self):
+        raise capnp.KjException("channel closed")
+
+
+class _BlockingBrokenReader:
+    def __init__(self):
+        self.started = asyncio.Event()
+
+    async def read(self):
+        self.started.set()
+        await asyncio.Future()
 
 
 class _BlockingWriter(InMemoryWriter):
@@ -105,6 +120,23 @@ class _CancellationSuppressingProcess(process.Process):
                 self.cancel_count += 1
 
 
+class _ReadOnceProcess(process.Process):
+    async def run(self) -> None:
+        await self.read_in("in")
+
+
+class _CatchesReadErrorProcess(process.Process):
+    def __init__(self):
+        super().__init__(metadata=_standard_port_meta())
+        self.caught_error = False
+
+    async def run(self) -> None:
+        try:
+            await self.read_in("in")
+        except process.InputPortReadError:
+            self.caught_error = True
+
+
 def test_process_metadata_initializes_array_in_and_out_ports() -> None:
     component = process.Process(metadata=_array_port_meta())
 
@@ -153,6 +185,58 @@ def test_process_stop_timeout_returns_false_while_task_is_still_stopping() -> No
         component.release.set()
         await _wait_for_state(component, "idle")
         assert component.stopping is False
+
+    asyncio.run(run_test())
+
+
+def test_unexpected_input_port_failure_fails_process_and_records_last_error() -> None:
+    async def run_test() -> None:
+        component = _ReadOnceProcess(metadata=_standard_port_meta())
+        component.in_ports["in"] = cast("Any", _BrokenReader())
+
+        assert await component.start() is True
+        await _wait_for_state(component, "failed")
+
+        error_info = await component.lastError()
+        assert error_info.hasError is True
+        assert error_info.phase == "read"
+        assert error_info.port == "in"
+        assert error_info.errorType == "InputPortReadError"
+        assert error_info.causeType == "KjException"
+
+    asyncio.run(run_test())
+
+
+def test_component_can_catch_input_port_failure_inside_run() -> None:
+    async def run_test() -> None:
+        component = _CatchesReadErrorProcess()
+        component.in_ports["in"] = cast("Any", _BrokenReader())
+
+        assert await component.start() is True
+        if component._run_task is None:
+            raise AssertionError("Process did not create a run task.")
+        await component._run_task
+
+        assert component.caught_error is True
+        assert component.process_state == "idle"
+        error_info = await component.lastError()
+        assert error_info.hasError is False
+        assert error_info.phase == "unknown"
+
+    asyncio.run(run_test())
+
+
+def test_stop_requested_read_returns_none_without_bubbling_error() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        reader = _BlockingBrokenReader()
+        component.in_ports["in"] = cast("Any", reader)
+
+        read_task = asyncio.create_task(component.read_in("in"))
+        await reader.started.wait()
+        component._stop_requested.set()
+
+        assert await asyncio.wait_for(read_task, timeout=1) is None
 
     asyncio.run(run_test())
 
