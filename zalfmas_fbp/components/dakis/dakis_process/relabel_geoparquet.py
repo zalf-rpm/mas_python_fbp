@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -14,6 +14,7 @@ from zalfmas_common import common
 from zalfmas_fbp.components.dakis.common.relabel import relabel_geoparquet_bytes
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -22,9 +23,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 configure_logging()
 
-meta = {
-    "category": {"id": "dakis", "name": "DAKIS"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "dakis", "name": "DAKIS"},
         "info": {
             "id": "9db20ca7-ba92-4179-8f54-8e9945893421",
             "name": "relabel geoparquet",
@@ -68,11 +69,15 @@ meta = {
             },
         },
     },
-}
+)
 
 
 class RelabelGeoparquet(process.Process):
-    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     @override
@@ -122,7 +127,7 @@ class RelabelGeoparquet(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(RelabelGeoparquet(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(RelabelGeoparquet(METADATA), METADATA)
 
 
 def _data_ip(data: bytes) -> IPBuilder:

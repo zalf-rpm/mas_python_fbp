@@ -22,12 +22,13 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "string", "name": "String"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "string", "name": "String"},
         "info": {
             "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
             "name": "split string",
@@ -41,7 +42,7 @@ meta = {
         "outPorts": [{"name": "out", "contentType": "Text"}],
         "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "Split string at this character."}},
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
@@ -78,7 +79,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

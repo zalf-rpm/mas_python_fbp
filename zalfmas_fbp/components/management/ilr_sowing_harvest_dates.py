@@ -26,13 +26,13 @@ from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "management", "name": "Management"},
-    "categoryId": "management",
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "management", "name": "Management"},
         "info": {
             "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
             "name": "ILR seed/harvest dates",
@@ -42,7 +42,7 @@ meta = {
         "inPorts": [{"name": "conf"}, {"name": "in"}],
         "outPorts": [{"name": "out"}],
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -234,7 +234,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -22,12 +22,13 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "string", "name": "String"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "string", "name": "String"},
         "info": {
             "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
             "name": "Collect into list",
@@ -52,7 +53,7 @@ meta = {
             },
         },
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
@@ -108,7 +109,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

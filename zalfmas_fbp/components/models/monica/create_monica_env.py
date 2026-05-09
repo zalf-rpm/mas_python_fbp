@@ -32,12 +32,13 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "models/monica", "name": "Models/MONICA"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "models/monica", "name": "Models/MONICA"},
         "info": {
             "id": "921bcda7-d83f-4190-8593-fce793dc9519",
             "name": "Create MONICA env",
@@ -96,7 +97,7 @@ meta = {
             "ilr_attr": {"value": "@ilr", "type": "Text", "desc": "Path to site.json file."},
         },
     },
-}
+)
 
 
 def create_env(sim, crop, site, crop_id):
@@ -319,7 +320,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

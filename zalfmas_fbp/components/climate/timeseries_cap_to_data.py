@@ -15,6 +15,7 @@
 
 import logging
 import os
+from typing import Any
 
 from capnp.lib.capnp import KjException
 from mas.schema.climate import climate_capnp
@@ -23,12 +24,13 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "climate", "name": "Climate"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "climate", "name": "Climate"},
         "info": {
             "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
             "name": "timeseries capability -> data",
@@ -38,21 +40,19 @@ meta = {
         "inPorts": [{"name": "in"}, {"name": "conf"}],
         "outPorts": [{"name": "out"}],
         "defaultConfig": {
-            "to_attr": None,
-            "from_attr": None,
-            "subrange_start": None,
-            "subrange_start_type": "iso-date",
-            "subrange_end": None,
-            "subrange_end_type": "iso-date",
-            "subheader": ["tavg", "precip"],
-            "transposed": False,
-            "maintain_substreams": False,
+            "to_attr": {"value": None},
+            "from_attr": {"value": None},
+            "subrange_start": {"value": None, "type": "iso-date"},
+            "subrange_end": {"value": None, "type": "iso-date"},
+            "subheader": {"value": ["tavg", "precip"]},
+            "transposed": {"value": False},
+            "maintain_substreams": {"value": False},
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -185,7 +185,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -23,12 +23,13 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "spotpy", "name": "Spotpy"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "spotpy", "name": "Spotpy"},
         "info": {
             "id": "028290bb-a38c-4599-9948-fc73723e9654",
             "name": "create SpotPy calibration params",
@@ -51,7 +52,7 @@ meta = {
             },
         },
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
@@ -97,7 +98,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -22,12 +22,13 @@ from zalfmas_common import geo
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "geo", "name": "Geo"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "geo", "name": "Geo"},
         "info": {
             "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
             "name": "to geo coord",
@@ -36,11 +37,7 @@ meta = {
         "type": "standard",
         "inPorts": [
             {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "vals",
-                "contentType": "List[float | int]",
-                "desc": "Values to convert into coord.",
-            },
+            {"name": "vals", "contentType": "List[float | int]", "desc": "Values to convert into coord."},
         ],
         "outPorts": [
             {
@@ -58,7 +55,7 @@ meta = {
             "list_type": {"value": "float", "type": ["float", "int"]},
         },
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -96,7 +93,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

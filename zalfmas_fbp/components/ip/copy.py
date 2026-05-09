@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, override
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +28,7 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import process
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -35,9 +36,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "ip", "name": "IP (Flow packages)"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "ip", "name": "IP (Flow packages)"},
         "info": {
             "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
             "name": "copy",
@@ -56,11 +57,15 @@ meta = {
             },
         ],
     },
-}
+)
 
 
 class Copy(process.Process):
-    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     @override
@@ -86,7 +91,7 @@ def copy_ip(in_ip: IPReader) -> IPBuilder:
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(Copy(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(Copy(METADATA), METADATA)
 
 
 if __name__ == "__main__":

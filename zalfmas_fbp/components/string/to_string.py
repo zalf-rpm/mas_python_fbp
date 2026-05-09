@@ -22,13 +22,14 @@ from zalfmas_common import common
 
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-meta = {
-    "category": {"id": "string", "name": "String"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "string", "name": "String"},
         "info": {
             "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
             "name": "to string",
@@ -48,11 +49,15 @@ meta = {
             },
         },
     },
-}
+)
 
 
 class ToString(process.Process):
-    def __init__(self, metadata, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
@@ -94,7 +99,7 @@ class ToString(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(ToString(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(ToString(METADATA), METADATA)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@
 
 import logging
 import os
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
@@ -23,12 +24,13 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "soil", "name": "Soil"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "soil", "name": "Soil"},
         "info": {
             "id": "89da0cb9-2079-4245-aecc-068194bc1637",
             "name": "Use soil service",
@@ -101,10 +103,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "latlon", "service"],
@@ -164,7 +166,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

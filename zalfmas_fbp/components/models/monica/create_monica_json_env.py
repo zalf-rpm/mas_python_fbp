@@ -16,18 +16,20 @@
 import json
 import logging
 import os
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "models/monica", "name": "Models/MONICA"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "models/monica", "name": "Models/MONICA"},
         "info": {
             "id": "128af0c8-2614-4398-9043-ff3581958bd4",
             "name": "Create MONICA JSON env",
@@ -43,10 +45,10 @@ meta = {
         "outPorts": [{"name": "out", "contentType": "Text (JSON)"}],
         "defaultConfig": {"to_attr": {"value": None, "type": "Text (JSON)", "desc": "Set output into this attribute."}},
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "sim", "crop", "site"],
@@ -86,7 +88,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

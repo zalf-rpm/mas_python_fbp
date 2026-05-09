@@ -19,6 +19,7 @@ import csv
 import json
 import logging
 import os
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
@@ -26,12 +27,13 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "models/monica", "name": "Models/MONICA"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "models/monica", "name": "Models/MONICA"},
         "info": {
             "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
             "name": "Write MONICA CSV",
@@ -40,11 +42,7 @@ meta = {
         "type": "standard",
         "inPorts": [
             {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "in",
-                "contentType": "string (MONICA JSON result)",
-                "desc": "Receive MONICA JSON result.",
-            },
+            {"name": "in", "contentType": "string (MONICA JSON result)", "desc": "Receive MONICA JSON result."},
         ],
         "outPorts": [],
         "defaultConfig": {
@@ -76,10 +74,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -148,7 +146,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, override
+from typing import override
 
 from mas.schema.common import common_capnp
 from zalfmas_common import common
@@ -12,13 +12,14 @@ from zalfmas_common import common
 from zalfmas_fbp.components.dakis.common.write_geoparquet import write_geoparquet_bytes
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-meta = {
-    "category": {"id": "dakis", "name": "DAKIS"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "dakis", "name": "DAKIS"},
         "info": {
             "id": "d2f24a18-7210-44b9-9741-eec72f299715",
             "name": "write geoparquet",
@@ -40,11 +41,15 @@ meta = {
             },
         },
     },
-}
+)
 
 
 class WriteGeoparquet(process.Process):
-    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     @override
@@ -72,7 +77,7 @@ class WriteGeoparquet(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(WriteGeoparquet(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(WriteGeoparquet(METADATA), METADATA)
 
 
 if __name__ == "__main__":

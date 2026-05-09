@@ -20,8 +20,9 @@ import sys
 import tomllib
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Literal, cast, overload, override
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard, cast, overload, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -32,7 +33,10 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 )
 
 if TYPE_CHECKING:
-    from mas.schema.common.common_capnp.types.builders import PairListBuilder, ValueBuilder, ValueListBuilder
+    from mas.schema.common.common_capnp.types.builders import (
+        PairBuilder,
+        ValueBuilder,
+    )
     from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
     from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -43,15 +47,56 @@ if TYPE_CHECKING:
 
 from zalfmas_common import common
 
+from zalfmas_fbp.run.argparse_utils import parse_args_typed
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 
 ArrayReaderPorts = list["ReaderClient | None"]
 ArrayWriterPorts = list["WriterClient | None"]
 ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
+type ConfigScalar = str | int | float | bool
+type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+@dataclass
+class ProcessArgs(argparse.Namespace):
+    process_cap_writer_sr: str | None = None
+    output_json_default_config: bool = False
+    output_json_component_metadata: bool = False
+    write_json_default_config: str | None = None
+    write_json_component_metadata: str | None = None
+    serve_bootstrap: bool = False
+    host: str | None = None
+    port: int | None = None
+    name: str | None = None
+    log_level: str = "WARNING"
+
+
+def _is_config_list[T: ConfigScalar](
+    value: list[ConfigValue],
+    item_type: type[T],
+    *,
+    exact: bool = False,
+) -> TypeGuard[list[T]]:
+    if exact:
+        return all(type(item) is item_type for item in value)
+    return all(isinstance(item, item_type) for item in value)
+
+
+def _is_config_value_list(value: object) -> TypeGuard[list[ConfigValue]]:
+    return isinstance(value, list)
+
+
+def _is_object_dict(value: object) -> TypeGuard[dict[object, object]]:
+    return isinstance(value, dict)
+
+
+def _is_str_key_dict(value: dict[object, object]) -> TypeGuard[dict[str, object]]:
+    return all(isinstance(key, str) for key in value)
 
 
 class ArrayInStrategy(StrEnum):
@@ -91,7 +136,7 @@ class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
         index: int | None = None,
     ):
         self.ports = ports
-        self.name = name
+        self.name: str = name
         self.port = port
         self.index = index
         self.disconnected = False
@@ -145,10 +190,14 @@ class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
             logger.error("Exception closing disconnected port '%s': %s", self.name, e)
 
 
-class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegistrable):
+class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
+    fbp_capnp.Process.Server,
+    common.Identifiable,
+    common.GatewayRegistrable,
+):
     def __init__(
         self,
-        metadata: dict[str, Any] | None = None,
+        metadata: ComponentMetadata | None = None,
         con_man: common.ConnectionManager | None = None,
         id: str | None = None,
         name: str | None = None,
@@ -157,8 +206,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man or common.ConnectionManager())
 
-        self.metadata: dict[str, Any] = metadata or {}
-        self.configuration: dict[str, Any] = {}
+        self.metadata: ComponentMetadata | None = metadata
+        self.configuration: dict[str, ConfigValue] = {}
         self.in_ports: dict[str, ReaderClient | None] = {}
         self.array_in_ports: dict[str, ArrayReaderPorts] = {}
         self._array_in_buffers: dict[str, dict[int, IPReader]] = {}
@@ -176,54 +225,57 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         self.init_from_metadata()
 
     @staticmethod
-    def _is_array_port(port_info: dict[str, Any]) -> bool:
-        return port_info.get("type") == "array"
+    def _is_array_port(port_info: ComponentPortMetadata) -> bool:
+        return port_info.type == "array"
 
     @staticmethod
-    def _port_message(name: str, port_info: dict[str, Any] | None, port_type: str):
-        port_info = port_info or {}
+    def _port_message(name: str, port_info: ComponentPortMetadata | None, port_type: str):
         return {
             "name": name,
             "type": port_type,
-            "contentType": port_info.get("contentType", "Text"),
+            "contentType": port_info.contentType if port_info is not None else "Text",
         }
 
     @staticmethod
-    def _config_value_from_python(value: Any) -> ValueBuilder:
-        value_type = type(value)
-        if value_type is str:
+    def _config_value_from_python(value: object) -> ValueBuilder:
+        if isinstance(value, str):
             return common_capnp.Value.new_message(t=value)
-        if value_type is int:
-            return common_capnp.Value.new_message(i64=value)
-        if value_type is float:
-            return common_capnp.Value.new_message(f64=value)
-        if value_type is bool:
+        if isinstance(value, bool):
             return common_capnp.Value.new_message(b=value)
-        if value_type is list and len(value) > 0:
-            value_types_set = {type(item) for item in value}
-            if len(value_types_set) == 1:
-                vt0 = value_types_set.pop()
-                if vt0 is int:
-                    return common_capnp.Value.new_message(li64=value)
-                if vt0 is float:
-                    return common_capnp.Value.new_message(lf64=value)
-                if vt0 is bool:
-                    return common_capnp.Value.new_message(lb=value)
-                if vt0 is str:
-                    return common_capnp.Value.new_message(lt=value)
-            else:
-                l: ValueListBuilder = list([Process._config_value_from_python(v) for v in value])  # pyright: ignore
-                return common_capnp.Value.new_message(lv=l)  # pyright: ignore
-        if value_type is dict:
-            l: PairListBuilder = []  # pyright: ignore
-            for k, v in value.items():
-                l.append(common_capnp.Pair.new_message(fst=k, snd=Process._config_value_from_python(v)))  # pyright: ignore
-            return common_capnp.Value.new_message(lpair=l)
+        if isinstance(value, int):
+            return common_capnp.Value.new_message(i64=value)
+        if isinstance(value, float):
+            return common_capnp.Value.new_message(f64=value)
+        if _is_config_value_list(value):
+            if not value:
+                return common_capnp.Value.new_message(lv=[])
+            if _is_config_list(value, int, exact=True):
+                return common_capnp.Value.new_message(li64=value)
+            if _is_config_list(value, float):
+                return common_capnp.Value.new_message(lf64=value)
+            if _is_config_list(value, bool):
+                return common_capnp.Value.new_message(lb=value)
+            if _is_config_list(value, str):
+                return common_capnp.Value.new_message(lt=value)
+            values = [Process._config_value_from_python(item) for item in value]
+            return common_capnp.Value.new_message(lv=values)
+        if _is_object_dict(value):
+            if not _is_str_key_dict(value):
+                raise TypeError("Config dict keys must be strings")
+            pairs: list[PairBuilder] = []
+            for key, item in value.items():
+                pairs.append(
+                    common_capnp.Pair.new_message(
+                        fst=key,
+                        snd=Process._config_value_from_python(item),
+                    ),
+                )
+            return common_capnp.Value.new_message(lpair=pairs)
 
-        raise TypeError(f"Unsupported config value type: {value_type.__name__}")
+        raise TypeError(f"Unsupported config value type: {type(value).__name__}")
 
     @staticmethod
-    def _python_value_from_capnp_value(value: ValueReader) -> Any:
+    def _python_value_from_capnp_value(value: ValueReader) -> ConfigValue:
         value_type = value.which()
         if value_type == "i64":
             return value.i64
@@ -234,34 +286,33 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         if value_type == "t":
             return value.t
         if value_type == "li64":
-            return list([v for v in value.li64])
+            return list(value.li64)
         if value_type == "lf64":
-            return list([v for v in value.lf64])
+            return list(value.lf64)
         if value_type == "lb":
-            return list([v for v in value.lb])
+            return list(value.lb)
         if value_type == "lt":
-            return list([v for v in value.lt])
+            return list(value.lt)
         if value_type == "lv":
-            return list([Process._python_value_from_capnp_value(v) for v in value.lv])
+            return [Process._python_value_from_capnp_value(v) for v in value.lv]
         if value_type == "lpair":
             try:
-                d = {}
-                for p in value.lpair:
-                    if p._has("fst"):
-                        d[p.fst.as_text()] = (
-                            Process._python_value_from_capnp_value(p.snd.as_struct(common_capnp.Value))
-                            if p._has("snd")
-                            else None
-                        )
+                d: dict[str, ConfigValue] = {}
+                for pair in value.lpair:
+                    if not pair._has("fst") or not pair._has("snd"):
+                        raise TypeError("Pair entries must have both 'fst' and 'snd'")
+                    d[pair.fst.as_text()] = Process._python_value_from_capnp_value(
+                        pair.snd.as_struct(common_capnp.Value),
+                    )
                 return d
-            except Exception as e:
-                raise TypeError(f"Error unpacking dict (list of pairs): {e}")
+            except (AttributeError, capnp.KjException, TypeError) as e:
+                raise TypeError(f"Error unpacking dict (list of pairs): {e}") from e
         raise TypeError(f"Unsupported config value type: {value_type}")
 
-    def _apply_config_values(self, config_values: Mapping[str, Any]) -> None:
+    def _apply_config_values(self, config_values: Mapping[str, ConfigValue]) -> None:
         for key, value in config_values.items():
             if value is None:
-                self.config.pop(key, None)
+                _ = self.config.pop(key, None)
                 continue
             self.config[key] = value  # self._config_value_from_python(value)
 
@@ -280,7 +331,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         raise ValueError(f"Unsupported config text type: {config_type}")
 
     @classmethod
-    def _config_from_ip(cls, in_msg: IPReader) -> dict[str, Any]:
+    def _config_from_ip(cls, in_msg: IPReader) -> dict[str, ConfigValue]:
         try:
             structured_text = in_msg.content.as_struct(common_capnp.StructuredText)
         except capnp.KjException:
@@ -288,22 +339,23 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         return cls._load_config_text(structured_text.value, structured_text.type)
 
     def init_from_metadata(self):
-        default_config: dict[str, Any] = {}
-        if self.meta:
+        default_config: dict[str, ConfigValue] = {}
+        if self.meta is not None:
             try:
-                component_meta = self.meta["component"]
-                default_config = {k: v["value"] for k, v in component_meta.get("defaultConfig", {}).items()}
-                self.name: str = component_meta["info"]["name"]
-                self.description: str = component_meta["info"]["description"]
-                for port_info in component_meta.get("inPorts", []):
-                    name = port_info["name"]
+                component_meta = self.meta
+                default_config = component_meta.default_config_values()
+                self.name = component_meta.info.name
+                if component_meta.info.description is not None:
+                    self.description = component_meta.info.description
+                for port_info in component_meta.inPorts:
+                    name = port_info.name
                     if self._is_array_port(port_info):
                         self.array_in_ports.setdefault(name, [])
                         self._array_in_buffers.setdefault(name, {})
                     else:
                         self.in_ports.setdefault(name, None)
-                for port_info in component_meta.get("outPorts", []):
-                    name = port_info["name"]
+                for port_info in component_meta.outPorts:
+                    name = port_info.name
                     if self._is_array_port(port_info):
                         self.array_out_ports.setdefault(name, [])
                         self._array_out_next_indices.setdefault(name, 0)
@@ -325,22 +377,24 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             #    logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
 
     @property
-    def meta(self):
+    def meta(self) -> ComponentMetadata | None:
         return self.metadata
 
     @property
-    def config(self):
+    def config(self) -> dict[str, Any]:
         return self.configuration
 
     # inPorts @0 () -> (ports :List(Component.Port));
+    @override
     async def inPorts(self, _context, **kwargs):
-        component_meta = self.meta.get("component", {})
-        in_port_infos = {p["name"]: p for p in component_meta.get("inPorts", [])}
+        component_meta = self.meta
+        in_port_infos = {p.name: p for p in component_meta.inPorts} if component_meta is not None else {}
         ports = [self._port_message(k, in_port_infos.get(k), "standard") for k in self.in_ports]
         ports.extend(self._port_message(k, in_port_infos.get(k), "array") for k in self.array_in_ports)
         return ports
 
     # connectInPort @1 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
+    @override
     async def connectInPort(self, name: str, sturdyRef, _context, **kwargs) -> ConnectinportResultTuple:
         reader = (
             reader_cap.cast_as(fbp_capnp.Channel.Reader)
@@ -363,14 +417,16 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # outPorts @2 () -> (ports :List(Component.Port));
+    @override
     async def outPorts(self, _context, **kwargs):
-        component_meta = self.meta.get("component", {})
-        out_port_infos = {p["name"]: p for p in component_meta.get("outPorts", [])}
+        component_meta = self.meta
+        out_port_infos = {p.name: p for p in component_meta.outPorts} if component_meta is not None else {}
         ports = [self._port_message(k, out_port_infos.get(k), "standard") for k in self.out_ports]
         ports.extend(self._port_message(k, out_port_infos.get(k), "array") for k in self.array_out_ports)
         return ports
 
     # connectOutPort @3 (name :Text, sturdyRef :SturdyRef) -> (connected :Bool);
+    @override
     async def connectOutPort(self, name: str, sturdyRef, _context, **kwargs) -> ConnectoutportResultTuple:
         writer = (
             writer_cap.cast_as(fbp_capnp.Channel.Writer)
@@ -394,6 +450,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         )
 
     # configEntries @4 () -> (config :List(ConfigEntry));
+    @override
     async def configEntries(self, _context, **kwargs):
         return list(
             map(
@@ -405,15 +462,9 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             ),
         )
 
-    # struct ConfigEntry {
-    #     name @0 :Text;
-    #     val  @1 :Common.Value;
-    # }
-    # setConfigEntry @7 ConfigEntry;
-    async def setConfigEntry_context(self, context):
-        ps = context.params
-        self.config[ps.name] = Process._python_value_from_capnp_value(ps.val)  # .as_builder()
-        # print(f"received config entry: {ps.name} with value: {ps.val}")
+    @override
+    async def setConfigEntry(self, name, val, _context, **kwargs):
+        self.config[name] = Process._python_value_from_capnp_value(val)
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
         if new_state == self.process_state:
@@ -606,9 +657,6 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         if strategy == ArrayInStrategy.NEXT_AVAILABLE:
             return await self._read_array_in_next_available(name, active_ports, ports)
 
-        if strategy != ArrayInStrategy.ZIP:
-            raise ValueError(f"Unsupported array input strategy: {strategy}")
-
         read_tasks: dict[asyncio.Future[ReadResult], int] = {
             asyncio.ensure_future(port.read()): i for i, port in active_ports
         }
@@ -660,11 +708,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
             return [results[i] for i, _port in active_ports]
         except asyncio.CancelledError:
             await self._cancel_tasks(read_tasks)
-            stop_task.cancel()
+            _ = stop_task.cancel()
             raise
         finally:
             if not stop_task.done():
-                stop_task.cancel()
+                _ = stop_task.cancel()
 
     async def _read_array_in_next_available(
         self,
@@ -725,11 +773,11 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
             except asyncio.CancelledError:
                 await self._cancel_tasks(read_tasks)
-                stop_task.cancel()
+                _ = stop_task.cancel()
                 raise
             finally:
                 if not stop_task.done():
-                    stop_task.cancel()
+                    _ = stop_task.cancel()
 
         return None
 
@@ -737,8 +785,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
     async def _cancel_tasks(tasks: Iterable[asyncio.Future[Any]]) -> None:
         pending = list(tasks)
         for task in pending:
-            task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+            _ = task.cancel()
+        _ = await asyncio.gather(*pending, return_exceptions=True)
 
     async def write_out(self, name: str, message: IPBuilder) -> bool:
         if self._stop_requested.is_set():
@@ -830,7 +878,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
         while not self._stop_requested.is_set():
             for port_index, task in enumerate(tasks[: len(ports)]):
                 if task is not None and task.done():
-                    await self._consume_array_out_write_task(name, port_index)
+                    _ = await self._consume_array_out_write_task(name, port_index)
 
             active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
             if not active_ports:
@@ -864,7 +912,7 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                     if task is stop_task:
                         continue
                     write_task = cast("asyncio.Task[bool]", task)
-                    await self._consume_array_out_write_task(name, active_tasks[write_task])
+                    _ = await self._consume_array_out_write_task(name, active_tasks[write_task])
             finally:
                 if not stop_task.done():
                     stop_task.cancel()
@@ -940,16 +988,16 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
                 if task is None:
                     continue
                 if task.done():
-                    await self._consume_array_out_write_task(name, port_index)
+                    _ = await self._consume_array_out_write_task(name, port_index)
                     continue
                 if cancel_pending:
-                    task.cancel()
+                    _ = task.cancel()
                 task_refs.append((name, port_index, task))
 
         if task_refs:
-            await asyncio.gather(*(task for _name, _port_index, task in task_refs), return_exceptions=True)
+            _ = await asyncio.gather(*(task for _name, _port_index, task in task_refs), return_exceptions=True)
             for name, port_index, _task in task_refs:
-                await self._consume_array_out_write_task(name, port_index)
+                _ = await self._consume_array_out_write_task(name, port_index)
 
     async def close_out_ports(self, *, cancel_pending_writes: bool | None = None):
         if cancel_pending_writes is None:
@@ -1008,8 +1056,8 @@ class Process(fbp_capnp.Process.Server, common.Identifiable, common.GatewayRegis
 
 
 def start_local_process_component(
-    path_to_executable,
-    process_cap_writer_sr,
+    path_to_executable: str,
+    process_cap_writer_sr: str,
     name: str | None = None,
     log_level: str | None = None,
 ) -> sp.Popen[str]:
@@ -1089,31 +1137,31 @@ def create_default_args_parser(
     return parser
 
 
-def run_process_from_metadata_and_cmd_args(p: Process, component_meta):
+def run_process_from_metadata_and_cmd_args(
+    p: Process,
+    component_meta: ComponentMetadata,
+):
     parser = create_default_args_parser(component_description=p.description)
-    args = parser.parse_args()
+    args = parse_args_typed(parser, ProcessArgs)
     configure_logging(args.log_level)
-    if component_meta:
-        default_config = {
-            k: v["value"] for k, v in component_meta.get("component", {}).get("defaultConfig", {}).items()
-        }
-    else:
-        default_config = {}
+    metadata = component_meta
+    default_config = metadata.default_config_values()
+    metadata_json = metadata.model_dump(mode="json", exclude_none=True)
     if args.name is not None:
         p.name = args.name
     if args.output_json_default_config:
-        sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
+        _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
         with open(args.write_json_default_config, "w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
-        sys.stdout.write(json.dumps(component_meta, indent=4) + "\n")
+        _ = sys.stdout.write(json.dumps(metadata_json, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
         with open(args.write_json_component_metadata, "w") as _:
-            json.dump(component_meta, _, indent=4)
+            json.dump(metadata_json, _, indent=4)
             exit(0)
     if args.process_cap_writer_sr:
         asyncio.run(

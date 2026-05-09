@@ -15,23 +15,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, override
+from typing import override
 
-from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
-
-common_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-meta = {
-    "category": {"id": "string", "name": "String"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "string", "name": "String"},
         "info": {
             "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
             "name": "split string2",
@@ -45,11 +43,15 @@ meta = {
         "outPorts": [{"name": "out", "contentType": "Text"}],
         "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "split string at this character"}},
     },
-}
+)
 
 
 class SplitString(process.Process):
-    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     @override
@@ -65,7 +67,7 @@ class SplitString(process.Process):
 
             s = in_msg.content.as_text()
             logger.info("%s received: %s", self.name, s)
-            vals = s.rstrip().split(self.config["split_at"])
+            vals = s.rstrip().split(str(self.config["split_at"]))
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)
@@ -78,7 +80,7 @@ class SplitString(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(SplitString(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(SplitString(METADATA), METADATA)
 
 
 if __name__ == "__main__":

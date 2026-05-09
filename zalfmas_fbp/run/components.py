@@ -13,57 +13,79 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
 import subprocess as sp
 import sys
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from typing import Any
 
 import capnp
 
+from zalfmas_fbp.run.argparse_utils import parse_args_typed
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 
-def run_component_from_metadata(func, meta):
-    parser = create_default_fbp_component_args_parser(meta["component"]["info"]["description"])
-    port_infos_reader_sr, default_config, _ = handle_default_fpb_component_args(parser, meta)
-    asyncio.run(capnp.run(func(port_infos_reader_sr, default_config)))
+@dataclass
+class ComponentArgs(argparse.Namespace):
+    port_infos_reader_sr: str | None = None
+    output_json_default_config: bool = False
+    output_json_component_metadata: bool = False
+    write_json_default_config: str | None = None
+    write_json_component_metadata: str | None = None
+    name: str | None = None
+    log_level: str = "WARNING"
 
 
-def create_default_fbp_component_args_parser(component_description):
+def run_component_from_metadata(
+    func: Callable[[str, dict[str, Any]], Coroutine[Any, Any, Any]],
+    metadata: ComponentMetadata,
+):
+    parser = create_default_fbp_component_args_parser(metadata.info.description)
+    port_infos_reader_sr, default_config, args = handle_default_fpb_component_args(parser, metadata)
+    runtime_config = default_config.copy()
+    runtime_config["name"] = args.name or metadata.info.name
+    asyncio.run(capnp.run(func(port_infos_reader_sr, runtime_config)))
+
+
+def create_default_fbp_component_args_parser(component_description: str | None):
     parser = argparse.ArgumentParser(description=component_description)
-    parser.add_argument(
+    _ = parser.add_argument(
         "port_infos_reader_sr",
         type=str,
         nargs="?",
         help="Sturdy ref to reader capability for receiving sturdy refs to connected channels (via ports)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output_json_default_config",
         "-o",
         action="store_true",
         help="Output JSON configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--output_json_component_metadata",
         "-O",
         action="store_true",
         help="Output JSON component metadata at commandline. To be used for configuring component service.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--write_json_default_config",
         "-w",
         type=str,
         help="Output JSON configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--write_json_component_metadata",
         "-W",
         type=str,
         help="Output JSON component metadata in the current directory. To be used for configuring component service.",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--name",
         "-n",
         type=str,
@@ -73,31 +95,26 @@ def create_default_fbp_component_args_parser(component_description):
     return parser
 
 
-def handle_default_fpb_component_args(parser, component_meta: dict[str, Any] | None = None):
-    args = parser.parse_args()
+def handle_default_fpb_component_args(parser: argparse.ArgumentParser, component_meta: ComponentMetadata | None = None):
+    args = parse_args_typed(parser, ComponentArgs)
     configure_logging(args.log_level)
-    if component_meta and (dc := component_meta.get("component", {}).get("defaultConfig", None)):
-        default_config = {k: v.get("value", v) if v and type(v) is dict else v for k, v in dc.items()}
-    else:
-        default_config = {}
-
-    if args.name is not None:
-        default_config["name"] = args.name
+    default_config = component_meta.default_config_values() if component_meta is not None else {}
+    metadata_json = component_meta.model_dump(mode="json", exclude_none=True) if component_meta is not None else {}
 
     port_infos_reader_sr = None
     if args.output_json_default_config:
-        sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
+        _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
         with open(args.write_json_default_config, "w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
-        sys.stdout.write(json.dumps(component_meta, indent=4) + "\n")
+        _ = sys.stdout.write(json.dumps(metadata_json, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
         with open(args.write_json_component_metadata, "w") as _:
-            json.dump(component_meta, _, indent=4)
+            json.dump(metadata_json, _, indent=4)
             exit(0)
     elif args.port_infos_reader_sr is not None:
         port_infos_reader_sr = args.port_infos_reader_sr

@@ -18,17 +18,19 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "consumers", "name": "Consumers"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "consumers", "name": "Consumers"},
         "info": {
             "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
             "name": "africa calibration",
@@ -38,10 +40,10 @@ meta = {
         "inPorts": [{"name": "conf"}, {"name": "result"}],
         "outPorts": [{"name": "year_to_yield"}],
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "result"],
@@ -132,7 +134,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

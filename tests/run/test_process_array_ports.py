@@ -7,6 +7,7 @@ from mas.schema.fbp import fbp_capnp
 
 from tests.component_harness import InMemoryReader, InMemoryWriter, done_message, ip_message, text_outputs
 from zalfmas_fbp.run import process
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -415,27 +416,31 @@ async def _wait_for_state(component: process.Process, expected: ProcessStateEnum
     await asyncio.wait_for(wait(), timeout=1)
 
 
-def _standard_port_meta() -> dict[str, Any]:
-    return {
-        "component": {
+def _standard_port_meta() -> ComponentMetadata:
+    return ComponentMetadata.model_validate(
+        {
             "info": {
+                "id": "standard-port-test",
                 "name": "standard-port-test",
                 "description": "standard port test process",
             },
+            "type": "process",
             "inPorts": [{"name": "in", "contentType": "Text"}],
             "outPorts": [{"name": "out", "contentType": "Text"}],
         },
-    }
+    )
 
 
-def _array_port_meta() -> dict[str, Any]:
-    return {
-        "component": {
+def _array_port_meta() -> ComponentMetadata:
+    return ComponentMetadata.model_validate(
+        {
             "info": {
+                "id": "array-port-test",
                 "name": "array-port-test",
                 "description": "array port test process",
             },
+            "type": "process",
             "inPorts": [{"name": "items", "type": "array", "contentType": "Text"}],
             "outPorts": [{"name": "out", "type": "array", "contentType": "Text"}],
         },
-    }
+    )

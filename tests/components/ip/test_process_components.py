@@ -3,14 +3,14 @@ from __future__ import annotations
 from mas.schema.common import common_capnp
 
 from tests.component_harness import done_message, ip_message, run_process_component, text_outputs
+from zalfmas_fbp.components.ip.copy import METADATA as copy_metadata
 from zalfmas_fbp.components.ip.copy import Copy
-from zalfmas_fbp.components.ip.copy import meta as copy_meta
+from zalfmas_fbp.components.ip.load_balancer import METADATA as load_balancer_metadata
 from zalfmas_fbp.components.ip.load_balancer import LoadBalancer
-from zalfmas_fbp.components.ip.load_balancer import meta as load_balancer_meta
 
 
 def test_copy_broadcasts_copied_ip_to_array_outputs() -> None:
-    component = Copy(copy_meta)
+    component = Copy(copy_metadata)
 
     result = run_process_component(
         component,
@@ -30,7 +30,7 @@ def test_copy_broadcasts_copied_ip_to_array_outputs() -> None:
 
 
 def test_load_balancer_distributes_ips_round_robin_across_array_outputs() -> None:
-    component = LoadBalancer(load_balancer_meta)
+    component = LoadBalancer(load_balancer_metadata)
 
     result = run_process_component(
         component,
@@ -46,14 +46,14 @@ def test_load_balancer_distributes_ips_round_robin_across_array_outputs() -> Non
         array_outputs={"out": 2},
     )
 
-    assert component.config["distribution_strategy"].t == "next_available"
+    assert component.config["distribution_strategy"] == "next_available"
     first, second = result.array_output("out")
     assert text_outputs(first) == ["alpha", "gamma"]
     assert text_outputs(second) == ["beta"]
 
 
 def test_load_balancer_reads_conf_port_before_processing_input() -> None:
-    component = LoadBalancer(load_balancer_meta)
+    component = LoadBalancer(load_balancer_metadata)
 
     result = run_process_component(
         component,
@@ -78,7 +78,7 @@ def test_load_balancer_reads_conf_port_before_processing_input() -> None:
         array_outputs={"out": 2},
     )
 
-    assert component.config["distribution_strategy"].t == "round_robin"
+    assert component.config["distribution_strategy"] == "round_robin"
     first, second = result.array_output("out")
     assert text_outputs(first) == ["alpha", "gamma"]
     assert text_outputs(second) == ["beta"]

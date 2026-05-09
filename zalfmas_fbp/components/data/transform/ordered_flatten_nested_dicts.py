@@ -16,17 +16,19 @@
 import json
 import logging
 import os
+from typing import Any
 
 from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "data/transform", "name": "Data/Transform"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "data/transform", "name": "Data/Transform"},
         "info": {
             "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
             "name": "ordered flatten nested dicts",
@@ -36,10 +38,10 @@ meta = {
         "inPorts": [{"name": "conf"}, {"name": "in"}],
         "outPorts": [{"name": "out"}],
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -92,7 +94,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

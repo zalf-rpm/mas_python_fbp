@@ -16,6 +16,7 @@
 import json
 import logging
 import os
+from typing import Any
 
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
@@ -24,12 +25,13 @@ from zalfmas_common import rect_ascii_grid_management as grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "geo", "name": "Geo"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "geo", "name": "Geo"},
         "info": {
             "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
             "name": "create lat lon coords",
@@ -77,10 +79,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "ids", "region"],
@@ -190,7 +192,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

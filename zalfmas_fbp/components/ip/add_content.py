@@ -14,6 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import os
+from typing import Any
 
 import capnp
 from zalfmas_capnp_schemas_with_stubs import fbp_capnp
@@ -21,13 +22,11 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
-meta = {
-    "category": {
-        "id": "ip",
-        "name": "IP (Flow packages)",
-    },
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "ip", "name": "IP (Flow packages)"},
         "info": {
             "id": "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
             "name": "Add content",
@@ -35,15 +34,8 @@ meta = {
         },
         "type": "standard",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-            },
-            {
-                "name": "in",
-                "contentType": "AnyPointer",
-                "desc": "Arbitrary IP from upstream.",
-            },
+            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
+            {"name": "in", "contentType": "AnyPointer", "desc": "Arbitrary IP from upstream."},
             {
                 "name": "content",
                 "contentType": "AnyPointer",
@@ -64,10 +56,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in", "content"],
@@ -110,7 +102,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

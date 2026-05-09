@@ -61,8 +61,8 @@ ruff = "^0.15.0"
 line-length = 120
 target-version = "py312"
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "T", "G", "BLE"]
-ignore = ["E501"]
+select = ["E", "F", "I", "UP", "T", "G", "BLE", "COM"]
+ignore = ["E501", "COM812"]
 
 [tool.pyright]
 ignore = ["tests"]

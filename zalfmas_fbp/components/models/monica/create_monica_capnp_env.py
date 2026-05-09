@@ -16,6 +16,7 @@
 import json
 import logging
 import os
+from typing import Any
 
 from mas.schema.climate import climate_capnp
 from mas.schema.common import common_capnp
@@ -25,12 +26,13 @@ from mas.schema.soil import soil_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "models/monica", "name": "Models/MONICA"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "models/monica", "name": "Models/MONICA"},
         "info": {
             "id": "e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
             "name": "Create model.capnp:Env with MONICA payload",
@@ -86,10 +88,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "climate", "soil", "in"],
@@ -181,7 +183,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

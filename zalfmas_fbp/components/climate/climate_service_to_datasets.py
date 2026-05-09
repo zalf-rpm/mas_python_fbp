@@ -15,18 +15,20 @@
 
 import logging
 import os
+from typing import Any
 
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "climate", "name": "Climate"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "climate", "name": "Climate"},
         "info": {
             "id": "79723094-0972-48ec-b219-030dae730063",
             "name": "climate service -> dataset",
@@ -36,16 +38,14 @@ meta = {
         "inPorts": [{"name": "cs"}],
         "outPorts": [{"name": "ds"}],
         "defaultConfig": {
-            "to_attr": None,
-            "to_attr_type": "string",
-            "to_attr_desc": "send content instead in 'to_attr'",
-            "create_substream": False,
+            "to_attr": {"value": None, "type": "string", "desc": "send content instead in 'to_attr'"},
+            "create_substream": {"value": False},
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -100,7 +100,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

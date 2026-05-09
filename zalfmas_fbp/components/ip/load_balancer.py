@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any, override
+from typing import override
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,12 +28,13 @@ from zalfmas_common import common
 
 from zalfmas_fbp.components.ip.copy import copy_ip
 from zalfmas_fbp.run import process
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "ip", "name": "IP (Flow packages)"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "ip", "name": "IP (Flow packages)"},
         "info": {
             "id": "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d",
             "name": "load balancer",
@@ -60,11 +61,15 @@ meta = {
             },
         },
     },
-}
+)
 
 
 class LoadBalancer(process.Process):
-    def __init__(self, metadata: dict[str, Any] | None, con_man: common.ConnectionManager | None = None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     def _distribution_strategy(self) -> process.ArrayOutStrategy:
@@ -94,7 +99,7 @@ class LoadBalancer(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(LoadBalancer(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(LoadBalancer(METADATA), METADATA)
 
 
 if __name__ == "__main__":

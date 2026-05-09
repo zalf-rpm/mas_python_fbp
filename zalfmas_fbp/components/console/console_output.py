@@ -16,18 +16,20 @@
 import logging
 import os
 import sys
+from typing import Any
 
 import capnp
 from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "console", "name": "Console"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "console", "name": "Console"},
         "info": {
             "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
             "name": "output to console",
@@ -37,10 +39,10 @@ meta = {
         "inPorts": [{"name": "in"}],
         "outPorts": [],
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
     logger.info("%s: connected port(s)", os.path.basename(__file__))
 
@@ -68,7 +70,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, str]):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

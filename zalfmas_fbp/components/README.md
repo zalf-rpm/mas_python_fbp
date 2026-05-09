@@ -89,7 +89,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     ...
 ```
 
-This is the pattern used by `string/split_string.py`, `file/read_file.py`, `console/console_output.py`, `ip/copy.py`, and most other modules in this folder.
+This is the pattern used by `string/split_string.py`, `file/read_file.py`, `console/console_output.py`, `ip/add_content.py`, and most other modules in this folder.
 
 ### How it works
 
@@ -111,6 +111,22 @@ This is the pattern used by `string/split_string.py`, `file/read_file.py`, `cons
 ```python
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
+
+
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "console", "name": "Console"},
+        "info": {
+            "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
+            "name": "output to console",
+            "description": "Output input to console.",
+        },
+        "type": "standard",
+        "inPorts": [{"name": "conf"}, {"name": "in"}],
+        "outPorts": [{"name": "out"}],
+    },
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -133,7 +149,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 ```
 
 ## The focus pattern: `process` components
@@ -146,7 +162,7 @@ This pattern is used when the component should be exposed as an actual `fbp_capn
 
 Instead of writing a free `run_component(...)` function, you:
 
-1. set `meta["component"]["type"] = "process"`
+1. define `METADATA = ComponentMetadata.model_validate({...})` with `"type": "process"`
 2. subclass `zalfmas_fbp.run.process.Process`
 3. pass the metadata into the base class
 4. implement `async def run(self)`
@@ -158,10 +174,22 @@ Instead of writing a free `run_component(...)` function, you:
 
 ```python
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run.metadata import ComponentMetadata
+
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "string", "name": "String"},
+        ...,
+    },
+)
 
 
 class SplitString(process.Process):
-    def __init__(self, metadata, con_man=None):
+    def __init__(
+        self,
+        metadata: ComponentMetadata = METADATA,
+        con_man=None,
+    ):
         process.Process.__init__(self, metadata=metadata, con_man=con_man)
 
     async def run(self):
@@ -174,7 +202,7 @@ class SplitString(process.Process):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(SplitString(meta), meta)
+    process.run_process_from_metadata_and_cmd_args(SplitString(METADATA), METADATA)
 ```
 
 ### What is important about this variant
@@ -182,7 +210,7 @@ def main():
 - `self.read_in("name")` and `self.write_out("name", value=...)` are the stop-aware accessors for standard ports.
 - `self.array_out_ports["name"]` accesses array output ports.
 - `self.config` is managed by the base class.
-- Config entries are stored as **Cap'n Proto value objects**, not plain Python values. For example, `split_string2.py` reads the delimiter with `self.config["split_at"].t`.
+- Config entries are stored as **plain Python values** inside the process. Cap'n Proto conversion only happens at the RPC/config-port boundary. For example, `split_string2.py` reads the delimiter with `self.config["split_at"]`.
 - The base class owns lifecycle transitions, stop handling, and output-port cleanup. `run()` should only implement component work.
 - The startup path is different from the `standard` style: the helper expects a `process_cap_writer_sr`, not a `port_infos_reader_sr`.
 

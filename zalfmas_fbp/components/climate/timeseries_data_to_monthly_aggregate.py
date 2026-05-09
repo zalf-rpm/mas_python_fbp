@@ -17,6 +17,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import date, timedelta
+from typing import Any
 
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
@@ -24,12 +25,13 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "climate", "name": "Climate"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "climate", "name": "Climate"},
         "info": {
             "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
             "name": "timeseries data -> csv",
@@ -39,14 +41,14 @@ meta = {
         "inPorts": [{"name": "in"}],
         "outPorts": [{"name": "out"}],
     },
-}
+)
 
 
 def capnp_date_to_py_date(capnp_date):
     return date(capnp_date.year, capnp_date.month, capnp_date.day)
 
 
-def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
+def aggregate_monthly(header: list[Any], data: list[list[float]], start_date: date):
     grouped_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))  # var -> year -> month -> values
     for i, line in enumerate(data):
         current_date = start_date + timedelta(days=i)
@@ -69,7 +71,7 @@ def aggregate_monthly(header: list, data: list[list[float]], start_date: date):
     return vars
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "in"],
@@ -125,7 +127,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

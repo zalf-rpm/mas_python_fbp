@@ -14,21 +14,34 @@ from rasterio.transform import from_origin
 from shapely.geometry import box
 
 from tests.component_harness import done_message, ip_message, run_process_component
-from zalfmas_fbp.components.dakis.dakis_process.create_empty_raster import CreateEmptyRaster, meta
+from zalfmas_fbp.components.dakis.dakis_process.create_empty_raster import (
+    METADATA as create_empty_raster_metadata,
+)
+from zalfmas_fbp.components.dakis.dakis_process.create_empty_raster import (
+    CreateEmptyRaster,
+)
+from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster import (
+    METADATA as filter_geoparquet_metadata,
+)
 from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster import (
     FilterGeoparquetByRaster,
 )
-from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster import (
-    meta as filter_geoparquet_meta,
+from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import (
+    METADATA as relabel_geoparquet_metadata,
 )
-from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import RelabelGeoparquet
-from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import meta as relabel_meta
-from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import WriteGeoparquet
-from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import meta as write_geoparquet_meta
+from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import (
+    RelabelGeoparquet,
+)
+from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import (
+    METADATA as write_geoparquet_metadata,
+)
+from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import (
+    WriteGeoparquet,
+)
 
 
 def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() -> None:
-    component = CreateEmptyRaster(meta)
+    component = CreateEmptyRaster(create_empty_raster_metadata)
 
     writer = run_process_component(
         component,
@@ -40,9 +53,9 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
         },
     ).output()
 
-    assert component.config["epsg"].i64 == 25833
-    assert component.config["resolution_m"].f64 == 100.0
-    assert component.config["compression"].t == "zstd"
+    assert component.config["epsg"] == 25833
+    assert component.config["resolution_m"] == 100.0
+    assert component.config["compression"] == "zstd"
     assert len(writer.values) == 1
 
     raster_bytes = bytes(writer.values[0].content.as_struct(common_capnp.Value).d)
@@ -54,7 +67,7 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
 
 
 def test_create_empty_raster_reads_conf_port_before_processing_input() -> None:
-    component = CreateEmptyRaster(meta)
+    component = CreateEmptyRaster(create_empty_raster_metadata)
 
     writer = run_process_component(
         component,
@@ -75,9 +88,9 @@ def test_create_empty_raster_reads_conf_port_before_processing_input() -> None:
         },
     ).output()
 
-    assert component.config["epsg"].i64 == 4326
-    assert component.config["resolution_m"].f64 == 50.0
-    assert component.config["compression"].t == "lzw"
+    assert component.config["epsg"] == 4326
+    assert component.config["resolution_m"] == 50.0
+    assert component.config["compression"] == "lzw"
 
     raster_bytes = bytes(writer.values[0].content.as_struct(common_capnp.Value).d)
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
@@ -102,8 +115,8 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
     source.to_parquet(source_path, index=False, write_covering_bbox=True)
 
     raster_bytes = _test_raster_bytes()
-    component = FilterGeoparquetByRaster(filter_geoparquet_meta)
-    component.config["geoparquet_path"] = common_capnp.Value.new_message(t=str(source_path))
+    component = FilterGeoparquetByRaster(filter_geoparquet_metadata)
+    component.config["geoparquet_path"] = str(source_path)
 
     result = run_process_component(
         component,
@@ -111,9 +124,7 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
         outputs=("out", "raster"),
     )
 
-    assert filter_geoparquet_meta["component"]["defaultConfig"]["geoparquet_path"]["value"] == (
-        "resources/invekos_optimized.parquet"
-    )
+    assert filter_geoparquet_metadata.defaultConfig["geoparquet_path"].value == "resources/invekos_optimized.parquet"
     assert bytes(result.output("raster").values[0].content.as_struct(common_capnp.Value).d) == raster_bytes
 
     geoparquet_bytes = bytes(result.output("out").values[0].content.as_struct(common_capnp.Value).d)
@@ -140,8 +151,8 @@ def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_o
     source.to_parquet(source_path, index=False, write_covering_bbox=True)
 
     raster_bytes = _test_raster_bytes()
-    component = FilterGeoparquetByRaster(filter_geoparquet_meta)
-    component.config["geoparquet_path"] = common_capnp.Value.new_message(t=str(source_path))
+    component = FilterGeoparquetByRaster(filter_geoparquet_metadata)
+    component.config["geoparquet_path"] = str(source_path)
 
     result = run_process_component(
         component,
@@ -168,9 +179,9 @@ def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_prio
     )
     source_bytes = _geoparquet_bytes(source)
 
-    component = RelabelGeoparquet(relabel_meta)
-    component.config["mapping_csv_path"] = common_capnp.Value.new_message(t=str(mapping_path))
-    component.config["default_priority"] = common_capnp.Value.new_message(i64=7)
+    component = RelabelGeoparquet(relabel_geoparquet_metadata)
+    component.config["mapping_csv_path"] = str(mapping_path)
+    component.config["default_priority"] = 7
 
     result = run_process_component(
         component,
@@ -180,8 +191,8 @@ def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_prio
     output_bytes = bytes(result.output().values[0].content.as_struct(common_capnp.Value).d)
     relabeled = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
 
-    assert relabel_meta["component"]["defaultConfig"]["mapping_csv_path"]["value"] == (
-        "resources/mappings/invekos_to_lulc.csv"
+    assert (
+        relabel_geoparquet_metadata.defaultConfig["mapping_csv_path"].value == "resources/mappings/invekos_to_lulc.csv"
     )
     assert relabeled.columns.to_list() == ["lucode", "priority", "geometry"]
     assert relabeled["lucode"].to_list() == [11, 12]
@@ -202,8 +213,8 @@ def test_relabel_geoparquet_uses_mapping_priority_column(tmp_path: Path) -> None
         },
         crs="EPSG:25833",
     )
-    component = RelabelGeoparquet(relabel_meta)
-    component.config["mapping_csv_path"] = common_capnp.Value.new_message(t=str(mapping_path))
+    component = RelabelGeoparquet(relabel_geoparquet_metadata)
+    component.config["mapping_csv_path"] = str(mapping_path)
 
     result = run_process_component(
         component,
@@ -223,7 +234,7 @@ def test_relabel_geoparquet_accepts_translation_csv_on_port() -> None:
         },
         crs="EPSG:25833",
     )
-    component = RelabelGeoparquet(relabel_meta)
+    component = RelabelGeoparquet(relabel_geoparquet_metadata)
 
     result = run_process_component(
         component,
@@ -247,8 +258,8 @@ def test_write_geoparquet_writes_readable_file_to_configured_path(tmp_path: Path
     geoparquet_bytes = _geoparquet_bytes(
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
-    component = WriteGeoparquet(write_geoparquet_meta)
-    component.config["output_path"] = common_capnp.Value.new_message(t=str(output_path))
+    component = WriteGeoparquet(write_geoparquet_metadata)
+    component.config["output_path"] = str(output_path)
 
     run_process_component(
         component,
@@ -269,9 +280,9 @@ def test_write_geoparquet_preserve_compression_writes_original_bytes(tmp_path: P
     geoparquet_bytes = _geoparquet_bytes(
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
-    component = WriteGeoparquet(write_geoparquet_meta)
-    component.config["output_path"] = common_capnp.Value.new_message(t=str(output_path))
-    component.config["compression"] = common_capnp.Value.new_message(t="preserve")
+    component = WriteGeoparquet(write_geoparquet_metadata)
+    component.config["output_path"] = str(output_path)
+    component.config["compression"] = "preserve"
 
     run_process_component(
         component,

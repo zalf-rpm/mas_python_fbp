@@ -20,6 +20,7 @@ import os
 import tempfile
 import time
 from datetime import datetime
+from typing import Any
 
 import matplotlib.pyplot as plt
 import spotpy
@@ -28,12 +29,13 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "spotpy", "name": "Spotpy"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "spotpy", "name": "Spotpy"},
         "info": {
             "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
             "name": "Spotpy calibration component",
@@ -63,7 +65,7 @@ meta = {
             "path_to_out_folder": {"value": "out/", "type": "string", "desc": "path to output folder"},
         },
     },
-}
+)
 
 
 class SpotPySetup:
@@ -167,7 +169,7 @@ def print_status_final(sampler_status, stream):
     stream.write("******************************\n\n")
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "init_params", "obs_values", "sim_values"],
@@ -282,7 +284,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

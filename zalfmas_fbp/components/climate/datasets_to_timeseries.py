@@ -15,6 +15,7 @@
 
 import logging
 import os
+from typing import Any
 
 from capnp.lib.capnp import KjException
 from mas.schema.climate import climate_capnp
@@ -23,12 +24,13 @@ from mas.schema.geo import geo_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "climate", "name": "Climate"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "climate", "name": "Climate"},
         "info": {
             "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
             "name": "datasets -> timeseries",
@@ -38,27 +40,29 @@ meta = {
         "inPorts": [{"name": "ds"}],
         "outPorts": [{"name": "ts"}],
         "defaultConfig": {
-            "no_of_locations_at_once": 10,
-            "no_of_locations_at_once_type": "int",
-            "no_of_locations_at_once_desc": "number of locations to send at once",
-            "continue_after_location_id": False,
-            "continue_after_location_id_type": "string",
-            "continue_after_location_id_desc": "continue after a particular location id",
-            "to_attr": None,
-            "to_attr_type": "string",
-            "to_attr_desc": "send data attached to attribute 'to_attr'",
-            "create_substream": False,
-            "create_substream_type": "[true | false]",
-            "create_substream_desc": "create a substream for each datasets' timeseries",
-            "maintain_incoming_substreams": False,
-            "maintain_incoming_substreams_type": "[true | false]",
-            "maintain_incoming_substreams_desc": "if false, ignore bracket IPs, thus flatten incoming substreams",
+            "no_of_locations_at_once": {"value": 10, "type": "int", "desc": "number of locations to send at once"},
+            "continue_after_location_id": {
+                "value": False,
+                "type": "string",
+                "desc": "continue after a particular location id",
+            },
+            "to_attr": {"value": None, "type": "string", "desc": "send data attached to attribute 'to_attr'"},
+            "create_substream": {
+                "value": False,
+                "type": "[true | false]",
+                "desc": "create a substream for each datasets' timeseries",
+            },
+            "maintain_incoming_substreams": {
+                "value": False,
+                "type": "[true | false]",
+                "desc": "if false, ignore bracket IPs, thus flatten incoming substreams",
+            },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -153,7 +157,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

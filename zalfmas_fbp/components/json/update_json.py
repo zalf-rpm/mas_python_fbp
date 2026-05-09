@@ -22,12 +22,13 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "json", "name": "JSON"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "json", "name": "JSON"},
         "info": {
             "id": "67b31990-452a-4058-8a99-6785be345216",
             "name": "Update JSON",
@@ -71,7 +72,7 @@ meta = {
             },
         },
     },
-}
+)
 
 
 async def run_component(port_infos_reader_sr: str, config: dict):
@@ -243,7 +244,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

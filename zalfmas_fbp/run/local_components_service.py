@@ -30,12 +30,14 @@ import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.registry import registry_capnp
+from pydantic import ValidationError
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
 import zalfmas_fbp.run.components as comp
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging(default_level="INFO")
@@ -53,18 +55,19 @@ PROCESS_HANDLE_KILL_TIMEOUT_SECONDS = 5.0
 class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
     def __init__(
         self,
-        path_to_executable,
+        path_to_executable: str,
         log_level: str = "WARNING",
         id: str | None = None,
         name: str | None = None,
         description: str | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
-        self.path_to_executable = path_to_executable
-        self.log_level = log_level
+        self.path_to_executable: str = path_to_executable
+        self.log_level: str | None = log_level
         self.proc: sp.Popen[str] | sp.Popen[bytes] | None = None
         self.stopped_callbacks: list[Any] = []
 
+    @override
     async def start_context(
         self,
         context,
@@ -154,7 +157,7 @@ class ProcessHandle(fbp_capnp.Process.ProcessHandle.Server):
         proc: PopenT,
         remove_proc: Callable[[PopenT], None],
     ):
-        self.process_cap = process_cap
+        self.process_cap: ProcessClient = process_cap
         self.proc: PopenT | None = proc
         self.remove_proc = remove_proc
         self.stop_timeout_seconds = PROCESS_HANDLE_STOP_TIMEOUT_SECONDS
@@ -267,12 +270,14 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
 
         self._cat_id_to_name_and_component_holders = cat_id_to_name_and_component_holders
 
+    @override
     async def supportedCategories_context(self, context):  # supportedCategories @0 () -> (cats :List(IdInformation));
         cats = list(
             [{"id": cat_id, "name": v["name"]} for cat_id, v in self._cat_id_to_name_and_component_holders.items()],
         )
         context.results.cats = cats
 
+    @override
     async def categoryInfo_context(self, context):  # categoryInfo @1 (categoryId :Text) -> IdInformation;
         cat_id = context.params.categoryId
         r = context.results
@@ -280,6 +285,7 @@ class Service(registry_capnp.Registry.Server, common.Identifiable, common.Persis
             r.id = cat_id
             r.name = n_to_chs.get("name", r.id)
 
+    @override
     async def entries_context(self, context):  # entries @2 (categoryId :Text) -> (entries :List(Entry));
         cat_id = context.params.categoryId
         r = context.results
@@ -309,6 +315,19 @@ def load_component_metadata(
 
         comp_in_cache = components_cache and comp_id in components_cache
         meta: dict[str, Any] | None = copy.deepcopy(components_cache[comp_id]) if comp_in_cache else None
+        metadata: ComponentMetadata | None = None
+        if meta is not None:
+            try:
+                metadata = ComponentMetadata.model_validate(meta)
+            except (TypeError, ValidationError, ValueError) as e:
+                logger.warning(
+                    "Cached metadata for component id=%s is invalid, refreshing it. Exception: %s",
+                    comp_id,
+                    e,
+                )
+                components_cache.pop(comp_id, None)
+                meta = None
+
         if meta is None:
             pte_split = list(cmd_str.split(" "))
             try:
@@ -318,16 +337,25 @@ def load_component_metadata(
                 if res is None:
                     continue
                 meta = json.loads(res.stdout)
+                metadata = ComponentMetadata.model_validate(meta)
                 components_cache[comp_id] = copy.deepcopy(meta)
-            except (json.JSONDecodeError, OSError, RuntimeError, sp.SubprocessError, TypeError, ValueError) as e:
+            except (
+                json.JSONDecodeError,
+                OSError,
+                RuntimeError,
+                ValidationError,
+                sp.SubprocessError,
+                TypeError,
+                ValueError,
+            ) as e:
                 logger.warning("Couldn't execute component via '%s'. Exception: %s", pte_split + ["-O"], e)
                 continue
 
-        if meta is None:
+        if meta is None or metadata is None:
             continue
 
         try:
-            c = meta["component"]
+            c = metadata.model_dump(mode="json", exclude={"category"}, exclude_none=True)
             info = c["info"]
             c_id = info["id"]
             if c_id != comp_id:
@@ -361,8 +389,12 @@ def load_component_metadata(
                         name=info.get("name", None),
                         description=info.get("description", None),
                     )
-            cat_id = meta["category"]["id"]
-            cat_name = meta["category"].get("name", cat_id)
+            cat_id = metadata.category.id if metadata.category is not None else "uncategorized"
+            cat_name = (
+                metadata.category.name
+                if metadata.category is not None and metadata.category.name is not None
+                else ("Uncategorized" if metadata.category is None else cat_id)
+            )
             cat_id_to_name_and_component_holders[cat_id]["name"].append(cat_name)
             cat_id_to_name_and_component_holders[cat_id]["component_holders"].append(
                 registry_capnp.Registry.Entry.new_message(

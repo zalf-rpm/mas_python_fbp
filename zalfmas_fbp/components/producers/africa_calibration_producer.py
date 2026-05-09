@@ -18,6 +18,7 @@ import logging
 import os
 import time
 from datetime import date, datetime, timedelta
+from typing import Any
 
 import numpy as np
 from mas.schema.common import common_capnp
@@ -29,14 +30,15 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 from ..geo import get_lat_lon_grid_value as shared
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "producers", "name": "Producers"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "producers", "name": "Producers"},
         "info": {
             "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
             "name": "africa calibration producer",
@@ -46,7 +48,7 @@ meta = {
         "inPorts": [{"name": "conf"}, {"name": "coords"}, {"name": "region"}, {"name": "params"}],
         "outPorts": [{"name": "env"}],
     },
-}
+)
 
 
 def check_for_nill_dates(mgmt):
@@ -90,7 +92,7 @@ def mgmt_date_to_rel_date(mgmt_date):
     return f"0000-{month_str}-{int(day_str):02}"
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "coords", "region", "params"],
@@ -606,7 +608,7 @@ default_config = {
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

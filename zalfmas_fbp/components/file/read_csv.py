@@ -16,6 +16,7 @@
 import csv
 import logging
 import os
+from typing import Any
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -23,12 +24,13 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-meta = {
-    "category": {"id": "file", "name": "File"},
-    "component": {
+METADATA = ComponentMetadata.model_validate(
+    {
+        "category": {"id": "file", "name": "File"},
         "info": {
             "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
             "name": "read csv",
@@ -68,10 +70,10 @@ meta = {
             },
         },
     },
-}
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
@@ -140,7 +142,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
 
 def main():
-    c.run_component_from_metadata(run_component, meta)
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":
