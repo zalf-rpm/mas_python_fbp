@@ -72,19 +72,27 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class RelabelGeoparquet(process.Process):
+class RelabelGeoparquetConfig(process.ProcessConfig):
+    mapping_csv_path: str = "resources/mappings/invekos_to_lulc.csv"
+    source_code_column: str = "code"
+    target_code_column: str = "lucode"
+    priority_column: str = "priority"
+    default_priority: int = 0
+
+
+class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):
         logger.info("%s process running", self.name)
 
-        mapping_csv_path = str(self.config["mapping_csv_path"])
+        mapping_csv_path = self.config.mapping_csv_path
         mapping_csv_bytes = None
 
         while True:
@@ -105,10 +113,10 @@ class RelabelGeoparquet(process.Process):
                     geoparquet_bytes,
                     mapping_csv_path=mapping_csv_path,
                     mapping_csv_bytes=mapping_csv_bytes,
-                    source_code_column=self.config["source_code_column"],
-                    target_code_column=self.config["target_code_column"],
-                    priority_column=self.config["priority_column"],
-                    default_priority=self.config["default_priority"],
+                    source_code_column=self.config.source_code_column,
+                    target_code_column=self.config.target_code_column,
+                    priority_column=self.config.priority_column,
+                    default_priority=self.config.default_priority,
                 )
 
                 if not await self.write_out("out", _data_ip(output_bytes)):

@@ -46,13 +46,17 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class SplitString(process.Process):
+class SplitStringConfig(process.ProcessConfig):
+    split_at: str = ","
+
+
+class SplitString(process.Process[SplitStringConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):
@@ -67,7 +71,7 @@ class SplitString(process.Process):
 
             s = in_msg.content.as_text()
             logger.info("%s received: %s", self.name, s)
-            vals = s.rstrip().split(str(self.config["split_at"]))
+            vals = s.rstrip().split(self.config.split_at)
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)

@@ -16,7 +16,7 @@ from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import (
 from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import (
     METADATA as write_geoparquet_metadata,
 )
-from zalfmas_fbp.components.ip.copy import METADATA as copy_metadata
+from zalfmas_fbp.components.ip.copy_ip import METADATA as copy_metadata
 from zalfmas_fbp.components.ip.load_balancer import METADATA as load_balancer_metadata
 from zalfmas_fbp.components.string.split_string2 import METADATA as split_string_metadata
 from zalfmas_fbp.components.string.to_string import METADATA as to_string_metadata

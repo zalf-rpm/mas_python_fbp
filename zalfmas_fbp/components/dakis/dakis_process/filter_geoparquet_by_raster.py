@@ -46,13 +46,17 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class FilterGeoparquetByRaster(process.Process):
+class FilterGeoparquetByRasterConfig(process.ProcessConfig):
+    geoparquet_path: str = "resources/invekos_optimized.parquet"
+
+
+class FilterGeoparquetByRaster(process.Process[FilterGeoparquetByRasterConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):
@@ -67,7 +71,7 @@ class FilterGeoparquetByRaster(process.Process):
                 raster_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 geoparquet_bytes = overlapping_geometries_as_geoparquet(
                     raster_bytes,
-                    self.config["geoparquet_path"],
+                    self.config.geoparquet_path,
                 )
 
                 if not await self.write_out("out", _data_ip(geoparquet_bytes)):

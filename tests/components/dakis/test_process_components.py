@@ -53,9 +53,9 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
         },
     ).output()
 
-    assert component.config["epsg"] == 25833
-    assert component.config["resolution_m"] == 100.0
-    assert component.config["compression"] == "zstd"
+    assert component.config.epsg == 25833
+    assert component.config.resolution_m == 100.0
+    assert component.config.compression == "zstd"
     assert len(writer.values) == 1
 
     raster_bytes = bytes(writer.values[0].content.as_struct(common_capnp.Value).d)
@@ -88,9 +88,9 @@ def test_create_empty_raster_reads_conf_port_before_processing_input() -> None:
         },
     ).output()
 
-    assert component.config["epsg"] == 4326
-    assert component.config["resolution_m"] == 50.0
-    assert component.config["compression"] == "lzw"
+    assert component.config.epsg == 4326
+    assert component.config.resolution_m == 50.0
+    assert component.config.compression == "lzw"
 
     raster_bytes = bytes(writer.values[0].content.as_struct(common_capnp.Value).d)
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
@@ -116,7 +116,7 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
 
     raster_bytes = _test_raster_bytes()
     component = FilterGeoparquetByRaster(filter_geoparquet_metadata)
-    component.config["geoparquet_path"] = str(source_path)
+    component.apply_config_values({"geoparquet_path": str(source_path)})
 
     result = run_process_component(
         component,
@@ -152,7 +152,7 @@ def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_o
 
     raster_bytes = _test_raster_bytes()
     component = FilterGeoparquetByRaster(filter_geoparquet_metadata)
-    component.config["geoparquet_path"] = str(source_path)
+    component.apply_config_values({"geoparquet_path": str(source_path)})
 
     result = run_process_component(
         component,
@@ -180,8 +180,7 @@ def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_prio
     source_bytes = _geoparquet_bytes(source)
 
     component = RelabelGeoparquet(relabel_geoparquet_metadata)
-    component.config["mapping_csv_path"] = str(mapping_path)
-    component.config["default_priority"] = 7
+    component.apply_config_values({"mapping_csv_path": str(mapping_path), "default_priority": 7})
 
     result = run_process_component(
         component,
@@ -214,7 +213,7 @@ def test_relabel_geoparquet_uses_mapping_priority_column(tmp_path: Path) -> None
         crs="EPSG:25833",
     )
     component = RelabelGeoparquet(relabel_geoparquet_metadata)
-    component.config["mapping_csv_path"] = str(mapping_path)
+    component.apply_config_values({"mapping_csv_path": str(mapping_path)})
 
     result = run_process_component(
         component,
@@ -259,7 +258,7 @@ def test_write_geoparquet_writes_readable_file_to_configured_path(tmp_path: Path
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
     component = WriteGeoparquet(write_geoparquet_metadata)
-    component.config["output_path"] = str(output_path)
+    component.apply_config_values({"output_path": str(output_path)})
 
     run_process_component(
         component,
@@ -281,8 +280,7 @@ def test_write_geoparquet_preserve_compression_writes_original_bytes(tmp_path: P
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
     component = WriteGeoparquet(write_geoparquet_metadata)
-    component.config["output_path"] = str(output_path)
-    component.config["compression"] = "preserve"
+    component.apply_config_values({"output_path": str(output_path), "compression": "preserve"})
 
     run_process_component(
         component,

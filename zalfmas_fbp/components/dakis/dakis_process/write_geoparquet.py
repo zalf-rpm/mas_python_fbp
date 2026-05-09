@@ -44,13 +44,18 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class WriteGeoparquet(process.Process):
+class WriteGeoparquetConfig(process.ProcessConfig):
+    output_path: str = "outputs/dakis/geometries.parquet"
+    compression: str = "zstd"
+
+
+class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):
@@ -65,8 +70,8 @@ class WriteGeoparquet(process.Process):
                 geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
                 output_path = write_geoparquet_bytes(
                     geoparquet_bytes,
-                    output_path=self.config["output_path"],
-                    compression=self.config["compression"],
+                    output_path=self.config.output_path,
+                    compression=self.config.compression,
                 )
                 logger.info("%s wrote GeoParquet to %s", self.name, output_path)
 

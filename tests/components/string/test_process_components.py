@@ -22,7 +22,7 @@ def test_split_string2_uses_default_config_and_writes_split_values() -> None:
         },
     ).output()
 
-    assert component.config["split_at"] == ","
+    assert component.config.split_at == ","
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
@@ -43,7 +43,7 @@ def test_split_string2_reads_conf_port_before_processing_input() -> None:
         },
     ).output()
 
-    assert component.config["split_at"] == ";"
+    assert component.config.split_at == ";"
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
@@ -85,5 +85,5 @@ def test_to_string_reads_conf_port_before_processing_input() -> None:
         },
     ).output()
 
-    assert component.config["struct_type"] == "mas.schema.common.common_capnp:Value"
+    assert component.config.struct_type == "mas.schema.common.common_capnp:Value"
     assert text_outputs(writer) == ['(t = "alpha")']

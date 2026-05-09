@@ -52,20 +52,24 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class ToString(process.Process):
+class ToStringConfig(process.ProcessConfig):
+    struct_type: str | None = None
+
+
+class ToString(process.Process[ToStringConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     async def run(self):
         logger.info("%s process running", self.name)
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
-        struct_type = self.config.get("struct_type")
+        struct_type = self.config.struct_type
         if struct_type is None:
             t = None
         else:

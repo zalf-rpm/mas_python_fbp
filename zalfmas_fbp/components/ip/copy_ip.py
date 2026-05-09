@@ -16,13 +16,7 @@
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from typing import TYPE_CHECKING, override
-
-if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path = [path for path in sys.path if os.path.abspath(path or os.getcwd()) != script_dir]
 
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
@@ -66,7 +60,7 @@ class Copy(process.Process):
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):

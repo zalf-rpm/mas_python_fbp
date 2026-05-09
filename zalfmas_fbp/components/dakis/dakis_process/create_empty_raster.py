@@ -41,13 +41,19 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class CreateEmptyRaster(process.Process):
+class CreateEmptyRasterConfig(process.ProcessConfig):
+    epsg: int = 25833
+    resolution_m: float = 100.0
+    compression: str = "zstd"
+
+
+class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     @override
     async def run(self):
@@ -65,9 +71,9 @@ class CreateEmptyRaster(process.Process):
                 bbox = parse_geojson_bbox(bbox_text)
                 raster_bytes = create_empty_raster_bytes(
                     bbox,
-                    epsg=self.config["epsg"],
-                    resolution_m=self.config["resolution_m"],
-                    compression=self.config["compression"],
+                    epsg=self.config.epsg,
+                    resolution_m=self.config.resolution_m,
+                    compression=self.config.compression,
                 )
 
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))

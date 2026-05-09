@@ -293,7 +293,7 @@ The last step is critical: the local component service skips a component when th
 
 - For a new `process` component: start from `string/split_string2.py`
 - For a new component following the repo majority: start from `string/split_string.py`
-- For array-output behavior: also look at `ip/copy.py`
+- For array-output behavior: also look at `ip/copy_ip.py`
 - For a simple sink: also look at `console/console_output.py`
 
 In short: **most existing components are simple `standard` run loops, but `split_string2.py` is the clearest example if you want to build a real process-based component.**

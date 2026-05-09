@@ -22,7 +22,19 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Literal, TypeGuard, cast, overload, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Literal,
+    TypeGuard,
+    cast,
+    get_args,
+    get_origin,
+    overload,
+    override,
+)
 
 import capnp
 from mas.schema.common import common_capnp
@@ -31,6 +43,8 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
     ConnectinportResultTuple,
     ConnectoutportResultTuple,
 )
+from pydantic import BaseModel, ConfigDict
+from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from mas.schema.common.common_capnp.types.builders import (
@@ -45,6 +59,7 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
+
 from zalfmas_common import common
 
 from zalfmas_fbp.run.argparse_utils import parse_args_typed
@@ -56,6 +71,7 @@ ArrayWriterPorts = list["WriterClient | None"]
 ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
 type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
+type RawConfig = dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
 
 logger = logging.getLogger(__name__)
@@ -108,6 +124,13 @@ class ArrayOutStrategy(StrEnum):
     BROADCAST = "broadcast"
     ROUND_ROBIN = "round_robin"
     NEXT_AVAILABLE = "next_available"
+
+
+class ProcessConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+ConfigT = TypeVar("ConfigT", bound=ProcessConfig | RawConfig, default=RawConfig)
 
 
 class StateTransition(fbp_capnp.Process.StateTransition.Server):
@@ -194,7 +217,23 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
     fbp_capnp.Process.Server,
     common.Identifiable,
     common.GatewayRegistrable,
+    Generic[ConfigT],
 ):
+    config_model: ClassVar[type[ProcessConfig] | None] = None
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+
+        for base in getattr(cls, "__orig_bases__", ()):
+            if get_origin(base) is Process:
+                config_type = get_args(base)[0]
+                cls.config_model = (
+                    config_type
+                    if isinstance(config_type, type) and issubclass(config_type, ProcessConfig)
+                    else None
+                )
+                return
+
     def __init__(
         self,
         metadata: ComponentMetadata | None = None,
@@ -207,7 +246,8 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         common.GatewayRegistrable.__init__(self, con_man or common.ConnectionManager())
 
         self.metadata: ComponentMetadata | None = metadata
-        self.configuration: dict[str, ConfigValue] = {}
+        self._raw_config: RawConfig = {}
+        self._config: ConfigT | RawConfig = self._raw_config
         self.in_ports: dict[str, ReaderClient | None] = {}
         self.array_in_ports: dict[str, ArrayReaderPorts] = {}
         self._array_in_buffers: dict[str, dict[int, IPReader]] = {}
@@ -309,12 +349,25 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 raise TypeError(f"Error unpacking dict (list of pairs): {e}") from e
         raise TypeError(f"Unsupported config value type: {value_type}")
 
-    def _apply_config_values(self, config_values: Mapping[str, ConfigValue]) -> None:
+    def _validate_config(self, raw_config: RawConfig) -> ConfigT | RawConfig:
+        if self.config_model is None:
+            return raw_config
+        return cast("ConfigT", self.config_model.model_validate(raw_config))
+
+    def apply_config_values(self, config_values: Mapping[str, ConfigValue | None]) -> None:
+        next_raw_config = self._raw_config.copy()
         for key, value in config_values.items():
             if value is None:
-                _ = self.config.pop(key, None)
+                _ = next_raw_config.pop(key, None)
                 continue
-            self.config[key] = value  # self._config_value_from_python(value)
+            next_raw_config[key] = value
+
+        next_config = self._validate_config(next_raw_config)
+        self._raw_config = next_raw_config
+        self._config = next_config
+
+    def _apply_config_values(self, config_values: Mapping[str, ConfigValue | None]) -> None:
+        self.apply_config_values(config_values)
 
     @staticmethod
     def _load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
@@ -370,19 +423,24 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         for key, value in default_config.items():
             if value is None:
                 continue
-            self.config[key] = value
+            self._raw_config[key] = value
             # try:
-            #    self.config[key] = self._config_value_from_python(value)
+            #    self._raw_config[key] = self._config_value_from_python(value)
             # except TypeError as e:
             #    logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
+        self._config = self._validate_config(self._raw_config)
 
     @property
     def meta(self) -> ComponentMetadata | None:
         return self.metadata
 
     @property
-    def config(self) -> dict[str, Any]:
-        return self.configuration
+    def config(self) -> ConfigT:
+        return cast("ConfigT", self._config)
+
+    @property
+    def raw_config(self) -> RawConfig:
+        return self._raw_config
 
     # inPorts @0 () -> (ports :List(Component.Port));
     @override
@@ -458,13 +516,13 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     name=item[0],
                     val=Process._config_value_from_python(item[1]),
                 ),
-                self.config.items(),
+                self.raw_config.items(),
             ),
         )
 
     @override
     async def setConfigEntry(self, name, val, _context, **kwargs):
-        self.config[name] = Process._python_value_from_capnp_value(val)
+        self._apply_config_values({name: Process._python_value_from_capnp_value(val)})
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
         if new_state == self.process_state:
@@ -1138,7 +1196,7 @@ def create_default_args_parser(
 
 
 def run_process_from_metadata_and_cmd_args(
-    p: Process,
+    p: Process[Any],
     component_meta: ComponentMetadata,
 ):
     parser = create_default_args_parser(component_description=p.description)

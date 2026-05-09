@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import asyncio
+from typing import Any, cast
+
 import pytest
 from mas.schema.common import common_capnp
+from pydantic import ValidationError
 
-from zalfmas_fbp.run.process import Process
+from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.process import Process, ProcessConfig
+
+
+class _TypedConfig(ProcessConfig):
+    split_at: str = ","
+
+
+class _TypedProcess(Process[_TypedConfig]):
+    pass
 
 
 def test_config_value_round_trips_nested_python_values() -> None:
@@ -34,3 +47,57 @@ def test_python_value_from_capnp_rejects_malformed_pair_entries() -> None:
 
     with pytest.raises(TypeError, match="both 'fst' and 'snd'"):
         Process._python_value_from_capnp_value(malformed.as_reader())
+
+
+def test_process_without_config_model_keeps_raw_dict_config() -> None:
+    component = Process(metadata=_metadata_with_split_config())
+
+    component.apply_config_values({"split_at": ";"})
+
+    assert component.config["split_at"] == ";"
+    assert component.raw_config["split_at"] == ";"
+
+
+def test_process_with_config_model_exposes_typed_config() -> None:
+    component = _TypedProcess(metadata=_metadata_with_split_config())
+
+    component.apply_config_values({"split_at": ";"})
+
+    assert component.config.split_at == ";"
+    assert component.raw_config["split_at"] == ";"
+
+
+def test_rpc_config_entry_validates_typed_config_and_preserves_previous_value() -> None:
+    component = _TypedProcess(metadata=_metadata_with_split_config())
+
+    asyncio.run(
+        component.setConfigEntry(
+            "split_at",
+            common_capnp.Value.new_message(t=";"),
+            cast(Any, None),
+        ),
+    )
+
+    assert component.config.split_at == ";"
+
+    with pytest.raises(ValidationError, match="split_at"):
+        asyncio.run(
+            component.setConfigEntry(
+                "split_at",
+                common_capnp.Value.new_message(i64=3),
+                cast(Any, None),
+            ),
+        )
+
+    assert component.config.split_at == ";"
+    assert component.raw_config["split_at"] == ";"
+
+
+def _metadata_with_split_config() -> ComponentMetadata:
+    return ComponentMetadata.model_validate(
+        {
+            "info": {"id": "typed-config-test", "name": "typed config test"},
+            "type": "process",
+            "defaultConfig": {"split_at": {"value": ",", "type": "string"}},
+        },
+    )

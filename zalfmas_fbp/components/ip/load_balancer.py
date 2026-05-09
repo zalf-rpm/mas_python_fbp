@@ -16,17 +16,11 @@
 from __future__ import annotations
 
 import logging
-import os
-import sys
-from typing import override
-
-if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path = [path for path in sys.path if os.path.abspath(path or os.getcwd()) != script_dir]
+from typing import Literal, override
 
 from zalfmas_common import common
 
-from zalfmas_fbp.components.ip.copy import copy_ip
+from zalfmas_fbp.components.ip.copy_ip import copy_ip
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
@@ -64,16 +58,20 @@ METADATA = ComponentMetadata.model_validate(
 )
 
 
-class LoadBalancer(process.Process):
+class LoadBalancerConfig(process.ProcessConfig):
+    distribution_strategy: Literal["next_available", "round_robin"] = "next_available"
+
+
+class LoadBalancer(process.Process[LoadBalancerConfig]):
     def __init__(
         self,
         metadata: ComponentMetadata = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
-        process.Process.__init__(self, metadata=metadata, con_man=con_man)
+        super().__init__(metadata=metadata, con_man=con_man)
 
     def _distribution_strategy(self) -> process.ArrayOutStrategy:
-        strategy = process.ArrayOutStrategy(self.config["distribution_strategy"])
+        strategy = process.ArrayOutStrategy(self.config.distribution_strategy)
         if strategy == process.ArrayOutStrategy.BROADCAST:
             raise ValueError("load balancer distribution_strategy must be 'round_robin' or 'next_available'")
         return strategy
