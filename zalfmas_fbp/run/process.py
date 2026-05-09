@@ -18,7 +18,6 @@ import os
 import subprocess as sp
 import sys
 import tomllib
-import traceback
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
@@ -64,7 +63,11 @@ if TYPE_CHECKING:
 from zalfmas_common import common
 
 from zalfmas_fbp.run.argparse_utils import parse_args_typed
-from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+from zalfmas_fbp.run.logging_config import (
+    add_log_level_argument,
+    configure_logging,
+    format_exception_full,
+)
 from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 
 ArrayReaderPorts = list["ReaderClient | None"]
@@ -74,6 +77,8 @@ type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
 type RawConfig = dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
+# Gateway-routed channel writes disconnect at ~32 MiB, so keep bracketed chunks below that limit.
+DEFAULT_BRACKETED_CHUNK_SIZE = 16 * 1024 * 1024
 
 
 class ProcessRuntimeError(RuntimeError):
@@ -267,9 +272,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if get_origin(base) is Process:
                 config_type = get_args(base)[0]
                 cls.config_model = (
-                    config_type
-                    if isinstance(config_type, type) and issubclass(config_type, ProcessConfig)
-                    else None
+                    config_type if isinstance(config_type, type) and issubclass(config_type, ProcessConfig) else None
                 )
                 return
 
@@ -421,7 +424,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             message=str(exc),
             cause_type=type(cause).__name__ if cause is not None else None,
             cause_message=str(cause) if cause is not None else None,
-            traceback=traceback.format_exception(type(exc), exc, exc.__traceback__) if exc.__traceback__ else None,
+            traceback=format_exception_full(exc),
         )
 
     @staticmethod
@@ -479,7 +482,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             try:
                 return cls._load_config_text(text, "json")
             except (json.JSONDecodeError, TypeError) as json_error:
-                raise ValueError(f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}") from json_error
+                raise ValueError(
+                    f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}"
+                ) from json_error
 
     @classmethod
     def _config_from_ip(cls, in_msg: IPReader) -> dict[str, ConfigValue]:
@@ -735,7 +740,24 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
     def stopping(self) -> bool:
         return self._stop_requested.is_set()
 
-    async def read_in(self, name: str) -> IPReader | None:
+    async def read_in(self, name: str, bracketed: bool = False) -> IPReader | IPBuilder | None:
+        in_ip = await self._read_in_raw(name)
+        if in_ip is None:
+            return None
+
+        if in_ip.type == "openBracket":
+            if not bracketed:
+                msg = f"{self.name} received a bracketed payload on input port '{name}', but bracketed reading is disabled."
+                raise InputPortReadError(self.name, name, msg)
+            return await self._read_bracketed_payload(name, in_ip)
+
+        if in_ip.type == "closeBracket":
+            msg = f"{self.name} received an unexpected closeBracket on input port '{name}'."
+            raise InputPortReadError(self.name, name, msg)
+
+        return in_ip
+
+    async def _read_in_raw(self, name: str) -> IPReader | None:
         if self._stop_requested.is_set():
             return None
 
@@ -781,8 +803,24 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if not stop_task.done():
                 _ = stop_task.cancel()
 
+    async def _read_bracketed_payload(self, name: str, open_ip: IPReader) -> IPBuilder:
+        chunks: list[bytes] = []
+        while True:
+            chunk_ip = await self._read_in_raw(name)
+            if chunk_ip is None:
+                msg = f"{self.name} input port '{name}' closed before a bracketed payload ended."
+                raise InputPortReadError(self.name, name, msg)
+            if chunk_ip.type == "closeBracket":
+                out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
+                out_ip.attributes = list(open_ip.attributes)
+                return out_ip
+            if chunk_ip.type == "openBracket":
+                msg = f"{self.name} received a nested openBracket on input port '{name}'."
+                raise InputPortReadError(self.name, name, msg)
+            chunks.append(bytes(chunk_ip.content.as_struct(common_capnp.Value).d))
+
     async def update_config_from_port(self, name: str = "conf") -> bool:
-        in_msg = await self.read_in(name)
+        in_msg = await self._read_in_raw(name)
         if in_msg is None:
             return False
 
@@ -799,20 +837,23 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader] | None: ...
+        bracketed: bool = False,
+    ) -> list[IPReader | IPBuilder] | None: ...
 
     @overload
     async def read_array_in(
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | None: ...
+        bracketed: bool = False,
+    ) -> IPReader | IPBuilder | None: ...
 
     async def read_array_in(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader] | IPReader | None:
+        bracketed: bool = False,
+    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
         strategy = ArrayInStrategy(strategy)
         if self._stop_requested.is_set():
             return None
@@ -826,7 +867,26 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             return None
 
         if strategy == ArrayInStrategy.NEXT_AVAILABLE:
-            return await self._read_array_in_next_available(name, active_ports, ports)
+            next_result = await self._read_array_in_next_available(name, active_ports, ports)
+            if next_result is None:
+                return None
+
+            port_index, in_ip = next_result
+            if in_ip.type == "openBracket":
+                if not bracketed:
+                    msg = f"{self.name} received a bracketed payload on array input port '{name}', but bracketed reading is disabled."
+                    raise InputPortReadError(self.name, name, msg)
+                port = ports[port_index]
+                if port is None:
+                    msg = (
+                        f"{self.name} array input port '{name}[{port_index}]' closed before a bracketed payload ended."
+                    )
+                    raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
+                return await self._read_bracketed_array_payload(name, port_index, port, in_ip)
+            if in_ip.type == "closeBracket":
+                msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
+            return in_ip
 
         read_tasks: dict[asyncio.Future[ReadResult], int] = {
             asyncio.ensure_future(port.read()): i for i, port in active_ports
@@ -879,7 +939,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     await self._cancel_tasks(read_tasks)
                     return None
 
-            return [results[i] for i, _port in active_ports]
+            ordered_results: list[IPReader | IPBuilder] = [results[i] for i, _port in active_ports]
+            if not bracketed:
+                bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
+                if bracketed_results:
+                    msg = f"{self.name} received a bracketed payload on array input port '{name}', but bracketed reading is disabled."
+                    raise InputPortReadError(self.name, name, msg)
+                return ordered_results
+            return await self._coalesce_bracketed_array_results(name, active_ports, ports, ordered_results)
         except asyncio.CancelledError:
             await self._cancel_tasks(read_tasks)
             _ = stop_task.cancel()
@@ -896,11 +963,11 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         name: str,
         active_ports: list[tuple[int, ReaderClient]],
         ports: ArrayReaderPorts,
-    ) -> IPReader | None:
+    ) -> tuple[int, IPReader] | None:
         buffers = self._array_in_buffers.setdefault(name, {})
         if buffers:
             port_index = next(iter(buffers))
-            return buffers.pop(port_index)
+            return port_index, buffers.pop(port_index)
 
         while active_ports:
             read_tasks: dict[asyncio.Future[ReadResult], int] = {
@@ -948,7 +1015,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 await self._cancel_tasks(read_tasks)
                 if buffers:
                     port_index = next(iter(buffers))
-                    return buffers.pop(port_index)
+                    return port_index, buffers.pop(port_index)
 
                 active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
             except asyncio.CancelledError:
@@ -964,6 +1031,61 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
         return None
 
+    async def _coalesce_bracketed_array_results(
+        self,
+        name: str,
+        active_ports: list[tuple[int, ReaderClient]],
+        ports: ArrayReaderPorts,
+        first_messages: list[IPReader | IPBuilder],
+    ) -> list[IPReader | IPBuilder]:
+        coalesced: list[IPReader | IPBuilder] = []
+        for (port_index, port), first_ip in zip(active_ports, first_messages, strict=True):
+            if first_ip.type == "openBracket":
+                coalesced.append(await self._read_bracketed_array_payload(name, port_index, port, first_ip))
+            elif first_ip.type == "closeBracket":
+                msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
+            else:
+                coalesced.append(first_ip)
+        return coalesced
+
+    async def _read_bracketed_array_payload(
+        self,
+        name: str,
+        port_index: int,
+        port: ReaderClient,
+        open_ip: IPReader | IPBuilder,
+    ) -> IPBuilder:
+        chunks: list[bytes] = []
+        while True:
+            try:
+                msg = await port.read()
+            except capnp.KjException as e:
+                ports = self.array_in_ports.get(name)
+                if ports is not None and port_index < len(ports):
+                    ports[port_index] = None
+                description = str(getattr(e, "description", e))
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
+
+            if msg.which() == "done":
+                ports = self.array_in_ports.get(name)
+                if ports is not None and port_index < len(ports):
+                    ports[port_index] = None
+                msg_text = (
+                    f"{self.name} array input port '{name}[{port_index}]' closed before a bracketed payload ended."
+                )
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg_text)
+
+            chunk_ip = msg.value.as_struct(fbp_capnp.IP)
+            if chunk_ip.type == "closeBracket":
+                out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
+                out_ip.attributes = list(open_ip.attributes)
+                return out_ip
+            if chunk_ip.type == "openBracket":
+                msg_text = f"{self.name} received a nested openBracket on array input port '{name}[{port_index}]'."
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg_text)
+            chunks.append(bytes(chunk_ip.content.as_struct(common_capnp.Value).d))
+
     @staticmethod
     async def _cancel_tasks(tasks: Iterable[asyncio.Future[Any]]) -> None:
         pending = list(tasks)
@@ -971,7 +1093,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             _ = task.cancel()
         _ = await asyncio.gather(*pending, return_exceptions=True)
 
-    async def write_out(self, name: str, message: IPBuilder) -> bool:
+    async def write_out(self, name: str, message: IPBuilder, bracketed: bool = False) -> bool:
+        if bracketed:
+            return await self._write_out_bracketed(name, message)
+        return await self._write_out_single(name, message)
+
+    async def _write_out_single(self, name: str, message: IPBuilder) -> bool:
         if self._stop_requested.is_set():
             return False
 
@@ -989,6 +1116,71 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             description = str(getattr(e, "description", e))
             logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
             raise OutputPortWriteError(self.name, name, description) from e
+
+    async def _write_out_bracketed(self, name: str, message: IPBuilder) -> bool:
+        if message.type != "standard":
+            msg = f"{self.name} can only write standard IPs as bracketed payloads on output port '{name}'."
+            raise OutputPortWriteError(self.name, name, msg)
+
+        try:
+            data = bytes(message.content.as_struct(common_capnp.Value).d)
+        except (capnp.KjException, TypeError) as e:
+            msg = f"{self.name} can only bracket common.capnp:Value[Data] payloads on output port '{name}'."
+            raise OutputPortWriteError(self.name, name, msg) from e
+
+        port = self.out_ports.get(name)
+        if port is None:
+            return False
+
+        open_ip = self._bracket_ip("openBracket", message)
+        close_ip = self._bracket_ip("closeBracket", message)
+        open_sent = False
+        close_sent = False
+        aborted = False
+        rpc_error: capnp.KjException | None = None
+        description: str | None = None
+
+        try:
+            await port.write(value=open_ip)
+            open_sent = True
+            for offset in range(0, len(data), DEFAULT_BRACKETED_CHUNK_SIZE):
+                if self._stop_requested.is_set():
+                    aborted = True
+                    break
+                chunk_ip = fbp_capnp.IP.new_message(
+                    content=common_capnp.Value.new_message(d=data[offset : offset + DEFAULT_BRACKETED_CHUNK_SIZE]),
+                )
+                chunk_ip.attributes = list(message.attributes)
+                await port.write(value=chunk_ip)
+
+            if not aborted:
+                await port.write(value=close_ip)
+                close_sent = True
+        except capnp.KjException as e:
+            rpc_error = e
+            description = str(getattr(e, "description", e))
+        finally:
+            if open_sent and not close_sent:
+                with suppress(capnp.KjException, RuntimeError):
+                    await port.write(value=close_ip)
+                    close_sent = True
+
+            if rpc_error is not None and self.out_ports.get(name) is port:
+                self.out_ports[name] = None
+
+        if rpc_error is not None:
+            if self._stop_requested.is_set():
+                return False
+            logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
+            raise OutputPortWriteError(self.name, name, description or "") from rpc_error
+
+        return not aborted
+
+    @staticmethod
+    def _bracket_ip(bracket_type: Literal["openBracket", "closeBracket"], source: IPBuilder | IPReader) -> IPBuilder:
+        bracket_ip = fbp_capnp.IP.new_message(type=bracket_type)
+        bracket_ip.attributes = list(source.attributes)
+        return bracket_ip
 
     async def write_array_out(
         self,

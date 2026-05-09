@@ -12,7 +12,15 @@ from zalfmas_fbp.components.dakis.common.duckdb_utils import (
     query_to_parquet_bytes,
 )
 
-type ParquetCompression = Literal["snappy", "gzip", "brotli", "lz4", "zstd"]
+type ParquetCompression = Literal["zstd", "gzip", "snappy", "none"]
+
+
+def prepare_geoparquet_bytes(
+    geoparquet_bytes: bytes,
+    *,
+    compression: str,
+) -> bytes:
+    return _maybe_recompress(geoparquet_bytes, compression)
 
 
 def write_geoparquet_bytes(
@@ -23,7 +31,7 @@ def write_geoparquet_bytes(
 ) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = _maybe_recompress(geoparquet_bytes, compression)
+    data = prepare_geoparquet_bytes(geoparquet_bytes, compression=compression)
 
     with NamedTemporaryFile("wb", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False) as tmp_file:
         tmp_path = Path(tmp_file.name)
@@ -40,7 +48,7 @@ def write_geoparquet_bytes(
 
 def _maybe_recompress(geoparquet_bytes: bytes, compression: str) -> bytes:
     normalized = compression.strip().lower()
-    if normalized in ("", "preserve", "none"):
+    if normalized in ("", "preserve"):
         return geoparquet_bytes
     normalized = normalize_parquet_compression(normalized)
 

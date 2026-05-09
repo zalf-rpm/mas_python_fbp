@@ -208,6 +208,7 @@ def main():
 ### What is important about this variant
 
 - `self.read_in("name")` and `self.write_out("name", value=...)` are the stop-aware accessors for standard ports.
+- `self.read_in("name")` and `self.read_array_in("name", ...)` do not wait for late connections. Components can inspect `self.in_ports` or `self.array_in_ports` in `run()` if they need custom behavior when a port is unavailable.
 - `self.array_out_ports["name"]` accesses array output ports.
 - `self.config` is managed by the base class.
 - Config entries are stored as **plain Python values** inside the process. Cap'n Proto conversion only happens at the RPC/config-port boundary. For example, `split_string2.py` reads the delimiter with `self.config["split_at"]`.

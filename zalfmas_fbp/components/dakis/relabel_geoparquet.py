@@ -96,12 +96,12 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
         mapping_csv_bytes = None
 
         while True:
-            in_msg = await self.read_in("in")
+            in_msg = await self.read_in("in", True)
             if in_msg is None:
                 break
 
             try:
-                translation_msg = await self.read_in("translation")
+                translation_msg = await self.read_in("translation", True)
                 if translation_msg is not None:
                     mapping_csv_path, mapping_csv_bytes = _read_translation(
                         translation_msg,
@@ -119,7 +119,7 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
                     default_priority=self.config.default_priority,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes)):
+                if not await self.write_out("out", _data_ip(output_bytes), True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s relabeled GeoParquet bytes", self.name, len(output_bytes))
@@ -142,7 +142,7 @@ def _data_ip(data: bytes) -> IPBuilder:
     return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=data))
 
 
-def _read_translation(ip: IPReader, *, fallback_path: str) -> tuple[str, bytes | None]:
+def _read_translation(ip: IPReader | IPBuilder, *, fallback_path: str) -> tuple[str, bytes | None]:
     try:
         return fallback_path, bytes(ip.content.as_struct(common_capnp.Value).d)
     except (capnp.KjException, TypeError):

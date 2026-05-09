@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import override
+from typing import Literal, override
 
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
@@ -17,6 +17,9 @@ from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+type GeoTiffCompression = Literal["zstd", "deflate", "lzw", "none"]
+GEOTIFF_COMPRESSION_OPTIONS = ["zstd", "deflate", "lzw", "none"]
 
 METADATA = ComponentMetadata.model_validate(
     {
@@ -35,7 +38,11 @@ METADATA = ComponentMetadata.model_validate(
         "defaultConfig": {
             "epsg": {"value": 25833, "type": "int", "desc": "EPSG code of the output raster CRS."},
             "resolution_m": {"value": 100.0, "type": "float", "desc": "Raster resolution in meters per pixel."},
-            "compression": {"value": "zstd", "type": "string", "desc": "GeoTIFF compression algorithm."},
+            "compression": {
+                "value": "zstd",
+                "type": GEOTIFF_COMPRESSION_OPTIONS,
+                "desc": "GeoTIFF compression algorithm.",
+            },
         },
     },
 )
@@ -44,7 +51,7 @@ METADATA = ComponentMetadata.model_validate(
 class CreateEmptyRasterConfig(process.ProcessConfig):
     epsg: int = 25833
     resolution_m: float = 100.0
-    compression: str = "zstd"
+    compression: GeoTiffCompression = "zstd"
 
 
 class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
@@ -77,7 +84,7 @@ class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
                 )
 
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))
-                if not await self.write_out("out", out_ip):
+                if not await self.write_out("out", out_ip, True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent raster with %s bytes", self.name, len(raster_bytes))

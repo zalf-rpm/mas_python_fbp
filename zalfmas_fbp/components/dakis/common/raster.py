@@ -71,20 +71,23 @@ def create_empty_raster_bytes(
     height = max(1, math.ceil((max_y - min_y) / resolution_m))
     transform = from_origin(min_x, max_y, resolution_m, resolution_m)
 
+    profile: dict[str, Any] = {
+        "driver": "GTiff",
+        "width": width,
+        "height": height,
+        "count": 1,
+        "dtype": "uint8",
+        "crs": dst_crs,
+        "transform": transform,
+        "nodata": 0,
+        "sparse_ok": True,
+        "bigtiff": "IF_SAFER",
+    }
+    if compression.strip().lower() != "none":
+        profile["compress"] = compression
+
     with MemoryFile() as memory_file:
-        with memory_file.open(
-            driver="GTiff",
-            width=width,
-            height=height,
-            count=1,
-            dtype="uint8",
-            crs=dst_crs,
-            transform=transform,
-            nodata=0,
-            compress=compression,
-            sparse_ok=True,
-            bigtiff="IF_SAFER",
-        ):
+        with memory_file.open(**profile):
             pass
 
         return bytes(memory_file.read())

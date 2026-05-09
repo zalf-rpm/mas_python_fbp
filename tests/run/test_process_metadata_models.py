@@ -4,16 +4,16 @@ import pytest
 from pydantic import ValidationError
 
 from zalfmas_fbp.components.console.console_output import METADATA as console_output_metadata
-from zalfmas_fbp.components.dakis.dakis_process.create_empty_raster import (
+from zalfmas_fbp.components.dakis.create_empty_raster import (
     METADATA as create_empty_raster_metadata,
 )
-from zalfmas_fbp.components.dakis.dakis_process.filter_geoparquet_by_raster import (
+from zalfmas_fbp.components.dakis.filter_geoparquet_by_raster import (
     METADATA as filter_geoparquet_metadata,
 )
-from zalfmas_fbp.components.dakis.dakis_process.relabel_geoparquet import (
+from zalfmas_fbp.components.dakis.relabel_geoparquet import (
     METADATA as relabel_geoparquet_metadata,
 )
-from zalfmas_fbp.components.dakis.dakis_process.write_geoparquet import (
+from zalfmas_fbp.components.dakis.write_geoparquet import (
     METADATA as write_geoparquet_metadata,
 )
 from zalfmas_fbp.components.ip.copy_ip import METADATA as copy_metadata

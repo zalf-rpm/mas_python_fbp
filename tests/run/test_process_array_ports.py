@@ -4,9 +4,18 @@ import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
 import capnp
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
-from tests.component_harness import InMemoryReader, InMemoryWriter, done_message, ip_message, text_outputs
+from tests.component_harness import (
+    InMemoryReader,
+    InMemoryWriter,
+    PortMessage,
+    PortValue,
+    done_message,
+    ip_message,
+    text_outputs,
+)
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
@@ -77,6 +86,10 @@ class _BlockingWriter(InMemoryWriter):
         await super().write(value)
 
 
+def test_default_bracketed_chunk_size_is_16_mib() -> None:
+    assert process.DEFAULT_BRACKETED_CHUNK_SIZE == 16 * 1024 * 1024
+
+
 class _SignalingWriter(InMemoryWriter):
     def __init__(self):
         super().__init__()
@@ -85,6 +98,18 @@ class _SignalingWriter(InMemoryWriter):
     async def write(self, value: Any) -> None:
         await super().write(value)
         self.written.set()
+
+
+class _FailOnceThenWriteWriter(InMemoryWriter):
+    def __init__(self):
+        super().__init__()
+        self.calls = 0
+
+    async def write(self, value: Any) -> None:
+        self.calls += 1
+        if self.calls == 2:
+            raise capnp.KjException("temporary mid-stream failure")
+        await super().write(value)
 
 
 class _StopAwareProcess(process.Process):
@@ -135,6 +160,24 @@ class _CatchesReadErrorProcess(process.Process):
             await self.read_in("in")
         except process.InputPortReadError:
             self.caught_error = True
+
+
+def _always_fail(*_args: str) -> bool:
+    raise RuntimeError("boom")
+
+
+def _raise_multiline_runtime_error() -> None:
+    if not _always_fail(
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+    ):
+        return
 
 
 def test_process_metadata_initializes_array_in_and_out_ports() -> None:
@@ -417,6 +460,133 @@ def test_read_array_in_next_available_skips_done_ports() -> None:
     assert component.array_in_ports["items"][0] is None
 
 
+def test_read_array_in_next_available_bracketed_coalesces_chunks() -> None:
+    component = process.Process(metadata=_array_port_meta())
+    open_ip = fbp_capnp.IP.new_message(type="openBracket")
+    close_ip = fbp_capnp.IP.new_message(type="closeBracket")
+    component.array_in_ports["items"] = [
+        cast(
+            "Any",
+            InMemoryReader(
+                [
+                    PortMessage(PortValue(open_ip)),
+                    PortMessage(PortValue(_data_ip(b"pa"))),
+                    PortMessage(PortValue(_data_ip(b"yload"))),
+                    PortMessage(PortValue(close_ip)),
+                    done_message(),
+                ],
+            ),
+        ),
+    ]
+
+    message = asyncio.run(component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, True))
+
+    assert message is not None
+    assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+
+
+def test_read_in_rejects_bracketed_payload_when_disabled() -> None:
+    component = process.Process(metadata=_standard_port_meta())
+    open_ip = fbp_capnp.IP.new_message(type="openBracket")
+    component.in_ports["in"] = cast("Any", InMemoryReader([PortMessage(PortValue(open_ip)), done_message()]))
+
+    try:
+        asyncio.run(component.read_in("in"))
+    except process.InputPortReadError as exc:
+        assert "bracketed reading is disabled" in str(exc)
+    else:
+        raise AssertionError("read_in should reject bracketed payloads unless bracketed is enabled")
+
+
+def test_read_in_bracketed_coalesces_chunks() -> None:
+    component = process.Process(metadata=_standard_port_meta())
+    open_ip = fbp_capnp.IP.new_message(type="openBracket")
+    first = _data_ip(b"pa")
+    second = _data_ip(b"yload")
+    close_ip = fbp_capnp.IP.new_message(type="closeBracket")
+    component.in_ports["in"] = cast(
+        "Any",
+        InMemoryReader(
+            [
+                PortMessage(PortValue(open_ip)),
+                PortMessage(PortValue(first)),
+                PortMessage(PortValue(second)),
+                PortMessage(PortValue(close_ip)),
+                done_message(),
+            ],
+        ),
+    )
+
+    message = asyncio.run(component.read_in("in", True))
+
+    assert message is not None
+    assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+def test_write_out_bracketed_chunks_data(monkeypatch) -> None:
+    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    component = process.Process(metadata=_standard_port_meta())
+    writer = InMemoryWriter()
+    component.out_ports["out"] = cast("Any", writer)
+
+    assert asyncio.run(component.write_out("out", _data_ip(b"payload"), True)) is True
+
+    assert [ip.type for ip in writer.values] == [
+        "openBracket",
+        "standard",
+        "standard",
+        "standard",
+        "standard",
+        "closeBracket",
+    ]
+    assert b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in writer.values[1:-1]) == b"payload"
+
+
+def test_write_out_bracketed_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
+    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    component = process.Process(metadata=_standard_port_meta())
+    writer = _FailOnceThenWriteWriter()
+    component.out_ports["out"] = cast("Any", writer)
+
+    try:
+        asyncio.run(component.write_out("out", _data_ip(b"payload"), True))
+    except process.OutputPortWriteError as exc:
+        assert "temporary mid-stream failure" in str(exc)
+    else:
+        raise AssertionError("write_out should fail when a chunk write raises KjException")
+
+    assert [ip.type for ip in writer.values] == ["openBracket", "closeBracket"]
+    assert component.out_ports["out"] is None
+
+
+def test_record_error_keeps_full_multiline_traceback() -> None:
+    component = process.Process(metadata=_standard_port_meta())
+
+    try:
+        _raise_multiline_runtime_error()
+    except RuntimeError as exc:
+        component._record_error(exc)
+    else:
+        raise AssertionError("multiline runtime error should have been raised")
+
+    assert component._last_error is not None
+    formatted_traceback = "".join(component._last_error.traceback or [])
+    assert "if not _always_fail(" in formatted_traceback
+    assert '"a",' in formatted_traceback
+    assert '"h",' in formatted_traceback
+    assert "...<" not in formatted_traceback
+
+
+def test_read_in_returns_none_when_port_is_unconnected() -> None:
+    component = process.Process(metadata=_standard_port_meta())
+
+    assert asyncio.run(component.read_in("in")) is None
+
+
+def test_read_array_in_returns_none_when_no_active_ports_are_connected() -> None:
+    component = process.Process(metadata=_array_port_meta())
+
+    assert asyncio.run(component.read_array_in("items", "zip")) is None
+
+
 def test_connect_in_port_returns_disconnect_callback_for_standard_port() -> None:
     reader = _ClosablePort()
     component = process.Process(metadata=_standard_port_meta(), con_man=cast("Any", _FakeConnectionManager(reader)))
@@ -490,6 +660,10 @@ def test_disconnect_callback_for_failed_connection_is_noop() -> None:
 
 def _text_ip(value: str) -> IPBuilder:
     return fbp_capnp.IP.new_message(content=value)
+
+
+def _data_ip(value: bytes) -> IPBuilder:
+    return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=value))
 
 
 async def _wait_for_state(component: process.Process, expected: ProcessStateEnum) -> None:

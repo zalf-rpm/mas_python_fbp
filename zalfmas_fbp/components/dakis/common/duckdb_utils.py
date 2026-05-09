@@ -9,7 +9,7 @@ import duckdb
 
 type QueryParams = Sequence[Any]
 
-SUPPORTED_COMPRESSIONS: set[str] = {"snappy", "gzip", "brotli", "lz4", "zstd"}
+SUPPORTED_COMPRESSIONS: set[str] = {"zstd", "gzip", "snappy", "none", "uncompressed"}
 
 
 def connect(*, load_spatial: bool = False) -> duckdb.DuckDBPyConnection:
@@ -25,6 +25,8 @@ def connect(*, load_spatial: bool = False) -> duckdb.DuckDBPyConnection:
 
 def normalize_parquet_compression(compression: str) -> str:
     normalized = compression.strip().lower()
+    if normalized == "none":
+        return "uncompressed"
     if normalized not in SUPPORTED_COMPRESSIONS:
         msg = f"Unsupported GeoParquet compression: {compression}"
         raise ValueError(msg)

@@ -12,16 +12,19 @@ dependencies = [
   "matplotlib>=3.10.9,<4",
   "pycapnp>=2.2.2,<3",
   "zalfmas-common>=0.1.42,<0.2",
-  "zalfmas-capnp-schemas>=0.1.61,<0.2",
+  "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas@last-error",
+  "zalfmas-capnp-schemas",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
-  "pydantic>=2.13.3,<3",
+  "pydantic>=2.13.4,<3",
   "geojson-pydantic>=2.1.1,<3",
   "rasterio>=1.5.0,<2",
   "pytest>=9.0.3,<10",
   "geopandas>=1.1.3,<2",
   "pyarrow>=24.0.0,<25",
   "duckdb>=1.5.2,<2",
+  "boto3>=1.43.6,<2",
+  "types-boto3-s3>=1.43.5,<2",
 ]
 
 [build-system]
@@ -44,7 +47,7 @@ ruff = ">=0.15.12,<0.16"
 # Referencing local packages in editable mode for pixi
 [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
-#zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
+# zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
 # Example for referencing local packages in editable mode just uncomment these lines while keeping the above it will overwrite
 # If the line for the package in the dependencies section is commented out it will have no effect

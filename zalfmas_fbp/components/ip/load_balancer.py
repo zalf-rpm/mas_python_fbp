@@ -50,8 +50,8 @@ METADATA = ComponentMetadata.model_validate(
         "defaultConfig": {
             "distribution_strategy": {
                 "value": "next_available",
-                "type": "string",
-                "desc": "Distribution strategy for choosing an output: 'next_available' or 'round_robin'.",
+                "type": ["next_available", "round_robin"],
+                "desc": "Distribution strategy for choosing an output.",
             },
         },
     },
