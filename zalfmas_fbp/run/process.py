@@ -384,11 +384,21 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         raise ValueError(f"Unsupported config text type: {config_type}")
 
     @classmethod
+    def _load_unstructured_config_text(cls, text: str) -> dict[str, Any]:
+        try:
+            return cls._load_config_text(text, "toml")
+        except tomllib.TOMLDecodeError as toml_error:
+            try:
+                return cls._load_config_text(text, "json")
+            except (json.JSONDecodeError, TypeError) as json_error:
+                raise ValueError(f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}") from json_error
+
+    @classmethod
     def _config_from_ip(cls, in_msg: IPReader) -> dict[str, ConfigValue]:
         try:
             structured_text = in_msg.content.as_struct(common_capnp.StructuredText)
         except capnp.KjException:
-            return cls._load_config_text(in_msg.content.as_text(), "toml")
+            return cls._load_unstructured_config_text(in_msg.content.as_text())
         return cls._load_config_text(structured_text.value, structured_text.type)
 
     def init_from_metadata(self):

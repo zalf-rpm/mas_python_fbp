@@ -47,6 +47,27 @@ def test_split_string2_reads_conf_port_before_processing_input() -> None:
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
+def test_split_string2_reads_unstructured_json_conf_port_before_processing_input() -> None:
+    component = SplitString(split_string_metadata)
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message('{"split_at": ";"}'),
+                done_message(),
+            ],
+            "in": [
+                ip_message("alpha;beta;gamma\n"),
+                done_message(),
+            ],
+        },
+    ).output()
+
+    assert component.config.split_at == ";"
+    assert text_outputs(writer) == ["alpha", "beta", "gamma"]
+
+
 def test_to_string_can_start_with_default_config() -> None:
     component = ToString(to_string_metadata)
 
