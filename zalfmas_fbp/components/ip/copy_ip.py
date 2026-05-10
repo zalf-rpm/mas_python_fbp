@@ -78,9 +78,9 @@ class Copy(process.Process):
         logger.info("%s process finished", self.name)
 
 
-def copy_ip(in_ip: IPReader) -> IPBuilder:
+def copy_ip(in_ip: IPReader | IPBuilder) -> IPBuilder:
     out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-    common.copy_and_set_fbp_attrs(in_ip, out_ip)
+    out_ip.attributes = list(in_ip.attributes)
     return out_ip
 
 

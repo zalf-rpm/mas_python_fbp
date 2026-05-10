@@ -53,10 +53,19 @@ if TYPE_CHECKING:
     )
     from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
     from mas.schema.common.common_capnp.types.readers import ValueReader
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
-    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, StateTransitionClient, WriterClient
-    from mas.schema.fbp.fbp_capnp.types.enums import ProcessErrorInfoPhaseEnum, ProcessStateEnum
-    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
+    from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder, IPBuilder
+    from mas.schema.fbp.fbp_capnp.types.clients import (
+        ActivityTransitionClient,
+        ReaderClient,
+        StateTransitionClient,
+        WriterClient,
+    )
+    from mas.schema.fbp.fbp_capnp.types.enums import (
+        ProcessActivityStateEnum,
+        ProcessErrorInfoPhaseEnum,
+        ProcessStateEnum,
+    )
+    from mas.schema.fbp.fbp_capnp.types.readers import ActivityInfoReader, IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
 
@@ -73,6 +82,9 @@ from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 ArrayReaderPorts = list["ReaderClient | None"]
 ArrayWriterPorts = list["WriterClient | None"]
 ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
+type ConnectedPort = ReaderClient | WriterClient
+type StandardPortMap = dict[str, ReaderClient | None] | dict[str, WriterClient | None]
+type ArrayPortMap = dict[str, ArrayReaderPorts] | dict[str, ArrayWriterPorts]
 type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
 type RawConfig = dict[str, ConfigValue]
@@ -193,49 +205,75 @@ class StateTransition(fbp_capnp.Process.StateTransition.Server):
         self.callback(old, new)
 
 
+class ActivityTransition(fbp_capnp.Process.ActivityTransition.Server):
+    def __init__(
+        self,
+        callback: Callable[
+            [ActivityInfoBuilder | ActivityInfoReader, ActivityInfoBuilder | ActivityInfoReader],
+            None,
+        ],
+    ):
+        self.callback: Callable[
+            [ActivityInfoBuilder | ActivityInfoReader, ActivityInfoBuilder | ActivityInfoReader],
+            None,
+        ] = callback
+
+    # activityChanged @0 (old :ActivityInfo, new :ActivityInfo);
+    @override
+    async def activityChanged(self, old, new, _context, **kwargs):
+        self.callback(old, new)
+
+
 class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
     def __init__(
         self,
-        ports: dict[str, Any] | dict[str, list[Any]],
+        ports: StandardPortMap | ArrayPortMap,
         name: str,
-        port: Any,
-        *,
+        port: ConnectedPort | None,
         index: int | None = None,
     ):
-        self.ports = ports
+        if index is None:
+            self.standard_ports: StandardPortMap | None = cast("StandardPortMap", ports)
+            self.array_ports: ArrayPortMap | None = None
+        else:
+            self.standard_ports = None
+            self.array_ports = cast("ArrayPortMap", ports)
         self.name: str = name
-        self.port = port
-        self.index = index
-        self.disconnected = False
+        self.port: ConnectedPort | None = port
+        self.index: int | None = index
+        self.disconnected: bool = False
 
-    async def disconnect(self, _context=None, **_kwargs):
+    @override
+    async def disconnect(self, _context, **_kwargs) -> bool:
         if self.disconnected or self.port is None:
             return False
 
-        if self.index is None:
-            disconnected = self._disconnect_standard_port()
-        else:
-            disconnected = self._disconnect_array_port()
-
-        if disconnected:
+        if self._disconnect_port():
             await self._close_port()
             self.disconnected = True
-        return disconnected
+            return True
+        return False
+
+    def _disconnect_port(self) -> bool:
+        if self.index is None:
+            return self._disconnect_standard_port()
+        return self._disconnect_array_port()
 
     def _disconnect_standard_port(self) -> bool:
-        ports = cast("dict[str, Any]", self.ports)
-        if ports.get(self.name) is not self.port:
+        if self.standard_ports is None or self.standard_ports.get(self.name) is not self.port:
             return False
-        ports[self.name] = None
+        self.standard_ports[self.name] = None
         return True
 
     def _disconnect_array_port(self) -> bool:
-        ports = cast("dict[str, list[Any]]", self.ports)
-        array_ports = ports.get(self.name)
+        if self.array_ports is None or self.index is None:
+            return False
+
+        array_ports = self.array_ports.get(self.name)
         if array_ports is None:
             return False
 
-        if self.index is not None and self.index < len(array_ports) and array_ports[self.index] is self.port:
+        if self.index < len(array_ports) and array_ports[self.index] is self.port:
             array_ports[self.index] = None
             return True
 
@@ -248,11 +286,8 @@ class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
     async def _close_port(self) -> None:
         if self.port is None:
             return
-        close = getattr(self.port, "close", None)
-        if close is None:
-            return
         try:
-            await close()
+            await self.port.close()
         except (capnp.KjException, RuntimeError) as e:
             logger.error("Exception closing disconnected port '%s': %s", self.name, e)
 
@@ -304,6 +339,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self.soft_stop_timeout_seconds: float = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
         self.process_state: ProcessStateEnum = "idle"
         self.state_transition_callbacks: list[StateTransitionClient] = []
+        self.activity_state: ProcessActivityStateEnum = "none"
+        self.activity_port: str = ""
+        self.activity_transition_callbacks: list[ActivityTransitionClient] = []
 
         self.init_from_metadata()
 
@@ -568,7 +606,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self._array_in_buffers.setdefault(name, {})
             return ConnectinportResultTuple(
                 reader is not None,
-                PortDisconnect(self.array_in_ports, name, reader, index=index),
+                PortDisconnect(self.array_in_ports, name, reader, index),
             )
 
         self.in_ports[name] = reader
@@ -601,7 +639,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self._ensure_array_out_write_task_slots(name, self.array_out_ports[name])
             return ConnectoutportResultTuple(
                 writer is not None,
-                PortDisconnect(self.array_out_ports, name, writer, index=index),
+                PortDisconnect(self.array_out_ports, name, writer, index),
             )
 
         self.out_ports[name] = writer
@@ -636,9 +674,28 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         for cb in self.state_transition_callbacks:
             await cb.stateChanged(prev_state, self.process_state)
 
+    def _activity_message(self) -> ActivityInfoBuilder:
+        return fbp_capnp.Process.ActivityInfo.new_message(state=self.activity_state, port=self.activity_port)
+
+    async def transition_to_activity(
+        self,
+        new_state: ProcessActivityStateEnum,
+        port: str | None = None,
+    ) -> None:
+        new_port = port or ""
+        if new_state == self.activity_state and new_port == self.activity_port:
+            return
+
+        old_info = self._activity_message()
+        self.activity_state = new_state
+        self.activity_port = new_port
+        new_info = self._activity_message()
+        for cb in self.activity_transition_callbacks:
+            await cb.activityChanged(old_info, new_info)
+
     # start @5 ();
     @override
-    async def start(self, _context=None, **kwargs) -> bool:
+    async def start(self, *_args: object, **_kwargs: object) -> bool:
         if self._run_task is not None and not self._run_task.done():
             return False
         if self.process_state in ("starting", "running", "stopping", "closed"):
@@ -660,6 +717,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 return
 
             await self.transition_to_state("running")
+            await self.transition_to_activity("processing")
             await self.run()
         except asyncio.CancelledError as e:
             if not self._stop_requested.is_set():
@@ -673,6 +731,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             logger.exception("%s process failed", self.name)
         finally:
             try:
+                await self.transition_to_activity("closing")
                 await self.close_out_ports()
             except Exception as e:
                 if final_state != "failed":
@@ -681,11 +740,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 logger.exception("%s process failed while closing output ports", self.name)
             if self.process_state != "closed":
                 await self.transition_to_state(final_state)
+            await self.transition_to_activity("none")
             self._stop_requested.clear()
 
     # stop @6 () -> (stopped :Bool);
     @override
-    async def stop(self, _context=None, **kwargs) -> bool:
+    async def stop(self, *_args: object, **_kwargs: object) -> bool:
         has_running_task = self._run_task is not None and not self._run_task.done()
         if not has_running_task and self.process_state in ("idle", "failed", "closed"):
             return False
@@ -731,9 +791,16 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self.state_transition_callbacks.append(transitionCallback)
         return self.process_state
 
+    # activity @10 (transitionCallback :ActivityTransition) -> (currentActivity :ActivityInfo);
+    @override
+    async def activity(self, transitionCallback, *_args: object, **_kwargs: object):
+        if transitionCallback:
+            self.activity_transition_callbacks.append(transitionCallback)
+        return self._activity_message()
+
     # lastError @9 () -> (info :ErrorInfo);
     @override
-    async def lastError(self, _context=None, **kwargs):
+    async def lastError(self, *_args: object, **_kwargs: object):
         return self._last_error_message()
 
     @property
@@ -765,6 +832,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         if port is None:
             return None
 
+        await self.transition_to_activity("waitingInput", name)
         read_task = asyncio.ensure_future(port.read())
         stop_task = asyncio.create_task(self._stop_requested.wait())
         try:
@@ -782,6 +850,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 return None
 
             msg = await read_task
+            await self.transition_to_activity("processing")
             if msg.which() == "done":
                 self.in_ports[name] = None
                 return None
@@ -872,6 +941,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 return None
 
             port_index, in_ip = next_result
+            await self.transition_to_activity("processing")
             if in_ip.type == "openBracket":
                 if not bracketed:
                     msg = f"{self.name} received a bracketed payload on array input port '{name}', but bracketed reading is disabled."
@@ -894,6 +964,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         stop_task = asyncio.create_task(self._stop_requested.wait())
         results: dict[int, IPReader] = {}
         zip_finished = False
+        await self.transition_to_activity("waitingInput", name)
 
         try:
             while read_tasks:
@@ -937,8 +1008,10 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
                 if zip_finished:
                     await self._cancel_tasks(read_tasks)
+                    await self.transition_to_activity("processing")
                     return None
 
+            await self.transition_to_activity("processing")
             ordered_results: list[IPReader | IPBuilder] = [results[i] for i, _port in active_ports]
             if not bracketed:
                 bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
@@ -974,6 +1047,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 asyncio.ensure_future(port.read()): i for i, port in active_ports
             }
             stop_task = asyncio.create_task(self._stop_requested.wait())
+            await self.transition_to_activity("waitingInput", name)
 
             try:
                 done, _pending = await asyncio.wait(
@@ -1059,7 +1133,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         chunks: list[bytes] = []
         while True:
             try:
+                await self.transition_to_activity("waitingInput", f"{name}[{port_index}]")
                 msg = await port.read()
+                await self.transition_to_activity("processing")
             except capnp.KjException as e:
                 ports = self.array_in_ports.get(name)
                 if ports is not None and port_index < len(ports):
@@ -1107,7 +1183,9 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             return False
 
         try:
+            await self.transition_to_activity("waitingOutput", name)
             await port.write(value=message)
+            await self.transition_to_activity("processing")
             return True
         except capnp.KjException as e:
             self.out_ports[name] = None
@@ -1292,12 +1370,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
             stop_task = asyncio.create_task(self._stop_requested.wait())
             try:
+                await self.transition_to_activity("waitingOutput", name)
                 done, _pending = await asyncio.wait(
                     {*active_tasks, stop_task},
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if stop_task in done:
                     return None
+                await self.transition_to_activity("processing")
                 for task in done:
                     if task is stop_task:
                         continue
@@ -1322,7 +1402,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         port_index, port = next_port
         tasks = self._ensure_array_out_write_task_slots(name, ports)
         tasks[port_index] = asyncio.create_task(
-            self._write_array_out_port(name, port_index, port, message),
+            self._write_array_out_port(name, port_index, port, message, track_activity=False),
             name=f"{self.name or self.id}-{name}[{port_index}]-write",
         )
         return True
@@ -1333,9 +1413,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         port_index: int,
         port: WriterClient,
         message: IPBuilder,
+        track_activity: bool = True,
     ) -> bool:
         try:
+            if track_activity:
+                await self.transition_to_activity("waitingOutput", f"{name}[{port_index}]")
             await port.write(value=message)
+            if track_activity:
+                await self.transition_to_activity("processing")
             return True
         except capnp.KjException as e:
             self.array_out_ports[name][port_index] = None
@@ -1371,8 +1456,10 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                         logger.error("Exception closing array in port '%s[%s]': %s", name, i, e)
 
     async def force_close_ports(self):
+        await self.transition_to_activity("closing")
         await self.close_in_ports()
         await self.close_out_ports(cancel_pending_writes=True)
+        await self.transition_to_activity("none")
 
     async def _finalize_array_out_write_tasks(self, *, cancel_pending: bool) -> None:
         task_refs: list[tuple[str, int, asyncio.Task[bool]]] = []

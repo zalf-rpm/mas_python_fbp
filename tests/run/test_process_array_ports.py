@@ -20,8 +20,9 @@ from zalfmas_fbp.run import process
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
+    from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder, IPBuilder
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
+    from mas.schema.fbp.fbp_capnp.types.readers import ActivityInfoReader
 
 
 class _FakeCap:
@@ -280,6 +281,76 @@ def test_stop_requested_read_returns_none_without_bubbling_error() -> None:
         component._stop_requested.set()
 
         assert await asyncio.wait_for(read_task, timeout=1) is None
+
+    asyncio.run(run_test())
+
+
+def test_process_reports_waiting_input_activity_while_read_is_blocked() -> None:
+    async def run_test() -> None:
+        component = _ReadOnceProcess(metadata=_standard_port_meta())
+        reader = _BlockingBrokenReader()
+        component.in_ports["in"] = cast("Any", reader)
+
+        assert await component.start() is True
+        await reader.started.wait()
+
+        assert component.activity_state == "waitingInput"
+        assert component.activity_port == "in"
+
+        assert await component.stop() is True
+        assert component.activity_state == "none"
+        assert component.activity_port == ""
+
+    asyncio.run(run_test())
+
+
+def test_write_out_reports_waiting_output_activity_while_write_is_blocked() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        release = asyncio.Event()
+        writer = _BlockingWriter(release)
+        component.out_ports["out"] = cast("Any", writer)
+
+        write_task = asyncio.create_task(component.write_out("out", _text_ip("alpha")))
+        await writer.started.wait()
+
+        assert component.activity_state == "waitingOutput"
+        assert component.activity_port == "out"
+
+        release.set()
+        assert await write_task is True
+        assert component.activity_state == "processing"
+        assert component.activity_port == ""
+
+    asyncio.run(run_test())
+
+
+def test_activity_returns_current_info_and_registers_callbacks() -> None:
+    class Callback:
+        def __init__(self) -> None:
+            self.changes: list[tuple[tuple[str, str], tuple[str, str]]] = []
+
+        async def activityChanged(
+            self,
+            old: ActivityInfoBuilder | ActivityInfoReader,
+            new: ActivityInfoBuilder | ActivityInfoReader,
+        ) -> None:
+            self.changes.append(((old.state, old.port), (new.state, new.port)))
+
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        callback = Callback()
+
+        current = await component.activity(callback)
+        assert current.state == "none"
+        assert current.port == ""
+        await component.transition_to_activity("processing")
+        await component.transition_to_activity("waitingInput", "in")
+
+        assert callback.changes == [
+            (("none", ""), ("processing", "")),
+            (("processing", ""), ("waitingInput", "in")),
+        ]
 
     asyncio.run(run_test())
 
@@ -596,10 +667,10 @@ def test_connect_in_port_returns_disconnect_callback_for_standard_port() -> None
 
     assert connected is True
     assert component.in_ports["in"] is reader
-    assert asyncio.run(disconnect.disconnect()) is True
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is True
     assert component.in_ports["in"] is None
     assert reader.closed is True
-    assert asyncio.run(disconnect.disconnect()) is False
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
 def test_connect_in_port_returns_disconnect_callback_for_array_port() -> None:
@@ -611,10 +682,10 @@ def test_connect_in_port_returns_disconnect_callback_for_array_port() -> None:
 
     assert connected is True
     assert component.array_in_ports["items"] == [reader]
-    assert asyncio.run(disconnect.disconnect()) is True
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is True
     assert component.array_in_ports["items"] == [None]
     assert reader.closed is True
-    assert asyncio.run(disconnect.disconnect()) is False
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
 def test_connect_out_port_returns_disconnect_callback_for_standard_port() -> None:
@@ -626,10 +697,10 @@ def test_connect_out_port_returns_disconnect_callback_for_standard_port() -> Non
 
     assert connected is True
     assert component.out_ports["out"] is writer
-    assert asyncio.run(disconnect.disconnect()) is True
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is True
     assert component.out_ports["out"] is None
     assert writer.closed is True
-    assert asyncio.run(disconnect.disconnect()) is False
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
 def test_connect_out_port_returns_disconnect_callback_for_array_port() -> None:
@@ -641,10 +712,10 @@ def test_connect_out_port_returns_disconnect_callback_for_array_port() -> None:
 
     assert connected is True
     assert component.array_out_ports["out"] == [writer]
-    assert asyncio.run(disconnect.disconnect()) is True
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is True
     assert component.array_out_ports["out"] == [None]
     assert writer.closed is True
-    assert asyncio.run(disconnect.disconnect()) is False
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
 def test_disconnect_callback_for_failed_connection_is_noop() -> None:
@@ -655,7 +726,7 @@ def test_disconnect_callback_for_failed_connection_is_noop() -> None:
 
     assert connected is False
     assert component.array_out_ports["out"] == [None]
-    assert asyncio.run(disconnect.disconnect()) is False
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
 def _text_ip(value: str) -> IPBuilder:
