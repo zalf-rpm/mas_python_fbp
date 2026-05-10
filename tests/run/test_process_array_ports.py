@@ -87,6 +87,21 @@ class _BlockingWriter(InMemoryWriter):
         await super().write(value)
 
 
+class _StepBlockingWriter(InMemoryWriter):
+    def __init__(self, release: asyncio.Event):
+        super().__init__()
+        self.release = release
+        self.calls = 0
+        self.blocking_started = asyncio.Event()
+
+    async def write(self, value: Any) -> None:
+        self.calls += 1
+        if self.calls == 2:
+            self.blocking_started.set()
+            await self.release.wait()
+        await super().write(value)
+
+
 def test_default_bracketed_chunk_size_is_16_mib() -> None:
     assert process.DEFAULT_BRACKETED_CHUNK_SIZE == 16 * 1024 * 1024
 
@@ -319,8 +334,7 @@ def test_write_out_reports_waiting_output_activity_while_write_is_blocked() -> N
 
         release.set()
         assert await write_task is True
-        assert component.activity_state == "processing"
-        assert component.activity_port == ""
+        await _wait_for_activity(component, "processing")
 
     asyncio.run(run_test())
 
@@ -344,12 +358,44 @@ def test_activity_returns_current_info_and_registers_callbacks() -> None:
         current = await component.activity(callback)
         assert current.state == "none"
         assert current.port == ""
+
         await component.transition_to_activity("processing")
+        await _wait_for_activity(component, "processing")
         await component.transition_to_activity("waitingInput", "in")
 
         assert callback.changes == [
             (("none", ""), ("processing", "")),
             (("processing", ""), ("waitingInput", "in")),
+        ]
+
+    asyncio.run(run_test())
+
+
+def test_short_processing_activity_is_suppressed() -> None:
+    class Callback:
+        def __init__(self) -> None:
+            self.changes: list[tuple[tuple[str, str], tuple[str, str]]] = []
+
+        async def activityChanged(
+            self,
+            old: ActivityInfoBuilder | ActivityInfoReader,
+            new: ActivityInfoBuilder | ActivityInfoReader,
+        ) -> None:
+            self.changes.append(((old.state, old.port), (new.state, new.port)))
+
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        callback = Callback()
+        await component.activity(callback)
+
+        await component.transition_to_activity("processing")
+        await component.transition_to_activity("waitingInput", "in")
+        await asyncio.sleep((process.DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS + 5) / 1000)
+
+        assert component.activity_state == "waitingInput"
+        assert component.activity_port == "in"
+        assert callback.changes == [
+            (("none", ""), ("waitingInput", "in")),
         ]
 
     asyncio.run(run_test())
@@ -592,6 +638,74 @@ def test_read_in_bracketed_coalesces_chunks() -> None:
 
     assert message is not None
     assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+
+
+def test_read_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        open_ip = fbp_capnp.IP.new_message(type="openBracket")
+        close_ip = fbp_capnp.IP.new_message(type="closeBracket")
+        component.in_ports["in"] = cast(
+            "Any",
+            _DelayedReader(
+                [
+                    PortMessage(PortValue(open_ip)),
+                    PortMessage(PortValue(_data_ip(b"payload"))),
+                    PortMessage(PortValue(close_ip)),
+                ],
+                delay=0.01,
+            ),
+        )
+
+        read_task = asyncio.create_task(component.read_in("in", True))
+        await asyncio.sleep(0.015)
+
+        assert component.activity_state == "waitingInput"
+        assert component.activity_port == "in"
+
+        message = await read_task
+        assert message is not None
+        assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+        assert component.activity_state == "processing"
+        assert component.activity_port == ""
+
+    asyncio.run(run_test())
+
+
+def test_read_array_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_array_port_meta())
+        open_ip = fbp_capnp.IP.new_message(type="openBracket")
+        close_ip = fbp_capnp.IP.new_message(type="closeBracket")
+        component.array_in_ports["items"] = [
+            cast(
+                "Any",
+                _DelayedReader(
+                    [
+                        PortMessage(PortValue(open_ip)),
+                        PortMessage(PortValue(_data_ip(b"payload"))),
+                        PortMessage(PortValue(close_ip)),
+                    ],
+                    delay=0.01,
+                ),
+            ),
+        ]
+
+        read_task = asyncio.create_task(component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, True))
+        await asyncio.sleep(0.015)
+
+        assert component.activity_state == "waitingInput"
+        assert component.activity_port == "items[0]"
+
+        message = await read_task
+        assert message is not None
+        assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+        assert component.activity_state == "processing"
+        assert component.activity_port == ""
+
+    asyncio.run(run_test())
+
+
 def test_write_out_bracketed_chunks_data(monkeypatch) -> None:
     monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
@@ -609,6 +723,27 @@ def test_write_out_bracketed_chunks_data(monkeypatch) -> None:
         "closeBracket",
     ]
     assert b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in writer.values[1:-1]) == b"payload"
+
+
+def test_write_out_bracketed_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
+    async def run_test() -> None:
+        monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+        component = process.Process(metadata=_standard_port_meta())
+        release = asyncio.Event()
+        writer = _StepBlockingWriter(release)
+        component.out_ports["out"] = cast("Any", writer)
+
+        write_task = asyncio.create_task(component.write_out("out", _data_ip(b"payload"), True))
+        await writer.blocking_started.wait()
+
+        assert component.activity_state == "waitingOutput"
+        assert component.activity_port == "out"
+
+        release.set()
+        assert await write_task is True
+        await _wait_for_activity(component, "processing")
+
+    asyncio.run(run_test())
 
 
 def test_write_out_bracketed_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
@@ -740,6 +875,14 @@ def _data_ip(value: bytes) -> IPBuilder:
 async def _wait_for_state(component: process.Process, expected: ProcessStateEnum) -> None:
     async def wait() -> None:
         while component.process_state != expected:
+            await asyncio.sleep(0)
+
+    await asyncio.wait_for(wait(), timeout=1)
+
+
+async def _wait_for_activity(component: process.Process, expected: str, port: str = "") -> None:
+    async def wait() -> None:
+        while component.activity_state != expected or component.activity_port != port:
             await asyncio.sleep(0)
 
     await asyncio.wait_for(wait(), timeout=1)

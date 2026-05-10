@@ -89,6 +89,7 @@ type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
 type RawConfig = dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
+DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS = 25
 # Gateway-routed channel writes disconnect at ~32 MiB, so keep bracketed chunks below that limit.
 DEFAULT_BRACKETED_CHUNK_SIZE = 16 * 1024 * 1024
 
@@ -342,6 +343,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self.activity_state: ProcessActivityStateEnum = "none"
         self.activity_port: str = ""
         self.activity_transition_callbacks: list[ActivityTransitionClient] = []
+        self._pending_processing_activity_task: asyncio.Task[None] | None = None
 
         self.init_from_metadata()
 
@@ -677,7 +679,13 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
     def _activity_message(self) -> ActivityInfoBuilder:
         return fbp_capnp.Process.ActivityInfo.new_message(state=self.activity_state, port=self.activity_port)
 
-    async def transition_to_activity(
+    def _cancel_pending_processing_activity(self) -> None:
+        task = self._pending_processing_activity_task
+        self._pending_processing_activity_task = None
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def _transition_to_activity_now(
         self,
         new_state: ProcessActivityStateEnum,
         port: str | None = None,
@@ -692,6 +700,39 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         new_info = self._activity_message()
         for cb in self.activity_transition_callbacks:
             await cb.activityChanged(old_info, new_info)
+
+    async def _commit_processing_activity_after_delay(self, delay_milliseconds: int) -> None:
+        task = asyncio.current_task()
+        try:
+            await asyncio.sleep(delay_milliseconds / 1000)
+            if self._pending_processing_activity_task is not task:
+                return
+            self._pending_processing_activity_task = None
+            await self._transition_to_activity_now("processing")
+        except asyncio.CancelledError:
+            pass
+
+    async def transition_to_activity(
+        self,
+        new_state: ProcessActivityStateEnum,
+        port: str | None = None,
+        delay_processing: bool = True,
+    ) -> None:
+        if new_state == "processing":
+            if self.activity_state == "processing" and self.activity_port == "":
+                return
+            self._cancel_pending_processing_activity()
+            if not delay_processing or DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS <= 0:
+                await self._transition_to_activity_now("processing")
+                return
+            self._pending_processing_activity_task = asyncio.create_task(
+                self._commit_processing_activity_after_delay(DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS),
+                name=f"{self.name or self.id}-processing-activity-delay",
+            )
+            return
+
+        self._cancel_pending_processing_activity()
+        await self._transition_to_activity_now(new_state, port)
 
     # start @5 ();
     @override
@@ -882,6 +923,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if chunk_ip.type == "closeBracket":
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
                 out_ip.attributes = list(open_ip.attributes)
+                await self.transition_to_activity("processing", delay_processing=False)
                 return out_ip
             if chunk_ip.type == "openBracket":
                 msg = f"{self.name} received a nested openBracket on input port '{name}'."
@@ -1135,7 +1177,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             try:
                 await self.transition_to_activity("waitingInput", f"{name}[{port_index}]")
                 msg = await port.read()
-                await self.transition_to_activity("processing")
             except capnp.KjException as e:
                 ports = self.array_in_ports.get(name)
                 if ports is not None and port_index < len(ports):
@@ -1156,6 +1197,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if chunk_ip.type == "closeBracket":
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
                 out_ip.attributes = list(open_ip.attributes)
+                await self.transition_to_activity("processing", delay_processing=False)
                 return out_ip
             if chunk_ip.type == "openBracket":
                 msg_text = f"{self.name} received a nested openBracket on array input port '{name}[{port_index}]'."
@@ -1219,6 +1261,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         description: str | None = None
 
         try:
+            await self.transition_to_activity("waitingOutput", name)
             await port.write(value=open_ip)
             open_sent = True
             for offset in range(0, len(data), DEFAULT_BRACKETED_CHUNK_SIZE):
@@ -1234,6 +1277,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if not aborted:
                 await port.write(value=close_ip)
                 close_sent = True
+            await self.transition_to_activity("processing")
         except capnp.KjException as e:
             rpc_error = e
             description = str(getattr(e, "description", e))
