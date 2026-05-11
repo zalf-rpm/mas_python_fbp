@@ -14,11 +14,11 @@ import asyncio
 import base64
 import json
 import logging
-import os
 import subprocess as sp
 import sys
 import uuid
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -55,11 +55,11 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
 
     # read flow file
     # flow_json = None
-    with open(config["path_to_flow"]) as _:
+    with Path(config["path_to_flow"]).open() as _:
         flow_json = json.load(_)
 
     if not flow_json:
-        logger.error("%s error: could not read flow file", os.path.basename(__file__))
+        logger.error("%s error: could not read flow file", Path(__file__).name)
         sys.exit(1)
 
     # create dicts for easy access to nodes and links
@@ -98,7 +98,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
     component_id_to_cmd = {}
     # create dict for easy access to cmds
     for ptc in path_to_cmds:
-        with open(ptc) as _:
+        with Path(ptc).open() as _:
             component_id_to_cmd.update(json.load(_))
 
     # a mapping of node_id to lambdas for process creation
@@ -262,11 +262,11 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
         for piw in port_infos_writers:
             piw.close()
 
-        logger.info("%s: all components finished", os.path.basename(__file__))
+        logger.info("%s: all components finished", Path(__file__).name)
 
         for channel in channels:
             channel.terminate()
-        logger.info("%s: all channels terminated", os.path.basename(__file__))
+        logger.info("%s: all channels terminated", Path(__file__).name)
 
     except Exception as e:
         for process in process_id_to_process.values():
@@ -275,7 +275,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
         for channel in channels:
             channel.terminate()
 
-        logger.exception("exception terminated %s early. Exception: %s", os.path.basename(__file__), e)
+        logger.exception("exception terminated %s early. Exception: %s", Path(__file__).name, e)
 
 
 if __name__ == "__main__":

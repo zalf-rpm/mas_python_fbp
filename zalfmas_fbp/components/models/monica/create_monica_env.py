@@ -15,8 +15,8 @@
 
 import json
 import logging
-import os
 import uuid
+from pathlib import Path
 from typing import Any
 
 from mas.schema.climate import climate_capnp
@@ -129,15 +129,15 @@ def create_env(sim, crop, site, crop_id):
     if scsc in create_env.cache:
         return create_env.cache[scsc]
 
-    with open(sim) as _:
+    with Path(sim).open() as _:
         sim_json = json.load(_)
 
-    with open(site) as _:
+    with Path(site).open() as _:
         site_json = json.load(_)
     # if len(scenario) > 0 and scenario[:3].lower() == "rcp":
     #    site_json["EnvironmentParameters"]["rcp"] = scenario
 
-    with open(crop) as _:
+    with Path(crop).open() as _:
         crop_json = json.load(_)
 
     # set the current crop used for this run id
@@ -333,10 +333,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["out"].write(value=out_ip)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

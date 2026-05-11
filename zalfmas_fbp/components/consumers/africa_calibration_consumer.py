@@ -15,9 +15,9 @@
 
 import json
 import logging
-import os
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
@@ -63,13 +63,14 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     )
     await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    path_to_out_file = os.path.join(config["path_to_out"], "/consumer.out")
-    if not os.path.exists(config["path_to_out"]):
+    path_to_out_dir = Path(config["path_to_out"])
+    path_to_out_file = path_to_out_dir / "consumer.out"
+    if not path_to_out_dir.exists():
         try:
-            os.makedirs(config["path_to_out"])
+            path_to_out_dir.mkdir(parents=True)
         except OSError:
             logger.error("run-calibration-consumer.py: Couldn't create dir: %s !", config["path_to_out"])
-    with open(path_to_out_file, "a") as _:
+    with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 
     country_id_to_year_to_yields = defaultdict(lambda: defaultdict(list))
@@ -93,9 +94,9 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             else:
                 envs_received += 1
 
-                out_str = f"{os.path.basename(__file__)}: received result customId: {custom_id}\n"
+                out_str = f"{Path(__file__).name}: received result customId: {custom_id}\n"
                 logger.info("%s", out_str.rstrip())
-                with open(path_to_out_file, "a") as _:
+                with path_to_out_file.open("a") as _:
                     _.write(out_str)
 
                 country_id = custom_id["country_id"]
@@ -107,9 +108,9 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                             country_id_to_year_to_yields[country_id][int(vals["Year"])].append(vals["Yield"])
 
             if no_of_envs_expected == envs_received:
-                out_str = f"{os.path.basename(__file__)}: {datetime.now()} last expected env received\n"
+                out_str = f"{Path(__file__).name}: {datetime.now()} last expected env received\n"
                 logger.info("%s", out_str.rstrip())
-                with open(path_to_out_file, "a") as _:
+                with path_to_out_file.open("a") as _:
                     _.write(out_str)
 
                 country_id_and_year_to_avg_yield = {}
@@ -131,10 +132,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     pc.in_ports["result"] = None
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {

@@ -14,8 +14,8 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -48,7 +48,7 @@ METADATA = meta.Component(
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
-    logger.info("%s: connected port(s)", os.path.basename(__file__))
+    logger.info("%s: connected port(s)", Path(__file__).name)
 
     while pc.in_ports["in"]:
         try:
@@ -65,12 +65,12 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             sys.stdout.flush()
 
         except capnp.KjException as e:
-            logger.error("%s: RPC Exception: %s", os.path.basename(__file__), e.description)
+            logger.error("%s: RPC Exception: %s", Path(__file__).name, e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -65,10 +65,10 @@ METADATA = meta.Component(
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    logger.info("%s: %s connected port(s)", os.path.basename(__file__), config["name"])
+    logger.info("%s: %s connected port(s)", Path(__file__).name, config["name"])
     _ = await p.update_config_from_port(config, pc.in_ports["conf"])
     if pc.in_ports["conf"]:
-        logger.info("%s: %s updated config from config port", os.path.basename(__file__), config["name"])
+        logger.info("%s: %s updated config from config port", Path(__file__).name, config["name"])
 
     while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
@@ -78,22 +78,22 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 continue
 
             s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-            logger.info("%s: %s received: %s", os.path.basename(__file__), config["name"], s)
+            logger.info("%s: %s received: %s", Path(__file__).name, config["name"], s)
             s = s.rstrip()
             vals = s.split(config["split_at"])
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)
                 await pc.out_ports["out"].write(value=out_ip)
-                logger.info("%s: %s sent: %s", os.path.basename(__file__), config["name"], val)
+                logger.info("%s: %s sent: %s", Path(__file__).name, config["name"], val)
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
+            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    logger.info("%s: %s process finished", os.path.basename(__file__), config["name"])
+    logger.info("%s: %s process finished", Path(__file__).name, config["name"])
 
 
 def main():

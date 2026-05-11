@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from capnp.lib.capnp import KjException
@@ -185,10 +185,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["out"].write(value=out_ip)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {

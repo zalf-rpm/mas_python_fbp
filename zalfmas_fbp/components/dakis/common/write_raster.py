@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -32,7 +31,7 @@ def write_raster_bytes(
         tmp_file.write(data)
 
     try:
-        os.replace(tmp_path, path)
+        tmp_path.replace(path)
     except Exception:
         tmp_path.unlink(missing_ok=True)
         raise

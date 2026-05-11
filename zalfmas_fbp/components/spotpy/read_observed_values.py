@@ -16,8 +16,8 @@
 import csv
 import json
 import logging
-import os
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
@@ -117,7 +117,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     country_ids = [country_ids]
 
             crop_to_country_to_year_to_value = defaultdict(lambda: defaultdict(dict))
-            with open(config["path_to_yield_data"]) as file:
+            with Path(config["path_to_yield_data"]).open() as file:
                 dialect = csv.Sniffer().sniff(file.read(), delimiters=";,\t")
                 file.seek(0)
                 reader = csv.reader(file, dialect)
@@ -151,10 +151,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["out"].write(value=out_ip)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

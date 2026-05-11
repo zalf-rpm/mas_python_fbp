@@ -16,7 +16,7 @@
 import csv
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
@@ -67,7 +67,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
     params = []
     if config["path_to_calibrate_csv"]:
-        with open(config["path_to_calibrate_csv"]) as params_csv:
+        with Path(config["path_to_calibrate_csv"]).open() as params_csv:
             dialect = csv.Sniffer().sniff(params_csv.read(), delimiters=";,\t")
             params_csv.seek(0)
             reader = csv.reader(params_csv, dialect)
@@ -97,10 +97,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["params"].close()
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

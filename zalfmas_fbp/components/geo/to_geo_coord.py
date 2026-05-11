@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -95,12 +95,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 raise Exception("Not enough values in list. Need at least two for a coordinate.")
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
+            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

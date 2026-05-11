@@ -18,7 +18,7 @@
 import csv
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
@@ -107,18 +107,18 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             out_path_attr = common.get_fbp_attr(in_ip, config["out_path_attr"])
             out_path = out_path_attr.as_text() if out_path_attr else config["path_to_out_dir"]
 
-            dir_ = out_path
-            if os.path.isdir(dir_) and os.path.exists(dir_):
+            dir_ = Path(out_path)
+            if dir_.is_dir() and dir_.exists():
                 pass
             else:
                 try:
-                    os.makedirs(dir_)
+                    dir_.mkdir(parents=True)
                 except OSError:
                     logger.error("c: Couldn't create dir: %s ! Exiting.", dir_)
                     exit(1)
 
-            filepath = os.path.join(dir_, config["file_pattern"].format(id=id_))
-            with open(filepath, "w") as _:
+            filepath = dir_ / config["file_pattern"].format(id=id_)
+            with filepath.open("w") as _:
                 writer = csv.writer(_, delimiter=config["delimiter"])
 
                 content_attr = common.get_fbp_attr(in_ip, config["from_attr"])
@@ -150,10 +150,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     writer.writerow([])
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

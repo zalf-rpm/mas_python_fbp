@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -100,10 +100,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
+            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

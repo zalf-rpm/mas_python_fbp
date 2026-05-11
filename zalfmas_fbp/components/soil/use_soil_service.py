@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
@@ -136,7 +136,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             else None
         )
         if not service:
-            logger.error("%s No soil service could be received or connected to.", os.path.basename(__file__))
+            logger.error("%s No soil service could be received or connected to.", Path(__file__).name)
             return
 
     mandatory = config["mandatory"]
@@ -173,10 +173,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 await pc.out_ports["out"].write(value=out_ip)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

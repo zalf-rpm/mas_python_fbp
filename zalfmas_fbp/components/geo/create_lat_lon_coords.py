@@ -15,7 +15,7 @@
 
 import json
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 from mas.schema.common import common_capnp
@@ -153,7 +153,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 ids_ip = msg.value.as_struct(fbp_capnp.IP)
                 country_ids = list(ids_ip.content.as_list())
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
         lat_lon_bounds = region_to_lat_lon_bounds.get(region)
 
@@ -168,7 +168,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
         lat_lons = []
         for lat_scaled in lats_scaled:
             lat = lat_scaled / s_res_scale_factor
-            logger.debug("%s latitude %.2f", os.path.basename(__file__), round(lat, 2))
+            logger.debug("%s latitude %.2f", Path(__file__).name, round(lat, 2))
 
             lons_scaled = range(
                 int(lat_lon_bounds["tl"]["lon"] * s_res_scale_factor),
@@ -200,10 +200,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 out_ip = fbp_capnp.IP.new_message(content=json.dumps(lat_lons))
                 await pc.out_ports["out"].write(value=out_ip)
             except Exception:
-                logger.exception("%s Exception", os.path.basename(__file__))
+                logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

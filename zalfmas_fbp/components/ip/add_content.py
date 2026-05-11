@@ -13,7 +13,6 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import os
 from typing import Any
 
 import capnp
@@ -99,14 +98,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 common.copy_and_set_fbp_attrs(in_ip, out_ip)
             await pc.out_ports["out"].write(value=out_ip)
 
-        except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+        except capnp.KjException:
+            pass
 
     await pc.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
 
 
 def main():

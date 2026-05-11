@@ -22,6 +22,7 @@ import subprocess as sp
 import sys
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -106,14 +107,14 @@ def handle_default_fpb_component_args(parser: argparse.ArgumentParser, component
         _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         exit(0)
     elif args.write_json_default_config:
-        with open(args.write_json_default_config, "w") as _:
+        with Path(args.write_json_default_config).open("w") as _:
             json.dump(default_config, _, indent=4)
             exit(0)
     elif args.output_json_component_metadata:
         _ = sys.stdout.write(json.dumps(metadata_json, indent=4) + "\n")
         exit(0)
     elif args.write_json_component_metadata:
-        with open(args.write_json_component_metadata, "w") as _:
+        with Path(args.write_json_component_metadata).open("w") as _:
             json.dump(metadata_json, _, indent=4)
             exit(0)
     elif args.port_infos_reader_sr is not None:

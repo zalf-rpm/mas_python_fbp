@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import tomllib
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from capnp.lib.capnp import (
@@ -110,7 +110,7 @@ async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
                 except (KjException, TypeError, ValueError):
                     pass
         except Exception:
-            logger.exception("%s read_dict_from_port.", os.path.basename(__file__))
+            logger.exception("%s read_dict_from_port.", Path(__file__).name)
     return d
 
 
@@ -167,22 +167,22 @@ class PortConnector:
                 try:
                     await port.close()
                     if print_info:
-                        logger.info("%s: closed out port '%s'", os.path.basename(__file__), name)
+                        logger.info("%s: closed out port '%s'", Path(__file__).name, name)
                 except (KjException, RuntimeError) as e:
                     if print_exception:
-                        logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
+                        logger.error("%s: Exception closing out port '%s': %s", Path(__file__).name, name, e)
         for name, array_ports in self.array_out_ports.items():
             for i, port in enumerate(array_ports):
                 if port is not None:
                     try:
                         await port.close()
                         if print_info:
-                            logger.info("%s: closed array out port '%s[%s]'", os.path.basename(__file__), name, i)
+                            logger.info("%s: closed array out port '%s[%s]'", Path(__file__).name, name, i)
                     except (KjException, RuntimeError) as e:
                         if print_exception:
                             logger.error(
                                 "%s: Exception closing array out port '%s[%s]': %s",
-                                os.path.basename(__file__),
+                                Path(__file__).name,
                                 name,
                                 i,
                                 e,
@@ -264,7 +264,7 @@ class PortConnector:
         except Exception:
             logger.exception(
                 "%s: Exception connecting to ports via CMD config:\n%s",
-                os.path.basename(__file__),
+                Path(__file__).name,
                 config,
             )
 
@@ -293,7 +293,7 @@ class PortConnector:
             except (KjException, RuntimeError, OSError, TypeError) as e:
                 logger.error(
                     "%s: Error: Couldn't connect to capability from port '%s'. Exception: %s",
-                    os.path.basename(__file__),
+                    Path(__file__).name,
                     in_port_id,
                     e,
                 )
@@ -364,7 +364,7 @@ class PortConnector:
         except Exception:
             logger.exception(
                 "%s: Exception connecting to ports via port infos reader SR:\n%s",
-                os.path.basename(__file__),
+                Path(__file__).name,
                 port_infos_reader_sr,
             )
 
@@ -420,7 +420,7 @@ class PortConnector:
         except Exception:
             logger.exception(
                 "%s: Exception connecting to ports via toml:\n%s",
-                os.path.basename(__file__),
+                Path(__file__).name,
                 toml_config,
             )
 
@@ -453,7 +453,7 @@ class PortConnector:
         except (KjException, RuntimeError, OSError, TypeError, ValueError, KeyError) as e:
             logger.error(
                 "%s: Exception connecting to config reader via sr (%s): %s",
-                os.path.basename(__file__),
+                Path(__file__).name,
                 config_reader_sr,
                 e,
             )

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import override
@@ -100,7 +99,7 @@ class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):
                 async for chunk in stream:
                     tmp_file.write(chunk)
 
-            os.replace(tmp_path, output_path)
+            tmp_path.replace(output_path)
         except Exception:
             if tmp_path is not None:
                 tmp_path.unlink(missing_ok=True)

@@ -15,9 +15,9 @@
 
 import json
 import logging
-import os
 import time
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -127,10 +127,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             "path-to-soil-dir": "/home/berg/Desktop/soil/",
             "monica-path-to-climate-dir": "/run/user/1000/gvfs/sftp:host=login01.cluster.zalf.de,user=rpm/beegfs/common/data/climate/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": os.path.join(
-                config["path_to_repo"],
-                "data/",
-            ),  # mounted path to archive or hard drive with data
+            "path-to-data-dir": str(Path(config["path_to_repo"]) / "data"),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
         "mbm-local-remote": {
@@ -149,21 +146,19 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             "path-to-soil-dir": "/beegfs/common/data/soil/global_soil_dataset_for_earth_system_modeling/",
             "monica-path-to-climate-dir": "/monica_data/climate-data/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": os.path.join(
-                config["path_to_repo"],
-                "data/",
-            ),  # mounted path to archive or hard drive with data
+            "path-to-data-dir": str(Path(config["path_to_repo"]) / "data"),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
     }
 
-    path_to_out_file = config["path_to_out"] + "/producer.out"
-    if not os.path.exists(config["path_to_out"]):
+    path_to_out_dir = Path(config["path_to_out"])
+    path_to_out_file = path_to_out_dir / "producer.out"
+    if not path_to_out_dir.exists():
         try:
-            os.makedirs(config["path_to_out"])
+            path_to_out_dir.mkdir(parents=True)
         except OSError:
             logger.error("run-calibration-producer.py: Couldn't create dir: %s !", config["path_to_out"])
-    with open(path_to_out_file, "a") as _:
+    with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 
     s_resolution = {"5min": 5 / 60.0, "30sec": 30 / 3600.0}[config["resolution"]]
@@ -322,7 +317,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 params_ip = msg.value.as_struct(fbp_capnp.IP)
                 params = json.loads(params_ip.content.as_text())
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
             continue
 
         start_setup_time = time.perf_counter()
@@ -368,24 +363,24 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
         )
 
         # read template sim.json
-        with open(os.path.join(config["path_to_repo"], setup.get("sim.json", config["sim.json"]))) as _:
+        with (Path(config["path_to_repo"]) / setup.get("sim.json", config["sim.json"])).open() as _:
             sim_json = json.load(_)
         # change start and end date according to setup
         if setup["start_date"]:
             sim_json["climate.csv-options"]["start-date"] = str(setup["start_date"])
         if setup["end_date"]:
             sim_json["climate.csv-options"]["end-date"] = str(setup["end_date"])
-        sim_json["include-file-base-path"] = os.path.join(config["path_to_repo"], sim_json["include-file-base-path"])
+        sim_json["include-file-base-path"] = str(Path(config["path_to_repo"]) / sim_json["include-file-base-path"])
 
         # read template site.json
-        with open(os.path.join(config["path_to_repo"], setup.get("site.json", config["site.json"]))) as _:
+        with (Path(config["path_to_repo"]) / setup.get("site.json", config["site.json"])).open() as _:
             site_json = json.load(_)
 
         if len(scenario) > 0 and scenario[:3].lower() == "ssp":
             site_json["EnvironmentParameters"]["rcp"] = f"rcp{scenario[-2:]}"
 
         # read template crop.json
-        with open(os.path.join(config["path_to_repo"], setup.get("crop.json", config["crop.json"]))) as _:
+        with (Path(config["path_to_repo"]) / setup.get("crop.json", config["crop.json"])).open() as _:
             crop_json = json.load(_)
             # set current crop
             for ws in crop_json["cropRotation"][0]["worksteps"]:
@@ -562,7 +557,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     ),
                 )
             except Exception:
-                logger.exception("%s Exception", os.path.basename(__file__))
+                logger.exception("%s Exception", Path(__file__).name)
                 continue
 
             sent_env_count += 1
@@ -586,23 +581,23 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     ),
                 )
             except Exception:
-                logger.exception("%s Exception", os.path.basename(__file__))
+                logger.exception("%s Exception", Path(__file__).name)
                 continue
 
         stop_setup_time = time.perf_counter()
-        print_str = f"{os.path.basename(__file__)}: {datetime.now()} Sending {sent_env_count} envs took {stop_setup_time - start_setup_time} seconds\n"
+        print_str = f"{Path(__file__).name}: {datetime.now()} Sending {sent_env_count} envs took {stop_setup_time - start_setup_time} seconds\n"
         logger.info("%s", print_str.rstrip())
-        with open(path_to_out_file, "a") as _:
+        with path_to_out_file.open("a") as _:
             _.write(print_str)
 
     stop_component_time = time.perf_counter()
-    print_str = f"{os.path.basename(__file__)}: {datetime.now()} Running component took {stop_component_time - start_component_time} seconds\n"
+    print_str = f"{Path(__file__).name}: {datetime.now()} Running component took {stop_component_time - start_component_time} seconds\n"
     logger.info("%s", print_str.rstrip())
-    with open(path_to_out_file, "a") as _:
+    with path_to_out_file.open("a") as _:
         _.write(print_str)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {

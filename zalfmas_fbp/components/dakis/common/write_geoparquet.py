@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from contextlib import closing
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -38,7 +37,7 @@ def write_geoparquet_bytes(
         tmp_file.write(data)
 
     try:
-        os.replace(tmp_path, path)
+        tmp_path.replace(path)
     except Exception:
         tmp_path.unlink(missing_ok=True)
         raise

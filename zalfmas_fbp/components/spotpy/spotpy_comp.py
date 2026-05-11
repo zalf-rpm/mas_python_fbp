@@ -16,10 +16,10 @@
 import asyncio
 import io
 import logging
-import os
 import tempfile
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -123,7 +123,7 @@ class SpotPySetup:
             out_ip = fbp_capnp.IP.new_message(content=n2p_list)
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self.sampled_params_out_p.write(value=out_ip))
-            logger.info("%s %s sent params to monica setup: %s", os.path.basename(__file__), datetime.now(), vector)
+            logger.info("%s %s sent params to monica setup: %s", Path(__file__).name, datetime.now(), vector)
             if self.log_out_p:
                 loop.run_until_complete(
                     self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"}),
@@ -147,7 +147,7 @@ class SpotPySetup:
                 )
             assert len(sim_values) == len(self.observations)
         except Exception:
-            logger.exception("%s %s exception", os.path.basename(__file__), datetime.now())
+            logger.exception("%s %s exception", Path(__file__).name, datetime.now())
 
         return sim_values
 
@@ -224,11 +224,11 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                             par_name += f"_{par['array']}"
                         spotpy_params.append(spotpy.parameter.Uniform(**par))
                     if len(spotpy_params) == 0:
-                        logger.warning("%s: no parameters to calibrate!", os.path.basename(__file__))
+                        logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
                         continue
 
                 except Exception:
-                    logger.exception("%s Exception", os.path.basename(__file__))
+                    logger.exception("%s Exception", Path(__file__).name)
                     continue
 
             obs_values = None
@@ -247,10 +247,10 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                             param_set_id = attr.value.as_text()
                     obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
                     if not obs_values or len(obs_values) == 0:
-                        logger.warning("%s: no observed values to calibrate!", os.path.basename(__file__))
+                        logger.warning("%s: no observed values to calibrate!", Path(__file__).name)
                         continue
                 except Exception:
-                    logger.exception("%s Exception", os.path.basename(__file__))
+                    logger.exception("%s Exception", Path(__file__).name)
                     continue
 
             spot_setup = SpotPySetup(
@@ -298,13 +298,13 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             plt.close(fig)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
         if db_dir:
             db_dir.cleanup()
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

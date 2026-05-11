@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 import capnp
@@ -102,8 +102,8 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             content_attr = common.get_fbp_attr(in_ip, config["from_attr"])
             content = content_attr.as_text() if content_attr else in_ip.content.as_text()
 
-            filepath = config["path_to_out_dir"] + config["filepath_pattern"].format(id=id)
-            with open(filepath, "at" if config["append"] else "wt") as _:
+            filepath = Path(config["path_to_out_dir"]) / config["filepath_pattern"].format(id=id)
+            with filepath.open("at" if config["append"] else "wt") as _:
                 _.write(content)
                 count += 1
 
@@ -111,15 +111,15 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 logger.info("wrote %s", filepath)
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", os.path.basename(__file__), config["name"], e.description)
+            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():

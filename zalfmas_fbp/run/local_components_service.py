@@ -18,12 +18,12 @@ import asyncio
 import copy
 import json
 import logging
-import os.path
 import subprocess as sp
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, override
 
 import capnp
@@ -436,12 +436,14 @@ async def main():
     configure_logging(args.log_level)
 
     # load components cache
-    if os.path.exists(config["service"]["path_to_components_cache_json"]):
-        with open(config["service"]["path_to_components_cache_json"]) as f:
+    cache_path = Path(config["service"]["path_to_components_cache_json"])
+    cmds_path = Path(config["service"]["path_to_cmds_json"])
+    if cache_path.exists():
+        with cache_path.open() as f:
             components_cache = json.load(f)
     else:
         components_cache = {}
-    with open(config["service"]["path_to_cmds_json"]) as f:
+    with cmds_path.open() as f:
         cmds = json.load(f)
 
     cs = config.get("service", {})
@@ -454,7 +456,7 @@ async def main():
         log_level=args.log_level,
     )
     # update components cache
-    with open(config["service"]["path_to_components_cache_json"], "w") as f:
+    with cache_path.open("w") as f:
         json.dump(components_cache, f, indent=4)
 
     service = Service(

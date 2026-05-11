@@ -15,7 +15,7 @@
 
 import json
 import logging
-import os
+from pathlib import Path
 
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
@@ -172,7 +172,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                                         attr_val = json.loads(attr_val.value)
 
                                     # is array index
-                                    if type(field_name) == int:
+                                    if isinstance(field_name, int):
                                         if len(attr_val) > field_name:
                                             attr_val = attr_val[field_name]
                                     # is json access
@@ -234,7 +234,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                         except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
                             logger.warning(
                                 "%s: couldn't apply %s operation %s: %s",
-                                os.path.basename(__file__),
+                                Path(__file__).name,
                                 op,
                                 co,
                                 e,
@@ -247,10 +247,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             await pc.out_ports["out"].write(value=out_ip)
 
         except Exception:
-            logger.exception("%s Exception", os.path.basename(__file__))
+            logger.exception("%s Exception", Path(__file__).name)
 
     await pc.close_out_ports()
-    logger.info("%s: process finished", os.path.basename(__file__))
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
