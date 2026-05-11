@@ -78,7 +78,7 @@ class FilterGeoparquetByRaster(process.Process[FilterGeoparquetByRasterConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self.read_in("in", True)
+            in_msg = await self.read_in("in", automatic_chunking=True)
             if in_msg is None:
                 break
 
@@ -89,10 +89,10 @@ class FilterGeoparquetByRaster(process.Process[FilterGeoparquetByRasterConfig]):
                     self.config.geoparquet_path,
                 )
 
-                if not await self.write_out("out", _data_ip(geoparquet_bytes), True):
+                if not await self.write_out("out", _data_ip(geoparquet_bytes), automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
-                _ = await self.write_out("raster", _data_ip(raster_bytes), True)
+                _ = await self.write_out("raster", _data_ip(raster_bytes), automatic_chunking=True)
                 logger.info("%s sent %s GeoParquet bytes", self.name, len(geoparquet_bytes))
 
             except (OSError, TypeError, ValueError):

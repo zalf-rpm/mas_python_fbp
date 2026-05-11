@@ -848,14 +848,17 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
     def stopping(self) -> bool:
         return self._stop_requested.is_set()
 
-    async def read_in(self, name: str, bracketed: bool = False) -> IPReader | IPBuilder | None:
+    async def read_in(self, name: str, automatic_chunking: bool = False) -> IPReader | IPBuilder | None:
         in_ip = await self._read_in_raw(name)
         if in_ip is None:
             return None
 
         if in_ip.type == "openBracket":
-            if not bracketed:
-                msg = f"{self.name} received a bracketed payload on input port '{name}', but bracketed reading is disabled."
+            if not automatic_chunking:
+                msg = (
+                    f"{self.name} received an automatically chunked payload on input port '{name}', "
+                    "but automatic chunking is disabled."
+                )
                 raise InputPortReadError(self.name, name, msg)
             return await self._read_bracketed_payload(name, in_ip)
 
@@ -948,7 +951,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-        bracketed: bool = False,
+        automatic_chunking: bool = False,
     ) -> list[IPReader | IPBuilder] | None: ...
 
     @overload
@@ -956,14 +959,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-        bracketed: bool = False,
+        automatic_chunking: bool = False,
     ) -> IPReader | IPBuilder | None: ...
 
     async def read_array_in(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-        bracketed: bool = False,
+        automatic_chunking: bool = False,
     ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
         strategy = ArrayInStrategy(strategy)
         if self._stop_requested.is_set():
@@ -985,8 +988,11 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             port_index, in_ip = next_result
             await self.transition_to_activity("processing")
             if in_ip.type == "openBracket":
-                if not bracketed:
-                    msg = f"{self.name} received a bracketed payload on array input port '{name}', but bracketed reading is disabled."
+                if not automatic_chunking:
+                    msg = (
+                        f"{self.name} received an automatically chunked payload on array input port '{name}', "
+                        "but automatic chunking is disabled."
+                    )
                     raise InputPortReadError(self.name, name, msg)
                 port = ports[port_index]
                 if port is None:
@@ -1055,10 +1061,13 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
             await self.transition_to_activity("processing")
             ordered_results: list[IPReader | IPBuilder] = [results[i] for i, _port in active_ports]
-            if not bracketed:
+            if not automatic_chunking:
                 bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
                 if bracketed_results:
-                    msg = f"{self.name} received a bracketed payload on array input port '{name}', but bracketed reading is disabled."
+                    msg = (
+                        f"{self.name} received an automatically chunked payload on array input port '{name}', "
+                        "but automatic chunking is disabled."
+                    )
                     raise InputPortReadError(self.name, name, msg)
                 return ordered_results
             return await self._coalesce_bracketed_array_results(name, active_ports, ports, ordered_results)
@@ -1211,8 +1220,8 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             _ = task.cancel()
         _ = await asyncio.gather(*pending, return_exceptions=True)
 
-    async def write_out(self, name: str, message: IPBuilder, bracketed: bool = False) -> bool:
-        if bracketed:
+    async def write_out(self, name: str, message: IPBuilder, automatic_chunking: bool = False) -> bool:
+        if automatic_chunking:
             return await self._write_out_bracketed(name, message)
         return await self._write_out_single(name, message)
 

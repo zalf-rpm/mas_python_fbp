@@ -80,7 +80,7 @@ class MergeGeoparquet(process.Process[MergeGeoparquetConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            messages = await self.read_array_in("in", process.ArrayInStrategy.ZIP, True)
+            messages = await self.read_array_in("in", process.ArrayInStrategy.ZIP, automatic_chunking=True)
             if messages is None:
                 break
 
@@ -92,7 +92,7 @@ class MergeGeoparquet(process.Process[MergeGeoparquetConfig]):
                     priority_column=self.config.priority_column,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes), True):
+                if not await self.write_out("out", _data_ip(output_bytes), automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s merged GeoParquet bytes", self.name, len(output_bytes))

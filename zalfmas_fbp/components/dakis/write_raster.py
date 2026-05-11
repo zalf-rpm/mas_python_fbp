@@ -91,7 +91,7 @@ class WriteRaster(process.Process[WriteRasterConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self.read_in("in", True)
+            in_msg = await self.read_in("in", automatic_chunking=True)
             if in_msg is None:
                 break
 
@@ -108,7 +108,7 @@ class WriteRaster(process.Process[WriteRasterConfig]):
                     filename=self.config.filename,
                     content_type="image/tiff",
                 )
-                if not await self.write_out("out", out_ip, True):
+                if not await self.write_out("out", out_ip, automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s prepared GeoTIFF file payload", self.name)

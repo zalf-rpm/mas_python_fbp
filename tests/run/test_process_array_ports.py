@@ -577,7 +577,7 @@ def test_read_array_in_next_available_skips_done_ports() -> None:
     assert component.array_in_ports["items"][0] is None
 
 
-def test_read_array_in_next_available_bracketed_coalesces_chunks() -> None:
+def test_read_array_in_next_available_automatic_chunking_coalesces_chunks() -> None:
     component = process.Process(metadata=_array_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     close_ip = fbp_capnp.IP.new_message(type="closeBracket")
@@ -596,13 +596,15 @@ def test_read_array_in_next_available_bracketed_coalesces_chunks() -> None:
         ),
     ]
 
-    message = asyncio.run(component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, True))
+    message = asyncio.run(
+        component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, automatic_chunking=True)
+    )
 
     assert message is not None
     assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
 
 
-def test_read_in_rejects_bracketed_payload_when_disabled() -> None:
+def test_read_in_rejects_automatic_chunked_payload_when_disabled() -> None:
     component = process.Process(metadata=_standard_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     component.in_ports["in"] = cast("Any", InMemoryReader([PortMessage(PortValue(open_ip)), done_message()]))
@@ -610,12 +612,14 @@ def test_read_in_rejects_bracketed_payload_when_disabled() -> None:
     try:
         asyncio.run(component.read_in("in"))
     except process.InputPortReadError as exc:
-        assert "bracketed reading is disabled" in str(exc)
+        assert "automatic chunking is disabled" in str(exc)
     else:
-        raise AssertionError("read_in should reject bracketed payloads unless bracketed is enabled")
+        raise AssertionError(
+            "read_in should reject automatically chunked payloads unless automatic_chunking is enabled"
+        )
 
 
-def test_read_in_bracketed_coalesces_chunks() -> None:
+def test_read_in_automatic_chunking_coalesces_chunks() -> None:
     component = process.Process(metadata=_standard_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     first = _data_ip(b"pa")
@@ -634,13 +638,13 @@ def test_read_in_bracketed_coalesces_chunks() -> None:
         ),
     )
 
-    message = asyncio.run(component.read_in("in", True))
+    message = asyncio.run(component.read_in("in", automatic_chunking=True))
 
     assert message is not None
     assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
 
 
-def test_read_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
+def test_read_in_automatic_chunking_remains_waiting_input_until_close_bracket() -> None:
     async def run_test() -> None:
         component = process.Process(metadata=_standard_port_meta())
         open_ip = fbp_capnp.IP.new_message(type="openBracket")
@@ -657,7 +661,7 @@ def test_read_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
             ),
         )
 
-        read_task = asyncio.create_task(component.read_in("in", True))
+        read_task = asyncio.create_task(component.read_in("in", automatic_chunking=True))
         await asyncio.sleep(0.015)
 
         assert component.activity_state == "waitingInput"
@@ -672,7 +676,7 @@ def test_read_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
     asyncio.run(run_test())
 
 
-def test_read_array_in_bracketed_remains_waiting_input_until_close_bracket() -> None:
+def test_read_array_in_automatic_chunking_remains_waiting_input_until_close_bracket() -> None:
     async def run_test() -> None:
         component = process.Process(metadata=_array_port_meta())
         open_ip = fbp_capnp.IP.new_message(type="openBracket")
@@ -691,7 +695,9 @@ def test_read_array_in_bracketed_remains_waiting_input_until_close_bracket() -> 
             ),
         ]
 
-        read_task = asyncio.create_task(component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, True))
+        read_task = asyncio.create_task(
+            component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, automatic_chunking=True)
+        )
         await asyncio.sleep(0.015)
 
         assert component.activity_state == "waitingInput"
@@ -706,13 +712,13 @@ def test_read_array_in_bracketed_remains_waiting_input_until_close_bracket() -> 
     asyncio.run(run_test())
 
 
-def test_write_out_bracketed_chunks_data(monkeypatch) -> None:
+def test_write_out_automatic_chunking_chunks_data(monkeypatch) -> None:
     monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = InMemoryWriter()
     component.out_ports["out"] = cast("Any", writer)
 
-    assert asyncio.run(component.write_out("out", _data_ip(b"payload"), True)) is True
+    assert asyncio.run(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True)) is True
 
     assert [ip.type for ip in writer.values] == [
         "openBracket",
@@ -725,7 +731,7 @@ def test_write_out_bracketed_chunks_data(monkeypatch) -> None:
     assert b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in writer.values[1:-1]) == b"payload"
 
 
-def test_write_out_bracketed_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
+def test_write_out_automatic_chunking_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
     async def run_test() -> None:
         monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
         component = process.Process(metadata=_standard_port_meta())
@@ -733,7 +739,7 @@ def test_write_out_bracketed_remains_waiting_output_until_close_bracket(monkeypa
         writer = _StepBlockingWriter(release)
         component.out_ports["out"] = cast("Any", writer)
 
-        write_task = asyncio.create_task(component.write_out("out", _data_ip(b"payload"), True))
+        write_task = asyncio.create_task(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True))
         await writer.blocking_started.wait()
 
         assert component.activity_state == "waitingOutput"
@@ -746,14 +752,14 @@ def test_write_out_bracketed_remains_waiting_output_until_close_bracket(monkeypa
     asyncio.run(run_test())
 
 
-def test_write_out_bracketed_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
+def test_write_out_automatic_chunking_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
     monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = _FailOnceThenWriteWriter()
     component.out_ports["out"] = cast("Any", writer)
 
     try:
-        asyncio.run(component.write_out("out", _data_ip(b"payload"), True))
+        asyncio.run(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True))
     except process.OutputPortWriteError as exc:
         assert "temporary mid-stream failure" in str(exc)
     else:

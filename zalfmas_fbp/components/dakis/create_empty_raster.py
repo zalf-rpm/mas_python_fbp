@@ -106,7 +106,7 @@ class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
                 )
 
                 out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))
-                if not await self.write_out("out", out_ip, True):
+                if not await self.write_out("out", out_ip, automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent raster with %s bytes", self.name, len(raster_bytes))

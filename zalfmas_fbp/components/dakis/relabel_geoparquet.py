@@ -107,12 +107,12 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
         mapping_csv_bytes = None
 
         while True:
-            in_msg = await self.read_in("in", True)
+            in_msg = await self.read_in("in", automatic_chunking=True)
             if in_msg is None:
                 break
 
             try:
-                translation_msg = await self.read_in("translation", True)
+                translation_msg = await self.read_in("translation", automatic_chunking=True)
                 if translation_msg is not None:
                     mapping_csv_path, mapping_csv_bytes = _read_translation(
                         translation_msg,
@@ -130,7 +130,7 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
                     default_priority=self.config.default_priority,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes), True):
+                if not await self.write_out("out", _data_ip(output_bytes), automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s relabeled GeoParquet bytes", self.name, len(output_bytes))

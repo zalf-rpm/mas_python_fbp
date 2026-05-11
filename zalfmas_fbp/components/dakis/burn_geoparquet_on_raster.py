@@ -99,10 +99,10 @@ class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            raster_msg = await self.read_in("raster", True)
+            raster_msg = await self.read_in("raster", automatic_chunking=True)
             if raster_msg is None:
                 break
-            geometries_msg = await self.read_in("geometries", True)
+            geometries_msg = await self.read_in("geometries", automatic_chunking=True)
             if geometries_msg is None:
                 break
 
@@ -118,7 +118,7 @@ class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):
                     compression=None if self.config.compression == "preserve" else self.config.compression,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes), True):
+                if not await self.write_out("out", _data_ip(output_bytes), automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s burned raster bytes", self.name, len(output_bytes))

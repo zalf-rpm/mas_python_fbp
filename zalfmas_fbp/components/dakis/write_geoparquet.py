@@ -85,7 +85,7 @@ class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self.read_in("in", True)
+            in_msg = await self.read_in("in", automatic_chunking=True)
             if in_msg is None:
                 break
 
@@ -101,7 +101,7 @@ class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):
                     filename=self.config.filename,
                     content_type="application/geoparquet",
                 )
-                if not await self.write_out("out", out_ip, True):
+                if not await self.write_out("out", out_ip, automatic_chunking=True):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s prepared GeoParquet file payload", self.name)
