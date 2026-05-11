@@ -22,25 +22,40 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "climate", "name": "Climate"},
-        "info": {
-            "id": "79723094-0972-48ec-b219-030dae730063",
-            "name": "climate service -> dataset",
-            "description": "Send capabilities to the datasets available at climate service downstream.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "cs"}],
-        "outPorts": [{"name": "ds"}],
-        "defaultConfig": {
-            "to_attr": {"value": None, "type": "string", "desc": "send content instead in 'to_attr'"},
-            "create_substream": {"value": False},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="79723094-0972-48ec-b219-030dae730063",
+        name="climate service -> dataset",
+        description="Send capabilities to the datasets available at climate service downstream.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="cs",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="ds",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="send content instead in 'to_attr'",
+        ),
+        "create_substream": meta.ConfigEntry(
+            value=False,
+        ),
     },
 )
 

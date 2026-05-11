@@ -24,46 +24,70 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "spotpy", "name": "Spotpy"},
-        "info": {
-            "id": "993e5cdf-1c55-4a75-9538-e7906676fedb",
-            "name": "read observed values",
-            "description": "Read the observed values for the calibration.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "country_ids",
-                "contentType": "Text (JSON Array or Number)",
-                "desc": "[1,2,3] :string of serialized json array containing country ids",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text",
-                "desc": "{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield",
-            },
-        ],
-        "defaultConfig": {
-            "path_to_yield_data": {"value": "data/FAO_yield_data.csv", "type": "string", "desc": "path to yield data"},
-            "crop": {"value": "maize", "type": "string", "desc": "crop to calibrate, e.g. maize | millet | sorghum"},
-            "from_year": {"value": 2010, "type": "int", "desc": "start year for calibration"},
-            "to_year": {"value": 2020, "type": "int", "desc": "end year for calibration"},
-            "no_data_value": {"value": -9999, "type": "int", "desc": "no data value"},
-            "default_country_ids": {
-                "value": [],
-                "type": "list",
-                "desc": "string of serialized json array containing country ids",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="spotpy",
+        name="Spotpy",
+    ),
+    info=meta.Info(
+        id="993e5cdf-1c55-4a75-9538-e7906676fedb",
+        name="read observed values",
+        description="Read the observed values for the calibration.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="country_ids",
+            contentType="Text (JSON Array or Number)",
+            desc="[1,2,3] :string of serialized json array containing country ids",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+            desc="{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield",
+        ),
+    ],
+    defaultConfig={
+        "path_to_yield_data": meta.ConfigEntry(
+            value="data/FAO_yield_data.csv",
+            type="string",
+            desc="path to yield data",
+        ),
+        "crop": meta.ConfigEntry(
+            value="maize",
+            type="string",
+            desc="crop to calibrate, e.g. maize | millet | sorghum",
+        ),
+        "from_year": meta.ConfigEntry(
+            value=2010,
+            type="int",
+            desc="start year for calibration",
+        ),
+        "to_year": meta.ConfigEntry(
+            value=2020,
+            type="int",
+            desc="end year for calibration",
+        ),
+        "no_data_value": meta.ConfigEntry(
+            value=-9999,
+            type="int",
+            desc="no data value",
+        ),
+        "default_country_ids": meta.ConfigEntry(
+            value=[],
+            type="list",
+            desc="string of serialized json array containing country ids",
+        ),
     },
 )
 

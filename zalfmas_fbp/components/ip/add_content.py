@@ -22,39 +22,47 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "ip", "name": "IP (Flow packages)"},
-        "info": {
-            "id": "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
-            "name": "Add content",
-            "description": "Add content to incoming IP, optionally moving the old to an attribute.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "in", "contentType": "AnyPointer", "desc": "Arbitrary IP from upstream."},
-            {
-                "name": "content",
-                "contentType": "AnyPointer",
-                "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
-            },
-        ],
-        "defaultConfig": {
-            "to_attr": {
-                "value": "attr",
-                "type": "Text",
-                "desc": "The attribute's name to add to the outgoing message.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
+        name="Add content",
+        description="Add content to incoming IP, optionally moving the old to an attribute.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="Arbitrary IP from upstream.",
+        ),
+        meta.Port(
+            name="content",
+            contentType="AnyPointer",
+            desc="Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            desc="IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value="attr",
+            type="Text",
+            desc="The attribute's name to add to the outgoing message.",
+        ),
     },
 )
 

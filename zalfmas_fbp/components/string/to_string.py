@@ -20,34 +20,46 @@ from typing import Any
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "string", "name": "String"},
-        "info": {
-            "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
-            "name": "to string",
-            "description": "Outputs input structures as string (if possible).",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "in", "contentType": "AnyStruct"},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "Text"}],
-        "defaultConfig": {
-            "struct_type": {
-                "value": None,
-                "type": "string",
-                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="string",
+        name="String",
+    ),
+    info=meta.Info(
+        id="250488d8-7519-49a8-820e-0e981ffb2a71",
+        name="to string",
+        description="Outputs input structures as string (if possible).",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="AnyStruct",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+        ),
+    ],
+    defaultConfig={
+        "struct_type": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
+        ),
     },
 )
 
@@ -59,7 +71,7 @@ class ToStringConfig(process.ProcessConfig):
 class ToString(process.Process[ToStringConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

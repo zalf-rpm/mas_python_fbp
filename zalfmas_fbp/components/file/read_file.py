@@ -22,41 +22,55 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "file", "name": "File"},
-        "info": {
-            "id": "7ba769ca-eba1-437c-b61a-bef27e24b1dc",
-            "name": "read file",
-            "description": "Read a file and send full string or lines downstream.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"}],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text",
-                "desc": "Output either full file content or each line as as separate message.",
-            },
-        ],
-        "defaultConfig": {
-            "to_attr": {"value": None, "type": "string", "desc": "store read file content into 'to_attr'"},
-            "file": {"value": "", "type": "string", "desc": "Path to file to read."},
-            "lines_mode": {
-                "value": True,
-                "type": "bool",
-                "desc": "Send single lines if true else send whole file content at once.",
-            },
-            "skip_lines": {
-                "value": 0,
-                "type": "int",
-                "desc": "If lines mode is true, skip that many lines at the beginning of the file.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="file",
+        name="File",
+    ),
+    info=meta.Info(
+        id="7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+        name="read file",
+        description="Read a file and send full string or lines downstream.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+            desc="Output either full file content or each line as as separate message.",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="store read file content into 'to_attr'",
+        ),
+        "file": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Path to file to read.",
+        ),
+        "lines_mode": meta.ConfigEntry(
+            value=True,
+            type="bool",
+            desc="Send single lines if true else send whole file content at once.",
+        ),
+        "skip_lines": meta.ConfigEntry(
+            value=0,
+            type="int",
+            desc="If lines mode is true, skip that many lines at the beginning of the file.",
+        ),
     },
 )
 

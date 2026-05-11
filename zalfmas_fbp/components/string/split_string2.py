@@ -20,28 +20,34 @@ from typing import override
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "string", "name": "String"},
-        "info": {
-            "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
-            "name": "split string2",
-            "description": "Splits a string along delimiter.",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "in", "contentType": "Text"},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "Text"}],
-        "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "split string at this character"}},
+METADATA = meta.Component(
+    category=meta.Category(id="string", name="String"),
+    info=meta.Info(
+        id="d44040ab-7d5a-44d1-94e8-3f79969edbd4",
+        name="split string2",
+        description="Splits a string along delimiter.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(name="in", contentType="Text"),
+        meta.Port(name="conf", contentType="common.capnp:StructuredText[JSON | TOML]"),
+    ],
+    outPorts=[
+        meta.Port(name="out", contentType="Text"),
+    ],
+    defaultConfig={
+        "split_at": meta.ConfigEntry(
+            value=",",
+            type="string",
+            desc="split string at this character",
+        ),
     },
 )
 
@@ -53,7 +59,7 @@ class SplitStringConfig(process.ProcessConfig):
 class SplitString(process.Process[SplitStringConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

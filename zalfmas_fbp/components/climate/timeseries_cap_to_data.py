@@ -24,30 +24,58 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "climate", "name": "Climate"},
-        "info": {
-            "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
-            "name": "timeseries capability -> data",
-            "description": "Get the actual data from a timeseries capability.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "in"}, {"name": "conf"}],
-        "outPorts": [{"name": "out"}],
-        "defaultConfig": {
-            "to_attr": {"value": None},
-            "from_attr": {"value": None},
-            "subrange_start": {"value": None, "type": "iso-date"},
-            "subrange_end": {"value": None, "type": "iso-date"},
-            "subheader": {"value": ["tavg", "precip"]},
-            "transposed": {"value": False},
-            "maintain_substreams": {"value": False},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="b510d603-8f2a-4fbd-ac24-634362b4b0f4",
+        name="timeseries capability -> data",
+        description="Get the actual data from a timeseries capability.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+        meta.Port(
+            name="conf",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+        ),
+        "subrange_start": meta.ConfigEntry(
+            value=None,
+            type="iso-date",
+        ),
+        "subrange_end": meta.ConfigEntry(
+            value=None,
+            type="iso-date",
+        ),
+        "subheader": meta.ConfigEntry(
+            value=["tavg", "precip"],
+        ),
+        "transposed": meta.ConfigEntry(
+            value=False,
+        ),
+        "maintain_substreams": meta.ConfigEntry(
+            value=False,
+        ),
     },
 )
 

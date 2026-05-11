@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, override
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -30,34 +30,39 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "ip", "name": "IP (Flow packages)"},
-        "info": {
-            "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
-            "name": "copy",
-            "description": "Copy IP to multiple outputs.",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "in", "contentType": "AnyPointer", "desc": "The IP to copy to all attached outports"},
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "type": "array",
-                "contentType": "AnyPointer",
-                "desc": "Copied IP for each attached outport",
-            },
-        ],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="b1e875af-4ee7-4937-8824-17d185216ec4",
+        name="copy",
+        description="Copy IP to multiple outputs.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="The IP to copy to all attached outports",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            type="array",
+            contentType="AnyPointer",
+            desc="Copied IP for each attached outport",
+        ),
+    ],
 )
 
 
 class Copy(process.Process):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

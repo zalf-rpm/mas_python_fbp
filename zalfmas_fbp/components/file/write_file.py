@@ -23,48 +23,63 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "file", "name": "File"},
-        "info": {
-            "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
-            "name": "write file",
-            "description": "Write input into a file.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "in", "contentType": "Text", "desc": "The input data to be written to a file."},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [],
-        "defaultConfig": {
-            "id_attr": {"value": "id", "type": "string", "desc": "The attribute to get id for the filepattern from"},
-            "from_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Instead of the IP content, get the content from that 'attr'.",
-            },
-            "filepath_pattern": {
-                "value": "csv_{id}.csv",
-                "type": "string",
-                "desc": "The pattern to use for the filename. Can contain {id} as placeholder for the id attribute.",
-            },
-            "path_to_out_dir": {
-                "value": "path to output dir",
-                "type": "string",
-                "desc": "The path to the output directory where the files will be written.",
-            },
-            "append": {
-                "value": False,
-                "type": "bool",
-                "desc": "If True, append to existing files instead of overwriting them.",
-            },
-            "debug": {"value": False, "type": "bool", "desc": "If True, print debug information to the console."},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="file",
+        name="File",
+    ),
+    info=meta.Info(
+        id="b3867019-5f42-4c59-9438-a49fe9452e6f",
+        name="write file",
+        description="Write input into a file.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+            desc="The input data to be written to a file.",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    defaultConfig={
+        "id_attr": meta.ConfigEntry(
+            value="id",
+            type="string",
+            desc="The attribute to get id for the filepattern from",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Instead of the IP content, get the content from that 'attr'.",
+        ),
+        "filepath_pattern": meta.ConfigEntry(
+            value="csv_{id}.csv",
+            type="string",
+            desc="The pattern to use for the filename. Can contain {id} as placeholder for the id attribute.",
+        ),
+        "path_to_out_dir": meta.ConfigEntry(
+            value="path to output dir",
+            type="string",
+            desc="The path to the output directory where the files will be written.",
+        ),
+        "append": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If True, append to existing files instead of overwriting them.",
+        ),
+        "debug": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If True, print debug information to the console.",
+        ),
     },
 )
 

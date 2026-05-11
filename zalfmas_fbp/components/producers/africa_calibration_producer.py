@@ -30,24 +30,42 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 from ..geo import get_lat_lon_grid_value as shared
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "producers", "name": "Producers"},
-        "info": {
-            "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
-            "name": "africa calibration producer",
-            "description": "Producer to work in an Africa calibration flow.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}, {"name": "coords"}, {"name": "region"}, {"name": "params"}],
-        "outPorts": [{"name": "env"}],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="producers",
+        name="Producers",
+    ),
+    info=meta.Info(
+        id="4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+        name="africa calibration producer",
+        description="Producer to work in an Africa calibration flow.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="coords",
+        ),
+        meta.Port(
+            name="region",
+        ),
+        meta.Port(
+            name="params",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="env",
+        ),
+    ],
 )
 
 

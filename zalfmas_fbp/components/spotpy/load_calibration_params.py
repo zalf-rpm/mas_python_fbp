@@ -23,34 +23,40 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "spotpy", "name": "Spotpy"},
-        "info": {
-            "id": "028290bb-a38c-4599-9948-fc73723e9654",
-            "name": "create SpotPy calibration params",
-            "description": "Creates/sets up parameters for Spotpy calibration.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"}],
-        "outPorts": [
-            {
-                "name": "params",
-                "contentType": "Text (JSON list)",
-                "desc": "output spotpy calibration params as json list string",
-            },
-        ],
-        "defaultConfig": {
-            "path_to_calibrate_csv": {
-                "value": "calibratethese.csv",
-                "type": "string",
-                "desc": "path to csv file with parameters to calibrate",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="spotpy",
+        name="Spotpy",
+    ),
+    info=meta.Info(
+        id="028290bb-a38c-4599-9948-fc73723e9654",
+        name="create SpotPy calibration params",
+        description="Creates/sets up parameters for Spotpy calibration.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="params",
+            contentType="Text (JSON list)",
+            desc="output spotpy calibration params as json list string",
+        ),
+    ],
+    defaultConfig={
+        "path_to_calibrate_csv": meta.ConfigEntry(
+            value="calibratethese.csv",
+            type="string",
+            desc="path to csv file with parameters to calibrate",
+        ),
     },
 )
 

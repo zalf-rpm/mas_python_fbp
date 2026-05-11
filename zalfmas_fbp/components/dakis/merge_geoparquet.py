@@ -11,9 +11,9 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.merge import merge_relabel_geoparquet_bytes
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -21,36 +21,43 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "dfab8c17-56ad-46cc-94a5-c7689ab89b8b",
-            "name": "merge geoparquet",
-            "description": "Merge zipped arrays of relabeled GeoParquet messages.",
-        },
-        "type": "process",
-        "inPorts": [
-            {
-                "name": "in",
-                "type": "array",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Array of relabeled GeoParquet bytes.",
-            },
-        ],
-        "outPorts": [{"name": "out", "contentType": "common.capnp:Value[Data]", "desc": "Merged GeoParquet bytes."}],
-        "defaultConfig": {
-            "code_column": {
-                "value": "lucode",
-                "type": "string",
-                "desc": "Column containing the land-use/land-cover code.",
-            },
-            "priority_column": {
-                "value": "priority",
-                "type": "string",
-                "desc": "Column containing burn priority.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="dfab8c17-56ad-46cc-94a5-c7689ab89b8b",
+        name="merge geoparquet",
+        description="Merge zipped arrays of relabeled GeoParquet messages.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            type="array",
+            contentType="common.capnp:Value[Data]",
+            desc="Array of relabeled GeoParquet bytes.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Merged GeoParquet bytes.",
+        ),
+    ],
+    defaultConfig={
+        "code_column": meta.ConfigEntry(
+            value="lucode",
+            type="string",
+            desc="Column containing the land-use/land-cover code.",
+        ),
+        "priority_column": meta.ConfigEntry(
+            value="priority",
+            type="string",
+            desc="Column containing burn priority.",
+        ),
     },
 )
 
@@ -63,7 +70,7 @@ class MergeGeoparquetConfig(process.ProcessConfig):
 class MergeGeoparquet(process.Process[MergeGeoparquetConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

@@ -24,51 +24,65 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "file", "name": "File"},
-        "info": {
-            "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
-            "name": "read csv",
-            "description": "Read a csv file and send content as string downstream.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"}],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "desc": "A single row from the CSV file sent as Setup struct.",
-            },
-        ],
-        "defaultConfig": {
-            "id_col": {"value": "id", "type": "string", "desc": "The column to be used to unique identify a row."},
-            "col_to_field_names": {
-                "value": {},
-                "type": "object",
-                "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}.",
-            },
-            "send_ids": {
-                "value": [],
-                "type": "list",
-                "desc": "Send only these ids as messages downstream. E.g. [1,2,3]",
-            },
-            "file": {"value": "path to csv file", "type": "string", "desc": "The path to the CSV file to be read."},
-            "struct_type": {
-                "value": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "type": "string",
-                "desc": "The Cap'n Proto struct type to fill from a CSV row.",
-            },
-            "to_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Instead of sending a row as IP content, send it in this attribute.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="file",
+        name="File",
+    ),
+    info=meta.Info(
+        id="0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
+        name="read csv",
+        description="Read a csv file and send content as string downstream.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="mas.schema.model.monica.sim_setup_capnp:Setup",
+            desc="A single row from the CSV file sent as Setup struct.",
+        ),
+    ],
+    defaultConfig={
+        "id_col": meta.ConfigEntry(
+            value="id",
+            type="string",
+            desc="The column to be used to unique identify a row.",
+        ),
+        "col_to_field_names": meta.ConfigEntry(
+            value={},
+            type="object",
+            desc="Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}.",
+        ),
+        "send_ids": meta.ConfigEntry(
+            value=[],
+            type="list",
+            desc="Send only these ids as messages downstream. E.g. [1,2,3]",
+        ),
+        "file": meta.ConfigEntry(
+            value="path to csv file",
+            type="string",
+            desc="The path to the CSV file to be read.",
+        ),
+        "struct_type": meta.ConfigEntry(
+            value="mas.schema.model.monica.sim_setup_capnp:Setup",
+            type="string",
+            desc="The Cap'n Proto struct type to fill from a CSV row.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Instead of sending a row as IP content, send it in this attribute.",
+        ),
     },
 )
 

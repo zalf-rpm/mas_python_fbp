@@ -19,62 +19,62 @@ from zalfmas_fbp.components.dakis.common.file_payload import (
     read_prepared_file_chunk,
     read_prepared_file_metadata,
 )
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "28c6182f-0a3a-4afd-b3e1-856c796f1b2a",
-            "name": "write file to object store",
-            "description": "Write prepared binary file payloads to an S3-compatible object store.",
-        },
-        "type": "process",
-        "inPorts": [
-            {
-                "name": "in",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with optional path and filename attributes.",
-            },
-        ],
-        "outPorts": [],
-        "defaultConfig": {
-            "object_store_url": {
-                "value": "https://objects.dakispro.de",
-                "type": "string",
-                "desc": "S3-compatible object store endpoint URL.",
-            },
-            "access_key": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store access key.",
-            },
-            "secret_key": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store secret key.",
-            },
-            "bucket": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store bucket. If empty, the first path segment is used as the bucket.",
-            },
-            "path": {
-                "value": "dakis",
-                "type": "string",
-                "desc": "Fallback object key prefix if the incoming file payload has no path attribute.",
-            },
-            "filename": {
-                "value": "output.bin",
-                "type": "string",
-                "desc": "Fallback filename if the incoming file payload has no filename attribute.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="28c6182f-0a3a-4afd-b3e1-856c796f1b2a",
+        name="write file to object store",
+        description="Write prepared binary file payloads to an S3-compatible object store.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="common.capnp:Value[Data]",
+            desc="Prepared file payload bytes with optional path and filename attributes.",
+        ),
+    ],
+    defaultConfig={
+        "object_store_url": meta.ConfigEntry(
+            value="https://objects.dakispro.de",
+            type="string",
+            desc="S3-compatible object store endpoint URL.",
+        ),
+        "access_key": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store access key.",
+        ),
+        "secret_key": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store secret key.",
+        ),
+        "bucket": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store bucket. If empty, the first path segment is used as the bucket.",
+        ),
+        "path": meta.ConfigEntry(
+            value="dakis",
+            type="string",
+            desc="Fallback object key prefix if the incoming file payload has no path attribute.",
+        ),
+        "filename": meta.ConfigEntry(
+            value="output.bin",
+            type="string",
+            desc="Fallback filename if the incoming file payload has no filename attribute.",
+        ),
     },
 )
 
@@ -91,7 +91,7 @@ class WriteFileToObjectStoreConfig(process.ProcessConfig):
 class WriteFileToObjectStore(process.Process[WriteFileToObjectStoreConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

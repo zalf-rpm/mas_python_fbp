@@ -29,41 +29,65 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "spotpy", "name": "Spotpy"},
-        "info": {
-            "id": "09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
-            "name": "Spotpy calibration component",
-            "description": "The actual component in the center of the calibration flow.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "init_params",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "desc": "key/value pair description of the parameters to calibrate",
-            },
-            {"name": "obs_values", "contentType": "List[common_capnp.Value.lf64]", "desc": "list of observations"},
-            {"name": "sim_values", "contentType": "List[common_capnp.Value.lf64]", "desc": "list of simulated values"},
-        ],
-        "outPorts": [
-            {
-                "name": "sampled_params",
-                "contentType": "List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
-                "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs",
-            },
-            {"name": "best", "contentType": "string", "desc": "best optimized result"},
-        ],
-        "defaultConfig": {
-            "repetitions": {"value": 10, "type": "int", "desc": "number of repetitions"},
-            "path_to_out_folder": {"value": "out/", "type": "string", "desc": "path to output folder"},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="spotpy",
+        name="Spotpy",
+    ),
+    info=meta.Info(
+        id="09dbe4c2-c9df-46ab-a30c-239b84d5c6ab",
+        name="Spotpy calibration component",
+        description="The actual component in the center of the calibration flow.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="init_params",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+            desc="key/value pair description of the parameters to calibrate",
+        ),
+        meta.Port(
+            name="obs_values",
+            contentType="List[common_capnp.Value.lf64]",
+            desc="list of observations",
+        ),
+        meta.Port(
+            name="sim_values",
+            contentType="List[common_capnp.Value.lf64]",
+            desc="list of simulated values",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="sampled_params",
+            contentType="List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
+            desc="[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs",
+        ),
+        meta.Port(
+            name="best",
+            contentType="string",
+            desc="best optimized result",
+        ),
+    ],
+    defaultConfig={
+        "repetitions": meta.ConfigEntry(
+            value=10,
+            type="int",
+            desc="number of repetitions",
+        ),
+        "path_to_out_folder": meta.ConfigEntry(
+            value="out/",
+            type="string",
+            desc="path to output folder",
+        ),
     },
 )
 

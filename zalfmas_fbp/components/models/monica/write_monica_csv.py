@@ -27,52 +27,63 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "models/monica", "name": "Models/MONICA"},
-        "info": {
-            "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
-            "name": "Write MONICA CSV",
-            "description": "Write a MONICA CSV file.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "in", "contentType": "string (MONICA JSON result)", "desc": "Receive MONICA JSON result."},
-        ],
-        "outPorts": [],
-        "defaultConfig": {
-            "path_to_out_dir": {
-                "value": "out/",
-                "type": "string",
-                "desc": "Use path_to_out_dir if no out_path_attr is available in metadata of IP.",
-            },
-            "out_path_attr": {
-                "value": "out_path",
-                "type": "string",
-                "desc": "If out_path_attr is available, don't use path_to_out_dir.",
-            },
-            "id_attr": {
-                "value": "id",
-                "type": "string",
-                "desc": "Name of attribute which contains id to use for file name pattern.",
-            },
-            "from_attr": {"value": None, "type": "string", "desc": "Get file content from attribute 'from_attr'."},
-            "filepath_pattern": {
-                "value": "csv_{id}.csv",
-                "type": "string",
-                "desc": "Pattern with 'id' field (csv_{id}.csv)]. Write files name where id is replaced.",
-            },
-            "csv_delimiter": {
-                "value": ",",
-                "type": "string",
-                "desc": "Like ','. Use this string as delimiter for csv output.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="models/monica",
+        name="Models/MONICA",
+    ),
+    info=meta.Info(
+        id="92e48886-2728-4a78-b53e-5cb0d4ac415a",
+        name="Write MONICA CSV",
+        description="Write a MONICA CSV file.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="string (MONICA JSON result)",
+            desc="Receive MONICA JSON result.",
+        ),
+    ],
+    defaultConfig={
+        "path_to_out_dir": meta.ConfigEntry(
+            value="out/",
+            type="string",
+            desc="Use path_to_out_dir if no out_path_attr is available in metadata of IP.",
+        ),
+        "out_path_attr": meta.ConfigEntry(
+            value="out_path",
+            type="string",
+            desc="If out_path_attr is available, don't use path_to_out_dir.",
+        ),
+        "id_attr": meta.ConfigEntry(
+            value="id",
+            type="string",
+            desc="Name of attribute which contains id to use for file name pattern.",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Get file content from attribute 'from_attr'.",
+        ),
+        "filepath_pattern": meta.ConfigEntry(
+            value="csv_{id}.csv",
+            type="string",
+            desc="Pattern with 'id' field (csv_{id}.csv)]. Write files name where id is replaced.",
+        ),
+        "csv_delimiter": meta.ConfigEntry(
+            value=",",
+            type="string",
+            desc="Like ','. Use this string as delimiter for csv output.",
+        ),
     },
 )
 

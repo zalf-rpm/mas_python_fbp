@@ -22,25 +22,43 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "string", "name": "String"},
-        "info": {
-            "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
-            "name": "split string",
-            "description": "Splits a string along delimiter.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "in", "contentType": "Text"},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "Text"}],
-        "defaultConfig": {"split_at": {"value": ",", "type": "string", "desc": "Split string at this character."}},
+METADATA = meta.Component(
+    category=meta.Category(
+        id="string",
+        name="String",
+    ),
+    info=meta.Info(
+        id="d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+        name="split string",
+        description="Splits a string along delimiter.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+        ),
+    ],
+    defaultConfig={
+        "split_at": meta.ConfigEntry(
+            value=",",
+            type="string",
+            desc="Split string at this character.",
+        ),
     },
 )
 

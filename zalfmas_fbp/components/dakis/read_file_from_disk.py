@@ -10,52 +10,59 @@ from typing import override
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import prepared_file_bracket_ip, prepared_file_ip
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "5e4af951-ddeb-4c72-97b4-f2b8bcb60d53",
-            "name": "read file from disk",
-            "description": "Read a binary file from local disk and emit it as a prepared file payload.",
-        },
-        "type": "process",
-        "inPorts": [{"name": "trigger", "contentType": "AnyPointer", "desc": "Optional trigger messages."}],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with path, filename, and content_type attributes.",
-            },
-        ],
-        "defaultConfig": {
-            "path": {
-                "value": "outputs/dakis",
-                "type": "string",
-                "desc": "Directory containing the file.",
-            },
-            "filename": {
-                "value": "output.bin",
-                "type": "string",
-                "desc": "Filename to read.",
-            },
-            "content_type": {
-                "value": "application/octet-stream",
-                "type": "string",
-                "desc": "Content type attribute attached to the outgoing file payload.",
-            },
-            "read_once_without_trigger": {
-                "value": True,
-                "type": "bool",
-                "desc": "If true, read once when no trigger port is connected.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="5e4af951-ddeb-4c72-97b4-f2b8bcb60d53",
+        name="read file from disk",
+        description="Read a binary file from local disk and emit it as a prepared file payload.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="trigger",
+            contentType="AnyPointer",
+            desc="Optional trigger messages.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Prepared file payload bytes with path, filename, and content_type attributes.",
+        ),
+    ],
+    defaultConfig={
+        "path": meta.ConfigEntry(
+            value="outputs/dakis",
+            type="string",
+            desc="Directory containing the file.",
+        ),
+        "filename": meta.ConfigEntry(
+            value="output.bin",
+            type="string",
+            desc="Filename to read.",
+        ),
+        "content_type": meta.ConfigEntry(
+            value="application/octet-stream",
+            type="string",
+            desc="Content type attribute attached to the outgoing file payload.",
+        ),
+        "read_once_without_trigger": meta.ConfigEntry(
+            value=True,
+            type="bool",
+            desc="If true, read once when no trigger port is connected.",
+        ),
     },
 )
 
@@ -70,7 +77,7 @@ class ReadFileFromDiskConfig(process.ProcessConfig):
 class ReadFileFromDisk(process.Process[ReadFileFromDiskConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

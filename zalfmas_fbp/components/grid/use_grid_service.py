@@ -26,57 +26,65 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "grid", "name": "Grid"},
-        "info": {
-            "id": "cb6720d6-bc33-445d-b2c1-aa3842219c81",
-            "name": "Use grid service",
-            "description": "Use the grid service to get the grid value at a given Lat/Lon coord.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "in", "contentType": "geo.capnp:LatLonCoord", "desc": "The coordinate to get the value at."},
-            {
-                "name": "service",
-                "contentType": "grid.capnp:Service | SturdyRef",
-                "desc": "Capability or sturdy ref to service.",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
-                "desc": "Output grid value at given coordinate.",
-            },
-        ],
-        "defaultConfig": {
-            "as_common_value": {
-                "value": False,
-                "type": "bool",
-                "desc": "Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value.",
-            },
-            "from_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord).",
-            },
-            "to_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value).",
-            },
-            "calc": {
-                "value": {"f(gv)": None},
-                "type": "object",
-                "desc": "If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="grid",
+        name="Grid",
+    ),
+    info=meta.Info(
+        id="cb6720d6-bc33-445d-b2c1-aa3842219c81",
+        name="Use grid service",
+        description="Use the grid service to get the grid value at a given Lat/Lon coord.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="geo.capnp:LatLonCoord",
+            desc="The coordinate to get the value at.",
+        ),
+        meta.Port(
+            name="service",
+            contentType="grid.capnp:Service | SturdyRef",
+            desc="Capability or sturdy ref to service.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="grid.capnp:Grid.Value | common.capnp:Value",
+            desc="Output grid value at given coordinate.",
+        ),
+    ],
+    defaultConfig={
+        "as_common_value": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value.",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord).",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value).",
+        ),
+        "calc": meta.ConfigEntry(
+            value={"f(gv)": None},
+            type="object",
+            desc="If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object.",
+        ),
     },
 )
 

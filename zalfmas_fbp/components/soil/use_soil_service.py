@@ -24,84 +24,98 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "soil", "name": "Soil"},
-        "info": {
-            "id": "89da0cb9-2079-4245-aecc-068194bc1637",
-            "name": "Use soil service",
-            "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "latlon", "contentType": "geo.capnp.LatLonCoord", "desc": "Lat/Lon coordinate"},
-            {
-                "name": "service",
-                "contentType": "soil.capnp:Service | Text (SturdyRef)",
-                "desc": "Capability or sturdy ref to service.",
-            },
-        ],
-        "outPorts": [{"name": "out", "contentType": "grid.capnp:Grid.Value", "desc": "value at requested location"}],
-        "defaultConfig": {
-            "from_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message.",
-            },
-            "to_attr": {
-                "value": None,
-                "type": "string",
-                "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message.",
-            },
-            "mandatory": {
-                "value": ["soilType", "organicCarbon", "rawDensity"],
-                "type": [
-                    "soilType",
-                    "sand",
-                    "clay",
-                    "silt",
-                    "organicCarbon",
-                    "organicMatter",
-                    "rawDensity",
-                    "bulkDensity",
-                    "fieldCapacity",
-                    "permanentWiltingPoint",
-                    "saturation",
-                    "sceleton",
-                    "pH",
-                ],
-                "desc": "Which soil attributes are needed in the result to be valid?",
-            },
-            "optional": {
-                "value": [],
-                "type": [
-                    "soilType",
-                    "sand",
-                    "clay",
-                    "silt",
-                    "organicCarbon",
-                    "organicMatter",
-                    "rawDensity",
-                    "bulkDensity",
-                    "fieldCapacity",
-                    "permanentWiltingPoint",
-                    "saturation",
-                    "sceleton",
-                    "pH",
-                ],
-                "desc": "Which soil attributes are needed in the result to be valid?",
-            },
-            "only_raw_data": {
-                "value": False,
-                "type": "bool",
-                "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="soil",
+        name="Soil",
+    ),
+    info=meta.Info(
+        id="89da0cb9-2079-4245-aecc-068194bc1637",
+        name="Use soil service",
+        description="Use the soil service to get the soil profiles at a given Lat/Lon coord.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="latlon",
+            contentType="geo.capnp.LatLonCoord",
+            desc="Lat/Lon coordinate",
+        ),
+        meta.Port(
+            name="service",
+            contentType="soil.capnp:Service | Text (SturdyRef)",
+            desc="Capability or sturdy ref to service.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="grid.capnp:Grid.Value",
+            desc="value at requested location",
+        ),
+    ],
+    defaultConfig={
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message.",
+        ),
+        "mandatory": meta.ConfigEntry(
+            value=["soilType", "organicCarbon", "rawDensity"],
+            type=[
+                "soilType",
+                "sand",
+                "clay",
+                "silt",
+                "organicCarbon",
+                "organicMatter",
+                "rawDensity",
+                "bulkDensity",
+                "fieldCapacity",
+                "permanentWiltingPoint",
+                "saturation",
+                "sceleton",
+                "pH",
+            ],
+            desc="Which soil attributes are needed in the result to be valid?",
+        ),
+        "optional": meta.ConfigEntry(
+            value=[],
+            type=[
+                "soilType",
+                "sand",
+                "clay",
+                "silt",
+                "organicCarbon",
+                "organicMatter",
+                "rawDensity",
+                "bulkDensity",
+                "fieldCapacity",
+                "permanentWiltingPoint",
+                "saturation",
+                "sceleton",
+                "pH",
+            ],
+            desc="Which soil attributes are needed in the result to be valid?",
+        ),
+        "only_raw_data": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory",
+        ),
     },
 )
 

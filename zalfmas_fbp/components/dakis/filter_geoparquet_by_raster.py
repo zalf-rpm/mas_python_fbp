@@ -11,9 +11,9 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.geoparquet import overlapping_geometries_as_geoparquet
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -21,27 +21,42 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "22023991-782c-4c2c-ae72-8e8a19e9f24a",
-            "name": "filter geoparquet by raster",
-            "description": "Select GeoParquet geometries overlapping a raster and forward both datasets.",
-        },
-        "type": "process",
-        "inPorts": [{"name": "in", "contentType": "common.capnp:Value[Data]", "desc": "Compressed raster bytes."}],
-        "outPorts": [
-            {"name": "out", "contentType": "common.capnp:Value[Data]", "desc": "Filtered GeoParquet bytes."},
-            {"name": "raster", "contentType": "common.capnp:Value[Data]", "desc": "Original raster bytes."},
-        ],
-        "defaultConfig": {
-            "geoparquet_path": {
-                "value": "resources/invekos_optimized.parquet",
-                "type": "string",
-                "desc": "Path to the source GeoParquet file.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="22023991-782c-4c2c-ae72-8e8a19e9f24a",
+        name="filter geoparquet by raster",
+        description="Select GeoParquet geometries overlapping a raster and forward both datasets.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="common.capnp:Value[Data]",
+            desc="Compressed raster bytes.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Filtered GeoParquet bytes.",
+        ),
+        meta.Port(
+            name="raster",
+            contentType="common.capnp:Value[Data]",
+            desc="Original raster bytes.",
+        ),
+    ],
+    defaultConfig={
+        "geoparquet_path": meta.ConfigEntry(
+            value="resources/invekos_optimized.parquet",
+            type="string",
+            desc="Path to the source GeoParquet file.",
+        ),
     },
 )
 
@@ -53,7 +68,7 @@ class FilterGeoparquetByRasterConfig(process.ProcessConfig):
 class FilterGeoparquetByRaster(process.Process[FilterGeoparquetByRasterConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

@@ -14,72 +14,79 @@ from types_boto3_s3.client import S3Client
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import object_key, prepared_file_bracket_ip, prepared_file_ip
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "29aa4f52-3e62-4f03-9d05-d2b82d611b71",
-            "name": "read file from object store",
-            "description": "Read a binary file from an S3-compatible object store and emit it as a prepared file payload.",
-        },
-        "type": "process",
-        "inPorts": [{"name": "trigger", "contentType": "AnyPointer", "desc": "Optional trigger messages."}],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with path, filename, and content_type attributes.",
-            },
-        ],
-        "defaultConfig": {
-            "object_store_url": {
-                "value": "https://objects.dakispro.de",
-                "type": "string",
-                "desc": "S3-compatible object store endpoint URL.",
-            },
-            "access_key": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store access key.",
-            },
-            "secret_key": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store secret key.",
-            },
-            "bucket": {
-                "value": "",
-                "type": "string",
-                "desc": "Object store bucket. If empty, the first path segment is used as the bucket.",
-            },
-            "path": {
-                "value": "dakis",
-                "type": "string",
-                "desc": "Object key prefix or bucket/prefix when bucket is empty.",
-            },
-            "filename": {
-                "value": "output.bin",
-                "type": "string",
-                "desc": "Object filename to read.",
-            },
-            "content_type": {
-                "value": "application/octet-stream",
-                "type": "string",
-                "desc": "Content type attribute attached to the outgoing file payload.",
-            },
-            "read_once_without_trigger": {
-                "value": True,
-                "type": "bool",
-                "desc": "If true, read once when no trigger port is connected.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="29aa4f52-3e62-4f03-9d05-d2b82d611b71",
+        name="read file from object store",
+        description="Read a binary file from an S3-compatible object store and emit it as a prepared file payload.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="trigger",
+            contentType="AnyPointer",
+            desc="Optional trigger messages.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Prepared file payload bytes with path, filename, and content_type attributes.",
+        ),
+    ],
+    defaultConfig={
+        "object_store_url": meta.ConfigEntry(
+            value="https://objects.dakispro.de",
+            type="string",
+            desc="S3-compatible object store endpoint URL.",
+        ),
+        "access_key": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store access key.",
+        ),
+        "secret_key": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store secret key.",
+        ),
+        "bucket": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Object store bucket. If empty, the first path segment is used as the bucket.",
+        ),
+        "path": meta.ConfigEntry(
+            value="dakis",
+            type="string",
+            desc="Object key prefix or bucket/prefix when bucket is empty.",
+        ),
+        "filename": meta.ConfigEntry(
+            value="output.bin",
+            type="string",
+            desc="Object filename to read.",
+        ),
+        "content_type": meta.ConfigEntry(
+            value="application/octet-stream",
+            type="string",
+            desc="Content type attribute attached to the outgoing file payload.",
+        ),
+        "read_once_without_trigger": meta.ConfigEntry(
+            value=True,
+            type="bool",
+            desc="If true, read once when no trigger port is connected.",
+        ),
     },
 )
 
@@ -98,7 +105,7 @@ class ReadFileFromObjectStoreConfig(process.ProcessConfig):
 class ReadFileFromObjectStore(process.Process[ReadFileFromObjectStoreConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

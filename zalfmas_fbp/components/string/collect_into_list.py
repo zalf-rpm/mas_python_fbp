@@ -22,36 +22,48 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "string", "name": "String"},
-        "info": {
-            "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
-            "name": "Collect into list",
-            "description": "Collects values (parsed out of a string) into a list.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "in", "contentType": "Text"},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "List[Text | Float64 | Int64]"}],
-        "defaultConfig": {
-            "no_of_elements": {
-                "value": 0,
-                "type": "int",
-                "desc": "Number of elements to collect into array. no_of_elements <= 0 means collect all elements from upstream. This means the component waits for the 'in' port to close, before sending a message on out.",
-            },
-            "cast_to": {
-                "value": "text",
-                "type": ["text", "float", "int"],
-                "desc": "Cast received value on 'in' port to either text, float or int values.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="string",
+        name="String",
+    ),
+    info=meta.Info(
+        id="4b260f85-eb1b-4109-87ec-b30d38a5631a",
+        name="Collect into list",
+        description="Collects values (parsed out of a string) into a list.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="List[Text | Float64 | Int64]",
+        ),
+    ],
+    defaultConfig={
+        "no_of_elements": meta.ConfigEntry(
+            value=0,
+            type="int",
+            desc="Number of elements to collect into array. no_of_elements <= 0 means collect all elements from upstream. This means the component waits for the 'in' port to close, before sending a message on out.",
+        ),
+        "cast_to": meta.ConfigEntry(
+            value="text",
+            type=["text", "float", "int"],
+            desc="Cast received value on 'in' port to either text, float or int values.",
+        ),
     },
 )
 

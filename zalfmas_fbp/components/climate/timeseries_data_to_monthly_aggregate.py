@@ -25,22 +25,31 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "climate", "name": "Climate"},
-        "info": {
-            "id": "6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
-            "name": "timeseries data -> csv",
-            "description": "Create CSV string out of timeseries data.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "in"}],
-        "outPorts": [{"name": "out"}],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
+        name="timeseries data -> csv",
+        description="Create CSV string out of timeseries data.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
 )
 
 

@@ -11,9 +11,9 @@ from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import prepared_file_ip
 from zalfmas_fbp.components.dakis.common.write_geoparquet import prepare_geoparquet_bytes
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -21,36 +21,47 @@ configure_logging()
 type WriteParquetCompression = Literal["preserve", "zstd", "gzip", "snappy", "none"]
 PARQUET_COMPRESSION_OPTIONS = ["preserve", "zstd", "gzip", "snappy", "none"]
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "d2f24a18-7210-44b9-9741-eec72f299715",
-            "name": "write geoparquet",
-            "description": "Prepare received GeoParquet bytes as a file payload.",
-        },
-        "type": "process",
-        "inPorts": [{"name": "in", "contentType": "common.capnp:Value[Data]", "desc": "GeoParquet bytes."}],
-        "outPorts": [
-            {"name": "out", "contentType": "common.capnp:Value[Data]", "desc": "Prepared GeoParquet file payload."}
-        ],
-        "defaultConfig": {
-            "path": {
-                "value": "",
-                "type": "string",
-                "desc": "Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
-            },
-            "filename": {
-                "value": "geometries.parquet",
-                "type": "string",
-                "desc": "Target filename for the prepared GeoParquet.",
-            },
-            "compression": {
-                "value": "zstd",
-                "type": PARQUET_COMPRESSION_OPTIONS,
-                "desc": "GeoParquet compression algorithm. Use 'preserve' to write bytes unchanged.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="d2f24a18-7210-44b9-9741-eec72f299715",
+        name="write geoparquet",
+        description="Prepare received GeoParquet bytes as a file payload.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="common.capnp:Value[Data]",
+            desc="GeoParquet bytes.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Prepared GeoParquet file payload.",
+        ),
+    ],
+    defaultConfig={
+        "path": meta.ConfigEntry(
+            value="",
+            type="string",
+            desc="Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
+        ),
+        "filename": meta.ConfigEntry(
+            value="geometries.parquet",
+            type="string",
+            desc="Target filename for the prepared GeoParquet.",
+        ),
+        "compression": meta.ConfigEntry(
+            value="zstd",
+            type=PARQUET_COMPRESSION_OPTIONS,
+            desc="GeoParquet compression algorithm. Use 'preserve' to write bytes unchanged.",
+        ),
     },
 )
 
@@ -64,7 +75,7 @@ class WriteGeoparquetConfig(process.ProcessConfig):
 class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

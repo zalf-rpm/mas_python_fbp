@@ -12,9 +12,9 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.relabel import relabel_geoparquet_bytes
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -23,51 +23,62 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "9db20ca7-ba92-4179-8f54-8e9945893421",
-            "name": "relabel geoparquet",
-            "description": "Relabel GeoParquet geometries using a CSV mapping table.",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "in", "contentType": "common.capnp:Value[Data]", "desc": "GeoParquet bytes."},
-            {
-                "name": "translation",
-                "contentType": "Text | common.capnp:Value[Data]",
-                "desc": "Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used.",
-            },
-        ],
-        "outPorts": [{"name": "out", "contentType": "common.capnp:Value[Data]", "desc": "Relabeled GeoParquet bytes."}],
-        "defaultConfig": {
-            "mapping_csv_path": {
-                "value": "resources/mappings/invekos_to_lulc.csv",
-                "type": "string",
-                "desc": "Path to the CSV mapping table.",
-            },
-            "source_code_column": {
-                "value": "code",
-                "type": "string",
-                "desc": "Column in the GeoParquet and mapping CSV containing the source code.",
-            },
-            "target_code_column": {
-                "value": "lucode",
-                "type": "string",
-                "desc": "Column in the mapping CSV to write to the output GeoParquet.",
-            },
-            "priority_column": {
-                "value": "priority",
-                "type": "string",
-                "desc": "Optional priority column in the mapping CSV and output GeoParquet.",
-            },
-            "default_priority": {
-                "value": 0,
-                "type": "int",
-                "desc": "Priority value used when the mapping CSV has no priority column or value.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="9db20ca7-ba92-4179-8f54-8e9945893421",
+        name="relabel geoparquet",
+        description="Relabel GeoParquet geometries using a CSV mapping table.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="common.capnp:Value[Data]",
+            desc="GeoParquet bytes.",
+        ),
+        meta.Port(
+            name="translation",
+            contentType="Text | common.capnp:Value[Data]",
+            desc="Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Relabeled GeoParquet bytes.",
+        ),
+    ],
+    defaultConfig={
+        "mapping_csv_path": meta.ConfigEntry(
+            value="resources/mappings/invekos_to_lulc.csv",
+            type="string",
+            desc="Path to the CSV mapping table.",
+        ),
+        "source_code_column": meta.ConfigEntry(
+            value="code",
+            type="string",
+            desc="Column in the GeoParquet and mapping CSV containing the source code.",
+        ),
+        "target_code_column": meta.ConfigEntry(
+            value="lucode",
+            type="string",
+            desc="Column in the mapping CSV to write to the output GeoParquet.",
+        ),
+        "priority_column": meta.ConfigEntry(
+            value="priority",
+            type="string",
+            desc="Optional priority column in the mapping CSV and output GeoParquet.",
+        ),
+        "default_priority": meta.ConfigEntry(
+            value=0,
+            type="int",
+            desc="Priority value used when the mapping CSV has no priority column or value.",
+        ),
     },
 )
 
@@ -83,7 +94,7 @@ class RelabelGeoparquetConfig(process.ProcessConfig):
 class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

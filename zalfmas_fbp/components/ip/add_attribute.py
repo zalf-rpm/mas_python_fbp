@@ -23,38 +23,49 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "ip", "name": "IP (Flow packages)"},
-        "info": {
-            "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
-            "name": "add attribute",
-            "description": "Add attribute to incoming IP.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "in", "contentType": "AnyPointer", "desc": "Arbitrary content."},
-            {
-                "name": "attr",
-                "contentType": "AnyPointer",
-                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'.",
-            },
-        ],
-        "outPorts": [
-            {"name": "out", "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."},
-        ],
-        "defaultConfig": {
-            "to_attr": {
-                "value": "attr",
-                "type": "Text",
-                "desc": "The attribute's name to add to the outgoing message.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="1d442f41-dee4-4973-ad99-09855af1d7ad",
+        name="add attribute",
+        description="Add attribute to incoming IP.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="Arbitrary content.",
+        ),
+        meta.Port(
+            name="attr",
+            contentType="AnyPointer",
+            desc="Arbitrary content to store as attached attribute with name 'to_attr'.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            desc="IP (from in port) and attribute 'to_attr' containing content from attr port.",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value="attr",
+            type="Text",
+            desc="The attribute's name to add to the outgoing message.",
+        ),
     },
 )
 

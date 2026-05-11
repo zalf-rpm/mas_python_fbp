@@ -24,22 +24,34 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "consumers", "name": "Consumers"},
-        "info": {
-            "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
-            "name": "africa calibration",
-            "description": "Consumer to work in an Africa calibration flow.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}, {"name": "result"}],
-        "outPorts": [{"name": "year_to_yield"}],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="consumers",
+        name="Consumers",
+    ),
+    info=meta.Info(
+        id="b5dea358-e34e-49ad-b20d-4d97159114a0",
+        name="africa calibration",
+        description="Consumer to work in an Africa calibration flow.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="result",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="year_to_yield",
+        ),
+    ],
 )
 
 

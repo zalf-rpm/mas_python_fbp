@@ -23,27 +23,51 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "models/monica", "name": "Models/MONICA"},
-        "info": {
-            "id": "128af0c8-2614-4398-9043-ff3581958bd4",
-            "name": "Create MONICA JSON env",
-            "description": "Create MONICA JSON environment.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "sim", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
-            {"name": "crop", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
-            {"name": "site", "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "Text (JSON)"}],
-        "defaultConfig": {"to_attr": {"value": None, "type": "Text (JSON)", "desc": "Set output into this attribute."}},
+METADATA = meta.Component(
+    category=meta.Category(
+        id="models/monica",
+        name="Models/MONICA",
+    ),
+    info=meta.Info(
+        id="128af0c8-2614-4398-9043-ff3581958bd4",
+        name="Create MONICA JSON env",
+        description="Create MONICA JSON environment.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="sim",
+            contentType="common.capnp:StructuredText[JSON] | Text (JSON)",
+        ),
+        meta.Port(
+            name="crop",
+            contentType="common.capnp:StructuredText[JSON] | Text (JSON)",
+        ),
+        meta.Port(
+            name="site",
+            contentType="common.capnp:StructuredText[JSON] | Text (JSON)",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text (JSON)",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="Text (JSON)",
+            desc="Set output into this attribute.",
+        ),
     },
 )
 

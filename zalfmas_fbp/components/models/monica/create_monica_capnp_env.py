@@ -26,67 +26,75 @@ from mas.schema.soil import soil_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "models/monica", "name": "Models/MONICA"},
-        "info": {
-            "id": "e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
-            "name": "Create model.capnp:Env with MONICA payload",
-            "description": "Create model.capnp:Env with MONICA JSON env payload.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "climate",
-                "contentType": "climate.capnp:TimeSeries | Text",
-                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability or a path to a CSV file.",
-            },
-            {
-                "name": "soil",
-                "contentType": "soil.capnp:Profile | Text (JSON array)",
-                "desc": "Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers.",
-            },
-            {"name": "in", "contentType": "Text (JSON)", "desc": "MONICA env json."},
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "model.capnp:Env",
-                "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component.",
-            },
-        ],
-        "defaultConfig": {
-            "from_attr": {
-                "value": None,
-                "type": "Text",
-                "desc": "Instead of the message content, read the MONICA JSON env from this attribute.",
-            },
-            "to_attr": {
-                "value": None,
-                "type": "Text",
-                "desc": "Instead of sending the ready prepared MONICA Cap'n Proto env via the message content, send it via this attribute.",
-            },
-            "climate_attr": {
-                "value": "@climate",
-                "type": "climate.capnp:TimeSeries | Text",
-                "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value.",
-            },
-            "soil_attr": {
-                "value": "@soil",
-                "type": "soil.capnp:Profile | Text (JSON array)",
-                "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value.",
-            },
-            "id_attr": {
-                "value": "@id",
-                "type": "Text",
-                "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="models/monica",
+        name="Models/MONICA",
+    ),
+    info=meta.Info(
+        id="e58b7ff4-3c76-4ea2-9873-09d6923e5c75",
+        name="Create model.capnp:Env with MONICA payload",
+        description="Create model.capnp:Env with MONICA JSON env payload.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="climate",
+            contentType="climate.capnp:TimeSeries | Text",
+            desc="Climate data for MONICA simulation, either as a TimeSeries capability or a path to a CSV file.",
+        ),
+        meta.Port(
+            name="soil",
+            contentType="soil.capnp:Profile | Text (JSON array)",
+            desc="Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers.",
+        ),
+        meta.Port(
+            name="in",
+            contentType="Text (JSON)",
+            desc="MONICA env json.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="model.capnp:Env",
+            desc="An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component.",
+        ),
+    ],
+    defaultConfig={
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="Text",
+            desc="Instead of the message content, read the MONICA JSON env from this attribute.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="Text",
+            desc="Instead of sending the ready prepared MONICA Cap'n Proto env via the message content, send it via this attribute.",
+        ),
+        "climate_attr": meta.ConfigEntry(
+            value="@climate",
+            type="climate.capnp:TimeSeries | Text",
+            desc="Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value.",
+        ),
+        "soil_attr": meta.ConfigEntry(
+            value="@soil",
+            type="soil.capnp:Profile | Text (JSON array)",
+            desc="Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value.",
+        ),
+        "id_attr": meta.ConfigEntry(
+            value="@id",
+            type="Text",
+            desc="Id of current env via @ out of attribute or a UUID4 will be automatically generated.",
+        ),
     },
 )
 

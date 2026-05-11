@@ -25,59 +25,74 @@ from zalfmas_common import rect_ascii_grid_management as grid
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "geo", "name": "Geo"},
-        "info": {
-            "id": "1229ed4f-9fef-4b76-9061-a117d52e9bc2",
-            "name": "create lat lon coords",
-            "description": "Create lat/lon coords for region.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "ids", "contentType": "List[int]", "desc": "List of IDs to include in the output."},
-            {"name": "region", "contentType": "string", "desc": "The region we create the coords for."},
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
-                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
-            },
-        ],
-        "defaultConfig": {
-            "stream": {
-                "value": False,
-                "type": "bool",
-                "desc": "If True, the component will stream the output Lat/Lon coord by Lat/Lon coord.",
-            },
-            "create_substream": {
-                "value": False,
-                "type": "bool",
-                "desc": "If true, creates for each set of region and ids, a new substream.",
-            },
-            "region": {"value": "africa", "type": ["nigeria", "africa", "earth"]},
-            "resolution": {
-                "value": "5min",
-                "type": ["5min", "30sec"],
-                "desc": "Select the resolution of the generated data.",
-            },
-            "ids": {
-                "value": [],
-                "type": "list[int]",
-                "desc": "List of IDs to include in the output, unless the 'ids' port is connected.",
-            },
-            "path_to_ids_grid": {
-                "value": "data/country-id_0.083deg_4326_wgs84_africa.asc",
-                "type": "string",
-                "desc": "Path to the ids grid file.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="geo",
+        name="Geo",
+    ),
+    info=meta.Info(
+        id="1229ed4f-9fef-4b76-9061-a117d52e9bc2",
+        name="create lat lon coords",
+        description="Create lat/lon coords for region.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="ids",
+            contentType="List[int]",
+            desc="List of IDs to include in the output.",
+        ),
+        meta.Port(
+            name="region",
+            contentType="string",
+            desc="The region we create the coords for.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
+            desc="Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
+        ),
+    ],
+    defaultConfig={
+        "stream": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If True, the component will stream the output Lat/Lon coord by Lat/Lon coord.",
+        ),
+        "create_substream": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If true, creates for each set of region and ids, a new substream.",
+        ),
+        "region": meta.ConfigEntry(
+            value="africa",
+            type=["nigeria", "africa", "earth"],
+        ),
+        "resolution": meta.ConfigEntry(
+            value="5min",
+            type=["5min", "30sec"],
+            desc="Select the resolution of the generated data.",
+        ),
+        "ids": meta.ConfigEntry(
+            value=[],
+            type="list[int]",
+            desc="List of IDs to include in the output, unless the 'ids' port is connected.",
+        ),
+        "path_to_ids_grid": meta.ConfigEntry(
+            value="data/country-id_0.083deg_4326_wgs84_africa.asc",
+            type="string",
+            desc="Path to the ids grid file.",
+        ),
     },
 )
 

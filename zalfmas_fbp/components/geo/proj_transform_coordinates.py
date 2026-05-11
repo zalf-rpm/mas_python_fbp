@@ -22,49 +22,61 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "geo", "name": "Geo"},
-        "info": {
-            "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
-            "name": "Proj transform coords",
-            "description": "Transform coordinates using the Proj library.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "in",
-                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Input geo coordinate.",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Output geo coordinate.",
-            },
-        ],
-        "defaultConfig": {
-            "from_name": {
-                "value": "LatLon",
-                "type": "string",
-                "desc": "Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
-            },
-            "to_name": {
-                "value": "LatLon",
-                "type": "string",
-                "desc": "Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
-            },
-            "from_attr": {"value": None, "type": "string", "desc": "Attribute name to use as the input coordinate."},
-            "to_attr": {"value": None, "type": "string", "desc": "Attribute name to use as the output."},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="geo",
+        name="Geo",
+    ),
+    info=meta.Info(
+        id="b753df51-40f1-4778-ac47-82858c8ef80c",
+        name="Proj transform coords",
+        description="Transform coordinates using the Proj library.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+            desc="Input geo coordinate.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+            desc="Output geo coordinate.",
+        ),
+    ],
+    defaultConfig={
+        "from_name": meta.ConfigEntry(
+            value="LatLon",
+            type="string",
+            desc="Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+        ),
+        "to_name": meta.ConfigEntry(
+            value="LatLon",
+            type="string",
+            desc="Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the input coordinate.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the output.",
+        ),
     },
 )
 

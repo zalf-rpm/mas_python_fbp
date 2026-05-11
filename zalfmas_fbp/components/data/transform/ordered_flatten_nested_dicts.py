@@ -22,22 +22,34 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "data/transform", "name": "Data/Transform"},
-        "info": {
-            "id": "c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
-            "name": "ordered flatten nested dicts",
-            "description": "ordered_flatten_nested_dicts",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}, {"name": "in"}],
-        "outPorts": [{"name": "out"}],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="data/transform",
+        name="Data/Transform",
+    ),
+    info=meta.Info(
+        id="c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
+        name="ordered flatten nested dicts",
+        description="ordered_flatten_nested_dicts",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="in",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
 )
 
 

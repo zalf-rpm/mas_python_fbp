@@ -16,42 +16,42 @@ from zalfmas_fbp.components.dakis.common.file_payload import (
     read_prepared_file_chunk,
     read_prepared_file_metadata,
 )
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "34f58819-e23f-4cc1-9691-87d5225b122d",
-            "name": "write file to disk",
-            "description": "Write prepared binary file payloads to local disk.",
-        },
-        "type": "process",
-        "inPorts": [
-            {
-                "name": "in",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with optional path and filename attributes.",
-            },
-        ],
-        "outPorts": [],
-        "defaultConfig": {
-            "path": {
-                "value": "outputs/dakis",
-                "type": "string",
-                "desc": "Fallback output directory if the incoming file payload has no path attribute.",
-            },
-            "filename": {
-                "value": "output.bin",
-                "type": "string",
-                "desc": "Fallback filename if the incoming file payload has no filename attribute.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="34f58819-e23f-4cc1-9691-87d5225b122d",
+        name="write file to disk",
+        description="Write prepared binary file payloads to local disk.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="common.capnp:Value[Data]",
+            desc="Prepared file payload bytes with optional path and filename attributes.",
+        ),
+    ],
+    defaultConfig={
+        "path": meta.ConfigEntry(
+            value="outputs/dakis",
+            type="string",
+            desc="Fallback output directory if the incoming file payload has no path attribute.",
+        ),
+        "filename": meta.ConfigEntry(
+            value="output.bin",
+            type="string",
+            desc="Fallback filename if the incoming file payload has no filename attribute.",
+        ),
     },
 )
 
@@ -64,7 +64,7 @@ class WriteFileToDiskConfig(process.ProcessConfig):
 class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

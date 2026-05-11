@@ -24,40 +24,57 @@ from mas.schema.geo import geo_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "climate", "name": "Climate"},
-        "info": {
-            "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
-            "name": "datasets -> timeseries",
-            "description": "Get timeseries capabilties from a dataset.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "ds"}],
-        "outPorts": [{"name": "ts"}],
-        "defaultConfig": {
-            "no_of_locations_at_once": {"value": 10, "type": "int", "desc": "number of locations to send at once"},
-            "continue_after_location_id": {
-                "value": False,
-                "type": "string",
-                "desc": "continue after a particular location id",
-            },
-            "to_attr": {"value": None, "type": "string", "desc": "send data attached to attribute 'to_attr'"},
-            "create_substream": {
-                "value": False,
-                "type": "[true | false]",
-                "desc": "create a substream for each datasets' timeseries",
-            },
-            "maintain_incoming_substreams": {
-                "value": False,
-                "type": "[true | false]",
-                "desc": "if false, ignore bracket IPs, thus flatten incoming substreams",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="ce4749cc-abab-4830-9eb3-1c44c9d451ce",
+        name="datasets -> timeseries",
+        description="Get timeseries capabilties from a dataset.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="ds",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="ts",
+        ),
+    ],
+    defaultConfig={
+        "no_of_locations_at_once": meta.ConfigEntry(
+            value=10,
+            type="int",
+            desc="number of locations to send at once",
+        ),
+        "continue_after_location_id": meta.ConfigEntry(
+            value=False,
+            type="string",
+            desc="continue after a particular location id",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="send data attached to attribute 'to_attr'",
+        ),
+        "create_substream": meta.ConfigEntry(
+            value=False,
+            type="[true | false]",
+            desc="create a substream for each datasets' timeseries",
+        ),
+        "maintain_incoming_substreams": meta.ConfigEntry(
+            value=False,
+            type="[true | false]",
+            desc="if false, ignore bracket IPs, thus flatten incoming substreams",
+        ),
     },
 )
 

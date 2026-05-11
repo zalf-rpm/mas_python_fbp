@@ -26,22 +26,34 @@ from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "management", "name": "Management"},
-        "info": {
-            "id": "bc9f8bfd-db77-49ed-a347-a26bb37084d1",
-            "name": "ILR seed/harvest dates",
-            "description": "Get closest ILR seed/harvest dates to lat/lon location.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "conf"}, {"name": "in"}],
-        "outPorts": [{"name": "out"}],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="management",
+        name="Management",
+    ),
+    info=meta.Info(
+        id="bc9f8bfd-db77-49ed-a347-a26bb37084d1",
+        name="ILR seed/harvest dates",
+        description="Get closest ILR seed/harvest dates to lat/lon location.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="in",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
 )
 
 

@@ -22,47 +22,55 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "ip", "name": "IP (Flow packages)"},
-        "info": {
-            "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
-            "name": "lift attributes",
-            "description": "Lift attributes.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "in",
-                "contentType": "AnyPointer",
-                "desc": "Input message with any content containing some structured attributes.",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "AnyPointer",
-                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
-            },
-        ],
-        "defaultConfig": {
-            "lift_from_attr": {"value": "name", "type": "string", "desc": "Attribute to read from IP."},
-            "lift_from_type": {
-                "value": "schema.capnp:Type",
-                "type": "string",
-                "desc": "Capnp struct type to read from attribute.",
-            },
-            "lifted_attrs": {
-                "value": ["attr1", "attr2", "attr3"],
-                "type": "List",
-                "desc": "Attributes to lift from struct into metadata.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="1ccc2798-23b2-4148-a40f-6b70a69be2fb",
+        name="lift attributes",
+        description="Lift attributes.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="Input message with any content containing some structured attributes.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="AnyPointer",
+            desc="The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
+        ),
+    ],
+    defaultConfig={
+        "lift_from_attr": meta.ConfigEntry(
+            value="name",
+            type="string",
+            desc="Attribute to read from IP.",
+        ),
+        "lift_from_type": meta.ConfigEntry(
+            value="schema.capnp:Type",
+            type="string",
+            desc="Capnp struct type to read from attribute.",
+        ),
+        "lifted_attrs": meta.ConfigEntry(
+            value=["attr1", "attr2", "attr3"],
+            type="List",
+            desc="Attributes to lift from struct into metadata.",
+        ),
     },
 )
 

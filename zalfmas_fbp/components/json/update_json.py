@@ -22,55 +22,65 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "json", "name": "JSON"},
-        "info": {
-            "id": "67b31990-452a-4058-8a99-6785be345216",
-            "name": "Update JSON",
-            "description": "Update JSON datastructures.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "in",
-                "contentType": "Text (JSON)",
-                "desc": "JSON text which is supposed to be updated and changed.",
-            },
-        ],
-        "outPorts": [{"name": "out", "contentType": "Text (JSON)", "desc": "The updated JSON text."}],
-        "defaultConfig": {
-            "types": {
-                "value": {"@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"},
-                "type": "object",
-                "desc": "Define the loadable type the attribute being referenced has.",
-            },
-            "update": {
-                "value": [
-                    ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
-                    ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
-                    ["customId_ex", "<-", 1],
-                    ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"],
-                ],
-                "type": "array",
-                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match.",
-            },
-            "replace": {
-                "value": [],
-                "type": "array",
-                "desc": "List of replacement operations to perform on the JSON structure.",
-            },
-            "add": {
-                "value": [],
-                "type": "array",
-                "desc": "List of addition operations to perform on the JSON structure.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="json",
+        name="JSON",
+    ),
+    info=meta.Info(
+        id="67b31990-452a-4058-8a99-6785be345216",
+        name="Update JSON",
+        description="Update JSON datastructures.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="Text (JSON)",
+            desc="JSON text which is supposed to be updated and changed.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text (JSON)",
+            desc="The updated JSON text.",
+        ),
+    ],
+    defaultConfig={
+        "types": meta.ConfigEntry(
+            value={"@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"},
+            type="object",
+            desc="Define the loadable type the attribute being referenced has.",
+        ),
+        "update": meta.ConfigEntry(
+            value=[
+                ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
+                ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
+                ["customId_ex", "<-", 1],
+                ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"],
+            ],
+            type="array",
+            desc="List of update operations to perform on the JSON structure. Structure and description have to match.",
+        ),
+        "replace": meta.ConfigEntry(
+            value=[],
+            type="array",
+            desc="List of replacement operations to perform on the JSON structure.",
+        ),
+        "add": meta.ConfigEntry(
+            value=[],
+            type="array",
+            desc="List of addition operations to perform on the JSON structure.",
+        ),
     },
 )
 

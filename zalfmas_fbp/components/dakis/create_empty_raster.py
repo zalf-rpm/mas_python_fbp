@@ -11,9 +11,9 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.raster import create_empty_raster_bytes, parse_geojson_bbox
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -21,29 +21,51 @@ configure_logging()
 type GeoTiffCompression = Literal["zstd", "deflate", "lzw", "none"]
 GEOTIFF_COMPRESSION_OPTIONS = ["zstd", "deflate", "lzw", "none"]
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "dakis", "name": "DAKIS"},
-        "info": {
-            "id": "2a1a5561-fee4-4c21-9b0d-e7626db1585e",
-            "name": "create empty raster",
-            "description": "Create an empty compressed in-memory raster from a GeoJSON bbox.",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "in", "contentType": "Text", "desc": "GeoJSON bbox as text."},
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-        ],
-        "outPorts": [{"name": "out", "contentType": "common.capnp:Value[Data]", "desc": "Compressed GeoTIFF bytes."}],
-        "defaultConfig": {
-            "epsg": {"value": 25833, "type": "int", "desc": "EPSG code of the output raster CRS."},
-            "resolution_m": {"value": 100.0, "type": "float", "desc": "Raster resolution in meters per pixel."},
-            "compression": {
-                "value": "zstd",
-                "type": GEOTIFF_COMPRESSION_OPTIONS,
-                "desc": "GeoTIFF compression algorithm.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="dakis",
+        name="DAKIS",
+    ),
+    info=meta.Info(
+        id="2a1a5561-fee4-4c21-9b0d-e7626db1585e",
+        name="create empty raster",
+        description="Create an empty compressed in-memory raster from a GeoJSON bbox.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+            desc="GeoJSON bbox as text.",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="common.capnp:Value[Data]",
+            desc="Compressed GeoTIFF bytes.",
+        ),
+    ],
+    defaultConfig={
+        "epsg": meta.ConfigEntry(
+            value=25833,
+            type="int",
+            desc="EPSG code of the output raster CRS.",
+        ),
+        "resolution_m": meta.ConfigEntry(
+            value=100.0,
+            type="float",
+            desc="Raster resolution in meters per pixel.",
+        ),
+        "compression": meta.ConfigEntry(
+            value="zstd",
+            type=GEOTIFF_COMPRESSION_OPTIONS,
+            desc="GeoTIFF compression algorithm.",
+        ),
     },
 )
 
@@ -57,7 +79,7 @@ class CreateEmptyRasterConfig(process.ProcessConfig):
 class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

@@ -22,38 +22,49 @@ from zalfmas_common import geo
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "geo", "name": "Geo"},
-        "info": {
-            "id": "66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
-            "name": "to geo coord",
-            "description": "Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "vals", "contentType": "List[float | int]", "desc": "Values to convert into coord."},
-        ],
-        "outPorts": [
-            {
-                "name": "coord",
-                "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Coord to output.",
-            },
-        ],
-        "defaultConfig": {
-            "to_name": {
-                "value": "LatLon",
-                "type": "string",
-                "desc": "One of 2D, XY, LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])",
-            },
-            "list_type": {"value": "float", "type": ["float", "int"]},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="geo",
+        name="Geo",
+    ),
+    info=meta.Info(
+        id="66ea3fce-80f7-4ab6-b77a-0966cb7c2793",
+        name="to geo coord",
+        description="Create [geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] from a list of values.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="vals",
+            contentType="List[float | int]",
+            desc="Values to convert into coord.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="coord",
+            contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+            desc="Coord to output.",
+        ),
+    ],
+    defaultConfig={
+        "to_name": meta.ConfigEntry(
+            value="LatLon",
+            type="string",
+            desc="One of 2D, XY, LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])",
+        ),
+        "list_type": meta.ConfigEntry(
+            value="float",
+            type=["float", "int"],
+        ),
     },
 )
 

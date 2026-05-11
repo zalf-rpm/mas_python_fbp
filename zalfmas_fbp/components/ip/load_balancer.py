@@ -21,39 +21,47 @@ from typing import Literal, override
 from zalfmas_common import common
 
 from zalfmas_fbp.components.ip.copy_ip import copy_ip
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
-from zalfmas_fbp.run.metadata import ComponentMetadata
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "ip", "name": "IP (Flow packages)"},
-        "info": {
-            "id": "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d",
-            "name": "load balancer",
-            "description": "Forward IPs across multiple outputs using a configurable distribution strategy.",
-        },
-        "type": "process",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {"name": "in", "contentType": "AnyPointer", "desc": "The IP to forward to one attached outport"},
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "type": "array",
-                "contentType": "AnyPointer",
-                "desc": "Outgoing IPs distributed one-by-one across attached outports",
-            },
-        ],
-        "defaultConfig": {
-            "distribution_strategy": {
-                "value": "next_available",
-                "type": ["next_available", "round_robin"],
-                "desc": "Distribution strategy for choosing an output.",
-            },
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d",
+        name="load balancer",
+        description="Forward IPs across multiple outputs using a configurable distribution strategy.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="The IP to forward to one attached outport",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            type="array",
+            contentType="AnyPointer",
+            desc="Outgoing IPs distributed one-by-one across attached outports",
+        ),
+    ],
+    defaultConfig={
+        "distribution_strategy": meta.ConfigEntry(
+            value="next_available",
+            type=["next_available", "round_robin"],
+            desc="Distribution strategy for choosing an output.",
+        ),
     },
 )
 
@@ -65,7 +73,7 @@ class LoadBalancerConfig(process.ProcessConfig):
 class LoadBalancer(process.Process[LoadBalancerConfig]):
     def __init__(
         self,
-        metadata: ComponentMetadata = METADATA,
+        metadata: meta.Component = METADATA,
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)

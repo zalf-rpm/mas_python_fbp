@@ -49,3 +49,10 @@ class ComponentMetadata(BaseModel):
 
     def default_config_values(self) -> dict[str, Any]:
         return {key: entry.value for key, entry in self.defaultConfig.items()}
+
+
+Category = ComponentCategoryMetadata
+Info = ComponentInfoMetadata
+Port = ComponentPortMetadata
+ConfigEntry = ComponentDefaultConfigEntry
+Component = ComponentMetadata

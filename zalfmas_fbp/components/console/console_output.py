@@ -23,22 +23,26 @@ from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "console", "name": "Console"},
-        "info": {
-            "id": "2de9c491-d8a6-4b36-84de-db7f4a312731",
-            "name": "output to console",
-            "description": "Output input to console.",
-        },
-        "type": "standard",
-        "inPorts": [{"name": "in"}],
-        "outPorts": [],
-    },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="console",
+        name="Console",
+    ),
+    info=meta.Info(
+        id="2de9c491-d8a6-4b36-84de-db7f4a312731",
+        name="output to console",
+        description="Output input to console.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+    ],
 )
 
 

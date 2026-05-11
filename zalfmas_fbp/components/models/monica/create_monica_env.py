@@ -32,70 +32,90 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
 
-METADATA = ComponentMetadata.model_validate(
-    {
-        "category": {"id": "models/monica", "name": "Models/MONICA"},
-        "info": {
-            "id": "921bcda7-d83f-4190-8593-fce793dc9519",
-            "name": "Create MONICA env",
-            "description": "Create MONICA env from sim/crop/site json files.",
-        },
-        "type": "standard",
-        "inPorts": [
-            {"name": "conf", "contentType": "common.capnp:StructuredText[JSON | TOML]"},
-            {
-                "name": "in",
-                "contentType": "?",
-                "desc": "a message with no content, but all relevant information in it's attributes. See configuration.",
-            },
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "model.capnp:Env",
-                "desc": "Env structure ready to be sent to a MONICA instance.",
-            },
-        ],
-        "defaultConfig": {
-            "sim_json": {"value": "sim.json", "type": "Text", "desc": "Path to sim.json file."},
-            "crop_json": {"value": "crop.json", "type": "Text", "desc": "Path to crop.json file."},
-            "site_json": {"value": "site.json", "type": "Text", "desc": "Name of attribute to read dgm value from."},
-            "dgm_attr": {
-                "value": "@dgm",
-                "type": "grid.capnp:Grid.Value | Number",
-                "desc": "Height above sea level. As Grid.Value via @ out of an attribute or directly as number from config value.",
-            },
-            "slope_attr": {
-                "value": "@slope",
-                "type": "grid.capnp:Grid.Value | Number",
-                "desc": "Slope value. As Grid.Value via @ out of an attribute or directly as number from config value.",
-            },
-            "climate_attr": {
-                "value": "@climate",
-                "type": "climate.capnp:TimeSeries | Text",
-                "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value.",
-            },
-            "soil_attr": {
-                "value": "@soil",
-                "type": "soil.capnp:Profile | Text (JSON array)",
-                "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value.",
-            },
-            "setup_attr": {
-                "value": "@setup",
-                "type": "model/monica/sim_setup.capnp:Setup",
-                "desc": "Setup structure via @ out of attribute.",
-            },
-            "id_attr": {
-                "value": "@id",
-                "type": "Text",
-                "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated.",
-            },
-            "ilr_attr": {"value": "@ilr", "type": "Text", "desc": "Path to site.json file."},
-        },
+METADATA = meta.Component(
+    category=meta.Category(
+        id="models/monica",
+        name="Models/MONICA",
+    ),
+    info=meta.Info(
+        id="921bcda7-d83f-4190-8593-fce793dc9519",
+        name="Create MONICA env",
+        description="Create MONICA env from sim/crop/site json files.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="?",
+            desc="a message with no content, but all relevant information in it's attributes. See configuration.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="model.capnp:Env",
+            desc="Env structure ready to be sent to a MONICA instance.",
+        ),
+    ],
+    defaultConfig={
+        "sim_json": meta.ConfigEntry(
+            value="sim.json",
+            type="Text",
+            desc="Path to sim.json file.",
+        ),
+        "crop_json": meta.ConfigEntry(
+            value="crop.json",
+            type="Text",
+            desc="Path to crop.json file.",
+        ),
+        "site_json": meta.ConfigEntry(
+            value="site.json",
+            type="Text",
+            desc="Name of attribute to read dgm value from.",
+        ),
+        "dgm_attr": meta.ConfigEntry(
+            value="@dgm",
+            type="grid.capnp:Grid.Value | Number",
+            desc="Height above sea level. As Grid.Value via @ out of an attribute or directly as number from config value.",
+        ),
+        "slope_attr": meta.ConfigEntry(
+            value="@slope",
+            type="grid.capnp:Grid.Value | Number",
+            desc="Slope value. As Grid.Value via @ out of an attribute or directly as number from config value.",
+        ),
+        "climate_attr": meta.ConfigEntry(
+            value="@climate",
+            type="climate.capnp:TimeSeries | Text",
+            desc="Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value.",
+        ),
+        "soil_attr": meta.ConfigEntry(
+            value="@soil",
+            type="soil.capnp:Profile | Text (JSON array)",
+            desc="Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value.",
+        ),
+        "setup_attr": meta.ConfigEntry(
+            value="@setup",
+            type="model/monica/sim_setup.capnp:Setup",
+            desc="Setup structure via @ out of attribute.",
+        ),
+        "id_attr": meta.ConfigEntry(
+            value="@id",
+            type="Text",
+            desc="Id of current env via @ out of attribute or a UUID4 will be automatically generated.",
+        ),
+        "ilr_attr": meta.ConfigEntry(
+            value="@ilr",
+            type="Text",
+            desc="Path to site.json file.",
+        ),
     },
 )
 
