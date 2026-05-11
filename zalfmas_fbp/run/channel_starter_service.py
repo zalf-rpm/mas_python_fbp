@@ -77,6 +77,7 @@ class Params:
     readerSrts: list[str] = field(default_factory=list)
     writerSrts: list[str] = field(default_factory=list)
     bufferSize: int = 1
+    registerAtGateway: bool = False
 
 
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
@@ -191,8 +192,13 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
 
     async def _replace_startup_infos_refs_with_gateway_refs(self, startup_infos: list[StartupInfoReader]):
         if not self.channel_gateways:
+            logger.warning("Channel gateway registration requested, but no service.gateways are configured")
             return startup_infos
-        return [await self._replace_startup_info_refs_with_gateway_refs(info) for info in startup_infos]
+        try:
+            return [await self._replace_startup_info_refs_with_gateway_refs(info) for info in startup_infos]
+        except (capnp.KjException, RuntimeError, ValueError) as e:
+            logger.error("Channel gateway registration failed; returning direct channel refs. Exception: %s", e)
+            return startup_infos
 
     # struct Params {
     #    name            @0 :Text;       # name of channel
@@ -202,6 +208,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     #    readerSrts      @4 :List(Text); # fixed sturdy ref tokens per reader
     #    writerSrts      @5 :List(Text); # fixed sturdy ref tokens per writer
     #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
+    #    registerAtGateway @7 :Bool = false; # return gateway-routed refs if a gateway is available
     # }
 
     @override
@@ -235,7 +242,9 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None)),
         )
         startup_infos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
-        context.results.startupInfos = await self._replace_startup_infos_refs_with_gateway_refs(startup_infos)
+        if getattr(ps, "registerAtGateway", False):
+            startup_infos = await self._replace_startup_infos_refs_with_gateway_refs(startup_infos)
+        context.results.startupInfos = startup_infos
         context.results.stop = stop
 
 
@@ -262,12 +271,6 @@ async def main():
     if path_to_channel is None:
         logger.error("Need path to channel binary")
         return
-    register_channels_at_gateways = config_service_section.get("register_channels_at_gateways", False)
-    channel_gateways = config_service_section.get("gateways", None) if register_channels_at_gateways else None
-    if register_channels_at_gateways and not channel_gateways:
-        logger.error("Need service.gateways when register_channels_at_gateways is true")
-        return
-
     service = StartChannelsService(
         con_man=con_man,
         path_to_channel=path_to_channel,
@@ -275,7 +278,7 @@ async def main():
         name=config_service_section.get("name", None),
         description=config_service_section.get("description", None),
         channel_host_name=config_service_section.get("channel_host", None),
-        channel_gateways=channel_gateways,
+        channel_gateways=config_service_section.get("gateways", None),
         restorer=restorer,
         verbose=config_service_section.get("verbose", False),
     )
