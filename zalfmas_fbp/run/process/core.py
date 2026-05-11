@@ -12,14 +12,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import suppress
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
-    Generic,
     Literal,
     cast,
     get_args,
@@ -63,15 +61,11 @@ from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 from .chunked_io import (
     DEFAULT_BRACKETED_CHUNK_SIZE,
     ChunkedInputStream,
-    blob_ip,
-    ip_content_type,
-    read_ip_data,
 )
 from .chunked_io import bracket_ip as _bracket_ip
 from .chunked_io import chunked_blob_ip as _chunked_blob_ip
 from .chunked_io import ip_blob_payload as _ip_blob_payload
 from .chunked_io import ip_content_type as _ip_content_type
-from .chunked_io import iter_bytes_in_chunks as _iter_bytes_in_chunks
 from .config_codec import (
     config_from_ip as _config_from_ip,
 )
@@ -84,19 +78,16 @@ from .errors import (
     OutputPortWriteError,
     ProcessConfigError,
     ProcessErrorInfo,
-    ProcessRuntimeError,
 )
-from .runner import (
-    ProcessArgs,
-    create_default_args_parser,
-    run_process_from_metadata_and_cmd_args,
-    start_local_process_component,
+from .io_runtime import (
+    cancel_tasks,
+    kj_exception_description,
+    wait_for_tasks_or_stop,
 )
-from .transitions import ActivityTransition, PortDisconnect, StateTransition
+from .transitions import PortDisconnect
 from .types import (
     ArrayInStrategy,
     ArrayOutStrategy,
-    ConfigT,
     ConfigValue,
     ProcessConfig,
     RawConfig,
@@ -111,50 +102,10 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 
-def iter_bytes_in_chunks(
-    data: bytes,
-    *,
-    chunk_size: int | None = None,
-) -> Iterable[bytes]:
-    return _iter_bytes_in_chunks(data, chunk_size=chunk_size or DEFAULT_BRACKETED_CHUNK_SIZE)
-
-
-__all__ = [
-    "ArrayInStrategy",
-    "ArrayOutStrategy",
-    "ChunkedInputStream",
-    "ConfigT",
-    "ConfigValue",
-    "DEFAULT_BRACKETED_CHUNK_SIZE",
-    "blob_ip",
-    "DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS",
-    "DEFAULT_SOFT_STOP_TIMEOUT_SECONDS",
-    "InputPortReadError",
-    "OutputPortWriteError",
-    "PortDisconnect",
-    "Process",
-    "ProcessArgs",
-    "ProcessConfig",
-    "ProcessConfigError",
-    "ProcessErrorInfo",
-    "ProcessRuntimeError",
-    "RawConfig",
-    "ActivityTransition",
-    "StateTransition",
-    "create_default_args_parser",
-    "ip_content_type",
-    "iter_bytes_in_chunks",
-    "read_ip_data",
-    "run_process_from_metadata_and_cmd_args",
-    "start_local_process_component",
-]
-
-
-class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
+class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsafeMultipleInheritance]
     fbp_capnp.Process.Server,
     common.Identifiable,
     common.GatewayRegistrable,
-    Generic[ConfigT],  # noqa: UP046
 ):
     config_model: ClassVar[type[ProcessConfig] | None] = None
 
@@ -654,6 +605,16 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         if ports is not None and port_index < len(ports):
             ports[port_index] = None
 
+    def _input_port_rpc_error(self, port_label: str, error: capnp.KjException) -> InputPortReadError:
+        description = kj_exception_description(error)
+        logger.error("%s RPC exception reading input port '%s': %s", self.name, port_label, description)
+        return InputPortReadError(self.name, port_label, description)
+
+    def _output_port_rpc_error(self, port_label: str, error: capnp.KjException) -> OutputPortWriteError:
+        description = kj_exception_description(error)
+        logger.error("%s RPC exception writing output port '%s': %s", self.name, port_label, description)
+        return OutputPortWriteError(self.name, port_label, description)
+
     async def _read_connected_port(
         self,
         *,
@@ -666,19 +627,13 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
         await self.transition_to_activity("waitingInput", port_label)
         read_task = asyncio.ensure_future(port.read())
-        stop_task = asyncio.create_task(self._stop_requested.wait())
         try:
-            done, pending = await asyncio.wait(
-                {read_task, stop_task},
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            for task in pending:
-                _ = task.cancel()
-
-            if stop_task in done:
-                _ = read_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await read_task
+            done_tasks, stopped = await wait_for_tasks_or_stop({read_task}, self._stop_requested)
+            if stopped:
+                if read_task not in done_tasks:
+                    await cancel_tasks((read_task,))
+                    return None
+                _ = await read_task
                 return None
 
             msg = await read_task
@@ -688,21 +643,13 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 return None
             return msg.value.as_struct(fbp_capnp.IP)
         except asyncio.CancelledError:
-            _ = read_task.cancel()
-            _ = stop_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await read_task
+            await cancel_tasks((read_task,))
             raise
         except capnp.KjException as e:
             on_disconnect()
             if self._stop_requested.is_set():
                 return None
-            description = str(getattr(e, "description", e))
-            logger.error("%s RPC exception reading input port '%s': %s", self.name, port_label, description)
-            raise InputPortReadError(self.name, port_label, description) from e
-        finally:
-            if not stop_task.done():
-                _ = stop_task.cancel()
+            raise self._input_port_rpc_error(port_label, e) from e
 
     async def _read_in_raw(self, name: str) -> IPReader | None:
         port = self.in_ports.get(name)
@@ -801,23 +748,15 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             read_tasks: dict[asyncio.Future[ReadResult], int] = {
                 asyncio.ensure_future(port.read()): i for i, port in active_ports
             }
-            stop_task = asyncio.create_task(self._stop_requested.wait())
             await self.transition_to_activity("waitingInput", name)
 
             try:
-                done, _pending = await asyncio.wait(
-                    {*read_tasks, stop_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if stop_task in done:
-                    await self._cancel_tasks(read_tasks)
+                done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self._stop_requested)
+                if stopped:
+                    await cancel_tasks(read_tasks)
                     return None
 
-                for task in done:
-                    if task is stop_task:
-                        continue
-
+                for task in done_tasks:
                     read_task = cast("asyncio.Future[ReadResult]", task)
                     port_index = read_tasks.pop(read_task)
                     try:
@@ -826,37 +765,25 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                         ports[port_index] = None
                         if self._stop_requested.is_set():
                             continue
-                        description = str(getattr(e, "description", e))
-                        logger.error(
-                            "%s RPC exception reading array input port '%s[%s]': %s",
-                            self.name,
-                            name,
-                            port_index,
-                            description,
-                        )
-                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
+                        raise self._input_port_rpc_error(f"{name}[{port_index}]", e) from e
 
                     if msg.which() == "done":
                         ports[port_index] = None
                     else:
                         buffers[port_index] = msg.value.as_struct(fbp_capnp.IP)
 
-                await self._cancel_tasks(read_tasks)
+                await cancel_tasks(read_tasks)
                 if buffers:
                     port_index = next(iter(buffers))
                     return port_index, buffers.pop(port_index)
 
                 active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
             except asyncio.CancelledError:
-                await self._cancel_tasks(read_tasks)
-                _ = stop_task.cancel()
+                await cancel_tasks(read_tasks)
                 raise
             except Exception:
-                await self._cancel_tasks(read_tasks)
+                await cancel_tasks(read_tasks)
                 raise
-            finally:
-                if not stop_task.done():
-                    _ = stop_task.cancel()
 
     @overload
     async def read_array_in_chunked(
@@ -918,26 +845,18 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         read_tasks: dict[asyncio.Future[ReadResult], int] = {
             asyncio.ensure_future(port.read()): i for i, port in active_ports
         }
-        stop_task = asyncio.create_task(self._stop_requested.wait())
         results: dict[int, IPReader] = {}
         zip_finished = False
         await self.transition_to_activity("waitingInput", name)
 
         try:
             while read_tasks:
-                done, _pending = await asyncio.wait(
-                    {*read_tasks, stop_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if stop_task in done:
-                    await self._cancel_tasks(read_tasks)
+                done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self._stop_requested)
+                if stopped:
+                    await cancel_tasks(read_tasks)
                     return None
 
-                for task in done:
-                    if task is stop_task:
-                        continue
-
+                for task in done_tasks:
                     read_task = cast("asyncio.Future[ReadResult]", task)
                     port_index = read_tasks.pop(read_task)
                     try:
@@ -947,15 +866,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                         if self._stop_requested.is_set():
                             zip_finished = True
                             continue
-                        description = str(getattr(e, "description", e))
-                        logger.error(
-                            "%s RPC exception reading array input port '%s[%s]': %s",
-                            self.name,
-                            name,
-                            port_index,
-                            description,
-                        )
-                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
+                        raise self._input_port_rpc_error(f"{name}[{port_index}]", e) from e
 
                     if msg.which() == "done":
                         ports[port_index] = None
@@ -964,22 +875,18 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                         results[port_index] = msg.value.as_struct(fbp_capnp.IP)
 
                 if zip_finished:
-                    await self._cancel_tasks(read_tasks)
+                    await cancel_tasks(read_tasks)
                     await self.transition_to_activity("processing")
                     return None
 
             await self.transition_to_activity("processing")
             return cast("list[IPReader | IPBuilder]", [results[i] for i, _port in active_ports])
         except asyncio.CancelledError:
-            await self._cancel_tasks(read_tasks)
-            _ = stop_task.cancel()
+            await cancel_tasks(read_tasks)
             raise
         except Exception:
-            await self._cancel_tasks(read_tasks)
+            await cancel_tasks(read_tasks)
             raise
-        finally:
-            if not stop_task.done():
-                _ = stop_task.cancel()
 
     async def _coalesce_chunked_array_results(
         self,
@@ -1072,13 +979,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             content_type=content_type,
         )
 
-    @staticmethod
-    async def _cancel_tasks(tasks: Iterable[asyncio.Future[Any]]) -> None:
-        pending = list(tasks)
-        for task in pending:
-            _ = task.cancel()
-        _ = await asyncio.gather(*pending, return_exceptions=True)
-
     async def write_out(self, name: str, message: IPBuilder) -> bool:
         return await self._write_out_single(name, message)
 
@@ -1099,9 +999,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self.out_ports[name] = None
             if self._stop_requested.is_set():
                 return False
-            description = str(getattr(e, "description", e))
-            logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
-            raise OutputPortWriteError(self.name, name, description) from e
+            raise self._output_port_rpc_error(name, e) from e
 
     async def write_out_chunked(self, name: str, message: IPBuilder) -> bool:
         if message.type != "standard":
@@ -1172,7 +1070,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         close_sent = False
         aborted = False
         rpc_error: capnp.KjException | None = None
-        description: str | None = None
         chunk_iterator = chunks.__aiter__()
         aclose = cast("Callable[[], Awaitable[object]] | None", getattr(chunk_iterator, "aclose", None))
 
@@ -1193,7 +1090,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             await self.transition_to_activity("processing")
         except capnp.KjException as e:
             rpc_error = e
-            description = str(getattr(e, "description", e))
         finally:
             if open_sent and not close_sent:
                 with suppress(capnp.KjException, RuntimeError):
@@ -1212,8 +1108,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         if rpc_error is not None:
             if self._stop_requested.is_set():
                 return False
-            logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
-            raise OutputPortWriteError(self.name, name, description or "") from rpc_error
+            raise self._output_port_rpc_error(name, rpc_error) from rpc_error
 
         return not aborted
 
@@ -1325,24 +1220,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if not active_tasks:
                 return None
 
-            stop_task = asyncio.create_task(self._stop_requested.wait())
-            try:
-                await self.transition_to_activity("waitingOutput", name)
-                done, _pending = await asyncio.wait(
-                    {*active_tasks, stop_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                if stop_task in done:
-                    return None
-                await self.transition_to_activity("processing")
-                for task in done:
-                    if task is stop_task:
-                        continue
-                    write_task = cast("asyncio.Task[bool]", task)
-                    _ = await self._consume_array_out_write_task(name, active_tasks[write_task])
-            finally:
-                if not stop_task.done():
-                    stop_task.cancel()
+            await self.transition_to_activity("waitingOutput", name)
+            done_tasks, stopped = await wait_for_tasks_or_stop(active_tasks, self._stop_requested)
+            if stopped:
+                return None
+            await self.transition_to_activity("processing")
+            for task in done_tasks:
+                write_task = cast("asyncio.Task[bool]", task)
+                _ = await self._consume_array_out_write_task(name, active_tasks[write_task])
 
         return None
 
@@ -1383,15 +1268,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             self.array_out_ports[name][port_index] = None
             if self._stop_requested.is_set():
                 return False
-            description = str(getattr(e, "description", e))
-            logger.error(
-                "%s RPC exception writing array output port '%s[%s]': %s",
-                self.name,
-                name,
-                port_index,
-                description,
-            )
-            raise OutputPortWriteError(self.name, f"{name}[{port_index}]", description) from e
+            raise self._output_port_rpc_error(f"{name}[{port_index}]", e) from e
 
     async def close_in_ports(self):
         for name, port in self.in_ports.items():

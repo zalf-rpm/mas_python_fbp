@@ -56,7 +56,7 @@ class SplitStringConfig(process.ProcessConfig):
     split_at: str = ","
 
 
-class SplitString(process.Process[SplitStringConfig]):
+class SplitString(process.Process[process.RawConfig]):
     def __init__(
         self,
         metadata: meta.Component = METADATA,
@@ -77,7 +77,7 @@ class SplitString(process.Process[SplitStringConfig]):
 
             s = in_msg.content.as_text()
             logger.info("%s received: %s", self.name, s)
-            vals = s.rstrip().split(self.config.split_at)
+            vals = s.rstrip().split(str(self.config["split_at"]))
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)

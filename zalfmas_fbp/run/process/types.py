@@ -3,7 +3,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
-from typing_extensions import TypeVar
 
 type ConfigScalar = str | int | float | bool
 type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
@@ -23,6 +22,3 @@ class ArrayOutStrategy(StrEnum):
 
 class ProcessConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-
-ConfigT = TypeVar("ConfigT", bound=ProcessConfig | RawConfig, default=RawConfig)

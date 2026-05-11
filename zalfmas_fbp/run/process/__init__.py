@@ -1,10 +1,15 @@
-from .chunked_io import ChunkedInputStream, blob_ip, ip_content_type, read_ip_data
-from .core import (
+from .chunked_io import (
     DEFAULT_BRACKETED_CHUNK_SIZE,
+    ChunkedInputStream,
+    blob_ip,
+    ip_content_type,
+    iter_bytes_in_chunks,
+    read_ip_data,
+)
+from .core import (
     DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS,
     DEFAULT_SOFT_STOP_TIMEOUT_SECONDS,
     Process,
-    iter_bytes_in_chunks,
 )
 from .errors import (
     InputPortReadError,
@@ -20,14 +25,13 @@ from .runner import (
     start_local_process_component,
 )
 from .transitions import ActivityTransition, PortDisconnect, StateTransition
-from .types import ArrayInStrategy, ArrayOutStrategy, ConfigT, ConfigValue, ProcessConfig, RawConfig
+from .types import ArrayInStrategy, ArrayOutStrategy, ConfigValue, ProcessConfig, RawConfig
 
 __all__ = [
     "ActivityTransition",
     "ArrayInStrategy",
     "ArrayOutStrategy",
     "ChunkedInputStream",
-    "ConfigT",
     "ConfigValue",
     "DEFAULT_BRACKETED_CHUNK_SIZE",
     "DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS",

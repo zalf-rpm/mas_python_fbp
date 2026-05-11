@@ -127,7 +127,9 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             "path-to-soil-dir": "/home/berg/Desktop/soil/",
             "monica-path-to-climate-dir": "/run/user/1000/gvfs/sftp:host=login01.cluster.zalf.de,user=rpm/beegfs/common/data/climate/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": str(Path(config["path_to_repo"]) / "data"),  # mounted path to archive or hard drive with data
+            "path-to-data-dir": str(
+                Path(config["path_to_repo"]) / "data"
+            ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
         "mbm-local-remote": {
@@ -146,7 +148,9 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             "path-to-soil-dir": "/beegfs/common/data/soil/global_soil_dataset_for_earth_system_modeling/",
             "monica-path-to-climate-dir": "/monica_data/climate-data/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": str(Path(config["path_to_repo"]) / "data"),  # mounted path to archive or hard drive with data
+            "path-to-data-dir": str(
+                Path(config["path_to_repo"]) / "data"
+            ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
     }
