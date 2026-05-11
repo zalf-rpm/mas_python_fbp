@@ -6,10 +6,13 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
-from mas.schema.common import common_capnp
 from zalfmas_common import common
 
-from zalfmas_fbp.components.dakis.common.file_payload import prepared_file_ip
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    GEOPARQUET_CONTENT_TYPE,
+    blob_content_type,
+    prepared_file_ip,
+)
 from zalfmas_fbp.components.dakis.common.write_geoparquet import prepare_geoparquet_bytes
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
@@ -35,14 +38,14 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="in",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOPARQUET_CONTENT_TYPE),
             desc="GeoParquet bytes.",
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOPARQUET_CONTENT_TYPE),
             desc="Prepared GeoParquet file payload.",
         ),
     ],
@@ -85,23 +88,25 @@ class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self.read_in("in", automatic_chunking=True)
+            in_msg = await self.read_in_chunked("in")
             if in_msg is None:
                 break
 
             try:
-                geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
+                geoparquet_bytes, _content_type = process.read_ip_data(in_msg)
                 output_bytes = prepare_geoparquet_bytes(
                     geoparquet_bytes,
                     compression=self.config.compression,
                 )
-                out_ip = prepared_file_ip(
-                    output_bytes,
-                    path=self.config.path,
-                    filename=self.config.filename,
-                    content_type="application/geoparquet",
-                )
-                if not await self.write_out("out", out_ip, automatic_chunking=True):
+                if not await self.write_out_chunked(
+                    "out",
+                    prepared_file_ip(
+                        output_bytes,
+                        path=self.config.path,
+                        filename=self.config.filename,
+                        content_type=GEOPARQUET_CONTENT_TYPE,
+                    ),
+                ):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s prepared GeoParquet file payload", self.name)

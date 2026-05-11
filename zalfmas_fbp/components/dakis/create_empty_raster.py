@@ -6,10 +6,9 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
-from mas.schema.common import common_capnp
-from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+from zalfmas_fbp.components.dakis.common.file_payload import GEOTIFF_CONTENT_TYPE, blob_content_type
 from zalfmas_fbp.components.dakis.common.raster import create_empty_raster_bytes, parse_geojson_bbox
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
@@ -46,7 +45,7 @@ METADATA = meta.Component(
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOTIFF_CONTENT_TYPE),
             desc="Compressed GeoTIFF bytes.",
         ),
     ],
@@ -105,8 +104,8 @@ class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
                     compression=self.config.compression,
                 )
 
-                out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=raster_bytes))
-                if not await self.write_out("out", out_ip, automatic_chunking=True):
+                out_ip = process.blob_ip(raster_bytes, content_type=GEOTIFF_CONTENT_TYPE)
+                if not await self.write_out_chunked("out", out_ip):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent raster with %s bytes", self.name, len(raster_bytes))

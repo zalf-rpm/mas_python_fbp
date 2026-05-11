@@ -6,10 +6,14 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
-from mas.schema.common import common_capnp
 from zalfmas_common import common
 
-from zalfmas_fbp.components.dakis.common.file_payload import prepared_file_ip
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    COG_CONTENT_TYPE,
+    GEOTIFF_CONTENT_TYPE,
+    blob_content_type,
+    prepared_file_ip,
+)
 from zalfmas_fbp.components.dakis.common.write_raster import prepare_raster_bytes
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
@@ -35,14 +39,14 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="in",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOTIFF_CONTENT_TYPE),
             desc="GeoTIFF raster bytes.",
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
+            contentType=f"{blob_content_type(GEOTIFF_CONTENT_TYPE)} | {blob_content_type(COG_CONTENT_TYPE)}",
             desc="Prepared GeoTIFF or COG file payload.",
         ),
     ],
@@ -91,24 +95,27 @@ class WriteRaster(process.Process[WriteRasterConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self.read_in("in", automatic_chunking=True)
+            in_msg = await self.read_in_chunked("in")
             if in_msg is None:
                 break
 
             try:
-                raster_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
+                raster_bytes, _content_type = process.read_ip_data(in_msg)
                 output_bytes = prepare_raster_bytes(
                     raster_bytes,
                     compression=self.config.compression,
                     write_as_cog=self.config.write_as_cog,
                 )
-                out_ip = prepared_file_ip(
-                    output_bytes,
-                    path=self.config.path,
-                    filename=self.config.filename,
-                    content_type="image/tiff",
-                )
-                if not await self.write_out("out", out_ip, automatic_chunking=True):
+                content_type = COG_CONTENT_TYPE if self.config.write_as_cog else GEOTIFF_CONTENT_TYPE
+                if not await self.write_out_chunked(
+                    "out",
+                    prepared_file_ip(
+                        output_bytes,
+                        path=self.config.path,
+                        filename=self.config.filename,
+                        content_type=content_type,
+                    ),
+                ):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s prepared GeoTIFF file payload", self.name)

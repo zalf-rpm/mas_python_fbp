@@ -12,8 +12,7 @@ from typing import override
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
-    read_prepared_file,
-    read_prepared_file_chunk,
+    BLOB_CONTENT_TYPE,
     read_prepared_file_metadata,
 )
 from zalfmas_fbp.run import metadata as meta
@@ -37,8 +36,8 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="in",
-            contentType="common.capnp:Value[Data]",
-            desc="Prepared file payload bytes with optional path and filename attributes.",
+            contentType=BLOB_CONTENT_TYPE,
+            desc="Prepared file Blob with optional path and filename metadata.",
         ),
     ],
     defaultConfig={
@@ -74,28 +73,18 @@ class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self._read_in_raw("in")
-            if in_msg is None:
+            stream = await self.read_in_chunked_stream("in")
+            if stream is None:
                 break
 
-            if in_msg.type == "openBracket":
-                output_path = await self._write_chunked_file(in_msg)
-            elif in_msg.type == "closeBracket":
-                continue
-            else:
-                data, path, filename, _content_type = read_prepared_file(
-                    in_msg,
-                    default_path=self.config.path,
-                    default_filename=self.config.filename,
-                )
-                output_path = _write_file(data, path=path, filename=filename)
+            output_path = await self._write_chunked_file(stream)
             logger.info("%s wrote file to %s", self.name, output_path)
 
         logger.info("%s process finished", self.name)
 
-    async def _write_chunked_file(self, open_ip) -> Path:
+    async def _write_chunked_file(self, stream: process.ChunkedInputStream) -> Path:
         path, filename, _content_type = read_prepared_file_metadata(
-            open_ip,
+            stream.open_ip,
             default_path=self.config.path,
             default_filename=self.config.filename,
         )
@@ -108,17 +97,8 @@ class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):
                 "wb", dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp", delete=False
             ) as tmp_file:
                 tmp_path = Path(tmp_file.name)
-                while True:
-                    chunk_ip = await self._read_in_raw("in")
-                    if chunk_ip is None:
-                        msg = "Input port 'in' closed before the prepared file payload ended."
-                        raise ValueError(msg)
-                    if chunk_ip.type == "closeBracket":
-                        break
-                    if chunk_ip.type == "openBracket":
-                        msg = "Nested file payload brackets are not supported."
-                        raise ValueError(msg)
-                    tmp_file.write(read_prepared_file_chunk(chunk_ip))
+                async for chunk in stream:
+                    tmp_file.write(chunk)
 
             os.replace(tmp_path, output_path)
         except Exception:
@@ -127,25 +107,6 @@ class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):
             raise
 
         return output_path
-
-
-def _write_file(data: bytes, *, path: str, filename: str) -> Path:
-    output_path = Path(path) / filename
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with NamedTemporaryFile(
-        "wb", dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp", delete=False
-    ) as tmp_file:
-        tmp_path = Path(tmp_file.name)
-        tmp_file.write(data)
-
-    try:
-        os.replace(tmp_path, output_path)
-    except Exception:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
-    return output_path
 
 
 def main():

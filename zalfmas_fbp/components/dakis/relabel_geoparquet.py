@@ -7,10 +7,13 @@ import logging
 from typing import TYPE_CHECKING, override
 
 import capnp
-from mas.schema.common import common_capnp
-from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    CSV_CONTENT_TYPE,
+    GEOPARQUET_CONTENT_TYPE,
+    blob_content_type,
+)
 from zalfmas_fbp.components.dakis.common.relabel import relabel_geoparquet_bytes
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
@@ -37,19 +40,19 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="in",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOPARQUET_CONTENT_TYPE),
             desc="GeoParquet bytes.",
         ),
         meta.Port(
             name="translation",
-            contentType="Text | common.capnp:Value[Data]",
+            contentType=f"Text | {blob_content_type(CSV_CONTENT_TYPE)}",
             desc="Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used.",
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOPARQUET_CONTENT_TYPE),
             desc="Relabeled GeoParquet bytes.",
         ),
     ],
@@ -107,19 +110,19 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
         mapping_csv_bytes = None
 
         while True:
-            in_msg = await self.read_in("in", automatic_chunking=True)
+            in_msg = await self.read_in_chunked("in")
             if in_msg is None:
                 break
 
             try:
-                translation_msg = await self.read_in("translation", automatic_chunking=True)
+                translation_msg = await self.read_in_chunked("translation")
                 if translation_msg is not None:
                     mapping_csv_path, mapping_csv_bytes = _read_translation(
                         translation_msg,
                         fallback_path=mapping_csv_path,
                     )
 
-                geoparquet_bytes = bytes(in_msg.content.as_struct(common_capnp.Value).d)
+                geoparquet_bytes, _content_type = process.read_ip_data(in_msg)
                 output_bytes = relabel_geoparquet_bytes(
                     geoparquet_bytes,
                     mapping_csv_path=mapping_csv_path,
@@ -130,7 +133,9 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
                     default_priority=self.config.default_priority,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes), automatic_chunking=True):
+                if not await self.write_out_chunked(
+                    "out", process.blob_ip(output_bytes, content_type=GEOPARQUET_CONTENT_TYPE)
+                ):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s relabeled GeoParquet bytes", self.name, len(output_bytes))
@@ -149,13 +154,10 @@ def main():
     process.run_process_from_metadata_and_cmd_args(RelabelGeoparquet(METADATA), METADATA)
 
 
-def _data_ip(data: bytes) -> IPBuilder:
-    return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=data))
-
-
 def _read_translation(ip: IPReader | IPBuilder, *, fallback_path: str) -> tuple[str, bytes | None]:
     try:
-        return fallback_path, bytes(ip.content.as_struct(common_capnp.Value).d)
+        data, _content_type = process.read_ip_data(ip, default_content_type=CSV_CONTENT_TYPE)
+        return fallback_path, data
     except (capnp.KjException, TypeError):
         return ip.content.as_text() or fallback_path, None
 

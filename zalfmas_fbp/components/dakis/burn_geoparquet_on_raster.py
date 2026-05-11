@@ -4,19 +4,19 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal, override
+from typing import Literal, override
 
-from mas.schema.common import common_capnp
-from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.burn import burn_geoparquet_on_raster_bytes
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    GEOPARQUET_CONTENT_TYPE,
+    GEOTIFF_CONTENT_TYPE,
+    blob_content_type,
+)
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
-
-if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
 
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -38,19 +38,19 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="raster",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOTIFF_CONTENT_TYPE),
             desc="Compressed raster bytes.",
         ),
         meta.Port(
             name="geometries",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOPARQUET_CONTENT_TYPE),
             desc="GeoParquet bytes with lucode, priority, and geometry columns.",
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
+            contentType=blob_content_type(GEOTIFF_CONTENT_TYPE),
             desc="Burned raster bytes.",
         ),
     ],
@@ -99,16 +99,16 @@ class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            raster_msg = await self.read_in("raster", automatic_chunking=True)
+            raster_msg = await self.read_in_chunked("raster")
             if raster_msg is None:
                 break
-            geometries_msg = await self.read_in("geometries", automatic_chunking=True)
+            geometries_msg = await self.read_in_chunked("geometries")
             if geometries_msg is None:
                 break
 
             try:
-                raster_bytes = bytes(raster_msg.content.as_struct(common_capnp.Value).d)
-                geoparquet_bytes = bytes(geometries_msg.content.as_struct(common_capnp.Value).d)
+                raster_bytes, _raster_content_type = process.read_ip_data(raster_msg)
+                geoparquet_bytes, _geoparquet_content_type = process.read_ip_data(geometries_msg)
                 output_bytes = burn_geoparquet_on_raster_bytes(
                     raster_bytes,
                     geoparquet_bytes,
@@ -118,7 +118,9 @@ class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):
                     compression=None if self.config.compression == "preserve" else self.config.compression,
                 )
 
-                if not await self.write_out("out", _data_ip(output_bytes), automatic_chunking=True):
+                if not await self.write_out_chunked(
+                    "out", process.blob_ip(output_bytes, content_type=GEOTIFF_CONTENT_TYPE)
+                ):
                     logger.info("%s process finished", self.name)
                     return
                 logger.info("%s sent %s burned raster bytes", self.name, len(output_bytes))
@@ -131,10 +133,6 @@ class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):
 
 def main():
     process.run_process_from_metadata_and_cmd_args(BurnGeoparquetOnRaster(METADATA), METADATA)
-
-
-def _data_ip(data: bytes) -> IPBuilder:
-    return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=data))
 
 
 if __name__ == "__main__":

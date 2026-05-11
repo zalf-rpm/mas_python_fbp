@@ -31,6 +31,9 @@ from zalfmas_fbp.components.dakis.burn_geoparquet_on_raster import (
     BurnGeoparquetOnRaster,
 )
 from zalfmas_fbp.components.dakis.common.file_payload import (
+    DEFAULT_CONTENT_TYPE,
+    GEOPARQUET_CONTENT_TYPE,
+    GEOTIFF_CONTENT_TYPE,
     prepared_file_bracket_ip,
     prepared_file_chunk_ips,
     prepared_file_ip,
@@ -96,6 +99,12 @@ from zalfmas_fbp.components.dakis.write_raster import (
     WriteRaster,
 )
 from zalfmas_fbp.run import process
+from zalfmas_fbp.run.process import core as process_core
+
+
+def _set_bracketed_chunk_size(monkeypatch, size: int) -> None:
+    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", size)
+    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", size)
 
 
 def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() -> None:
@@ -117,7 +126,7 @@ def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() 
     assert writer.values[0].type == "openBracket"
     assert writer.values[-1].type == "closeBracket"
 
-    raster_bytes = bytes(_prepared_payload_from_messages(writer.values).content.as_struct(common_capnp.Value).d)
+    raster_bytes = _payload_bytes(_prepared_payload_from_messages(writer.values))
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
         assert dataset.crs.to_epsg() == 25833
         assert dataset.res == (100.0, 100.0)
@@ -151,7 +160,7 @@ def test_create_empty_raster_reads_conf_port_before_processing_input() -> None:
     assert component.config.resolution_m == 50.0
     assert component.config.compression == "lzw"
 
-    raster_bytes = bytes(_prepared_payload_from_messages(writer.values).content.as_struct(common_capnp.Value).d)
+    raster_bytes = _payload_bytes(_prepared_payload_from_messages(writer.values))
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
         assert dataset.crs.to_epsg() == 4326
         assert dataset.res == (50.0, 50.0)
@@ -184,14 +193,9 @@ def test_filter_geoparquet_by_raster_writes_overlapping_geometries_and_raster(tm
     )
 
     assert filter_geoparquet_metadata.defaultConfig["geoparquet_path"].value == "resources/invekos_optimized.parquet"
-    assert (
-        bytes(_prepared_payload_from_messages(result.output("raster").values).content.as_struct(common_capnp.Value).d)
-        == raster_bytes
-    )
+    assert _payload_bytes(_prepared_payload_from_messages(result.output("raster").values)) == raster_bytes
 
-    geoparquet_bytes = bytes(
-        _prepared_payload_from_messages(result.output("out").values).content.as_struct(common_capnp.Value).d
-    )
+    geoparquet_bytes = _payload_bytes(_prepared_payload_from_messages(result.output("out").values))
     filtered = gpd.read_parquet(cast("Any", BytesIO(geoparquet_bytes)))
     assert filtered.crs is not None
     assert filtered.crs.to_epsg() == 25833
@@ -223,9 +227,7 @@ def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_o
         inputs={"in": [_raster_message(raster_bytes), done_message()]},
     )
 
-    geoparquet_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    geoparquet_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     filtered = gpd.read_parquet(cast("Any", BytesIO(geoparquet_bytes)))
     assert filtered["id"].to_list() == [1, 3]
     assert _geo_metadata_from_bytes(geoparquet_bytes)["columns"]["geometry"]["crs"] is not None
@@ -253,9 +255,7 @@ def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_prio
         inputs={"in": [_raster_message(source_bytes), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     relabeled = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
 
     assert (
@@ -288,9 +288,7 @@ def test_relabel_geoparquet_uses_mapping_priority_column(tmp_path: Path) -> None
         inputs={"in": [_raster_message(_geoparquet_bytes(source)), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     relabeled = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
     assert relabeled["priority"].to_list() == [3, 4]
 
@@ -316,9 +314,7 @@ def test_relabel_geoparquet_accepts_translation_csv_on_port() -> None:
         },
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     relabeled = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
     assert relabeled["lucode"].to_list() == [11, 12]
     assert relabeled["priority"].to_list() == [3, 4]
@@ -343,9 +339,7 @@ def test_burn_geoparquet_on_raster_burns_lucode_using_priority_order() -> None:
         },
     )
 
-    raster_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    raster_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
         values = dataset.read(1)
 
@@ -376,9 +370,7 @@ def test_burn_geoparquet_on_raster_promotes_dtype_for_lulc_codes_above_uint8() -
         },
     )
 
-    raster_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    raster_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     with MemoryFile(raster_bytes) as memory_file, memory_file.open() as dataset:
         assert dataset.dtypes == ("uint16",)
         assert dataset.read(1).tolist() == [[523]]
@@ -423,7 +415,7 @@ def test_merge_geoparquet_uses_zip_array_input_and_preserves_relabel_schema() ->
 
     asyncio.run(_run_process(component))
 
-    output_bytes = bytes(_prepared_payload_from_messages(writer.values).content.as_struct(common_capnp.Value).d)
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(writer.values))
     merged = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
     assert merged.columns.to_list() == ["lucode", "priority", "geometry"]
     assert merged["lucode"].to_list() == [11, 12]
@@ -434,7 +426,7 @@ def test_merge_geoparquet_uses_zip_array_input_and_preserves_relabel_schema() ->
 
 
 def test_write_geoparquet_prepares_readable_file_payload(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     geoparquet_bytes = _geoparquet_bytes(
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
@@ -452,8 +444,8 @@ def test_write_geoparquet_prepares_readable_file_payload(monkeypatch) -> None:
     out_ip = _prepared_payload_from_messages(result.output().values)
     assert common.get_fbp_attr(out_ip, "path").as_text() == "prepared/geoparquet"
     assert common.get_fbp_attr(out_ip, "filename").as_text() == "out.parquet"
-    assert common.get_fbp_attr(out_ip, "content_type").as_text() == "application/geoparquet"
-    output_bytes = bytes(out_ip.content.as_struct(common_capnp.Value).d)
+    assert common.get_fbp_attr(out_ip, "content_type").as_text() == GEOPARQUET_CONTENT_TYPE
+    output_bytes = _payload_bytes(out_ip)
     prepared = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
     assert prepared["lucode"].to_list() == [11]
     assert prepared["priority"].to_list() == [7]
@@ -463,7 +455,7 @@ def test_write_geoparquet_prepares_readable_file_payload(monkeypatch) -> None:
 
 
 def test_write_geoparquet_none_compression_writes_uncompressed_readable_payload(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     geoparquet_bytes = _geoparquet_bytes(
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
@@ -475,9 +467,7 @@ def test_write_geoparquet_none_compression_writes_uncompressed_readable_payload(
         inputs={"in": [_raster_message(geoparquet_bytes), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     prepared = gpd.read_parquet(cast("Any", BytesIO(output_bytes)))
     assert prepared["lucode"].to_list() == [11]
     parquet_file = pq.ParquetFile(BytesIO(output_bytes))
@@ -485,7 +475,7 @@ def test_write_geoparquet_none_compression_writes_uncompressed_readable_payload(
 
 
 def test_write_geoparquet_preserve_compression_keeps_original_payload_bytes(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     geoparquet_bytes = _geoparquet_bytes(
         gpd.GeoDataFrame({"lucode": [11], "priority": [7], "geometry": [box(0, 0, 1, 1)]}, crs="EPSG:25833"),
     )
@@ -497,14 +487,11 @@ def test_write_geoparquet_preserve_compression_keeps_original_payload_bytes(monk
         inputs={"in": [_raster_message(geoparquet_bytes), done_message()]},
     )
 
-    assert (
-        bytes(_prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d)
-        == geoparquet_bytes
-    )
+    assert _payload_bytes(_prepared_payload_from_messages(result.output().values)) == geoparquet_bytes
 
 
 def test_write_raster_prepares_readable_geotiff_file_payload(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     raster_bytes = _test_raster_bytes(width=3, height=2)
     component = WriteRaster(write_raster_metadata)
     component.apply_config_values({"path": "prepared/rasters", "filename": "raster.tif", "compression": "lzw"})
@@ -520,9 +507,9 @@ def test_write_raster_prepares_readable_geotiff_file_payload(monkeypatch) -> Non
     out_ip = _prepared_payload_from_messages(result.output().values)
     assert common.get_fbp_attr(out_ip, "path").as_text() == "prepared/rasters"
     assert common.get_fbp_attr(out_ip, "filename").as_text() == "raster.tif"
-    assert common.get_fbp_attr(out_ip, "content_type").as_text() == "image/tiff"
+    assert common.get_fbp_attr(out_ip, "content_type").as_text() == GEOTIFF_CONTENT_TYPE
     with (
-        MemoryFile(bytes(out_ip.content.as_struct(common_capnp.Value).d)) as memory_file,
+        MemoryFile(_payload_bytes(out_ip)) as memory_file,
         memory_file.open() as dataset,
     ):
         assert dataset.crs.to_epsg() == 25833
@@ -533,7 +520,7 @@ def test_write_raster_prepares_readable_geotiff_file_payload(monkeypatch) -> Non
 
 
 def test_write_raster_none_compression_writes_uncompressed_geotiff(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     raster_bytes = _test_raster_bytes(width=3, height=2)
     component = WriteRaster(write_raster_metadata)
     component.apply_config_values({"compression": "none"})
@@ -543,15 +530,13 @@ def test_write_raster_none_compression_writes_uncompressed_geotiff(monkeypatch) 
         inputs={"in": [_raster_message(raster_bytes), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     with MemoryFile(output_bytes) as memory_file, memory_file.open() as dataset:
         assert dataset.compression is None
 
 
 def test_write_raster_preserve_compression_keeps_original_payload_bytes(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     raster_bytes = _test_raster_bytes(width=3, height=2)
     component = WriteRaster(write_raster_metadata)
     component.apply_config_values({"compression": "preserve"})
@@ -561,14 +546,11 @@ def test_write_raster_preserve_compression_keeps_original_payload_bytes(monkeypa
         inputs={"in": [_raster_message(raster_bytes), done_message()]},
     )
 
-    assert (
-        bytes(_prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d)
-        == raster_bytes
-    )
+    assert _payload_bytes(_prepared_payload_from_messages(result.output().values)) == raster_bytes
 
 
 def test_write_raster_write_as_cog_outputs_cloud_optimized_geotiff(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     raster_bytes = _test_raster_bytes(width=256, height=256)
     component = WriteRaster(write_raster_metadata)
     component.apply_config_values({"write_as_cog": True, "compression": "preserve"})
@@ -578,9 +560,7 @@ def test_write_raster_write_as_cog_outputs_cloud_optimized_geotiff(monkeypatch) 
         inputs={"in": [_raster_message(raster_bytes), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     with MemoryFile(output_bytes) as memory_file, memory_file.open() as dataset:
         image_structure = dataset.tags(ns="IMAGE_STRUCTURE")
         assert image_structure["LAYOUT"] == "COG"
@@ -589,7 +569,7 @@ def test_write_raster_write_as_cog_outputs_cloud_optimized_geotiff(monkeypatch) 
 
 
 def test_write_raster_write_as_cog_can_write_uncompressed_output(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 5)
+    _set_bracketed_chunk_size(monkeypatch, 5)
     raster_bytes = _test_raster_bytes(width=256, height=256)
     component = WriteRaster(write_raster_metadata)
     component.apply_config_values({"write_as_cog": True, "compression": "none"})
@@ -599,9 +579,7 @@ def test_write_raster_write_as_cog_can_write_uncompressed_output(monkeypatch) ->
         inputs={"in": [_raster_message(raster_bytes), done_message()]},
     )
 
-    output_bytes = bytes(
-        _prepared_payload_from_messages(result.output().values).content.as_struct(common_capnp.Value).d
-    )
+    output_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
     with MemoryFile(output_bytes) as memory_file, memory_file.open() as dataset:
         image_structure = dataset.tags(ns="IMAGE_STRUCTURE")
         assert image_structure["LAYOUT"] == "COG"
@@ -609,14 +587,14 @@ def test_write_raster_write_as_cog_can_write_uncompressed_output(monkeypatch) ->
 
 
 def test_write_file_to_disk_uses_prepared_file_path_and_filename(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     component = WriteFileToDisk(write_file_to_disk_metadata)
     file_ips = list(
         prepared_file_chunk_ips(
             b"payload",
             path=str(tmp_path / "nested"),
             filename="prepared.bin",
-            content_type="application/octet-stream",
+            content_type=DEFAULT_CONTENT_TYPE,
         )
     )
 
@@ -630,20 +608,20 @@ def test_write_file_to_disk_uses_prepared_file_path_and_filename(tmp_path: Path,
 
 
 def test_write_file_to_disk_rejects_unterminated_bracketed_payload(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     component = WriteFileToDisk(write_file_to_disk_metadata)
     path = str(tmp_path / "nested")
     open_ip = prepared_file_bracket_ip(
         bracket_type="openBracket",
         path=path,
         filename="prepared.bin",
-        content_type="application/octet-stream",
+        content_type=DEFAULT_CONTENT_TYPE,
     )
     chunk_ip = prepared_file_ip(
         b"pa",
         path=path,
         filename="prepared.bin",
-        content_type="application/octet-stream",
+        content_type=DEFAULT_CONTENT_TYPE,
     )
 
     try:
@@ -652,8 +630,8 @@ def test_write_file_to_disk_rejects_unterminated_bracketed_payload(tmp_path: Pat
             inputs={"in": [_ip_reader_message(open_ip), _ip_reader_message(chunk_ip), done_message()]},
             outputs=(),
         )
-    except ValueError as exc:
-        assert "closed before the prepared file payload ended" in str(exc)
+    except process.InputPortReadError as exc:
+        assert "closed before a bracketed payload ended" in str(exc)
     else:
         raise AssertionError("write file to disk should reject unterminated bracketed payloads")
 
@@ -667,7 +645,7 @@ def test_write_file_to_disk_finishes_before_a_late_input_connection(tmp_path: Pa
                 b"payload",
                 path=str(output_path),
                 filename="prepared.bin",
-                content_type="application/octet-stream",
+                content_type=DEFAULT_CONTENT_TYPE,
             )
         )
 
@@ -688,7 +666,7 @@ def test_write_file_to_disk_finishes_before_a_late_input_connection(tmp_path: Pa
 
 
 def test_write_file_to_object_store_uploads_to_configured_s3_endpoint(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     captured: dict[str, Any] = {}
 
     class FakeClient:
@@ -705,9 +683,9 @@ def test_write_file_to_object_store_uploads_to_configured_s3_endpoint(monkeypatc
             captured["client"] = {"service_name": service_name, "endpoint_url": endpoint_url}
             return FakeClient()
 
-    from zalfmas_fbp.components.dakis import write_file_to_object_store
+    from zalfmas_fbp.components.dakis.common import object_store
 
-    monkeypatch.setattr(write_file_to_object_store, "Session", FakeSession)
+    monkeypatch.setattr(object_store, "Session", FakeSession)
 
     component = WriteFileToObjectStore(write_file_to_object_store_metadata)
     component.apply_config_values(
@@ -723,7 +701,7 @@ def test_write_file_to_object_store_uploads_to_configured_s3_endpoint(monkeypatc
             b"payload",
             path="prepared/geoparquet",
             filename="out.parquet",
-            content_type="application/geoparquet",
+            content_type=GEOPARQUET_CONTENT_TYPE,
         )
     )
 
@@ -739,12 +717,12 @@ def test_write_file_to_object_store_uploads_to_configured_s3_endpoint(monkeypatc
         "Bucket": "bucket",
         "Key": "prepared/geoparquet/out.parquet",
         "Body": b"payload",
-        "ContentType": "application/geoparquet",
+        "ContentType": GEOPARQUET_CONTENT_TYPE,
     }
 
 
 def test_read_file_from_disk_outputs_prepared_file_payload(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     path = tmp_path / "nested"
     path.mkdir()
     (path / "input.bin").write_bytes(b"payload")
@@ -753,7 +731,7 @@ def test_read_file_from_disk_outputs_prepared_file_payload(tmp_path: Path, monke
         {
             "path": str(path),
             "filename": "input.bin",
-            "content_type": "application/octet-stream",
+            "content_type": DEFAULT_CONTENT_TYPE,
         },
     )
 
@@ -767,21 +745,24 @@ def test_read_file_from_disk_outputs_prepared_file_payload(tmp_path: Path, monke
         "standard",
         "closeBracket",
     ]
+    assert common.get_fbp_attr(result.output().values[0], "path").as_text() == str(path)
+    assert common.get_fbp_attr(result.output().values[1], "path") is None
+    assert common.get_fbp_attr(result.output().values[-1], "path") is None
     out_ip = _prepared_payload_from_messages(result.output().values)
-    assert bytes(out_ip.content.as_struct(common_capnp.Value).d) == b"payload"
+    assert _payload_bytes(out_ip) == b"payload"
     assert common.get_fbp_attr(out_ip, "path").as_text() == str(path)
     assert common.get_fbp_attr(out_ip, "filename").as_text() == "input.bin"
-    assert common.get_fbp_attr(out_ip, "content_type").as_text() == "application/octet-stream"
+    assert common.get_fbp_attr(out_ip, "content_type").as_text() == DEFAULT_CONTENT_TYPE
 
 
 def test_read_file_from_disk_missing_input_emits_no_partial_payload(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     component = ReadFileFromDisk(read_file_from_disk_metadata)
     component.apply_config_values(
         {
             "path": str(tmp_path),
             "filename": "missing.bin",
-            "content_type": "application/octet-stream",
+            "content_type": DEFAULT_CONTENT_TYPE,
         },
     )
 
@@ -791,7 +772,7 @@ def test_read_file_from_disk_missing_input_emits_no_partial_payload(tmp_path: Pa
 
 
 def test_read_file_from_object_store_downloads_from_configured_s3_endpoint(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    _set_bracketed_chunk_size(monkeypatch, 2)
     captured: dict[str, Any] = {}
 
     class FakeBody:
@@ -814,9 +795,9 @@ def test_read_file_from_object_store_downloads_from_configured_s3_endpoint(monke
             captured["client"] = {"service_name": service_name, "endpoint_url": endpoint_url}
             return FakeClient()
 
-    from zalfmas_fbp.components.dakis import read_file_from_object_store
+    from zalfmas_fbp.components.dakis.common import object_store
 
-    monkeypatch.setattr(read_file_from_object_store, "Session", FakeSession)
+    monkeypatch.setattr(object_store, "Session", FakeSession)
 
     component = ReadFileFromObjectStore(read_file_from_object_store_metadata)
     component.apply_config_values(
@@ -827,7 +808,7 @@ def test_read_file_from_object_store_downloads_from_configured_s3_endpoint(monke
             "bucket": "bucket",
             "path": "prepared/geoparquet",
             "filename": "out.parquet",
-            "content_type": "application/geoparquet",
+            "content_type": GEOPARQUET_CONTENT_TYPE,
         },
     )
 
@@ -844,11 +825,14 @@ def test_read_file_from_object_store_downloads_from_configured_s3_endpoint(monke
         "standard",
         "closeBracket",
     ]
+    assert common.get_fbp_attr(result.output().values[0], "path").as_text() == "prepared/geoparquet"
+    assert common.get_fbp_attr(result.output().values[1], "path") is None
+    assert common.get_fbp_attr(result.output().values[-1], "path") is None
     out_ip = _prepared_payload_from_messages(result.output().values)
-    assert bytes(out_ip.content.as_struct(common_capnp.Value).d) == b"payload"
+    assert _payload_bytes(out_ip) == b"payload"
     assert common.get_fbp_attr(out_ip, "path").as_text() == "prepared/geoparquet"
     assert common.get_fbp_attr(out_ip, "filename").as_text() == "out.parquet"
-    assert common.get_fbp_attr(out_ip, "content_type").as_text() == "application/geoparquet"
+    assert common.get_fbp_attr(out_ip, "content_type").as_text() == GEOPARQUET_CONTENT_TYPE
 
 
 async def _run_process(component) -> None:
@@ -878,22 +862,28 @@ def _test_raster_bytes(*, width: int = 10, height: int = 10) -> bytes:
 
 
 def _raster_message(raster_bytes: bytes):
-    return ip_message(common_capnp.Value.new_message(d=raster_bytes))
+    return ip_message(common_capnp.Blob.new_message(contentType=GEOTIFF_CONTENT_TYPE, data=raster_bytes))
 
 
 def _ip_reader_message(ip):
     return PortMessage(PortValue(ip))
 
 
+def _payload_bytes(ip) -> bytes:
+    return process.read_ip_data(ip)[0]
+
+
 def _prepared_payload_from_messages(messages):
     assert messages[0].type == "openBracket"
     assert messages[-1].type == "closeBracket"
-    data = b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in messages[1:-1])
+    data = b"".join(_payload_bytes(ip) for ip in messages[1:-1])
     return prepared_file_ip(
         data,
         path=_attr_text(messages[0], "path"),
         filename=_attr_text(messages[0], "filename"),
-        content_type=_attr_text(messages[0], "content_type") or "application/octet-stream",
+        content_type=messages[0].sysAttributes.contentType
+        or _attr_text(messages[0], "content_type")
+        or DEFAULT_CONTENT_TYPE,
     )
 
 

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from zalfmas_fbp.run.metadata import ComponentMetadata
 from zalfmas_fbp.run.process import Process, ProcessConfig
+from zalfmas_fbp.run.process.config_codec import config_value_from_python, python_value_from_capnp_value
 
 
 class _TypedConfig(ProcessConfig):
@@ -28,14 +29,14 @@ def test_config_value_round_trips_nested_python_values() -> None:
         "nested": {"labels": ["a", "b"], "mixed": [1, True, {"leaf": "value"}]},
     }
 
-    capnp_value = Process._config_value_from_python(original)
+    capnp_value = config_value_from_python(original)
 
-    assert Process._python_value_from_capnp_value(capnp_value.as_reader()) == original
+    assert python_value_from_capnp_value(capnp_value.as_reader()) == original
 
 
 def test_config_value_rejects_non_string_dict_keys() -> None:
     with pytest.raises(TypeError, match="Config dict keys must be strings"):
-        Process._config_value_from_python({1: "value"})
+        config_value_from_python({1: "value"})
 
 
 def test_python_value_from_capnp_rejects_malformed_pair_entries() -> None:
@@ -46,7 +47,7 @@ def test_python_value_from_capnp_rejects_malformed_pair_entries() -> None:
     )
 
     with pytest.raises(TypeError, match="both 'fst' and 'snd'"):
-        Process._python_value_from_capnp_value(malformed.as_reader())
+        python_value_from_capnp_value(malformed.as_reader())
 
 
 def test_process_without_config_model_keeps_raw_dict_config() -> None:

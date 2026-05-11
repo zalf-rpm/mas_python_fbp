@@ -10,25 +10,17 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 from __future__ import annotations
 
-import argparse
 import asyncio
-import json
 import logging
-import os
-import subprocess as sp
-import sys
-import tomllib
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping
 from contextlib import suppress
-from dataclasses import dataclass
-from enum import StrEnum
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Generic,
     Literal,
-    TypeGuard,
     cast,
     get_args,
     get_origin,
@@ -37,22 +29,13 @@ from typing import (
 )
 
 import capnp
-from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.fbp.fbp_capnp.types.results.tuples import (
     ConnectinportResultTuple,
     ConnectoutportResultTuple,
 )
-from pydantic import BaseModel, ConfigDict
-from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
-    from mas.schema.common.common_capnp.types.builders import (
-        PairBuilder,
-        ValueBuilder,
-    )
-    from mas.schema.common.common_capnp.types.enums import StructuredTextTypeEnum
-    from mas.schema.common.common_capnp.types.readers import ValueReader
     from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder, IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import (
         ActivityTransitionClient,
@@ -65,239 +48,113 @@ if TYPE_CHECKING:
         ProcessErrorInfoPhaseEnum,
         ProcessStateEnum,
     )
-    from mas.schema.fbp.fbp_capnp.types.readers import ActivityInfoReader, IPReader
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
 
 from zalfmas_common import common
 
-from zalfmas_fbp.run.argparse_utils import parse_args_typed
 from zalfmas_fbp.run.logging_config import (
-    add_log_level_argument,
     configure_logging,
     format_exception_full,
 )
 from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 
+from .chunked_io import (
+    DEFAULT_BRACKETED_CHUNK_SIZE,
+    ChunkedInputStream,
+    blob_ip,
+    ip_content_type,
+    read_ip_data,
+)
+from .chunked_io import bracket_ip as _bracket_ip
+from .chunked_io import chunked_blob_ip as _chunked_blob_ip
+from .chunked_io import ip_blob_payload as _ip_blob_payload
+from .chunked_io import ip_content_type as _ip_content_type
+from .chunked_io import iter_bytes_in_chunks as _iter_bytes_in_chunks
+from .config_codec import (
+    config_from_ip as _config_from_ip,
+)
+from .config_codec import (
+    config_value_from_python,
+    python_value_from_capnp_value,
+)
+from .errors import (
+    InputPortReadError,
+    OutputPortWriteError,
+    ProcessConfigError,
+    ProcessErrorInfo,
+    ProcessRuntimeError,
+)
+from .runner import (
+    ProcessArgs,
+    create_default_args_parser,
+    run_process_from_metadata_and_cmd_args,
+    start_local_process_component,
+)
+from .transitions import ActivityTransition, PortDisconnect, StateTransition
+from .types import (
+    ArrayInStrategy,
+    ArrayOutStrategy,
+    ConfigT,
+    ConfigValue,
+    ProcessConfig,
+    RawConfig,
+)
+
 ArrayReaderPorts = list["ReaderClient | None"]
 ArrayWriterPorts = list["WriterClient | None"]
 ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
-type ConnectedPort = ReaderClient | WriterClient
-type StandardPortMap = dict[str, ReaderClient | None] | dict[str, WriterClient | None]
-type ArrayPortMap = dict[str, ArrayReaderPorts] | dict[str, ArrayWriterPorts]
-type ConfigScalar = str | int | float | bool
-type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
-type RawConfig = dict[str, ConfigValue]
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
 DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS = 25
-# Gateway-routed channel writes disconnect at ~32 MiB, so keep bracketed chunks below that limit.
-DEFAULT_BRACKETED_CHUNK_SIZE = 16 * 1024 * 1024
-
-
-class ProcessRuntimeError(RuntimeError):
-    def __init__(self, message: str, *, phase: str, port: str | None = None):
-        super().__init__(message)
-        self.phase = phase
-        self.port = port
-
-
-class ProcessConfigError(ValueError):
-    def __init__(self, message: str, *, port: str | None = None):
-        super().__init__(message)
-        self.phase = "config"
-        self.port = port
-
-
-class InputPortReadError(ProcessRuntimeError):
-    def __init__(self, process_name: str | None, port: str, message: str):
-        super().__init__(f"{process_name} failed reading input port '{port}': {message}", phase="read", port=port)
-
-
-class OutputPortWriteError(ProcessRuntimeError):
-    def __init__(self, process_name: str | None, port: str, message: str):
-        super().__init__(f"{process_name} failed writing output port '{port}': {message}", phase="write", port=port)
-
-
-@dataclass
-class ProcessErrorInfo:
-    process_id: str | None
-    process_name: str | None
-    phase: str
-    port: str | None
-    error_type: str
-    message: str
-    cause_type: str | None = None
-    cause_message: str | None = None
-    traceback: list[str] | None = None
-
-
 logger = logging.getLogger(__name__)
 configure_logging()
 
 
-@dataclass
-class ProcessArgs(argparse.Namespace):
-    process_cap_writer_sr: str | None = None
-    output_json_default_config: bool = False
-    output_json_component_metadata: bool = False
-    write_json_default_config: str | None = None
-    write_json_component_metadata: str | None = None
-    serve_bootstrap: bool = False
-    host: str | None = None
-    port: int | None = None
-    name: str | None = None
-    log_level: str = "WARNING"
-
-
-def _is_config_list[T: ConfigScalar](
-    value: list[ConfigValue],
-    item_type: type[T],
+def iter_bytes_in_chunks(
+    data: bytes,
     *,
-    exact: bool = False,
-) -> TypeGuard[list[T]]:
-    if exact:
-        return all(type(item) is item_type for item in value)
-    return all(isinstance(item, item_type) for item in value)
+    chunk_size: int | None = None,
+) -> Iterable[bytes]:
+    return _iter_bytes_in_chunks(data, chunk_size=chunk_size or DEFAULT_BRACKETED_CHUNK_SIZE)
 
 
-def _is_config_value_list(value: object) -> TypeGuard[list[ConfigValue]]:
-    return isinstance(value, list)
-
-
-def _is_object_dict(value: object) -> TypeGuard[dict[object, object]]:
-    return isinstance(value, dict)
-
-
-def _is_str_key_dict(value: dict[object, object]) -> TypeGuard[dict[str, object]]:
-    return all(isinstance(key, str) for key in value)
-
-
-class ArrayInStrategy(StrEnum):
-    ZIP = "zip"
-    NEXT_AVAILABLE = "next_available"
-
-
-class ArrayOutStrategy(StrEnum):
-    BROADCAST = "broadcast"
-    ROUND_ROBIN = "round_robin"
-    NEXT_AVAILABLE = "next_available"
-
-
-class ProcessConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-ConfigT = TypeVar("ConfigT", bound=ProcessConfig | RawConfig, default=RawConfig)
-
-
-class StateTransition(fbp_capnp.Process.StateTransition.Server):
-    def __init__(
-        self,
-        callback: Callable[
-            [ProcessStateEnum, ProcessStateEnum],
-            None,
-        ],  #: Callable[[fbp_capnp.Process.State, fbp_capnp.Process.State]]
-    ):
-        self.callback: Callable[[ProcessStateEnum, ProcessStateEnum], None] = callback
-
-    # stateChanged @0 (old :State, new :State);
-    @override
-    async def stateChanged(self, old, new, _context, **kwargs):
-        self.callback(old, new)
-
-
-class ActivityTransition(fbp_capnp.Process.ActivityTransition.Server):
-    def __init__(
-        self,
-        callback: Callable[
-            [ActivityInfoBuilder | ActivityInfoReader, ActivityInfoBuilder | ActivityInfoReader],
-            None,
-        ],
-    ):
-        self.callback: Callable[
-            [ActivityInfoBuilder | ActivityInfoReader, ActivityInfoBuilder | ActivityInfoReader],
-            None,
-        ] = callback
-
-    # activityChanged @0 (old :ActivityInfo, new :ActivityInfo);
-    @override
-    async def activityChanged(self, old, new, _context, **kwargs):
-        self.callback(old, new)
-
-
-class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
-    def __init__(
-        self,
-        ports: StandardPortMap | ArrayPortMap,
-        name: str,
-        port: ConnectedPort | None,
-        index: int | None = None,
-    ):
-        if index is None:
-            self.standard_ports: StandardPortMap | None = cast("StandardPortMap", ports)
-            self.array_ports: ArrayPortMap | None = None
-        else:
-            self.standard_ports = None
-            self.array_ports = cast("ArrayPortMap", ports)
-        self.name: str = name
-        self.port: ConnectedPort | None = port
-        self.index: int | None = index
-        self.disconnected: bool = False
-
-    @override
-    async def disconnect(self, _context, **_kwargs) -> bool:
-        if self.disconnected or self.port is None:
-            return False
-
-        if self._disconnect_port():
-            await self._close_port()
-            self.disconnected = True
-            return True
-        return False
-
-    def _disconnect_port(self) -> bool:
-        if self.index is None:
-            return self._disconnect_standard_port()
-        return self._disconnect_array_port()
-
-    def _disconnect_standard_port(self) -> bool:
-        if self.standard_ports is None or self.standard_ports.get(self.name) is not self.port:
-            return False
-        self.standard_ports[self.name] = None
-        return True
-
-    def _disconnect_array_port(self) -> bool:
-        if self.array_ports is None or self.index is None:
-            return False
-
-        array_ports = self.array_ports.get(self.name)
-        if array_ports is None:
-            return False
-
-        if self.index < len(array_ports) and array_ports[self.index] is self.port:
-            array_ports[self.index] = None
-            return True
-
-        for i, port in enumerate(array_ports):
-            if port is self.port:
-                array_ports[i] = None
-                return True
-        return False
-
-    async def _close_port(self) -> None:
-        if self.port is None:
-            return
-        try:
-            await self.port.close()
-        except (capnp.KjException, RuntimeError) as e:
-            logger.error("Exception closing disconnected port '%s': %s", self.name, e)
+__all__ = [
+    "ArrayInStrategy",
+    "ArrayOutStrategy",
+    "ChunkedInputStream",
+    "ConfigT",
+    "ConfigValue",
+    "DEFAULT_BRACKETED_CHUNK_SIZE",
+    "blob_ip",
+    "DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS",
+    "DEFAULT_SOFT_STOP_TIMEOUT_SECONDS",
+    "InputPortReadError",
+    "OutputPortWriteError",
+    "PortDisconnect",
+    "Process",
+    "ProcessArgs",
+    "ProcessConfig",
+    "ProcessConfigError",
+    "ProcessErrorInfo",
+    "ProcessRuntimeError",
+    "RawConfig",
+    "ActivityTransition",
+    "StateTransition",
+    "create_default_args_parser",
+    "ip_content_type",
+    "iter_bytes_in_chunks",
+    "read_ip_data",
+    "run_process_from_metadata_and_cmd_args",
+    "start_local_process_component",
+]
 
 
 class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
     fbp_capnp.Process.Server,
     common.Identifiable,
     common.GatewayRegistrable,
-    Generic[ConfigT],
+    Generic[ConfigT],  # noqa: UP046
 ):
     config_model: ClassVar[type[ProcessConfig] | None] = None
 
@@ -359,79 +216,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             "contentType": port_info.contentType if port_info is not None else "Text",
         }
 
-    @staticmethod
-    def _config_value_from_python(value: object) -> ValueBuilder:
-        if isinstance(value, str):
-            return common_capnp.Value.new_message(t=value)
-        if isinstance(value, bool):
-            return common_capnp.Value.new_message(b=value)
-        if isinstance(value, int):
-            return common_capnp.Value.new_message(i64=value)
-        if isinstance(value, float):
-            return common_capnp.Value.new_message(f64=value)
-        if _is_config_value_list(value):
-            if not value:
-                return common_capnp.Value.new_message(lv=[])
-            if _is_config_list(value, int, exact=True):
-                return common_capnp.Value.new_message(li64=value)
-            if _is_config_list(value, float):
-                return common_capnp.Value.new_message(lf64=value)
-            if _is_config_list(value, bool):
-                return common_capnp.Value.new_message(lb=value)
-            if _is_config_list(value, str):
-                return common_capnp.Value.new_message(lt=value)
-            values = [Process._config_value_from_python(item) for item in value]
-            return common_capnp.Value.new_message(lv=values)
-        if _is_object_dict(value):
-            if not _is_str_key_dict(value):
-                raise TypeError("Config dict keys must be strings")
-            pairs: list[PairBuilder] = []
-            for key, item in value.items():
-                pairs.append(
-                    common_capnp.Pair.new_message(
-                        fst=key,
-                        snd=Process._config_value_from_python(item),
-                    ),
-                )
-            return common_capnp.Value.new_message(lpair=pairs)
-
-        raise TypeError(f"Unsupported config value type: {type(value).__name__}")
-
-    @staticmethod
-    def _python_value_from_capnp_value(value: ValueReader) -> ConfigValue:
-        value_type = value.which()
-        if value_type == "i64":
-            return value.i64
-        if value_type == "f64":
-            return value.f64
-        if value_type == "b":
-            return value.b
-        if value_type == "t":
-            return value.t
-        if value_type == "li64":
-            return list(value.li64)
-        if value_type == "lf64":
-            return list(value.lf64)
-        if value_type == "lb":
-            return list(value.lb)
-        if value_type == "lt":
-            return list(value.lt)
-        if value_type == "lv":
-            return [Process._python_value_from_capnp_value(v) for v in value.lv]
-        if value_type == "lpair":
-            try:
-                d: dict[str, ConfigValue] = {}
-                for pair in value.lpair:
-                    if not pair._has("fst") or not pair._has("snd"):
-                        raise TypeError("Pair entries must have both 'fst' and 'snd'")
-                    d[pair.fst.as_text()] = Process._python_value_from_capnp_value(
-                        pair.snd.as_struct(common_capnp.Value),
-                    )
-                return d
-            except (AttributeError, capnp.KjException, TypeError) as e:
-                raise TypeError(f"Error unpacking dict (list of pairs): {e}") from e
-        raise TypeError(f"Unsupported config value type: {value_type}")
-
     def _validate_config(self, raw_config: RawConfig) -> ConfigT | RawConfig:
         if self.config_model is None:
             return raw_config
@@ -448,9 +232,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         next_config = self._validate_config(next_raw_config)
         self._raw_config = next_raw_config
         self._config = next_config
-
-    def _apply_config_values(self, config_values: Mapping[str, ConfigValue | None]) -> None:
-        self.apply_config_values(config_values)
 
     def _record_error(self, exc: BaseException) -> None:
         self._run_exception = exc
@@ -500,40 +281,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             traceback=self._last_error.traceback or [],
         )
 
-    @staticmethod
-    def _load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
-        normalized_type = config_type or "toml"
-        if isinstance(normalized_type, str):
-            normalized_type = normalized_type.lower()
-        if normalized_type == "toml":
-            return dict(tomllib.loads(text))
-        if normalized_type == "json":
-            config = json.loads(text)
-            if type(config) is not dict:
-                raise TypeError("JSON config must decode to an object")
-            return config
-        raise ValueError(f"Unsupported config text type: {config_type}")
-
-    @classmethod
-    def _load_unstructured_config_text(cls, text: str) -> dict[str, Any]:
-        try:
-            return cls._load_config_text(text, "toml")
-        except tomllib.TOMLDecodeError as toml_error:
-            try:
-                return cls._load_config_text(text, "json")
-            except (json.JSONDecodeError, TypeError) as json_error:
-                raise ValueError(
-                    f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}"
-                ) from json_error
-
-    @classmethod
-    def _config_from_ip(cls, in_msg: IPReader) -> dict[str, ConfigValue]:
-        try:
-            structured_text = in_msg.content.as_struct(common_capnp.StructuredText)
-        except capnp.KjException:
-            return cls._load_unstructured_config_text(in_msg.content.as_text())
-        return cls._load_config_text(structured_text.value, structured_text.type)
-
     def init_from_metadata(self):
         default_config: dict[str, ConfigValue] = {}
         if self.meta is not None:
@@ -567,10 +314,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if value is None:
                 continue
             self._raw_config[key] = value
-            # try:
-            #    self._raw_config[key] = self._config_value_from_python(value)
-            # except TypeError as e:
-            #    logger.warning("Ignoring unsupported default config entry '%s': %s", key, e)
         self._config = self._validate_config(self._raw_config)
 
     @property
@@ -657,7 +400,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             map(
                 lambda item: fbp_capnp.Process.ConfigEntry.new_message(
                     name=item[0],
-                    val=Process._config_value_from_python(item[1]),
+                    val=config_value_from_python(item[1]),
                 ),
                 self.raw_config.items(),
             ),
@@ -665,7 +408,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     @override
     async def setConfigEntry(self, name, val, _context, **kwargs):
-        self._apply_config_values({name: Process._python_value_from_capnp_value(val)})
+        self.apply_config_values({name: python_value_from_capnp_value(val)})
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
         if new_state == self.process_state:
@@ -673,11 +416,40 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
         prev_state = self.process_state
         self.process_state = new_state
-        for cb in self.state_transition_callbacks:
-            await cb.stateChanged(prev_state, self.process_state)
+        await self._notify_state_transition_callbacks(prev_state, self.process_state)
 
     def _activity_message(self) -> ActivityInfoBuilder:
         return fbp_capnp.Process.ActivityInfo.new_message(state=self.activity_state, port=self.activity_port)
+
+    async def _notify_state_transition_callbacks(
+        self,
+        old_state: ProcessStateEnum,
+        new_state: ProcessStateEnum,
+    ) -> None:
+        active_callbacks: list[StateTransitionClient] = []
+        for callback in self.state_transition_callbacks:
+            try:
+                await callback.stateChanged(old_state, new_state)
+            except (capnp.KjException, RuntimeError) as e:
+                logger.warning("%s state transition callback failed and will be removed: %s", self.name, e)
+            else:
+                active_callbacks.append(callback)
+        self.state_transition_callbacks = active_callbacks
+
+    async def _notify_activity_transition_callbacks(
+        self,
+        old_info: ActivityInfoBuilder,
+        new_info: ActivityInfoBuilder,
+    ) -> None:
+        active_callbacks: list[ActivityTransitionClient] = []
+        for callback in self.activity_transition_callbacks:
+            try:
+                await callback.activityChanged(old_info, new_info)
+            except (capnp.KjException, RuntimeError) as e:
+                logger.warning("%s activity transition callback failed and will be removed: %s", self.name, e)
+            else:
+                active_callbacks.append(callback)
+        self.activity_transition_callbacks = active_callbacks
 
     def _cancel_pending_processing_activity(self) -> None:
         task = self._pending_processing_activity_task
@@ -698,8 +470,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self.activity_state = new_state
         self.activity_port = new_port
         new_info = self._activity_message()
-        for cb in self.activity_transition_callbacks:
-            await cb.activityChanged(old_info, new_info)
+        await self._notify_activity_transition_callbacks(old_info, new_info)
 
     async def _commit_processing_activity_after_delay(self, delay_milliseconds: int) -> None:
         task = asyncio.current_task()
@@ -736,7 +507,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     # start @5 ();
     @override
-    async def start(self, *_args: object, **_kwargs: object) -> bool:
+    async def start(self, _context, **kwargs) -> bool:
         if self._run_task is not None and not self._run_task.done():
             return False
         if self.process_state in ("starting", "running", "stopping", "closed"):
@@ -786,7 +557,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     # stop @6 () -> (stopped :Bool);
     @override
-    async def stop(self, *_args: object, **_kwargs: object) -> bool:
+    async def stop(self, _context, **kwargs) -> bool:
         has_running_task = self._run_task is not None and not self._run_task.done()
         if not has_running_task and self.process_state in ("idle", "failed", "closed"):
             return False
@@ -834,33 +605,28 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
     # activity @10 (transitionCallback :ActivityTransition) -> (currentActivity :ActivityInfo);
     @override
-    async def activity(self, transitionCallback, *_args: object, **_kwargs: object):
+    async def activity(self, transitionCallback, _context, **kwargs):
         if transitionCallback:
             self.activity_transition_callbacks.append(transitionCallback)
         return self._activity_message()
 
     # lastError @9 () -> (info :ErrorInfo);
     @override
-    async def lastError(self, *_args: object, **_kwargs: object):
+    async def lastError(self, _context, **kwargs):
         return self._last_error_message()
 
     @property
     def stopping(self) -> bool:
         return self._stop_requested.is_set()
 
-    async def read_in(self, name: str, automatic_chunking: bool = False) -> IPReader | IPBuilder | None:
+    async def read_in(self, name: str) -> IPReader | IPBuilder | None:
         in_ip = await self._read_in_raw(name)
         if in_ip is None:
             return None
 
         if in_ip.type == "openBracket":
-            if not automatic_chunking:
-                msg = (
-                    f"{self.name} received an automatically chunked payload on input port '{name}', "
-                    "but automatic chunking is disabled."
-                )
-                raise InputPortReadError(self.name, name, msg)
-            return await self._read_bracketed_payload(name, in_ip)
+            msg = f"{self.name} received a chunked payload on input port '{name}'; use read_in_chunked* instead."
+            raise InputPortReadError(self.name, name, msg)
 
         if in_ip.type == "closeBracket":
             msg = f"{self.name} received an unexpected closeBracket on input port '{name}'."
@@ -868,15 +634,37 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
 
         return in_ip
 
-    async def _read_in_raw(self, name: str) -> IPReader | None:
+    async def read_in_chunked(self, name: str) -> IPReader | IPBuilder | None:
+        in_ip = await self._read_in_raw(name)
+        if in_ip is None:
+            return None
+        return await self._coalesce_chunked_input(name, name, in_ip, lambda: self._read_in_raw(name))
+
+    async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
+        in_ip = await self._read_in_raw(name)
+        if in_ip is None:
+            return None
+        return await self._chunked_stream_for_ip(name, name, in_ip, lambda: self._read_in_raw(name))
+
+    def _clear_in_port(self, name: str) -> None:
+        self.in_ports[name] = None
+
+    def _clear_array_in_port(self, name: str, port_index: int) -> None:
+        ports = self.array_in_ports.get(name)
+        if ports is not None and port_index < len(ports):
+            ports[port_index] = None
+
+    async def _read_connected_port(
+        self,
+        *,
+        port: ReaderClient,
+        port_label: str,
+        on_disconnect: Callable[[], None],
+    ) -> IPReader | None:
         if self._stop_requested.is_set():
             return None
 
-        port = self.in_ports.get(name)
-        if port is None:
-            return None
-
-        await self.transition_to_activity("waitingInput", name)
+        await self.transition_to_activity("waitingInput", port_label)
         read_task = asyncio.ensure_future(port.read())
         stop_task = asyncio.create_task(self._stop_requested.wait())
         try:
@@ -896,7 +684,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             msg = await read_task
             await self.transition_to_activity("processing")
             if msg.which() == "done":
-                self.in_ports[name] = None
+                on_disconnect()
                 return None
             return msg.value.as_struct(fbp_capnp.IP)
         except asyncio.CancelledError:
@@ -906,32 +694,25 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 await read_task
             raise
         except capnp.KjException as e:
-            self.in_ports[name] = None
+            on_disconnect()
             if self._stop_requested.is_set():
                 return None
             description = str(getattr(e, "description", e))
-            logger.error("%s RPC exception reading input port '%s': %s", self.name, name, description)
-            raise InputPortReadError(self.name, name, description) from e
+            logger.error("%s RPC exception reading input port '%s': %s", self.name, port_label, description)
+            raise InputPortReadError(self.name, port_label, description) from e
         finally:
             if not stop_task.done():
                 _ = stop_task.cancel()
 
-    async def _read_bracketed_payload(self, name: str, open_ip: IPReader) -> IPBuilder:
-        chunks: list[bytes] = []
-        while True:
-            chunk_ip = await self._read_in_raw(name)
-            if chunk_ip is None:
-                msg = f"{self.name} input port '{name}' closed before a bracketed payload ended."
-                raise InputPortReadError(self.name, name, msg)
-            if chunk_ip.type == "closeBracket":
-                out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
-                out_ip.attributes = list(open_ip.attributes)
-                await self.transition_to_activity("processing", delay_processing=False)
-                return out_ip
-            if chunk_ip.type == "openBracket":
-                msg = f"{self.name} received a nested openBracket on input port '{name}'."
-                raise InputPortReadError(self.name, name, msg)
-            chunks.append(bytes(chunk_ip.content.as_struct(common_capnp.Value).d))
+    async def _read_in_raw(self, name: str) -> IPReader | None:
+        port = self.in_ports.get(name)
+        if port is None:
+            return None
+        return await self._read_connected_port(
+            port=port,
+            port_label=name,
+            on_disconnect=lambda: self._clear_in_port(name),
+        )
 
     async def update_config_from_port(self, name: str = "conf") -> bool:
         in_msg = await self._read_in_raw(name)
@@ -939,11 +720,11 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             return False
 
         try:
-            config_values = self._config_from_ip(in_msg)
-        except (capnp.KjException, json.JSONDecodeError, tomllib.TOMLDecodeError, TypeError, ValueError) as e:
+            config_values = _config_from_ip(in_msg)
+        except ProcessConfigError as e:
             raise ProcessConfigError(f"{self.name} received invalid config on port '{name}': {e}", port=name) from e
 
-        self._apply_config_values(config_values)
+        self.apply_config_values(config_values)
         return True
 
     @overload
@@ -951,7 +732,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-        automatic_chunking: bool = False,
     ) -> list[IPReader | IPBuilder] | None: ...
 
     @overload
@@ -959,14 +739,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-        automatic_chunking: bool = False,
     ) -> IPReader | IPBuilder | None: ...
 
     async def read_array_in(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-        automatic_chunking: bool = False,
     ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
         strategy = ArrayInStrategy(strategy)
         if self._stop_requested.is_set():
@@ -988,99 +766,25 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             port_index, in_ip = next_result
             await self.transition_to_activity("processing")
             if in_ip.type == "openBracket":
-                if not automatic_chunking:
-                    msg = (
-                        f"{self.name} received an automatically chunked payload on array input port '{name}', "
-                        "but automatic chunking is disabled."
-                    )
-                    raise InputPortReadError(self.name, name, msg)
-                port = ports[port_index]
-                if port is None:
-                    msg = (
-                        f"{self.name} array input port '{name}[{port_index}]' closed before a bracketed payload ended."
-                    )
-                    raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
-                return await self._read_bracketed_array_payload(name, port_index, port, in_ip)
+                msg = (
+                    f"{self.name} received a chunked payload on array input port '{name}[{port_index}]'; "
+                    "use read_array_in_chunked instead."
+                )
+                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
             if in_ip.type == "closeBracket":
                 msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
                 raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
             return in_ip
 
-        read_tasks: dict[asyncio.Future[ReadResult], int] = {
-            asyncio.ensure_future(port.read()): i for i, port in active_ports
-        }
-        stop_task = asyncio.create_task(self._stop_requested.wait())
-        results: dict[int, IPReader] = {}
-        zip_finished = False
-        await self.transition_to_activity("waitingInput", name)
+        ordered_results = await self._read_array_zip_raw(name, active_ports, ports)
+        if ordered_results is None:
+            return None
 
-        try:
-            while read_tasks:
-                done, _pending = await asyncio.wait(
-                    {*read_tasks, stop_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if stop_task in done:
-                    await self._cancel_tasks(read_tasks)
-                    return None
-
-                for task in done:
-                    if task is stop_task:
-                        continue
-
-                    read_task = cast("asyncio.Future[ReadResult]", task)
-                    port_index = read_tasks.pop(read_task)
-                    try:
-                        msg = await read_task
-                    except capnp.KjException as e:
-                        ports[port_index] = None
-                        if self._stop_requested.is_set():
-                            zip_finished = True
-                            continue
-                        description = str(getattr(e, "description", e))
-                        logger.error(
-                            "%s RPC exception reading array input port '%s[%s]': %s",
-                            self.name,
-                            name,
-                            port_index,
-                            description,
-                        )
-                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
-
-                    if msg.which() == "done":
-                        ports[port_index] = None
-                        zip_finished = True
-                    else:
-                        results[port_index] = msg.value.as_struct(fbp_capnp.IP)
-
-                if zip_finished:
-                    await self._cancel_tasks(read_tasks)
-                    await self.transition_to_activity("processing")
-                    return None
-
-            await self.transition_to_activity("processing")
-            ordered_results: list[IPReader | IPBuilder] = [results[i] for i, _port in active_ports]
-            if not automatic_chunking:
-                bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
-                if bracketed_results:
-                    msg = (
-                        f"{self.name} received an automatically chunked payload on array input port '{name}', "
-                        "but automatic chunking is disabled."
-                    )
-                    raise InputPortReadError(self.name, name, msg)
-                return ordered_results
-            return await self._coalesce_bracketed_array_results(name, active_ports, ports, ordered_results)
-        except asyncio.CancelledError:
-            await self._cancel_tasks(read_tasks)
-            _ = stop_task.cancel()
-            raise
-        except Exception:
-            await self._cancel_tasks(read_tasks)
-            raise
-        finally:
-            if not stop_task.done():
-                _ = stop_task.cancel()
+        bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
+        if bracketed_results:
+            msg = f"{self.name} received a chunked payload on array input port '{name}'; use read_array_in_chunked."
+            raise InputPortReadError(self.name, name, msg)
+        return ordered_results
 
     async def _read_array_in_next_available(
         self,
@@ -1154,9 +858,130 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 if not stop_task.done():
                     _ = stop_task.cancel()
 
-        return None
+    @overload
+    async def read_array_in_chunked(
+        self,
+        name: str,
+        strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
+    ) -> list[IPReader | IPBuilder] | None: ...
 
-    async def _coalesce_bracketed_array_results(
+    @overload
+    async def read_array_in_chunked(
+        self,
+        name: str,
+        strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
+    ) -> IPReader | IPBuilder | None: ...
+
+    async def read_array_in_chunked(
+        self,
+        name: str,
+        strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
+    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+        strategy = ArrayInStrategy(strategy)
+        if self._stop_requested.is_set():
+            return None
+
+        ports = self.array_in_ports.get(name)
+        if not ports:
+            return None
+
+        active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
+        if not active_ports:
+            return None
+
+        if strategy == ArrayInStrategy.NEXT_AVAILABLE:
+            next_result = await self._read_array_in_next_available(name, active_ports, ports)
+            if next_result is None:
+                return None
+
+            port_index, in_ip = next_result
+            await self.transition_to_activity("processing")
+            port = ports[port_index]
+            read_next_ip = (
+                (lambda: self._read_array_port_raw(name, port_index, port))
+                if in_ip.type == "openBracket" and port is not None
+                else (lambda: self._read_in_raw(name))
+            )
+            return await self._coalesce_chunked_input(name, f"{name}[{port_index}]", in_ip, read_next_ip)
+
+        ordered_results = await self._read_array_zip_raw(name, active_ports, ports)
+        if ordered_results is None:
+            return None
+        return await self._coalesce_chunked_array_results(name, active_ports, ports, ordered_results)
+
+    async def _read_array_zip_raw(
+        self,
+        name: str,
+        active_ports: list[tuple[int, ReaderClient]],
+        ports: ArrayReaderPorts,
+    ) -> list[IPReader | IPBuilder] | None:
+        read_tasks: dict[asyncio.Future[ReadResult], int] = {
+            asyncio.ensure_future(port.read()): i for i, port in active_ports
+        }
+        stop_task = asyncio.create_task(self._stop_requested.wait())
+        results: dict[int, IPReader] = {}
+        zip_finished = False
+        await self.transition_to_activity("waitingInput", name)
+
+        try:
+            while read_tasks:
+                done, _pending = await asyncio.wait(
+                    {*read_tasks, stop_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                if stop_task in done:
+                    await self._cancel_tasks(read_tasks)
+                    return None
+
+                for task in done:
+                    if task is stop_task:
+                        continue
+
+                    read_task = cast("asyncio.Future[ReadResult]", task)
+                    port_index = read_tasks.pop(read_task)
+                    try:
+                        msg = await read_task
+                    except capnp.KjException as e:
+                        ports[port_index] = None
+                        if self._stop_requested.is_set():
+                            zip_finished = True
+                            continue
+                        description = str(getattr(e, "description", e))
+                        logger.error(
+                            "%s RPC exception reading array input port '%s[%s]': %s",
+                            self.name,
+                            name,
+                            port_index,
+                            description,
+                        )
+                        raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
+
+                    if msg.which() == "done":
+                        ports[port_index] = None
+                        zip_finished = True
+                    else:
+                        results[port_index] = msg.value.as_struct(fbp_capnp.IP)
+
+                if zip_finished:
+                    await self._cancel_tasks(read_tasks)
+                    await self.transition_to_activity("processing")
+                    return None
+
+            await self.transition_to_activity("processing")
+            return cast("list[IPReader | IPBuilder]", [results[i] for i, _port in active_ports])
+        except asyncio.CancelledError:
+            await self._cancel_tasks(read_tasks)
+            _ = stop_task.cancel()
+            raise
+        except Exception:
+            await self._cancel_tasks(read_tasks)
+            raise
+        finally:
+            if not stop_task.done():
+                _ = stop_task.cancel()
+
+    async def _coalesce_chunked_array_results(
         self,
         name: str,
         active_ports: list[tuple[int, ReaderClient]],
@@ -1166,7 +991,14 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         coalesced: list[IPReader | IPBuilder] = []
         for (port_index, port), first_ip in zip(active_ports, first_messages, strict=True):
             if first_ip.type == "openBracket":
-                coalesced.append(await self._read_bracketed_array_payload(name, port_index, port, first_ip))
+                coalesced.append(
+                    await self._coalesce_chunked_input(
+                        name,
+                        f"{name}[{port_index}]",
+                        first_ip,
+                        lambda port=port, port_index=port_index: self._read_array_port_raw(name, port_index, port),
+                    )
+                )
             elif first_ip.type == "closeBracket":
                 msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
                 raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
@@ -1174,44 +1006,71 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                 coalesced.append(first_ip)
         return coalesced
 
-    async def _read_bracketed_array_payload(
+    async def _read_array_port_raw(
         self,
         name: str,
         port_index: int,
         port: ReaderClient,
-        open_ip: IPReader | IPBuilder,
-    ) -> IPBuilder:
-        chunks: list[bytes] = []
-        while True:
-            try:
-                await self.transition_to_activity("waitingInput", f"{name}[{port_index}]")
-                msg = await port.read()
-            except capnp.KjException as e:
-                ports = self.array_in_ports.get(name)
-                if ports is not None and port_index < len(ports):
-                    ports[port_index] = None
-                description = str(getattr(e, "description", e))
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", description) from e
+    ) -> IPReader | None:
+        return await self._read_connected_port(
+            port=port,
+            port_label=f"{name}[{port_index}]",
+            on_disconnect=lambda: self._clear_array_in_port(name, port_index),
+        )
 
-            if msg.which() == "done":
-                ports = self.array_in_ports.get(name)
-                if ports is not None and port_index < len(ports):
-                    ports[port_index] = None
-                msg_text = (
-                    f"{self.name} array input port '{name}[{port_index}]' closed before a bracketed payload ended."
-                )
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg_text)
+    async def _coalesce_chunked_input(
+        self,
+        name: str,
+        port_label: str,
+        in_ip: IPReader | IPBuilder,
+        read_next_ip: Callable[[], Awaitable[IPReader | None]],
+    ) -> IPReader | IPBuilder:
+        if in_ip.type == "openBracket":
+            stream = await self._chunked_stream_for_ip(name, port_label, in_ip, read_next_ip)
+            return await stream.collect_blob()
+        if in_ip.type == "closeBracket":
+            msg = f"{self.name} received an unexpected closeBracket on input port '{port_label}'."
+            raise InputPortReadError(self.name, port_label, msg)
+        return in_ip
 
-            chunk_ip = msg.value.as_struct(fbp_capnp.IP)
-            if chunk_ip.type == "closeBracket":
-                out_ip = fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=b"".join(chunks)))
-                out_ip.attributes = list(open_ip.attributes)
-                await self.transition_to_activity("processing", delay_processing=False)
-                return out_ip
-            if chunk_ip.type == "openBracket":
-                msg_text = f"{self.name} received a nested openBracket on array input port '{name}[{port_index}]'."
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg_text)
-            chunks.append(bytes(chunk_ip.content.as_struct(common_capnp.Value).d))
+    async def _chunked_stream_for_ip(
+        self,
+        name: str,
+        port_label: str,
+        in_ip: IPReader | IPBuilder,
+        read_next_ip: Callable[[], Awaitable[IPReader | None]],
+    ) -> ChunkedInputStream:
+        if in_ip.type == "closeBracket":
+            msg = f"{self.name} received an unexpected closeBracket on input port '{port_label}'."
+            raise InputPortReadError(self.name, port_label, msg)
+
+        if in_ip.type == "openBracket":
+            return ChunkedInputStream(
+                open_ip=in_ip,
+                process_name=self.name,
+                port=port_label,
+                _read_next_ip=read_next_ip,
+                _is_stopping=self._stop_requested.is_set,
+                _on_complete=lambda: self.transition_to_activity("processing", delay_processing=False),
+                content_type=_ip_content_type(in_ip),
+            )
+
+        try:
+            data, content_type = _ip_blob_payload(in_ip)
+        except (capnp.KjException, TypeError) as e:
+            msg = f"{self.name} can only read common.capnp:Blob chunked payloads on input port '{port_label}'."
+            raise InputPortReadError(self.name, port_label, msg) from e
+
+        return ChunkedInputStream(
+            open_ip=in_ip,
+            process_name=self.name,
+            port=port_label,
+            _read_next_ip=lambda: asyncio.sleep(0, result=None),
+            _is_stopping=self._stop_requested.is_set,
+            _on_complete=None,
+            _single_chunk=data,
+            content_type=content_type,
+        )
 
     @staticmethod
     async def _cancel_tasks(tasks: Iterable[asyncio.Future[Any]]) -> None:
@@ -1220,9 +1079,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             _ = task.cancel()
         _ = await asyncio.gather(*pending, return_exceptions=True)
 
-    async def write_out(self, name: str, message: IPBuilder, automatic_chunking: bool = False) -> bool:
-        if automatic_chunking:
-            return await self._write_out_bracketed(name, message)
+    async def write_out(self, name: str, message: IPBuilder) -> bool:
         return await self._write_out_single(name, message)
 
     async def _write_out_single(self, name: str, message: IPBuilder) -> bool:
@@ -1246,41 +1103,88 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             logger.error("%s RPC exception writing output port '%s': %s", self.name, name, description)
             raise OutputPortWriteError(self.name, name, description) from e
 
-    async def _write_out_bracketed(self, name: str, message: IPBuilder) -> bool:
+    async def write_out_chunked(self, name: str, message: IPBuilder) -> bool:
         if message.type != "standard":
-            msg = f"{self.name} can only write standard IPs as bracketed payloads on output port '{name}'."
+            msg = f"{self.name} can only write standard IPs as chunked payloads on output port '{name}'."
             raise OutputPortWriteError(self.name, name, msg)
 
         try:
-            data = bytes(message.content.as_struct(common_capnp.Value).d)
+            data, content_type = _ip_blob_payload(message)
         except (capnp.KjException, TypeError) as e:
-            msg = f"{self.name} can only bracket common.capnp:Value[Data] payloads on output port '{name}'."
+            msg = f"{self.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
             raise OutputPortWriteError(self.name, name, msg) from e
 
+        chunk_size = DEFAULT_BRACKETED_CHUNK_SIZE
+        chunk_count = (len(data) + chunk_size - 1) // chunk_size
+
+        async def data_chunks() -> AsyncIterator[bytes]:
+            for offset in range(0, len(data), chunk_size):
+                yield data[offset : offset + chunk_size]
+
+        return await self._write_out_chunked_stream(
+            name,
+            message,
+            chunks=data_chunks(),
+            content_type=content_type,
+            chunk_count=chunk_count,
+        )
+
+    async def write_out_chunked_stream(
+        self,
+        name: str,
+        source: IPBuilder,
+        *,
+        chunks: AsyncIterable[bytes],
+    ) -> bool:
+        if source.type != "standard":
+            msg = f"{self.name} can only write standard IPs as chunked payloads on output port '{name}'."
+            raise OutputPortWriteError(self.name, name, msg)
+
+        try:
+            _data, content_type = _ip_blob_payload(source)
+        except (capnp.KjException, TypeError) as e:
+            msg = f"{self.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
+            raise OutputPortWriteError(self.name, name, msg) from e
+
+        return await self._write_out_chunked_stream(
+            name,
+            source,
+            chunks=chunks,
+            content_type=content_type,
+        )
+
+    async def _write_out_chunked_stream(
+        self,
+        name: str,
+        source: IPBuilder,
+        *,
+        chunks: AsyncIterable[bytes],
+        content_type: str | None,
+        chunk_count: int = 0,
+    ) -> bool:
         port = self.out_ports.get(name)
         if port is None:
             return False
 
-        open_ip = self._bracket_ip("openBracket", message)
-        close_ip = self._bracket_ip("closeBracket", message)
+        open_ip = _bracket_ip("openBracket", source, content_type=content_type, chunk_count=chunk_count)
+        close_ip = _bracket_ip("closeBracket", source, content_type=content_type, chunk_count=chunk_count)
         open_sent = False
         close_sent = False
         aborted = False
         rpc_error: capnp.KjException | None = None
         description: str | None = None
+        chunk_iterator = chunks.__aiter__()
+        aclose = cast("Callable[[], Awaitable[object]] | None", getattr(chunk_iterator, "aclose", None))
 
         try:
             await self.transition_to_activity("waitingOutput", name)
             await port.write(value=open_ip)
             open_sent = True
-            for offset in range(0, len(data), DEFAULT_BRACKETED_CHUNK_SIZE):
+            async for chunk in chunk_iterator:
                 if self._stop_requested.is_set():
                     aborted = True
                     break
-                chunk_ip = fbp_capnp.IP.new_message(
-                    content=common_capnp.Value.new_message(d=data[offset : offset + DEFAULT_BRACKETED_CHUNK_SIZE]),
-                )
-                chunk_ip.attributes = list(message.attributes)
+                chunk_ip = _chunked_blob_ip(chunk, content_type=content_type)
                 await port.write(value=chunk_ip)
 
             if not aborted:
@@ -1299,6 +1203,12 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             if rpc_error is not None and self.out_ports.get(name) is port:
                 self.out_ports[name] = None
 
+            if aclose is not None:
+                try:
+                    await aclose()
+                except RuntimeError as e:
+                    logger.warning("%s chunk iterator cleanup failed on output port '%s': %s", self.name, name, e)
+
         if rpc_error is not None:
             if self._stop_requested.is_set():
                 return False
@@ -1306,12 +1216,6 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
             raise OutputPortWriteError(self.name, name, description or "") from rpc_error
 
         return not aborted
-
-    @staticmethod
-    def _bracket_ip(bracket_type: Literal["openBracket", "closeBracket"], source: IPBuilder | IPReader) -> IPBuilder:
-        bracket_ip = fbp_capnp.IP.new_message(type=bracket_type)
-        bracket_ip.attributes = list(source.attributes)
-        return bracket_ip
 
     async def write_array_out(
         self,
@@ -1497,7 +1401,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     self.in_ports[name] = None
                     logger.info("closed in port '%s'", name)
                 except (capnp.KjException, RuntimeError) as e:
-                    logger.error("%s: Exception closing in port '%s': %s", os.path.basename(__file__), name, e)
+                    logger.error("%s: Exception closing in port '%s': %s", Path(__file__).name, name, e)
         for name, ports in self.array_in_ports.items():
             for i, port in enumerate(ports):
                 if port is not None:
@@ -1544,7 +1448,7 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
                     self.out_ports[name] = None
                     logger.info("closed out port '%s'", name)
                 except (capnp.KjException, RuntimeError) as e:
-                    logger.error("%s: Exception closing out port '%s': %s", os.path.basename(__file__), name, e)
+                    logger.error("%s: Exception closing out port '%s': %s", Path(__file__).name, name, e)
         for name, ports in self.array_out_ports.items():
             for i, port in enumerate(ports):
                 if port is not None:
@@ -1586,126 +1490,3 @@ class Process(  # pyright: ignore[reportUnsafeMultipleInheritance]
         finally:
             await self.force_close_ports()
             await self.transition_to_state("closed")
-
-
-def start_local_process_component(
-    path_to_executable: str,
-    process_cap_writer_sr: str,
-    name: str | None = None,
-    log_level: str | None = None,
-) -> sp.Popen[str]:
-    pte_split = list(path_to_executable.split(" "))
-    if len(pte_split) > 0 and (exe := pte_split[0]) and exe == "python":
-        pte_split[0] = sys.executable
-    proc = sp.Popen(
-        pte_split
-        + [process_cap_writer_sr]
-        + ([f'--name="{name}"'] if name else [])
-        + ([f"--log_level={log_level}"] if log_level else []),
-        # stdout=sp.PIPE, stderr=sp.STDOUT,
-        text=True,
-    )
-    return proc
-
-
-def create_default_args_parser(
-    component_description: str,
-):
-    parser = argparse.ArgumentParser(description=component_description)
-    _ = parser.add_argument(
-        "process_cap_writer_sr",
-        type=str,
-        nargs="?",
-        help="SturdyRef to the Writer[fbp.capnp:Process]. Writes process capability on startup to writer.",
-    )
-    _ = parser.add_argument(
-        "--output_json_default_config",
-        "-o",
-        action="store_true",
-        help="Output JSON configuration file with default settings at commandline. To be used with IIP at 'conf' port.",
-    )
-    _ = parser.add_argument(
-        "--output_json_component_metadata",
-        "-O",
-        action="store_true",
-        help="Output JSON component metadata at commandline. To be used for configuring component service.",
-    )
-    _ = parser.add_argument(
-        "--write_json_default_config",
-        "-w",
-        type=str,
-        help="Output JSON configuration file with default settings in the current directory. To used with IIP at 'conf' port.",
-    )
-    _ = parser.add_argument(
-        "--write_json_component_metadata",
-        "-W",
-        type=str,
-        help="Output JSON component metadata in the current directory. To be used for configuring component service.",
-    )
-    _ = parser.add_argument(
-        "-b",
-        "--serve_bootstrap",
-        action="store_true",
-        help="Serve process as the bootstrap object.>",
-    )
-    _ = parser.add_argument(
-        "--host",
-        type=str,
-        default=None,
-        help="Host to be used when serving the process.",
-    )
-    _ = parser.add_argument(
-        "--port",
-        type=int,
-        default=None,
-        help="Port to be used when serving the process.",
-    )
-    _ = parser.add_argument(
-        "--name",
-        "-n",
-        type=str,
-        help="Name of process to be started.",
-    )
-    add_log_level_argument(parser)
-    return parser
-
-
-def run_process_from_metadata_and_cmd_args(
-    p: Process[Any],
-    component_meta: ComponentMetadata,
-):
-    parser = create_default_args_parser(component_description=p.description)
-    args = parse_args_typed(parser, ProcessArgs)
-    configure_logging(args.log_level)
-    metadata = component_meta
-    default_config = metadata.default_config_values()
-    metadata_json = metadata.model_dump(mode="json", exclude_none=True)
-    if args.name is not None:
-        p.name = args.name
-    if args.output_json_default_config:
-        _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
-        exit(0)
-    elif args.write_json_default_config:
-        with open(args.write_json_default_config, "w") as _:
-            json.dump(default_config, _, indent=4)
-            exit(0)
-    elif args.output_json_component_metadata:
-        _ = sys.stdout.write(json.dumps(metadata_json, indent=4) + "\n")
-        exit(0)
-    elif args.write_json_component_metadata:
-        with open(args.write_json_component_metadata, "w") as _:
-            json.dump(metadata_json, _, indent=4)
-            exit(0)
-    if args.process_cap_writer_sr:
-        asyncio.run(
-            capnp.run(
-                p.serve(
-                    writer_sr=args.process_cap_writer_sr,
-                    serve_bootstrap=args.serve_bootstrap,
-                    host=args.host,
-                    port=args.port,
-                ),
-            ),
-        )
-    else:
-        logger.error("A sturdy ref to a writer capability is necessary to start the process.")

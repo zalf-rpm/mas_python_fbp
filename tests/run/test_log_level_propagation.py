@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 from zalfmas_fbp.run import channel_starter_service, channels, components, local_components_service, process
+from zalfmas_fbp.run.process import runner as process_runner
 
 
 class DummyProcess:
@@ -92,7 +93,7 @@ def test_start_local_process_component_appends_log_level(monkeypatch: Any) -> No
         captured["kwargs"] = kwargs
         return DummyProcess()
 
-    monkeypatch.setattr(process.sp, "Popen", fake_popen)
+    monkeypatch.setattr(process_runner.sp, "Popen", fake_popen)
 
     process.start_local_process_component("python process.py", "writer-sr", name="demo", log_level="DEBUG")
 

@@ -3,17 +3,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from pathlib import PurePosixPath
 from typing import override
 
-import boto3
-from boto3.session import Session
-from botocore.response import StreamingBody
-from types_boto3_s3.client import S3Client
 from zalfmas_common import common
 
-from zalfmas_fbp.components.dakis.common.file_payload import object_key, prepared_file_bracket_ip, prepared_file_ip
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    BLOB_CONTENT_TYPE,
+    DEFAULT_CONTENT_TYPE,
+    prepared_file_ip,
+)
+from zalfmas_fbp.components.dakis.common.object_store import (
+    get_object_body,
+    object_store_bucket_and_key,
+)
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -42,8 +46,8 @@ METADATA = meta.Component(
     outPorts=[
         meta.Port(
             name="out",
-            contentType="common.capnp:Value[Data]",
-            desc="Prepared file payload bytes with path, filename, and content_type attributes.",
+            contentType=BLOB_CONTENT_TYPE,
+            desc="Prepared file Blob with path, filename, and content type metadata.",
         ),
     ],
     defaultConfig={
@@ -78,7 +82,7 @@ METADATA = meta.Component(
             desc="Object filename to read.",
         ),
         "content_type": meta.ConfigEntry(
-            value="application/octet-stream",
+            value=DEFAULT_CONTENT_TYPE,
             type="string",
             desc="Content type attribute attached to the outgoing file payload.",
         ),
@@ -98,7 +102,7 @@ class ReadFileFromObjectStoreConfig(process.ProcessConfig):
     bucket: str = ""
     path: str = "dakis"
     filename: str = "output.bin"
-    content_type: str = "application/octet-stream"
+    content_type: str = DEFAULT_CONTENT_TYPE
     read_once_without_trigger: bool = True
 
 
@@ -132,11 +136,9 @@ class ReadFileFromObjectStore(process.Process[ReadFileFromObjectStoreConfig]):
     async def _read_and_send(self) -> bool:
         try:
             bucket, key = _bucket_and_key(
-                bucket=self.config.bucket,
-                path=self.config.path,
-                filename=self.config.filename,
+                bucket=self.config.bucket, path=self.config.path, filename=self.config.filename
             )
-            body = _get_object_body(
+            body = get_object_body(
                 endpoint_url=self.config.object_store_url,
                 access_key=self.config.access_key,
                 secret_key=self.config.secret_key,
@@ -144,37 +146,15 @@ class ReadFileFromObjectStore(process.Process[ReadFileFromObjectStoreConfig]):
                 key=key,
             )
             try:
-                if not await self.write_out(
+                if not await self.write_out_chunked_stream(
                     "out",
-                    prepared_file_bracket_ip(
-                        bracket_type="openBracket",
+                    prepared_file_ip(
+                        b"",
                         path=self.config.path,
                         filename=self.config.filename,
                         content_type=self.config.content_type,
                     ),
-                ):
-                    return False
-
-                while chunk := body.read(process.DEFAULT_BRACKETED_CHUNK_SIZE):
-                    if not await self.write_out(
-                        "out",
-                        prepared_file_ip(
-                            bytes(chunk),
-                            path=self.config.path,
-                            filename=self.config.filename,
-                            content_type=self.config.content_type,
-                        ),
-                    ):
-                        return False
-
-                if not await self.write_out(
-                    "out",
-                    prepared_file_bracket_ip(
-                        bracket_type="closeBracket",
-                        path=self.config.path,
-                        filename=self.config.filename,
-                        content_type=self.config.content_type,
-                    ),
+                    chunks=_body_chunks(body),
                 ):
                     return False
             finally:
@@ -190,36 +170,7 @@ class ReadFileFromObjectStore(process.Process[ReadFileFromObjectStoreConfig]):
 
 
 def _bucket_and_key(*, bucket: str, path: str, filename: str) -> tuple[str, str]:
-    bucket = bucket.strip("/")
-    path = path.strip("/")
-    filename = filename.strip("/")
-
-    if bucket:
-        return bucket, object_key(path, filename)
-
-    parts = PurePosixPath(object_key(path, filename)).parts
-    if len(parts) < 2:
-        msg = "Object store bucket is required when path does not include a bucket segment."
-        raise ValueError(msg)
-
-    return parts[0], str(PurePosixPath(*parts[1:]))
-
-
-def _get_object_body(
-    *,
-    endpoint_url: str,
-    access_key: str,
-    secret_key: str,
-    bucket: str,
-    key: str,
-) -> StreamingBody:
-    session: boto3.session.Session = Session(
-        aws_access_key_id=access_key or None,
-        aws_secret_access_key=secret_key or None,
-    )
-    s3_client: S3Client = session.client("s3", endpoint_url=endpoint_url)
-    response = s3_client.get_object(Bucket=bucket, Key=key)
-    return response["Body"]
+    return object_store_bucket_and_key(bucket=bucket, path=path, filename=filename)
 
 
 def main():
@@ -228,3 +179,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+async def _body_chunks(body):
+    while chunk := await asyncio.to_thread(body.read, process.DEFAULT_BRACKETED_CHUNK_SIZE):
+        yield bytes(chunk)

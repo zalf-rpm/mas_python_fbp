@@ -4,21 +4,16 @@
 from __future__ import annotations
 
 import logging
-from pathlib import PurePosixPath
 from tempfile import TemporaryFile
-from typing import Any, BinaryIO, override
+from typing import BinaryIO, override
 
-import boto3
-from boto3.session import Session
-from types_boto3_s3.client import S3Client
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
-    object_key,
-    read_prepared_file,
-    read_prepared_file_chunk,
+    BLOB_CONTENT_TYPE,
     read_prepared_file_metadata,
 )
+from zalfmas_fbp.components.dakis.common.object_store import object_store_bucket_and_key, put_object
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -40,8 +35,8 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="in",
-            contentType="common.capnp:Value[Data]",
-            desc="Prepared file payload bytes with optional path and filename attributes.",
+            contentType=BLOB_CONTENT_TYPE,
+            desc="Prepared file Blob with optional path and filename metadata.",
         ),
     ],
     defaultConfig={
@@ -101,27 +96,17 @@ class WriteFileToObjectStore(process.Process[WriteFileToObjectStoreConfig]):
         logger.info("%s process running", self.name)
 
         while True:
-            in_msg = await self._read_in_raw("in")
-            if in_msg is None:
+            stream = await self.read_in_chunked_stream("in")
+            if stream is None:
                 break
 
-            if in_msg.type == "openBracket":
-                path, filename, content_type, body = await self._chunked_body(in_msg)
-            elif in_msg.type == "closeBracket":
-                continue
-            else:
-                data, path, filename, content_type = read_prepared_file(
-                    in_msg,
-                    default_path=self.config.path,
-                    default_filename=self.config.filename,
-                )
-                body = data
+            path, filename, content_type, body = await self._chunked_body(stream)
             bucket, key = _bucket_and_key(
                 bucket=self.config.bucket,
                 path=path,
                 filename=filename,
             )
-            _put_object(
+            put_object(
                 endpoint_url=self.config.object_store_url,
                 access_key=self.config.access_key,
                 secret_key=self.config.secret_key,
@@ -136,60 +121,21 @@ class WriteFileToObjectStore(process.Process[WriteFileToObjectStoreConfig]):
 
         logger.info("%s process finished", self.name)
 
-    async def _chunked_body(self, open_ip) -> tuple[str, str, str, BinaryIO]:
+    async def _chunked_body(self, stream: process.ChunkedInputStream) -> tuple[str, str, str, BinaryIO]:
         path, filename, content_type = read_prepared_file_metadata(
-            open_ip,
+            stream.open_ip,
             default_path=self.config.path,
             default_filename=self.config.filename,
         )
         tmp_file: BinaryIO = TemporaryFile("w+b")
-        while True:
-            chunk_ip = await self._read_in_raw("in")
-            if chunk_ip is None:
-                msg = "Input port 'in' closed before the prepared file payload ended."
-                raise ValueError(msg)
-            if chunk_ip.type == "closeBracket":
-                break
-            if chunk_ip.type == "openBracket":
-                msg = "Nested file payload brackets are not supported."
-                raise ValueError(msg)
-            tmp_file.write(read_prepared_file_chunk(chunk_ip))
+        async for chunk in stream:
+            tmp_file.write(chunk)
         tmp_file.seek(0)
         return path, filename, content_type, tmp_file
 
 
 def _bucket_and_key(*, bucket: str, path: str, filename: str) -> tuple[str, str]:
-    bucket = bucket.strip("/")
-    path = path.strip("/")
-    filename = filename.strip("/")
-
-    if bucket:
-        return bucket, object_key(path, filename)
-
-    parts = PurePosixPath(object_key(path, filename)).parts
-    if len(parts) < 2:
-        msg = "Object store bucket is required when path does not include a bucket segment."
-        raise ValueError(msg)
-
-    return parts[0], str(PurePosixPath(*parts[1:]))
-
-
-def _put_object(
-    *,
-    endpoint_url: str,
-    access_key: str,
-    secret_key: str,
-    bucket: str,
-    key: str,
-    body: Any,
-    content_type: str,
-) -> None:
-    session: boto3.session.Session = Session(
-        aws_access_key_id=access_key or None,
-        aws_secret_access_key=secret_key or None,
-    )
-    s3_client: S3Client = session.client("s3", endpoint_url=endpoint_url)
-    s3_client.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
+    return object_store_bucket_and_key(bucket=bucket, path=path, filename=filename)
 
 
 def main():

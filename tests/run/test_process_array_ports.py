@@ -18,11 +18,14 @@ from tests.component_harness import (
 )
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.process import core as process_core
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder, IPBuilder
     from mas.schema.fbp.fbp_capnp.types.enums import ProcessStateEnum
     from mas.schema.fbp.fbp_capnp.types.readers import ActivityInfoReader
+
+RPC_CONTEXT = cast("Any", None)
 
 
 class _FakeCap:
@@ -128,6 +131,19 @@ class _FailOnceThenWriteWriter(InMemoryWriter):
         await super().write(value)
 
 
+class _StopRequestingWriter(InMemoryWriter):
+    def __init__(self, component: process.Process):
+        super().__init__()
+        self.component = component
+        self.calls = 0
+
+    async def write(self, value: Any) -> None:
+        self.calls += 1
+        await super().write(value)
+        if self.calls == 2:
+            self.component._stop_requested.set()
+
+
 class _StopAwareProcess(process.Process):
     async def run(self) -> None:
         while not self.stopping:
@@ -217,10 +233,10 @@ def test_process_soft_stop_returns_to_idle_and_clears_stopping_flag() -> None:
         component = _StopAwareProcess()
 
         assert component.process_state == "idle"
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "running")
 
-        assert await component.stop() is True
+        assert await component.stop(RPC_CONTEXT) is True
 
         assert component.process_state == "idle"
         assert component.stopping is False
@@ -233,10 +249,10 @@ def test_process_stop_timeout_returns_false_while_task_is_still_stopping() -> No
         component = _CancellationSuppressingProcess()
         component.soft_stop_timeout_seconds = 0.01
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "running")
 
-        assert await component.stop() is False
+        assert await component.stop(RPC_CONTEXT) is False
 
         assert component.process_state == "stopping"
         assert component.stopping is True
@@ -253,10 +269,10 @@ def test_unexpected_input_port_failure_fails_process_and_records_last_error() ->
         component = _ReadOnceProcess(metadata=_standard_port_meta())
         component.in_ports["in"] = cast("Any", _BrokenReader())
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "failed")
 
-        error_info = await component.lastError()
+        error_info = await component.lastError(RPC_CONTEXT)
         assert error_info.hasError is True
         assert error_info.phase == "read"
         assert error_info.port == "in"
@@ -271,14 +287,14 @@ def test_component_can_catch_input_port_failure_inside_run() -> None:
         component = _CatchesReadErrorProcess()
         component.in_ports["in"] = cast("Any", _BrokenReader())
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         if component._run_task is None:
             raise AssertionError("Process did not create a run task.")
         await component._run_task
 
         assert component.caught_error is True
         assert component.process_state == "idle"
-        error_info = await component.lastError()
+        error_info = await component.lastError(RPC_CONTEXT)
         assert error_info.hasError is False
         assert error_info.phase == "unknown"
 
@@ -306,13 +322,13 @@ def test_process_reports_waiting_input_activity_while_read_is_blocked() -> None:
         reader = _BlockingBrokenReader()
         component.in_ports["in"] = cast("Any", reader)
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await reader.started.wait()
 
         assert component.activity_state == "waitingInput"
         assert component.activity_port == "in"
 
-        assert await component.stop() is True
+        assert await component.stop(RPC_CONTEXT) is True
         assert component.activity_state == "none"
         assert component.activity_port == ""
 
@@ -355,7 +371,7 @@ def test_activity_returns_current_info_and_registers_callbacks() -> None:
         component = process.Process(metadata=_standard_port_meta())
         callback = Callback()
 
-        current = await component.activity(callback)
+        current = await component.activity(callback, RPC_CONTEXT)
         assert current.state == "none"
         assert current.port == ""
 
@@ -367,6 +383,45 @@ def test_activity_returns_current_info_and_registers_callbacks() -> None:
             (("none", ""), ("processing", "")),
             (("processing", ""), ("waitingInput", "in")),
         ]
+
+    asyncio.run(run_test())
+
+
+def test_dead_state_transition_callbacks_are_removed() -> None:
+    class Callback:
+        async def stateChanged(self, old: ProcessStateEnum, new: ProcessStateEnum) -> None:
+            raise capnp.KjException(f"{old}->{new} disconnected")
+
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        await component.state(Callback(), RPC_CONTEXT)
+
+        await component.transition_to_state("running")
+
+        assert component.process_state == "running"
+        assert component.state_transition_callbacks == []
+
+    asyncio.run(run_test())
+
+
+def test_dead_activity_transition_callbacks_are_removed() -> None:
+    class Callback:
+        async def activityChanged(
+            self,
+            old: ActivityInfoBuilder | ActivityInfoReader,
+            new: ActivityInfoBuilder | ActivityInfoReader,
+        ) -> None:
+            raise capnp.KjException(f"{old.state}->{new.state} disconnected")
+
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        await component.activity(Callback(), RPC_CONTEXT)
+
+        await component.transition_to_activity("waitingInput", "in")
+
+        assert component.activity_state == "waitingInput"
+        assert component.activity_port == "in"
+        assert component.activity_transition_callbacks == []
 
     asyncio.run(run_test())
 
@@ -386,7 +441,7 @@ def test_short_processing_activity_is_suppressed() -> None:
     async def run_test() -> None:
         component = process.Process(metadata=_standard_port_meta())
         callback = Callback()
-        await component.activity(callback)
+        await component.activity(callback, RPC_CONTEXT)
 
         await component.transition_to_activity("processing")
         await component.transition_to_activity("waitingInput", "in")
@@ -405,15 +460,15 @@ def test_failed_process_can_be_restarted_and_stopped() -> None:
     async def run_test() -> None:
         component = _FailOnceProcess()
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "failed")
         assert component.runs == 1
 
-        assert await component.start() is True
+        assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "running")
         assert component.runs == 2
 
-        assert await component.stop() is True
+        assert await component.stop(RPC_CONTEXT) is True
         assert component.process_state == "idle"
 
     asyncio.run(run_test())
@@ -577,7 +632,7 @@ def test_read_array_in_next_available_skips_done_ports() -> None:
     assert component.array_in_ports["items"][0] is None
 
 
-def test_read_array_in_next_available_automatic_chunking_coalesces_chunks() -> None:
+def test_read_array_in_next_available_chunked_coalesces_chunks() -> None:
     component = process.Process(metadata=_array_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     close_ip = fbp_capnp.IP.new_message(type="closeBracket")
@@ -596,15 +651,13 @@ def test_read_array_in_next_available_automatic_chunking_coalesces_chunks() -> N
         ),
     ]
 
-    message = asyncio.run(
-        component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, automatic_chunking=True)
-    )
+    message = asyncio.run(component.read_array_in_chunked("items", process.ArrayInStrategy.NEXT_AVAILABLE))
 
     assert message is not None
-    assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+    assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
 
 
-def test_read_in_rejects_automatic_chunked_payload_when_disabled() -> None:
+def test_read_in_rejects_chunked_payloads_without_explicit_api() -> None:
     component = process.Process(metadata=_standard_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     component.in_ports["in"] = cast("Any", InMemoryReader([PortMessage(PortValue(open_ip)), done_message()]))
@@ -612,14 +665,12 @@ def test_read_in_rejects_automatic_chunked_payload_when_disabled() -> None:
     try:
         asyncio.run(component.read_in("in"))
     except process.InputPortReadError as exc:
-        assert "automatic chunking is disabled" in str(exc)
+        assert "use read_in_chunked" in str(exc)
     else:
-        raise AssertionError(
-            "read_in should reject automatically chunked payloads unless automatic_chunking is enabled"
-        )
+        raise AssertionError("read_in should reject chunked payloads unless a chunked read API is used")
 
 
-def test_read_in_automatic_chunking_coalesces_chunks() -> None:
+def test_read_in_chunked_coalesces_chunks() -> None:
     component = process.Process(metadata=_standard_port_meta())
     open_ip = fbp_capnp.IP.new_message(type="openBracket")
     first = _data_ip(b"pa")
@@ -638,13 +689,13 @@ def test_read_in_automatic_chunking_coalesces_chunks() -> None:
         ),
     )
 
-    message = asyncio.run(component.read_in("in", automatic_chunking=True))
+    message = asyncio.run(component.read_in_chunked("in"))
 
     assert message is not None
-    assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+    assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
 
 
-def test_read_in_automatic_chunking_remains_waiting_input_until_close_bracket() -> None:
+def test_read_in_chunked_remains_waiting_input_until_close_bracket() -> None:
     async def run_test() -> None:
         component = process.Process(metadata=_standard_port_meta())
         open_ip = fbp_capnp.IP.new_message(type="openBracket")
@@ -661,7 +712,7 @@ def test_read_in_automatic_chunking_remains_waiting_input_until_close_bracket() 
             ),
         )
 
-        read_task = asyncio.create_task(component.read_in("in", automatic_chunking=True))
+        read_task = asyncio.create_task(component.read_in_chunked("in"))
         await asyncio.sleep(0.015)
 
         assert component.activity_state == "waitingInput"
@@ -669,14 +720,14 @@ def test_read_in_automatic_chunking_remains_waiting_input_until_close_bracket() 
 
         message = await read_task
         assert message is not None
-        assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+        assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
         assert component.activity_state == "processing"
         assert component.activity_port == ""
 
     asyncio.run(run_test())
 
 
-def test_read_array_in_automatic_chunking_remains_waiting_input_until_close_bracket() -> None:
+def test_read_array_in_chunked_remains_waiting_input_until_close_bracket() -> None:
     async def run_test() -> None:
         component = process.Process(metadata=_array_port_meta())
         open_ip = fbp_capnp.IP.new_message(type="openBracket")
@@ -696,7 +747,7 @@ def test_read_array_in_automatic_chunking_remains_waiting_input_until_close_brac
         ]
 
         read_task = asyncio.create_task(
-            component.read_array_in("items", process.ArrayInStrategy.NEXT_AVAILABLE, automatic_chunking=True)
+            component.read_array_in_chunked("items", process.ArrayInStrategy.NEXT_AVAILABLE)
         )
         await asyncio.sleep(0.015)
 
@@ -705,20 +756,20 @@ def test_read_array_in_automatic_chunking_remains_waiting_input_until_close_brac
 
         message = await read_task
         assert message is not None
-        assert bytes(message.content.as_struct(common_capnp.Value).d) == b"payload"
+        assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
         assert component.activity_state == "processing"
         assert component.activity_port == ""
 
     asyncio.run(run_test())
 
 
-def test_write_out_automatic_chunking_chunks_data(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+def test_write_out_chunked_chunks_data(monkeypatch) -> None:
+    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = InMemoryWriter()
     component.out_ports["out"] = cast("Any", writer)
 
-    assert asyncio.run(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True)) is True
+    assert asyncio.run(component.write_out_chunked("out", _data_ip(b"payload"))) is True
 
     assert [ip.type for ip in writer.values] == [
         "openBracket",
@@ -728,18 +779,18 @@ def test_write_out_automatic_chunking_chunks_data(monkeypatch) -> None:
         "standard",
         "closeBracket",
     ]
-    assert b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in writer.values[1:-1]) == b"payload"
+    assert b"".join(bytes(ip.content.as_struct(common_capnp.Blob).data) for ip in writer.values[1:-1]) == b"payload"
 
 
-def test_write_out_automatic_chunking_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
+def test_write_out_chunked_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
     async def run_test() -> None:
-        monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+        monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
         component = process.Process(metadata=_standard_port_meta())
         release = asyncio.Event()
         writer = _StepBlockingWriter(release)
         component.out_ports["out"] = cast("Any", writer)
 
-        write_task = asyncio.create_task(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True))
+        write_task = asyncio.create_task(component.write_out_chunked("out", _data_ip(b"payload")))
         await writer.blocking_started.wait()
 
         assert component.activity_state == "waitingOutput"
@@ -752,14 +803,14 @@ def test_write_out_automatic_chunking_remains_waiting_output_until_close_bracket
     asyncio.run(run_test())
 
 
-def test_write_out_automatic_chunking_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
-    monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+def test_write_out_chunked_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
+    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = _FailOnceThenWriteWriter()
     component.out_ports["out"] = cast("Any", writer)
 
     try:
-        asyncio.run(component.write_out("out", _data_ip(b"payload"), automatic_chunking=True))
+        asyncio.run(component.write_out_chunked("out", _data_ip(b"payload")))
     except process.OutputPortWriteError as exc:
         assert "temporary mid-stream failure" in str(exc)
     else:
@@ -767,6 +818,28 @@ def test_write_out_automatic_chunking_best_effort_closes_stream_after_midstream_
 
     assert [ip.type for ip in writer.values] == ["openBracket", "closeBracket"]
     assert component.out_ports["out"] is None
+
+
+def test_write_out_chunked_stream_closes_async_generator_when_aborted() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        writer = _StopRequestingWriter(component)
+        component.out_ports["out"] = cast("Any", writer)
+        closed = asyncio.Event()
+
+        async def chunks():
+            try:
+                yield b"first"
+                yield b"second"
+            finally:
+                closed.set()
+
+        source = _data_ip(b"")
+
+        assert await component.write_out_chunked_stream("out", source, chunks=chunks()) is False
+        assert closed.is_set()
+
+    asyncio.run(run_test())
 
 
 def test_record_error_keeps_full_multiline_traceback() -> None:
@@ -875,7 +948,13 @@ def _text_ip(value: str) -> IPBuilder:
 
 
 def _data_ip(value: bytes) -> IPBuilder:
-    return fbp_capnp.IP.new_message(content=common_capnp.Value.new_message(d=value))
+    return fbp_capnp.IP.new_message(
+        content=common_capnp.Blob.new_message(
+            contentType=common_capnp.MimeTypes.applicationOctetStream,
+            data=value,
+        ),
+        sysAttributes={"contentType": common_capnp.MimeTypes.applicationOctetStream},
+    )
 
 
 async def _wait_for_state(component: process.Process, expected: ProcessStateEnum) -> None:

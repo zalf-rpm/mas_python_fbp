@@ -9,12 +9,15 @@ import boto3
 import pytest
 from boto3.session import Session
 from botocore.exceptions import ClientError
-from mas.schema.common import common_capnp
 from types_boto3_s3.client import S3Client
 from zalfmas_common import common
 
 from tests.component_harness import PortMessage, PortValue, done_message, run_process_component
-from zalfmas_fbp.components.dakis.common.file_payload import object_key, prepared_file_chunk_ips
+from zalfmas_fbp.components.dakis.common.file_payload import (
+    DEFAULT_CONTENT_TYPE,
+    prepared_file_chunk_ips,
+)
+from zalfmas_fbp.components.dakis.common.object_store import object_key
 from zalfmas_fbp.components.dakis.read_file_from_object_store import (
     METADATA as read_file_from_object_store_metadata,
 )
@@ -23,6 +26,7 @@ from zalfmas_fbp.components.dakis.write_file_to_object_store import (
     METADATA as write_file_to_object_store_metadata,
 )
 from zalfmas_fbp.components.dakis.write_file_to_object_store import WriteFileToObjectStore
+from zalfmas_fbp.run import process
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOTENV_PATH = REPO_ROOT / ".env"
@@ -44,7 +48,7 @@ def test_object_store_components_round_trip_against_real_bucket() -> None:
     path = f"copilot-smoke-tests/{unique_id}"
     filename = "object-store-smoke.bin"
     key = object_key(path, filename)
-    content_type = "application/octet-stream"
+    content_type = DEFAULT_CONTENT_TYPE
     payload = f"copilot-object-store-smoke:{unique_id}".encode()
     s3_client = _s3_client(config)
 
@@ -93,6 +97,8 @@ def test_object_store_components_round_trip_against_real_bucket() -> None:
         assert _attr_text(messages[0], "path") == path
         assert _attr_text(messages[0], "filename") == filename
         assert _attr_text(messages[0], "content_type") == content_type
+        assert _attr_text(messages[1], "path") == ""
+        assert _attr_text(messages[-1], "path") == ""
         assert _prepared_file_bytes(messages) == payload
 
     finally:
@@ -166,7 +172,7 @@ def _ip_reader_message(ip):
 
 
 def _prepared_file_bytes(messages) -> bytes:
-    return b"".join(bytes(ip.content.as_struct(common_capnp.Value).d) for ip in messages[1:-1])
+    return b"".join(process.read_ip_data(ip)[0] for ip in messages[1:-1])
 
 
 def _attr_text(ip, key: str) -> str:
