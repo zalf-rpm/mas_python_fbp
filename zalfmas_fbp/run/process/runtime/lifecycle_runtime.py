@@ -119,9 +119,9 @@ class ProcessLifecycleRuntime:
 
         lifecycle.stop_requested.set()
         await self._state_runtime.transition_to_state("stopping")
-        return await self._wait_for_run_task(lifecycle.soft_stop_timeout_seconds)
+        return await self._wait_for_run_task()
 
-    async def _wait_for_run_task(self, timeout: float) -> bool:
+    async def _wait_for_run_task(self) -> bool:
         run_task = self._lifecycle.run_task
         if run_task is None:
             return True
@@ -129,12 +129,13 @@ class ProcessLifecycleRuntime:
             await self._consume_run_task_result()
             return True
 
-        done, _pending = await asyncio.wait({run_task}, timeout=timeout)
+        timeout_seconds = self._lifecycle.soft_stop_timeout_seconds
+        done, _pending = await asyncio.wait({run_task}, timeout=timeout_seconds)
         if run_task not in done:
             logger.error(
                 "%s run task did not stop within %.3fs",
                 self._identity.name,
-                timeout,
+                timeout_seconds,
             )
             return False
 

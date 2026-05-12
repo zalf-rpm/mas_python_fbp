@@ -192,18 +192,22 @@ class ProcessHandle(fbp_capnp.Process.ProcessHandle.Server):
 
     async def _request_process_stop(self) -> None:
         try:
-            await asyncio.wait_for(self.process_cap.stop(), timeout=self.stop_timeout_seconds)
+            async with asyncio.timeout(self.stop_timeout_seconds):
+                await self.process_cap.stop()
         except (TimeoutError, capnp.KjException, RuntimeError) as e:
             logger.warning("Could not cooperatively stop process before terminating runtime: %s", e)
 
-    async def _wait_for_exit(self, timeout: float) -> bool:
-        if self.proc is None:
+    async def _wait_for_exit(self, timeout_seconds: float) -> bool:
+        proc = self.proc
+        if proc is None:
             return True
         try:
-            await asyncio.to_thread(self.proc.wait, timeout=timeout)
-        except sp.TimeoutExpired:
+            async with asyncio.timeout(timeout_seconds):
+                while proc.poll() is None:
+                    await asyncio.sleep(0.05)
+        except TimeoutError:
             return False
-        return self.proc.poll() is not None
+        return proc.poll() is not None
 
 
 class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
