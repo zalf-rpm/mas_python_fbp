@@ -82,7 +82,8 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
     debug_out = config["debug_out"]
     if not config["path_to_grid"]:
-        raise Exception("No path_to_grid given at start of component.")
+        msg = "No path_to_grid given at start of component."
+        raise ValueError(msg)
 
     grid_data = ragm.load_grid_cached(
         config["path_to_grid"],

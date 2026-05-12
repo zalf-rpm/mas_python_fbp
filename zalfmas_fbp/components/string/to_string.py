@@ -88,8 +88,8 @@ class ToString(process.Process[ToStringConfig]):
             try:
                 t: Any
                 t, _ = common.load_capnp_module(struct_type)
-            except (AttributeError, ImportError, RuntimeError, TypeError, ValueError) as e:
-                logger.exception("Failed to load Cap'n Proto module: %s", e)
+            except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
+                logger.exception("Failed to load Cap'n Proto module.")
                 t = None
 
         while True:

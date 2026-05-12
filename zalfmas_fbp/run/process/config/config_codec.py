@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 import capnp
 from mas.schema.common import common_capnp
 
-from ..errors import ProcessConfigError
-from ..types import ConfigScalar, ConfigValue
+from zalfmas_fbp.run.process.errors import ProcessConfigError
+from zalfmas_fbp.run.process.types import ConfigScalar, ConfigValue
 
 if TYPE_CHECKING:
     from mas.schema.common.common_capnp.types.builders import PairBuilder, ValueBuilder
@@ -64,7 +64,8 @@ def config_value_from_python(value: object) -> ValueBuilder:
         return common_capnp.Value.new_message(lv=values)
     if is_object_dict(value):
         if not is_str_key_dict(value):
-            raise TypeError("Config dict keys must be strings")
+            msg = "Config dict keys must be strings"
+            raise TypeError(msg)
         pairs: list[PairBuilder] = []
         for key, item in value.items():
             pairs.append(
@@ -75,7 +76,8 @@ def config_value_from_python(value: object) -> ValueBuilder:
             )
         return common_capnp.Value.new_message(lpair=pairs)
 
-    raise TypeError(f"Unsupported config value type: {type(value).__name__}")
+    msg = f"Unsupported config value type: {type(value).__name__}"
+    raise TypeError(msg)
 
 
 def python_value_from_capnp_value(value: ValueReader) -> ConfigValue:
@@ -99,18 +101,24 @@ def python_value_from_capnp_value(value: ValueReader) -> ConfigValue:
     if value_type == "lv":
         return [python_value_from_capnp_value(v) for v in value.lv]
     if value_type == "lpair":
+        pairs = list(value.lpair)
+        for pair in pairs:
+            if not pair._has("fst") or not pair._has("snd"):
+                msg = "Pair entries must have both 'fst' and 'snd'"
+                raise TypeError(msg)
         try:
             d: dict[str, ConfigValue] = {}
-            for pair in value.lpair:
-                if not pair._has("fst") or not pair._has("snd"):
-                    raise TypeError("Pair entries must have both 'fst' and 'snd'")
+            for pair in pairs:
                 d[pair.fst.as_text()] = python_value_from_capnp_value(
                     pair.snd.as_struct(common_capnp.Value),
                 )
+        except (AttributeError, capnp.KjException, TypeError) as error:
+            msg = f"Error unpacking dict (list of pairs): {error}"
+            raise TypeError(msg) from error
+        else:
             return d
-        except (AttributeError, capnp.KjException, TypeError) as e:
-            raise TypeError(f"Error unpacking dict (list of pairs): {e}") from e
-    raise TypeError(f"Unsupported config value type: {value_type}")
+    msg = f"Unsupported config value type: {value_type}"
+    raise TypeError(msg)
 
 
 def load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str, Any]:
@@ -122,9 +130,11 @@ def load_config_text(text: str, config_type: StructuredTextTypeEnum) -> dict[str
     if normalized_type == "json":
         config = json.loads(text)
         if type(config) is not dict:
-            raise TypeError("JSON config must decode to an object")
+            msg = "JSON config must decode to an object"
+            raise TypeError(msg)
         return config
-    raise ValueError(f"Unsupported config text type: {config_type}")
+    msg = f"Unsupported config text type: {config_type}"
+    raise ValueError(msg)
 
 
 def load_unstructured_config_text(text: str) -> dict[str, Any]:
@@ -134,7 +144,8 @@ def load_unstructured_config_text(text: str) -> dict[str, Any]:
         try:
             return load_config_text(text, "json")
         except (json.JSONDecodeError, TypeError) as json_error:
-            raise ValueError(f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}") from json_error
+            msg = f"Config text is neither valid TOML nor JSON: {toml_error}; {json_error}"
+            raise ValueError(msg) from json_error
 
 
 def config_from_ip(in_msg: IPReader) -> dict[str, ConfigValue]:

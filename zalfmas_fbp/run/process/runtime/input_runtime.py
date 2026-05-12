@@ -9,14 +9,15 @@ from typing import TYPE_CHECKING, Literal, cast, overload
 import capnp
 from mas.schema.fbp import fbp_capnp
 
-from ..context import ProcessPortState
-from ..errors import InputPortReadError
-from ..identity import ProcessIdentityContext
-from ..io.chunked_io import ChunkedInputStream
-from ..io.chunked_io import ip_blob_payload as _ip_blob_payload
-from ..io.chunked_io import ip_content_type as _ip_content_type
-from ..task_utils import wait_for_tasks_or_stop
-from ..types import ArrayInStrategy, ArrayReaderPorts
+from zalfmas_fbp.run.process.context import ProcessPortState
+from zalfmas_fbp.run.process.errors import InputPortReadError
+from zalfmas_fbp.run.process.identity import ProcessIdentityContext
+from zalfmas_fbp.run.process.io.chunked_io import ChunkedInputStream
+from zalfmas_fbp.run.process.io.chunked_io import ip_blob_payload as _ip_blob_payload
+from zalfmas_fbp.run.process.io.chunked_io import ip_content_type as _ip_content_type
+from zalfmas_fbp.run.process.task_utils import wait_for_tasks_or_stop
+from zalfmas_fbp.run.process.types import ArrayInStrategy, ArrayReaderPorts
+
 from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
@@ -260,7 +261,8 @@ class InputRuntime:
                         ports[port_index] = None
                         if self.stop_event.is_set():
                             continue
-                        raise self._input_port_rpc_error(f"{name}[{port_index}]", error) from error
+                        msg_0 = f"{name}[{port_index}]"
+                        raise self._input_port_rpc_error(msg_0, error) from error
 
                     if msg.which() == "done":
                         ports[port_index] = None
@@ -279,6 +281,7 @@ class InputRuntime:
             except Exception:
                 await _cancel_tasks(read_tasks)
                 raise
+        return None
 
     @overload
     async def read_array_in_chunked(
@@ -368,7 +371,8 @@ class InputRuntime:
                         if self.stop_event.is_set():
                             zip_finished = True
                             continue
-                        raise self._input_port_rpc_error(f"{name}[{port_index}]", error) from error
+                        msg_0 = f"{name}[{port_index}]"
+                        raise self._input_port_rpc_error(msg_0, error) from error
 
                     if msg.which() == "done":
                         ports[port_index] = None
@@ -455,7 +459,7 @@ class InputRuntime:
                 process_name=self._identity.name,
                 port=port_label,
                 _read_next_ip=read_next_ip,
-                _is_stopping=lambda: self.stop_event.is_set(),
+                _is_stopping=self.stop_event.is_set,
                 _on_complete=lambda: self._activity.transition_to_activity("processing", delay_processing=False),
                 content_type=_ip_content_type(in_ip),
             )
@@ -473,7 +477,7 @@ class InputRuntime:
             process_name=self._identity.name,
             port=port_label,
             _read_next_ip=lambda: asyncio.sleep(0, result=None),
-            _is_stopping=lambda: self.stop_event.is_set(),
+            _is_stopping=self.stop_event.is_set,
             _on_complete=None,
             _single_chunk=data,
             content_type=content_type,
@@ -486,8 +490,8 @@ class InputRuntime:
                     await port.close()
                     self.in_ports[name] = None
                     logger.info("closed in port '%s'", name)
-                except (capnp.KjException, RuntimeError) as error:
-                    logger.exception("%s: Exception closing in port '%s': %s", Path(__file__).name, name, error)
+                except (capnp.KjException, RuntimeError):
+                    logger.exception("%s: Exception closing in port '%s'", Path(__file__).name, name)
         for name, ports in self.array_in_ports.items():
             for index, port in enumerate(ports):
                 if port is not None:
@@ -495,5 +499,5 @@ class InputRuntime:
                         await port.close()
                         ports[index] = None
                         logger.info("closed array in port '%s[%s]'", name, index)
-                    except (capnp.KjException, RuntimeError) as error:
-                        logger.exception("Exception closing array in port '%s[%s]': %s", name, index, error)
+                    except (capnp.KjException, RuntimeError):
+                        logger.exception("Exception closing array in port '%s[%s]'", name, index)

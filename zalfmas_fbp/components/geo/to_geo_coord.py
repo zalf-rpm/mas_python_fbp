@@ -92,7 +92,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 geo.set_xy(to_coord, vals[0], vals[1])
                 await pc.out_ports["coord"].write(value=fbp_capnp.IP.new_message(content=to_coord))
             else:
-                raise Exception("Not enough values in list. Need at least two for a coordinate.")
+                msg = "Not enough values in list. Need at least two for a coordinate."
+                raise ValueError(msg)
 
         except capnp.KjException as e:
             logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)

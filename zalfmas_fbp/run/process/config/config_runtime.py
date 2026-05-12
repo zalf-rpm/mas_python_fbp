@@ -3,15 +3,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
-from ..context import ProcessConfigState
-from ..types import ConfigValue, ProcessConfig, RawConfig
+from zalfmas_fbp.run.process.context import ProcessConfigState
+from zalfmas_fbp.run.process.types import ConfigValue, ProcessConfig, RawConfig
 
 
 class ProcessConfigRuntime[ConfigT: ProcessConfig | RawConfig]:
     def __init__(
         self,
-        state: ProcessConfigState,
         *,
+        state: ProcessConfigState,
         config_model: type[ProcessConfig] | None,
     ) -> None:
         self._state: ProcessConfigState = state

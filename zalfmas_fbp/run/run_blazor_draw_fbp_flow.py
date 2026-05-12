@@ -128,13 +128,19 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
     process_id_to_process = {}
     channels = []
 
+    async def connect_or_raise(sturdy_ref: str, target: str):
+        cap = await con_man.try_connect(sturdy_ref)
+        if cap is None:
+            msg = f"Couldn't connect to {target} {sturdy_ref}."
+            raise RuntimeError(msg)
+        return cap
+
     try:
         first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(config["path_to_channel"])
         channels.append(first_chan)
 
         con_man = common.ConnectionManager()
-        if (first_reader_cap := await con_man.try_connect(first_reader_sr)) is None:
-            raise RuntimeError(f"Couldn't connect to startup reader {first_reader_sr}.")
+        first_reader_cap = await connect_or_raise(first_reader_sr, "startup reader")
         first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
 
         process_id_to_process_srs = defaultdict(lambda: defaultdict(dict))
@@ -201,8 +207,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                         process_id_to_popen_args[process_id] + [config_srs["readerSR"]],
                     )
                     # connect to the current components config channel and send port information, then close it
-                    if (port_infos_writer_cap := await con_man.try_connect(config_srs["writerSR"])) is None:
-                        raise RuntimeError(f"Couldn't connect to config writer {config_srs['writerSR']}.")
+                    port_infos_writer_cap = await connect_or_raise(config_srs["writerSR"], "config writer")
                     port_infos_writer = port_infos_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     await port_infos_writer.write(value=port_infos_msg)
                     # don't close port infos writer channel, but use it as signal for letting
@@ -237,8 +242,7 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
                 in_port_name = chan_id["in"]["port"]
 
                 if out_process_id in iip_process_ids:
-                    if (out_writer_cap := await con_man.try_connect(info.writerSRs[0])) is None:
-                        raise RuntimeError(f"Couldn't connect to IIP writer {info.writerSRs[0]}.")
+                    out_writer_cap = await connect_or_raise(info.writerSRs[0], "IIP writer")
                     out_writer = out_writer_cap.cast_as(fbp_capnp.Channel.Writer)
                     content = node_id_to_node[out_process_id]["content"]
                     out_ip = fbp_capnp.IP.new_message(content=content)
@@ -268,14 +272,14 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
             channel.terminate()
         logger.info("%s: all channels terminated", Path(__file__).name)
 
-    except Exception as e:
+    except Exception:
         for process in process_id_to_process.values():
             process.terminate()
 
         for channel in channels:
             channel.terminate()
 
-        logger.exception("exception terminated %s early. Exception: %s", Path(__file__).name, e)
+        logger.exception("exception terminated %s early", Path(__file__).name)
 
 
 if __name__ == "__main__":

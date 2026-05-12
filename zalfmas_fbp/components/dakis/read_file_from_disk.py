@@ -121,11 +121,12 @@ class ReadFileFromDisk(process.Process[ReadFileFromDiskConfig]):
                     chunks=_file_chunks(file),
                 ):
                     return False
-            logger.info("%s read file from %s", self.name, file_path)
-            return True
 
         except OSError:
             logger.exception("%s failed to read file from disk", self.name)
+            return True
+        else:
+            logger.info("%s read file from %s", self.name, file_path)
             return True
 
 

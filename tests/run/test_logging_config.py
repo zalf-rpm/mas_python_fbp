@@ -62,7 +62,8 @@ def test_format_exception_full_expands_multiline_frames() -> None:
     except RuntimeError as exc:
         formatted = "".join(format_exception_full(exc))
     else:
-        raise AssertionError("multiline runtime error should have been raised")
+        msg = "multiline runtime error should have been raised"
+        raise AssertionError(msg)
 
     assert "if not _always_fail(" in formatted
     assert '"a",' in formatted

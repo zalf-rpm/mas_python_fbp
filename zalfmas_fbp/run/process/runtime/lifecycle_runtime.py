@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
 from zalfmas_fbp.run.logging_config import format_exception_full
+from zalfmas_fbp.run.process.context import ProcessLifecycleState, ProcessStatusState
+from zalfmas_fbp.run.process.errors import ProcessErrorInfo
+from zalfmas_fbp.run.process.identity import ProcessIdentityContext
 
-from ..context import ProcessLifecycleState, ProcessStatusState
-from ..errors import ProcessErrorInfo
-from ..identity import ProcessIdentityContext
 from .input_runtime import InputRuntime
 from .output_runtime import OutputRuntime
 from .state_runtime import ProcessStateRuntime
@@ -144,10 +145,8 @@ class ProcessLifecycleRuntime:
         run_task = self._lifecycle.run_task
         if run_task is None:
             return
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await run_task
-        except asyncio.CancelledError:
-            pass
 
     async def close_in_ports(self) -> None:
         await self._input_runtime.close_in_ports()

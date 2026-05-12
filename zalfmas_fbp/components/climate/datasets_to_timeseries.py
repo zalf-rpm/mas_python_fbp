@@ -117,8 +117,8 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                         is not None
                         else None
                     )
-                except (KjException, RuntimeError, OSError, TypeError) as e:
-                    logger.exception("Error: Couldn't connect to dataset. Exception: %s", e)
+                except (KjException, RuntimeError, OSError, TypeError):
+                    logger.exception("Error: Couldn't connect to dataset.")
                     continue
             if dataset is None:
                 continue

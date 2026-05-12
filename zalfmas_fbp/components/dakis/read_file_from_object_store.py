@@ -161,11 +161,12 @@ class ReadFileFromObjectStore(process.Process[ReadFileFromObjectStoreConfig]):
                 close = getattr(body, "close", None)
                 if callable(close):
                     close()
-            logger.info("%s read file from object store at s3://%s/%s", self.name, bucket, key)
-            return True
 
         except (ImportError, TypeError, ValueError):
             logger.exception("%s failed to read file from object store", self.name)
+            return True
+        else:
+            logger.info("%s read file from object store at s3://%s/%s", self.name, bucket, key)
             return True
 
 

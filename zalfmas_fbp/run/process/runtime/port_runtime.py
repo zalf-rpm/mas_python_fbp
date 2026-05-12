@@ -12,9 +12,9 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 from zalfmas_common import common
 
 from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.process.context import ProcessPortState
+from zalfmas_fbp.run.process.types import ArrayReaderPorts, ArrayWriterPorts
 
-from ..context import ProcessPortState
-from ..types import ArrayReaderPorts, ArrayWriterPorts
 from .output_runtime import OutputRuntime
 
 if TYPE_CHECKING:

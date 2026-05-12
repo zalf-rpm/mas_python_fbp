@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Protocol, override
 import capnp
 from mas.schema.fbp import fbp_capnp
 
-from ..context import ProcessStatusState
-from ..identity import ProcessIdentityContext
+from zalfmas_fbp.run.process.context import ProcessStatusState
+from zalfmas_fbp.run.process.identity import ProcessIdentityContext
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder

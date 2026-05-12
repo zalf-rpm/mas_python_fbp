@@ -66,7 +66,8 @@ class _DelayedReader(InMemoryReader):
 
 class _BrokenReader:
     async def read(self):
-        raise capnp.KjException("channel closed")
+        msg = "channel closed"
+        raise capnp.KjException(msg)
 
 
 class _BlockingBrokenReader:
@@ -127,7 +128,8 @@ class _FailOnceThenWriteWriter(InMemoryWriter):
     async def write(self, value: Any) -> None:
         self.calls += 1
         if self.calls == 2:
-            raise capnp.KjException("temporary mid-stream failure")
+            msg = "temporary mid-stream failure"
+            raise capnp.KjException(msg)
         await super().write(value)
 
 
@@ -158,7 +160,8 @@ class _FailOnceProcess(process.Process):
     async def run(self) -> None:
         self.runs += 1
         if self.runs == 1:
-            raise RuntimeError("expected test failure")
+            msg = "expected test failure"
+            raise RuntimeError(msg)
         while not self.stopping:
             await asyncio.sleep(0)
 
@@ -332,7 +335,8 @@ def test_component_can_catch_input_port_failure_inside_run() -> None:
         assert await component.start(RPC_CONTEXT) is True
         run_task = component.context.lifecycle.run_task
         if run_task is None:
-            raise AssertionError("Process did not create a run task.")
+            msg = "Process did not create a run task."
+            raise AssertionError(msg)
         await run_task
 
         assert component.caught_error is True
@@ -433,7 +437,8 @@ def test_activity_returns_current_info_and_registers_callbacks() -> None:
 def test_dead_state_transition_callbacks_are_removed() -> None:
     class Callback:
         async def stateChanged(self, old: ProcessStateEnum, new: ProcessStateEnum) -> None:
-            raise capnp.KjException(f"{old}->{new} disconnected")
+            msg = f"{old}->{new} disconnected"
+            raise capnp.KjException(msg)
 
     async def run_test() -> None:
         component = process.Process(metadata=_standard_port_meta())
@@ -454,7 +459,8 @@ def test_dead_activity_transition_callbacks_are_removed() -> None:
             old: ActivityInfoBuilder | ActivityInfoReader,
             new: ActivityInfoBuilder | ActivityInfoReader,
         ) -> None:
-            raise capnp.KjException(f"{old.state}->{new.state} disconnected")
+            msg = f"{old.state}->{new.state} disconnected"
+            raise capnp.KjException(msg)
 
     async def run_test() -> None:
         component = process.Process(metadata=_standard_port_meta())
@@ -621,7 +627,8 @@ def test_write_array_out_rejects_invalid_strategy() -> None:
     except ValueError:
         pass
     else:
-        raise AssertionError("least_loaded is not an array output strategy")
+        msg = "least_loaded is not an array output strategy"
+        raise AssertionError(msg)
 
 
 def test_read_array_in_zip_returns_one_message_from_every_active_port() -> None:
@@ -710,7 +717,8 @@ def test_read_in_rejects_chunked_payloads_without_explicit_api() -> None:
     except process.InputPortReadError as exc:
         assert "use read_in_chunked" in str(exc)
     else:
-        raise AssertionError("read_in should reject chunked payloads unless a chunked read API is used")
+        msg = "read_in should reject chunked payloads unless a chunked read API is used"
+        raise AssertionError(msg)
 
 
 def test_read_in_chunked_coalesces_chunks() -> None:
@@ -857,7 +865,8 @@ def test_write_out_chunked_best_effort_closes_stream_after_midstream_failure(mon
     except process.OutputPortWriteError as exc:
         assert "temporary mid-stream failure" in str(exc)
     else:
-        raise AssertionError("write_out should fail when a chunk write raises KjException")
+        msg = "write_out should fail when a chunk write raises KjException"
+        raise AssertionError(msg)
 
     assert [ip.type for ip in writer.values] == ["openBracket", "closeBracket"]
     assert component.out_ports["out"] is None
@@ -893,7 +902,8 @@ def test_record_error_keeps_full_multiline_traceback() -> None:
     except RuntimeError as exc:
         component._lifecycle_runtime.record_error(exc)
     else:
-        raise AssertionError("multiline runtime error should have been raised")
+        msg = "multiline runtime error should have been raised"
+        raise AssertionError(msg)
 
     assert component.context.lifecycle.last_error is not None
     formatted_traceback = "".join(component.context.lifecycle.last_error.traceback or [])

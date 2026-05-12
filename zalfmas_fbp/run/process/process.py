@@ -116,7 +116,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
 
         self._context: ProcessContext = ProcessContext(metadata=metadata)
         self._config_runtime: ProcessConfigRuntime[ConfigT] = ProcessConfigRuntime(
-            self._context.config,
+            state=self._context.config,
             config_model=self.config_model,
         )
         self._bootstrap: ProcessBootstrap[ConfigT] = ProcessBootstrap(
@@ -329,7 +329,8 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         try:
             config_values = _config_from_ip(in_msg)
         except ProcessConfigError as e:
-            raise ProcessConfigError(f"{self.name} received invalid config on port '{name}': {e}", port=name) from e
+            msg = f"{self.name} received invalid config on port '{name}': {e}"
+            raise ProcessConfigError(msg, port=name) from e
 
         self.apply_config_values(config_values)
         return True

@@ -6,15 +6,15 @@ from dataclasses import dataclass
 class ProcessRuntimeError(RuntimeError):
     def __init__(self, message: str, *, phase: str, port: str | None = None):
         super().__init__(message)
-        self.phase = phase
-        self.port = port
+        self.phase: str = phase
+        self.port: str | None = port
 
 
 class ProcessConfigError(ValueError):
     def __init__(self, message: str, *, port: str | None = None):
         super().__init__(message)
-        self.phase = "config"
-        self.port = port
+        self.phase: str = "config"
+        self.port: str | None = port
 
 
 class InputPortReadError(ProcessRuntimeError):

@@ -8,7 +8,7 @@ import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
-from ..errors import InputPortReadError
+from zalfmas_fbp.run.process.errors import InputPortReadError
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder

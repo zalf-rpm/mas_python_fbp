@@ -105,7 +105,8 @@ async def _start_process_component(component: process.Process) -> None:
     await component.start(cast("Any", None))
     lifecycle = component.context.lifecycle
     if lifecycle.run_task is None:
-        raise AssertionError("Process component did not create a run task.")
+        msg = "Process component did not create a run task."
+        raise AssertionError(msg)
     await lifecycle.run_task
     if lifecycle.run_exception is not None:
         raise lifecycle.run_exception

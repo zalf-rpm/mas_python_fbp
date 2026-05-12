@@ -633,7 +633,8 @@ def test_write_file_to_disk_rejects_unterminated_bracketed_payload(tmp_path: Pat
     except process.InputPortReadError as exc:
         assert "closed before a bracketed payload ended" in str(exc)
     else:
-        raise AssertionError("write file to disk should reject unterminated bracketed payloads")
+        msg = "write file to disk should reject unterminated bracketed payloads"
+        raise AssertionError(msg)
 
 
 def test_write_file_to_disk_finishes_before_a_late_input_connection(tmp_path: Path) -> None:
@@ -652,7 +653,8 @@ def test_write_file_to_disk_finishes_before_a_late_input_connection(tmp_path: Pa
         assert await component.start(cast("Any", None)) is True
         run_task = component.context.lifecycle.run_task
         if run_task is None:
-            raise AssertionError("Process component did not create a run task.")
+            msg = "Process component did not create a run task."
+            raise AssertionError(msg)
 
         await asyncio.wait_for(run_task, timeout=1)
         assert component.context.status.process_state == "idle"
@@ -840,7 +842,8 @@ async def _run_process(component) -> None:
     await component.start(cast("Any", None))
     lifecycle = component.context.lifecycle
     if lifecycle.run_task is None:
-        raise AssertionError("Process component did not create a run task.")
+        msg = "Process component did not create a run task."
+        raise AssertionError(msg)
     await lifecycle.run_task
     if lifecycle.run_exception is not None:
         raise lifecycle.run_exception

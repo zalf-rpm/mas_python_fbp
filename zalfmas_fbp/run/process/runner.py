@@ -128,18 +128,18 @@ def run_process_from_metadata_and_cmd_args(
         p.name = args.name
     if args.output_json_default_config:
         _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
-        exit(0)
+        sys.exit(0)
     elif args.write_json_default_config:
         with Path(args.write_json_default_config).open("w") as _:
             json.dump(default_config, _, indent=4)
-            exit(0)
+            sys.exit(0)
     elif args.output_json_component_metadata:
         _ = sys.stdout.write(json.dumps(metadata_json, indent=4) + "\n")
-        exit(0)
+        sys.exit(0)
     elif args.write_json_component_metadata:
         with Path(args.write_json_component_metadata).open("w") as _:
             json.dump(metadata_json, _, indent=4)
-            exit(0)
+            sys.exit(0)
     if args.process_cap_writer_sr:
         asyncio.run(
             capnp.run(

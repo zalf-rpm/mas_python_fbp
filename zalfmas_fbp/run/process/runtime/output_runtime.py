@@ -9,15 +9,16 @@ from typing import TYPE_CHECKING, cast
 
 import capnp
 
-from ..context import ProcessPortState
-from ..errors import OutputPortWriteError
-from ..identity import ProcessIdentityContext
-from ..io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE
-from ..io.chunked_io import bracket_ip as _bracket_ip
-from ..io.chunked_io import chunked_blob_ip as _chunked_blob_ip
-from ..io.chunked_io import ip_blob_payload as _ip_blob_payload
-from ..task_utils import wait_for_tasks_or_stop
-from ..types import ArrayOutStrategy, ArrayOutWriteTasks, ArrayWriterPorts
+from zalfmas_fbp.run.process.context import ProcessPortState
+from zalfmas_fbp.run.process.errors import OutputPortWriteError
+from zalfmas_fbp.run.process.identity import ProcessIdentityContext
+from zalfmas_fbp.run.process.io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE
+from zalfmas_fbp.run.process.io.chunked_io import bracket_ip as _bracket_ip
+from zalfmas_fbp.run.process.io.chunked_io import chunked_blob_ip as _chunked_blob_ip
+from zalfmas_fbp.run.process.io.chunked_io import ip_blob_payload as _ip_blob_payload
+from zalfmas_fbp.run.process.task_utils import wait_for_tasks_or_stop
+from zalfmas_fbp.run.process.types import ArrayOutStrategy, ArrayOutWriteTasks, ArrayWriterPorts
+
 from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
@@ -96,12 +97,13 @@ class OutputRuntime:
             await self._activity.transition_to_activity("waitingOutput", name)
             await port.write(value=message)
             await self._activity.transition_to_activity("processing")
-            return True
         except capnp.KjException as error:
             self.out_ports[name] = None
             if self.stop_event.is_set():
                 return False
             raise self._output_port_rpc_error(name, error) from error
+        else:
+            return True
 
     async def write_out_chunked(
         self,
@@ -355,12 +357,14 @@ class OutputRuntime:
             await port.write(value=message)
             if track_activity:
                 await self._activity.transition_to_activity("processing")
-            return True
         except capnp.KjException as error:
             self.array_out_ports[name][port_index] = None
             if self.stop_event.is_set():
                 return False
-            raise self._output_port_rpc_error(f"{name}[{port_index}]", error) from error
+            msg = f"{name}[{port_index}]"
+            raise self._output_port_rpc_error(msg, error) from error
+        else:
+            return True
 
     async def finalize_array_out_write_tasks(self, *, cancel_pending: bool) -> None:
         task_refs: list[tuple[str, int, asyncio.Task[bool]]] = []
@@ -391,8 +395,8 @@ class OutputRuntime:
                     await port.close()
                     self.out_ports[name] = None
                     logger.info("closed out port '%s'", name)
-                except (capnp.KjException, RuntimeError) as error:
-                    logger.exception("%s: Exception closing out port '%s': %s", Path(__file__).name, name, error)
+                except (capnp.KjException, RuntimeError):
+                    logger.exception("%s: Exception closing out port '%s'", Path(__file__).name, name)
         for name, ports in self.array_out_ports.items():
             for index, port in enumerate(ports):
                 if port is not None:
@@ -400,5 +404,5 @@ class OutputRuntime:
                         await port.close()
                         ports[index] = None
                         logger.info("closed array out port '%s[%s]'", name, index)
-                    except (capnp.KjException, RuntimeError) as error:
-                        logger.exception("Exception closing array out port '%s[%s]': %s", name, index, error)
+                    except (capnp.KjException, RuntimeError):
+                        logger.exception("Exception closing array out port '%s[%s]'", name, index)

@@ -157,9 +157,10 @@ def main():
 def _read_translation(ip: IPReader | IPBuilder, *, fallback_path: str) -> tuple[str, bytes | None]:
     try:
         data, _content_type = process.read_ip_data(ip, default_content_type=CSV_CONTENT_TYPE)
-        return fallback_path, data
     except (capnp.KjException, TypeError):
         return ip.content.as_text() or fallback_path, None
+    else:
+        return fallback_path, data
 
 
 if __name__ == "__main__":
