@@ -46,6 +46,12 @@ class _FakeConnectionManager:
         return _FakeCap(self.port)
 
 
+class _UnexpectedConnectionManager:
+    async def try_connect(self, _sturdy_ref: object) -> _FakeCap | None:
+        msg = "Undeclared ports should be rejected before attempting a connection."
+        raise AssertionError(msg)
+
+
 class _ClosablePort:
     def __init__(self):
         self.closed = False
@@ -955,6 +961,17 @@ def test_connect_in_port_returns_disconnect_callback_for_array_port() -> None:
     assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
+def test_connect_in_port_rejects_undeclared_port_without_creating_entry() -> None:
+    component = process.Process(metadata=_standard_port_meta(), con_man=cast("Any", _UnexpectedConnectionManager()))
+
+    connected, disconnect = asyncio.run(component.connectInPort("missing", cast("Any", "reader-sr"), cast("Any", None)))
+    disconnect = cast("process.PortDisconnect", disconnect)
+
+    assert connected is False
+    assert "missing" not in component.in_ports
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
+
+
 def test_connect_out_port_returns_disconnect_callback_for_standard_port() -> None:
     writer = _ClosablePort()
     component = process.Process(metadata=_standard_port_meta(), con_man=cast("Any", _FakeConnectionManager(writer)))
@@ -967,6 +984,19 @@ def test_connect_out_port_returns_disconnect_callback_for_standard_port() -> Non
     assert asyncio.run(disconnect.disconnect(cast("Any", None))) is True
     assert component.out_ports["out"] is None
     assert writer.closed is True
+    assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
+
+
+def test_connect_out_port_rejects_undeclared_port_without_creating_entry() -> None:
+    component = process.Process(metadata=_standard_port_meta(), con_man=cast("Any", _UnexpectedConnectionManager()))
+
+    connected, disconnect = asyncio.run(
+        component.connectOutPort("missing", cast("Any", "writer-sr"), cast("Any", None))
+    )
+    disconnect = cast("process.PortDisconnect", disconnect)
+
+    assert connected is False
+    assert "missing" not in component.out_ports
     assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 

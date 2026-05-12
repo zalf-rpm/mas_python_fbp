@@ -97,6 +97,18 @@ def test_rpc_config_entry_validates_typed_config_and_preserves_previous_value() 
     assert component.raw_config["split_at"] == ";"
 
 
+def test_process_init_propagates_bootstrap_metadata_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    metadata = _metadata_with_split_config()
+
+    def raise_bootstrap_error(self: ComponentMetadata) -> dict[str, object]:
+        raise ValueError("boom")
+
+    monkeypatch.setattr(ComponentMetadata, "default_config_values", raise_bootstrap_error)
+
+    with pytest.raises(ValueError, match="boom"):
+        Process(metadata=metadata)
+
+
 def _metadata_with_split_config() -> ComponentMetadata:
     return ComponentMetadata.model_validate(
         {

@@ -127,13 +127,21 @@ class ProcessPortRuntime:
         ports.extend(self._port_message(k, in_port_infos.get(k), "array") for k in self._ports.array_in_ports)
         return ports
 
+    @staticmethod
+    def _noop_disconnect(name: str) -> PortDisconnect:
+        return PortDisconnect(cast("StandardPortMap", {}), name, None)
+
     async def connect_in_port(self, name: str, sturdy_ref: SturdyRefReader) -> ConnectinportResultTuple:
+        ports = self._ports
+        if name not in ports.array_in_ports and name not in ports.in_ports:
+            logger.warning("Rejected connection attempt for undeclared input port '%s'", name)
+            return ConnectinportResultTuple(False, self._noop_disconnect(name))
+
         reader = (
             reader_cap.cast_as(fbp_capnp.Channel.Reader)
             if (reader_cap := await self._con_man.try_connect(sturdy_ref)) is not None
             else None
         )
-        ports = self._ports
         if name in ports.array_in_ports:
             index = len(ports.array_in_ports[name])
             ports.array_in_ports[name].append(reader)
@@ -157,12 +165,16 @@ class ProcessPortRuntime:
         return ports
 
     async def connect_out_port(self, name: str, sturdy_ref: SturdyRefReader) -> ConnectoutportResultTuple:
+        ports = self._ports
+        if name not in ports.array_out_ports and name not in ports.out_ports:
+            logger.warning("Rejected connection attempt for undeclared output port '%s'", name)
+            return ConnectoutportResultTuple(False, self._noop_disconnect(name))
+
         writer = (
             writer_cap.cast_as(fbp_capnp.Channel.Writer)
             if (writer_cap := await self._con_man.try_connect(sturdy_ref)) is not None
             else None
         )
-        ports = self._ports
         if name in ports.array_out_ports:
             index = len(ports.array_out_ports[name])
             ports.array_out_ports[name].append(writer)
