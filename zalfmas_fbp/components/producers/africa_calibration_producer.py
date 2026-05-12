@@ -18,13 +18,11 @@ import logging
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.model import model_capnp
-from netCDF4 import Dataset
 from zalfmas_common import csv
 from zalfmas_common.model import monica_io
 
@@ -33,6 +31,9 @@ import zalfmas_fbp.run.ports as p
 from zalfmas_fbp.run import metadata as meta
 
 from ..geo import get_lat_lon_grid_value as shared
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,9 @@ def mgmt_date_to_rel_date(mgmt_date):
 
 
 async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    import numpy as np
+    from netCDF4 import Dataset
+
     pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
         ins=["conf", "coords", "region", "params"],
@@ -161,7 +165,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
         try:
             path_to_out_dir.mkdir(parents=True)
         except OSError:
-            logger.error("run-calibration-producer.py: Couldn't create dir: %s !", config["path_to_out"])
+            logger.exception("run-calibration-producer.py: Couldn't create dir: %s !", config["path_to_out"])
     with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 

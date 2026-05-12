@@ -131,7 +131,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                         else None
                     )
                 except (KjException, RuntimeError, OSError, TypeError) as e:
-                    logger.error("Error: Couldn't connect to timeseries. %s Exception: %s", cap_or_sr, e)
+                    logger.exception("Error: Couldn't connect to timeseries. %s Exception: %s", cap_or_sr, e)
                     continue
             if timeseries is None:
                 continue

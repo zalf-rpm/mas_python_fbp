@@ -114,7 +114,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 try:
                     dir_.mkdir(parents=True)
                 except OSError:
-                    logger.error("c: Couldn't create dir: %s ! Exiting.", dir_)
+                    logger.exception("c: Couldn't create dir: %s ! Exiting.", dir_)
                     exit(1)
 
             filepath = dir_ / config["file_pattern"].format(id=id_)

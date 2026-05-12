@@ -69,7 +69,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
         try:
             path_to_out_dir.mkdir(parents=True)
         except OSError:
-            logger.error("run-calibration-consumer.py: Couldn't create dir: %s !", config["path_to_out"])
+            logger.exception("run-calibration-consumer.py: Couldn't create dir: %s !", config["path_to_out"])
     with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 

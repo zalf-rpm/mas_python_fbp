@@ -88,7 +88,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 logger.info("%s: %s sent: %s", Path(__file__).name, config["name"], val)
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
+            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 

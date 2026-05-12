@@ -141,7 +141,7 @@ class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):
                 logger.info("%s sent %s relabeled GeoParquet bytes", self.name, len(output_bytes))
 
             except capnp.KjException as e:
-                logger.error("%s RPC Exception: %s", self.name, e.description)
+                logger.exception("%s RPC Exception: %s", self.name, e.description)
                 if e.type in ["DISCONNECTED"]:
                     break
             except (OSError, TypeError, ValueError):

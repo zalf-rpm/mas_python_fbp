@@ -100,7 +100,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
             await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            logger.error("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
+            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
 
     await pc.close_out_ports()
     logger.info("%s: process finished", Path(__file__).name)

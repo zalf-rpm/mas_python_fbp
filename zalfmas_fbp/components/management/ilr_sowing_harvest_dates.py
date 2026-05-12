@@ -83,7 +83,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 utm32n_crs,
             )
         except OSError:
-            logger.error("Couldn't read file: %s", path_to_csv)
+            logger.exception("Couldn't read file: %s", path_to_csv)
 
     while pc.in_ports["in"] and pc.out_ports["out"]:
         try:

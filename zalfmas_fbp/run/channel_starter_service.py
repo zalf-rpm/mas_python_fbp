@@ -173,7 +173,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
                 return await self._register_at_gateway(cap, gateway_config)
             except (capnp.KjException, RuntimeError, ValueError) as e:
                 last_error = e
-                logger.error("Error registering channel endpoint at gateway %s. Exception: %s", gateway_config, e)
+                logger.exception("Error registering channel endpoint at gateway %s. Exception: %s", gateway_config, e)
         raise RuntimeError("Couldn't register channel endpoint at any configured gateway") from last_error
 
     async def _replace_startup_info_refs_with_gateway_refs(self, info: StartupInfoReader):
@@ -197,7 +197,7 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         try:
             return [await self._replace_startup_info_refs_with_gateway_refs(info) for info in startup_infos]
         except (capnp.KjException, RuntimeError, ValueError) as e:
-            logger.error("Channel gateway registration failed; returning direct channel refs. Exception: %s", e)
+            logger.exception("Channel gateway registration failed; returning direct channel refs. Exception: %s", e)
             return startup_infos
 
     # struct Params {
