@@ -18,6 +18,7 @@ import logging
 from typing import override
 
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.run import metadata as meta
@@ -26,6 +27,11 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class SplitStringConfig(process.ProcessConfig):
+    split_at: str = Field(",", description="split string at this character")
+
 
 METADATA = meta.Component(
     category=meta.Category(id="string", name="String"),
@@ -42,18 +48,8 @@ METADATA = meta.Component(
     outPorts=[
         meta.Port(name="out", contentType="Text"),
     ],
-    defaultConfig={
-        "split_at": meta.ConfigEntry(
-            value=",",
-            type="string",
-            desc="split string at this character",
-        ),
-    },
+    config=SplitStringConfig,
 )
-
-
-class SplitStringConfig(process.ProcessConfig):
-    split_at: str = ","
 
 
 class SplitString(process.Process[SplitStringConfig]):

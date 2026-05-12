@@ -5,8 +5,9 @@ from typing import Any, cast
 
 import pytest
 from mas.schema.common import common_capnp
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run.metadata import ComponentMetadata
 from zalfmas_fbp.run.process import Process, ProcessConfig
 from zalfmas_fbp.run.process.config.config_codec import (
@@ -16,7 +17,12 @@ from zalfmas_fbp.run.process.config.config_codec import (
 
 
 class _TypedConfig(ProcessConfig):
-    split_at: str = ","
+    split_at: str = Field(",", description="Split delimiter.")
+
+
+class _DerivedMetadataConfig(ProcessConfig):
+    split_at: str = Field(",", description="Split delimiter.")
+    strategy: str | None = Field(None, description="Optional strategy.")
 
 
 class _TypedProcess(Process[_TypedConfig]):
@@ -69,6 +75,46 @@ def test_process_with_config_model_exposes_typed_config() -> None:
 
     assert component.config.split_at == ";"
     assert component.raw_config["split_at"] == ";"
+
+
+def test_component_metadata_derives_default_config_from_process_config() -> None:
+    metadata = ComponentMetadata(
+        info=meta.Info(id="derived-config-test", name="derived config test"),
+        type="process",
+        config=_DerivedMetadataConfig,
+    )
+
+    assert metadata.defaultConfig["split_at"].value == ","
+    assert metadata.defaultConfig["split_at"].type == "string"
+    assert metadata.defaultConfig["split_at"].desc == "Split delimiter."
+    assert metadata.defaultConfig["strategy"].value is None
+    assert metadata.defaultConfig["strategy"].type == "string"
+
+
+def test_process_uses_metadata_config_model_when_process_generic_is_untyped() -> None:
+    metadata = ComponentMetadata(
+        info=meta.Info(id="metadata-config-process", name="metadata config process"),
+        type="process",
+        config=_DerivedMetadataConfig,
+    )
+    component = Process(metadata=metadata)
+
+    component.apply_config_values({"split_at": ";"})
+
+    assert isinstance(component.config, _DerivedMetadataConfig)
+    assert component.config.split_at == ";"
+    assert component.config.strategy is None
+
+
+def test_process_rejects_conflicting_metadata_and_generic_config_models() -> None:
+    metadata = ComponentMetadata(
+        info=meta.Info(id="conflicting-config-process", name="conflicting config process"),
+        type="process",
+        config=_DerivedMetadataConfig,
+    )
+
+    with pytest.raises(TypeError, match="defines config model"):
+        _TypedProcess(metadata=metadata)
 
 
 def test_rpc_config_entry_validates_typed_config_and_preserves_previous_value() -> None:

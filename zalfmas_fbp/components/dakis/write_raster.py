@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -23,7 +24,23 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 type WriteRasterCompression = Literal["preserve", "zstd", "deflate", "lzw", "none"]
-RASTER_COMPRESSION_OPTIONS = ["preserve", "zstd", "deflate", "lzw", "none"]
+
+
+class WriteRasterConfig(process.ProcessConfig):
+    path: str = Field(
+        "",
+        description="Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
+    )
+    filename: str = Field("raster.tif", description="Target filename for the prepared GeoTIFF.")
+    compression: WriteRasterCompression = Field(
+        "preserve",
+        description="GeoTIFF/COG compression algorithm. Use 'preserve' to keep the source compression.",
+    )
+    write_as_cog: bool = Field(
+        False,
+        description="If true, rewrite the output as a Cloud Optimized GeoTIFF (COG).",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -50,36 +67,8 @@ METADATA = meta.Component(
             desc="Prepared GeoTIFF or COG file payload.",
         ),
     ],
-    defaultConfig={
-        "path": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
-        ),
-        "filename": meta.ConfigEntry(
-            value="raster.tif",
-            type="string",
-            desc="Target filename for the prepared GeoTIFF.",
-        ),
-        "compression": meta.ConfigEntry(
-            value="preserve",
-            type=RASTER_COMPRESSION_OPTIONS,
-            desc="GeoTIFF/COG compression algorithm. Use 'preserve' to keep the source compression.",
-        ),
-        "write_as_cog": meta.ConfigEntry(
-            value=False,
-            type="bool",
-            desc="If true, rewrite the output as a Cloud Optimized GeoTIFF (COG).",
-        ),
-    },
+    config=WriteRasterConfig,
 )
-
-
-class WriteRasterConfig(process.ProcessConfig):
-    path: str = ""
-    filename: str = "raster.tif"
-    compression: WriteRasterCompression = "preserve"
-    write_as_cog: bool = False
 
 
 class WriteRaster(process.Process[WriteRasterConfig]):

@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.ip.copy_ip import copy_ip
@@ -25,6 +26,14 @@ from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 
 logger = logging.getLogger(__name__)
+
+
+class LoadBalancerConfig(process.ProcessConfig):
+    distribution_strategy: Literal["next_available", "round_robin"] = Field(
+        "next_available",
+        description="Distribution strategy for choosing an output.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -56,18 +65,8 @@ METADATA = meta.Component(
             desc="Outgoing IPs distributed one-by-one across attached outports",
         ),
     ],
-    defaultConfig={
-        "distribution_strategy": meta.ConfigEntry(
-            value="next_available",
-            type=["next_available", "round_robin"],
-            desc="Distribution strategy for choosing an output.",
-        ),
-    },
+    config=LoadBalancerConfig,
 )
-
-
-class LoadBalancerConfig(process.ProcessConfig):
-    distribution_strategy: Literal["next_available", "round_robin"] = "next_available"
 
 
 class LoadBalancer(process.Process[LoadBalancerConfig]):

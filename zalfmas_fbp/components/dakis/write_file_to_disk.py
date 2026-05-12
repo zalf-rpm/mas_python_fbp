@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -20,6 +21,18 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class WriteFileToDiskConfig(process.ProcessConfig):
+    path: str = Field(
+        "outputs/dakis",
+        description="Fallback output directory if the incoming file payload has no path attribute.",
+    )
+    filename: str = Field(
+        "output.bin",
+        description="Fallback filename if the incoming file payload has no filename attribute.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -39,24 +52,8 @@ METADATA = meta.Component(
             desc="Prepared file Blob with optional path and filename metadata.",
         ),
     ],
-    defaultConfig={
-        "path": meta.ConfigEntry(
-            value="outputs/dakis",
-            type="string",
-            desc="Fallback output directory if the incoming file payload has no path attribute.",
-        ),
-        "filename": meta.ConfigEntry(
-            value="output.bin",
-            type="string",
-            desc="Fallback filename if the incoming file payload has no filename attribute.",
-        ),
-    },
+    config=WriteFileToDiskConfig,
 )
-
-
-class WriteFileToDiskConfig(process.ProcessConfig):
-    path: str = "outputs/dakis"
-    filename: str = "output.bin"
 
 
 class WriteFileToDisk(process.Process[WriteFileToDiskConfig]):

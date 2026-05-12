@@ -30,6 +30,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+class CopyConfig(process.ProcessConfig):
+    pass
+
+
 METADATA = meta.Component(
     category=meta.Category(
         id="ip",
@@ -56,10 +61,11 @@ METADATA = meta.Component(
             desc="Copied IP for each attached outport",
         ),
     ],
+    config=CopyConfig,
 )
 
 
-class Copy(process.Process):
+class Copy(process.Process[CopyConfig]):
     def __init__(
         self,
         metadata: meta.Component = METADATA,

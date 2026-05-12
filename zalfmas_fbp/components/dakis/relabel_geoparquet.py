@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING, override
 
 import capnp
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -25,6 +26,30 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class RelabelGeoparquetConfig(process.ProcessConfig):
+    mapping_csv_path: str = Field(
+        "resources/mappings/invekos_to_lulc.csv",
+        description="Path to the CSV mapping table.",
+    )
+    source_code_column: str = Field(
+        "code",
+        description="Column in the GeoParquet and mapping CSV containing the source code.",
+    )
+    target_code_column: str = Field(
+        "lucode",
+        description="Column in the mapping CSV to write to the output GeoParquet.",
+    )
+    priority_column: str = Field(
+        "priority",
+        description="Optional priority column in the mapping CSV and output GeoParquet.",
+    )
+    default_priority: int = Field(
+        0,
+        description="Priority value used when the mapping CSV has no priority column or value.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -56,42 +81,8 @@ METADATA = meta.Component(
             desc="Relabeled GeoParquet bytes.",
         ),
     ],
-    defaultConfig={
-        "mapping_csv_path": meta.ConfigEntry(
-            value="resources/mappings/invekos_to_lulc.csv",
-            type="string",
-            desc="Path to the CSV mapping table.",
-        ),
-        "source_code_column": meta.ConfigEntry(
-            value="code",
-            type="string",
-            desc="Column in the GeoParquet and mapping CSV containing the source code.",
-        ),
-        "target_code_column": meta.ConfigEntry(
-            value="lucode",
-            type="string",
-            desc="Column in the mapping CSV to write to the output GeoParquet.",
-        ),
-        "priority_column": meta.ConfigEntry(
-            value="priority",
-            type="string",
-            desc="Optional priority column in the mapping CSV and output GeoParquet.",
-        ),
-        "default_priority": meta.ConfigEntry(
-            value=0,
-            type="int",
-            desc="Priority value used when the mapping CSV has no priority column or value.",
-        ),
-    },
+    config=RelabelGeoparquetConfig,
 )
-
-
-class RelabelGeoparquetConfig(process.ProcessConfig):
-    mapping_csv_path: str = "resources/mappings/invekos_to_lulc.csv"
-    source_code_column: str = "code"
-    target_code_column: str = "lucode"
-    priority_column: str = "priority"
-    default_priority: int = 0
 
 
 class RelabelGeoparquet(process.Process[RelabelGeoparquetConfig]):

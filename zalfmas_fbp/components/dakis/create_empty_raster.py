@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import GEOTIFF_CONTENT_TYPE, blob_content_type
@@ -18,7 +19,13 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 type GeoTiffCompression = Literal["zstd", "deflate", "lzw", "none"]
-GEOTIFF_COMPRESSION_OPTIONS = ["zstd", "deflate", "lzw", "none"]
+
+
+class CreateEmptyRasterConfig(process.ProcessConfig):
+    epsg: int = Field(25833, description="EPSG code of the output raster CRS.")
+    resolution_m: float = Field(100.0, description="Raster resolution in meters per pixel.")
+    compression: GeoTiffCompression = Field("zstd", description="GeoTIFF compression algorithm.")
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -49,30 +56,8 @@ METADATA = meta.Component(
             desc="Compressed GeoTIFF bytes.",
         ),
     ],
-    defaultConfig={
-        "epsg": meta.ConfigEntry(
-            value=25833,
-            type="int",
-            desc="EPSG code of the output raster CRS.",
-        ),
-        "resolution_m": meta.ConfigEntry(
-            value=100.0,
-            type="float",
-            desc="Raster resolution in meters per pixel.",
-        ),
-        "compression": meta.ConfigEntry(
-            value="zstd",
-            type=GEOTIFF_COMPRESSION_OPTIONS,
-            desc="GeoTIFF compression algorithm.",
-        ),
-    },
+    config=CreateEmptyRasterConfig,
 )
-
-
-class CreateEmptyRasterConfig(process.ProcessConfig):
-    epsg: int = 25833
-    resolution_m: float = 100.0
-    compression: GeoTiffCompression = "zstd"
 
 
 class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):

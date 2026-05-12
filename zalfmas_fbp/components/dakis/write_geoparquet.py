@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -22,7 +23,19 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 type WriteParquetCompression = Literal["preserve", "zstd", "gzip", "snappy", "none"]
-PARQUET_COMPRESSION_OPTIONS = ["preserve", "zstd", "gzip", "snappy", "none"]
+
+
+class WriteGeoparquetConfig(process.ProcessConfig):
+    path: str = Field(
+        "",
+        description="Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
+    )
+    filename: str = Field("geometries.parquet", description="Target filename for the prepared GeoParquet.")
+    compression: WriteParquetCompression = Field(
+        "zstd",
+        description="GeoParquet compression algorithm. Use 'preserve' to write bytes unchanged.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -49,30 +62,8 @@ METADATA = meta.Component(
             desc="Prepared GeoParquet file payload.",
         ),
     ],
-    defaultConfig={
-        "path": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Optional target path or object key prefix for the prepared file. Empty uses the sink default.",
-        ),
-        "filename": meta.ConfigEntry(
-            value="geometries.parquet",
-            type="string",
-            desc="Target filename for the prepared GeoParquet.",
-        ),
-        "compression": meta.ConfigEntry(
-            value="zstd",
-            type=PARQUET_COMPRESSION_OPTIONS,
-            desc="GeoParquet compression algorithm. Use 'preserve' to write bytes unchanged.",
-        ),
-    },
+    config=WriteGeoparquetConfig,
 )
-
-
-class WriteGeoparquetConfig(process.ProcessConfig):
-    path: str = ""
-    filename: str = "geometries.parquet"
-    compression: WriteParquetCompression = "zstd"
 
 
 class WriteGeoparquet(process.Process[WriteGeoparquetConfig]):

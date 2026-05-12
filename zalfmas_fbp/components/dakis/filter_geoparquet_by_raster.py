@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -20,6 +21,14 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class FilterGeoparquetByRasterConfig(process.ProcessConfig):
+    geoparquet_path: str = Field(
+        "resources/invekos_optimized.parquet",
+        description="Path to the source GeoParquet file.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -51,18 +60,8 @@ METADATA = meta.Component(
             desc="Original raster bytes.",
         ),
     ],
-    defaultConfig={
-        "geoparquet_path": meta.ConfigEntry(
-            value="resources/invekos_optimized.parquet",
-            type="string",
-            desc="Path to the source GeoParquet file.",
-        ),
-    },
+    config=FilterGeoparquetByRasterConfig,
 )
-
-
-class FilterGeoparquetByRasterConfig(process.ProcessConfig):
-    geoparquet_path: str = "resources/invekos_optimized.parquet"
 
 
 class FilterGeoparquetByRaster(process.Process[FilterGeoparquetByRasterConfig]):

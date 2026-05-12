@@ -115,10 +115,23 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         common.Identifiable.__init__(self, id=id, name=name, description=description)
         common.GatewayRegistrable.__init__(self, con_man or common.ConnectionManager())
 
+        metadata_config_model = self._metadata_config_model(metadata)
+        if (
+            self.config_model is not None
+            and metadata_config_model is not None
+            and self.config_model is not metadata_config_model
+        ):
+            msg = (
+                f"{type(self).__name__} defines config model {self.config_model.__name__}, "
+                f"but metadata specifies {metadata_config_model.__name__}."
+            )
+            raise TypeError(msg)
+        resolved_config_model = self.config_model or metadata_config_model
+
         self._context: ProcessContext = ProcessContext(metadata=metadata)
         self._config_runtime: ProcessConfigRuntime[ConfigT] = ProcessConfigRuntime(
             state=self._context.config,
-            config_model=self.config_model,
+            config_model=resolved_config_model,
         )
         self._bootstrap: ProcessBootstrap[ConfigT] = ProcessBootstrap(
             metadata=self._context.metadata,
@@ -161,6 +174,15 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self._context.lifecycle.soft_stop_timeout_seconds = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
 
         self._bootstrap.initialize_from_metadata()
+
+    @staticmethod
+    def _metadata_config_model(metadata: ComponentMetadata | None) -> type[ProcessConfig] | None:
+        if metadata is None or metadata.config is None:
+            return None
+        if not issubclass(metadata.config, ProcessConfig):
+            msg = f"Metadata config model must inherit from ProcessConfig, got {metadata.config.__name__}."
+            raise TypeError(msg)
+        return metadata.config
 
     @property
     def context(self) -> ProcessContext:

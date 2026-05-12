@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -21,6 +22,20 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class ReadFileFromDiskConfig(process.ProcessConfig):
+    path: str = Field("outputs/dakis", description="Directory containing the file.")
+    filename: str = Field("output.bin", description="Filename to read.")
+    content_type: str = Field(
+        DEFAULT_CONTENT_TYPE,
+        description="Content type attribute attached to the outgoing file payload.",
+    )
+    read_once_without_trigger: bool = Field(
+        True,
+        description="If true, read once when no trigger port is connected.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -47,36 +62,8 @@ METADATA = meta.Component(
             desc="Prepared file Blob with path, filename, and content type metadata.",
         ),
     ],
-    defaultConfig={
-        "path": meta.ConfigEntry(
-            value="outputs/dakis",
-            type="string",
-            desc="Directory containing the file.",
-        ),
-        "filename": meta.ConfigEntry(
-            value="output.bin",
-            type="string",
-            desc="Filename to read.",
-        ),
-        "content_type": meta.ConfigEntry(
-            value=DEFAULT_CONTENT_TYPE,
-            type="string",
-            desc="Content type attribute attached to the outgoing file payload.",
-        ),
-        "read_once_without_trigger": meta.ConfigEntry(
-            value=True,
-            type="bool",
-            desc="If true, read once when no trigger port is connected.",
-        ),
-    },
+    config=ReadFileFromDiskConfig,
 )
-
-
-class ReadFileFromDiskConfig(process.ProcessConfig):
-    path: str = "outputs/dakis"
-    filename: str = "output.bin"
-    content_type: str = DEFAULT_CONTENT_TYPE
-    read_once_without_trigger: bool = True
 
 
 class ReadFileFromDisk(process.Process[ReadFileFromDiskConfig]):

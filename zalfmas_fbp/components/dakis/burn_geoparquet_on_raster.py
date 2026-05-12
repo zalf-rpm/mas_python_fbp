@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Literal, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.burn import burn_geoparquet_on_raster_bytes
@@ -22,7 +23,26 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 type BurnRasterCompression = Literal["preserve", "zstd", "deflate", "lzw", "none"]
-BURN_RASTER_COMPRESSION_OPTIONS = ["preserve", "zstd", "deflate", "lzw", "none"]
+
+
+class BurnGeoparquetOnRasterConfig(process.ProcessConfig):
+    code_column: str = Field(
+        "lucode",
+        description="Column containing the land-use/land-cover code to burn into the raster.",
+    )
+    priority_column: str = Field(
+        "priority",
+        description="Column used for burn order. Higher values overwrite lower values.",
+    )
+    all_touched: bool = Field(
+        False,
+        description="Burn every pixel touched by a geometry instead of only pixels whose center is within it.",
+    )
+    compression: BurnRasterCompression = Field(
+        "preserve",
+        description="Output raster compression algorithm. Use 'preserve' to keep the incoming raster compression.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -54,36 +74,8 @@ METADATA = meta.Component(
             desc="Burned raster bytes.",
         ),
     ],
-    defaultConfig={
-        "code_column": meta.ConfigEntry(
-            value="lucode",
-            type="string",
-            desc="Column containing the land-use/land-cover code to burn into the raster.",
-        ),
-        "priority_column": meta.ConfigEntry(
-            value="priority",
-            type="string",
-            desc="Column used for burn order. Higher values overwrite lower values.",
-        ),
-        "all_touched": meta.ConfigEntry(
-            value=False,
-            type="bool",
-            desc="Burn every pixel touched by a geometry instead of only pixels whose center is within it.",
-        ),
-        "compression": meta.ConfigEntry(
-            value="preserve",
-            type=BURN_RASTER_COMPRESSION_OPTIONS,
-            desc="Output raster compression algorithm. Use 'preserve' to keep the incoming raster compression.",
-        ),
-    },
+    config=BurnGeoparquetOnRasterConfig,
 )
-
-
-class BurnGeoparquetOnRasterConfig(process.ProcessConfig):
-    code_column: str = "lucode"
-    priority_column: str = "priority"
-    all_touched: bool = False
-    compression: BurnRasterCompression = "preserve"
 
 
 class BurnGeoparquetOnRaster(process.Process[BurnGeoparquetOnRasterConfig]):

@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 from typing import override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -19,6 +20,12 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class MergeGeoparquetConfig(process.ProcessConfig):
+    code_column: str = Field("lucode", description="Column containing the land-use/land-cover code.")
+    priority_column: str = Field("priority", description="Column containing burn priority.")
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -46,24 +53,8 @@ METADATA = meta.Component(
             desc="Merged GeoParquet bytes.",
         ),
     ],
-    defaultConfig={
-        "code_column": meta.ConfigEntry(
-            value="lucode",
-            type="string",
-            desc="Column containing the land-use/land-cover code.",
-        ),
-        "priority_column": meta.ConfigEntry(
-            value="priority",
-            type="string",
-            desc="Column containing burn priority.",
-        ),
-    },
+    config=MergeGeoparquetConfig,
 )
-
-
-class MergeGeoparquetConfig(process.ProcessConfig):
-    code_column: str = "lucode"
-    priority_column: str = "priority"
 
 
 class MergeGeoparquet(process.Process[MergeGeoparquetConfig]):

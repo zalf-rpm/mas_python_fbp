@@ -7,6 +7,7 @@ import logging
 from tempfile import TemporaryFile
 from typing import BinaryIO, override
 
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.components.dakis.common.file_payload import (
@@ -20,6 +21,28 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class WriteFileToObjectStoreConfig(process.ProcessConfig):
+    object_store_url: str = Field(
+        "https://objects.dakispro.de",
+        description="S3-compatible object store endpoint URL.",
+    )
+    access_key: str = Field("", description="Object store access key.")
+    secret_key: str = Field("", description="Object store secret key.")
+    bucket: str = Field(
+        "",
+        description="Object store bucket. If empty, the first path segment is used as the bucket.",
+    )
+    path: str = Field(
+        "dakis",
+        description="Fallback object key prefix if the incoming file payload has no path attribute.",
+    )
+    filename: str = Field(
+        "output.bin",
+        description="Fallback filename if the incoming file payload has no filename attribute.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -39,48 +62,8 @@ METADATA = meta.Component(
             desc="Prepared file Blob with optional path and filename metadata.",
         ),
     ],
-    defaultConfig={
-        "object_store_url": meta.ConfigEntry(
-            value="https://objects.dakispro.de",
-            type="string",
-            desc="S3-compatible object store endpoint URL.",
-        ),
-        "access_key": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Object store access key.",
-        ),
-        "secret_key": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Object store secret key.",
-        ),
-        "bucket": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Object store bucket. If empty, the first path segment is used as the bucket.",
-        ),
-        "path": meta.ConfigEntry(
-            value="dakis",
-            type="string",
-            desc="Fallback object key prefix if the incoming file payload has no path attribute.",
-        ),
-        "filename": meta.ConfigEntry(
-            value="output.bin",
-            type="string",
-            desc="Fallback filename if the incoming file payload has no filename attribute.",
-        ),
-    },
+    config=WriteFileToObjectStoreConfig,
 )
-
-
-class WriteFileToObjectStoreConfig(process.ProcessConfig):
-    object_store_url: str = "https://objects.dakispro.de"
-    access_key: str = ""
-    secret_key: str = ""
-    bucket: str = ""
-    path: str = "dakis"
-    filename: str = "output.bin"
 
 
 class WriteFileToObjectStore(process.Process[WriteFileToObjectStoreConfig]):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 from zalfmas_fbp.components.console.console_output import METADATA as console_output_metadata
 from zalfmas_fbp.components.dakis.create_empty_raster import (
@@ -20,7 +20,13 @@ from zalfmas_fbp.components.ip.copy_ip import METADATA as copy_metadata
 from zalfmas_fbp.components.ip.load_balancer import METADATA as load_balancer_metadata
 from zalfmas_fbp.components.string.split_string2 import METADATA as split_string_metadata
 from zalfmas_fbp.components.string.to_string import METADATA as to_string_metadata
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.process import ProcessConfig
+
+
+class _InlineConfig(ProcessConfig):
+    split_at: str = Field(",", description="Split delimiter.")
 
 
 def test_component_metadata_types_descriptive_fields() -> None:
@@ -135,3 +141,20 @@ def test_component_payload_excludes_category() -> None:
     )
 
     assert "category" not in payload
+
+
+def test_component_payload_excludes_config_model_but_keeps_derived_default_config() -> None:
+    metadata = ComponentMetadata(
+        info=meta.Info(id="inline-config", name="inline config"),
+        type="process",
+        config=_InlineConfig,
+    )
+
+    payload = metadata.model_dump(mode="json", exclude_none=True)
+
+    assert "config" not in payload
+    assert payload["defaultConfig"]["split_at"] == {
+        "value": ",",
+        "type": "string",
+        "desc": "Split delimiter.",
+    }

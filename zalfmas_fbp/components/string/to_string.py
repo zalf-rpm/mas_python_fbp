@@ -18,6 +18,7 @@ import logging
 from typing import Any
 
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
 from zalfmas_fbp.run import metadata as meta
@@ -26,6 +27,14 @@ from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 configure_logging()
+
+
+class ToStringConfig(process.ProcessConfig):
+    struct_type: str | None = Field(
+        None,
+        description="A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -54,18 +63,8 @@ METADATA = meta.Component(
             contentType="Text",
         ),
     ],
-    defaultConfig={
-        "struct_type": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
-        ),
-    },
+    config=ToStringConfig,
 )
-
-
-class ToStringConfig(process.ProcessConfig):
-    struct_type: str | None = None
 
 
 class ToString(process.Process[ToStringConfig]):
