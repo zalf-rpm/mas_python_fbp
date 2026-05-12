@@ -95,7 +95,7 @@ def iter_prepared_file_chunk_ips(
 
 
 def read_prepared_file_metadata(
-    ip: IPReader,
+    ip: IPReader | IPBuilder,
     *,
     default_path: str,
     default_filename: str,

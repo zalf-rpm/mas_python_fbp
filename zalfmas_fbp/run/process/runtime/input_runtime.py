@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast, overload
 
 import capnp
 from mas.schema.fbp import fbp_capnp
 
-from .chunked_io import ChunkedInputStream
-from .chunked_io import ip_blob_payload as _ip_blob_payload
-from .chunked_io import ip_content_type as _ip_content_type
-from .errors import InputPortReadError
-from .io_runtime import ProcessRuntimeContext, cancel_tasks, kj_exception_description, wait_for_tasks_or_stop
-from .types import ArrayInStrategy
+from ..context import ProcessPortState
+from ..errors import InputPortReadError
+from ..identity import ProcessIdentityContext
+from ..io.chunked_io import ChunkedInputStream
+from ..io.chunked_io import ip_blob_payload as _ip_blob_payload
+from ..io.chunked_io import ip_content_type as _ip_content_type
+from ..task_utils import wait_for_tasks_or_stop
+from ..types import ArrayInStrategy, ArrayReaderPorts
+from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -24,19 +27,47 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-type ArrayReaderPorts = list["ReaderClient | None"]
+
+def _kj_exception_description(error: capnp.KjException) -> str:
+    return str(getattr(error, "description", error))
+
+
+async def _cancel_tasks[T](tasks: Iterable[asyncio.Future[T]]) -> None:
+    pending = list(tasks)
+    for task in pending:
+        _ = task.cancel()
+    _ = await asyncio.gather(*pending, return_exceptions=True)
 
 
 class InputRuntime:
-    def __init__(self, ctx: ProcessRuntimeContext) -> None:
-        self._ctx = ctx
-        self.in_ports: dict[str, ReaderClient | None] = {}
-        self.array_in_ports: dict[str, ArrayReaderPorts] = {}
-        self.array_in_buffers: dict[str, dict[int, IPReader]] = {}
+    def __init__(
+        self,
+        *,
+        identity: ProcessIdentityContext,
+        ports: ProcessPortState,
+        stop_event: asyncio.Event,
+        activity: ProcessActivityContext,
+    ) -> None:
+        self._identity: ProcessIdentityContext = identity
+        self._ports: ProcessPortState = ports
+        self._stop_event: asyncio.Event = stop_event
+        self._activity: ProcessActivityContext = activity
+
+    @property
+    def in_ports(self) -> dict[str, ReaderClient | None]:
+        return self._ports.in_ports
+
+    @property
+    def array_in_ports(self) -> dict[str, ArrayReaderPorts]:
+        return self._ports.array_in_ports
+
+    @property
+    def array_in_buffers(self) -> dict[str, dict[int, IPReader]]:
+        return cast("dict[str, dict[int, IPReader]]", self._ports.array_in_buffers)
 
     @property
     def stop_event(self) -> asyncio.Event:
-        return self._ctx.stop_event
+        return self._stop_event
 
     def _clear_in_port(self, name: str) -> None:
         self.in_ports[name] = None
@@ -47,9 +78,9 @@ class InputRuntime:
             ports[port_index] = None
 
     def _input_port_rpc_error(self, port_label: str, error: capnp.KjException) -> InputPortReadError:
-        description = kj_exception_description(error)
-        logger.error("%s RPC exception reading input port '%s': %s", self._ctx.name, port_label, description)
-        return InputPortReadError(self._ctx.name, port_label, description)
+        description = _kj_exception_description(error)
+        logger.error("%s RPC exception reading input port '%s': %s", self._identity.name, port_label, description)
+        return InputPortReadError(self._identity.name, port_label, description)
 
     @staticmethod
     def _active_reader_ports(ports: ArrayReaderPorts) -> list[tuple[int, ReaderClient]]:
@@ -65,12 +96,12 @@ class InputRuntime:
             return None
 
         if in_ip.type == "openBracket":
-            msg = f"{self._ctx.name} received a chunked payload on input port '{name}'; use read_in_chunked* instead."
-            raise InputPortReadError(self._ctx.name, name, msg)
+            msg = f"{self._identity.name} received a chunked payload on input port '{name}'; use read_in_chunked* instead."
+            raise InputPortReadError(self._identity.name, name, msg)
 
         if in_ip.type == "closeBracket":
-            msg = f"{self._ctx.name} received an unexpected closeBracket on input port '{name}'."
-            raise InputPortReadError(self._ctx.name, name, msg)
+            msg = f"{self._identity.name} received an unexpected closeBracket on input port '{name}'."
+            raise InputPortReadError(self._identity.name, name, msg)
 
         return in_ip
 
@@ -96,25 +127,25 @@ class InputRuntime:
         if self.stop_event.is_set():
             return None
 
-        await self._ctx.transition_to_activity("waitingInput", port_label)
+        await self._activity.transition_to_activity("waitingInput", port_label)
         read_task = asyncio.ensure_future(port.read())
         try:
             done_tasks, stopped = await wait_for_tasks_or_stop({read_task}, self.stop_event)
             if stopped:
                 if read_task not in done_tasks:
-                    await cancel_tasks((read_task,))
+                    await _cancel_tasks((read_task,))
                     return None
                 _ = await read_task
                 return None
 
             msg = await read_task
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             if msg.which() == "done":
                 on_disconnect()
                 return None
             return msg.value.as_struct(fbp_capnp.IP)
         except asyncio.CancelledError:
-            await cancel_tasks((read_task,))
+            await _cancel_tasks((read_task,))
             raise
         except capnp.KjException as error:
             on_disconnect()
@@ -176,16 +207,16 @@ class InputRuntime:
                 return None
 
             port_index, in_ip = next_result
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             if in_ip.type == "openBracket":
                 msg = (
-                    f"{self._ctx.name} received a chunked payload on array input port '{name}[{port_index}]'; "
+                    f"{self._identity.name} received a chunked payload on array input port '{name}[{port_index}]'; "
                     "use read_array_in_chunked instead."
                 )
-                raise InputPortReadError(self._ctx.name, f"{name}[{port_index}]", msg)
+                raise InputPortReadError(self._identity.name, f"{name}[{port_index}]", msg)
             if in_ip.type == "closeBracket":
-                msg = f"{self._ctx.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
-                raise InputPortReadError(self._ctx.name, f"{name}[{port_index}]", msg)
+                msg = f"{self._identity.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
+                raise InputPortReadError(self._identity.name, f"{name}[{port_index}]", msg)
             return in_ip
 
         ordered_results = await self.read_array_zip_raw(name, active_ports, ports)
@@ -194,8 +225,8 @@ class InputRuntime:
 
         bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
         if bracketed_results:
-            msg = f"{self._ctx.name} received a chunked payload on array input port '{name}'; use read_array_in_chunked."
-            raise InputPortReadError(self._ctx.name, name, msg)
+            msg = f"{self._identity.name} received a chunked payload on array input port '{name}'; use read_array_in_chunked."
+            raise InputPortReadError(self._identity.name, name, msg)
         return ordered_results
 
     async def read_array_in_next_available(
@@ -213,19 +244,18 @@ class InputRuntime:
             read_tasks: dict[asyncio.Future[ReadResult], int] = {
                 asyncio.ensure_future(port.read()): index for index, port in active_ports
             }
-            await self._ctx.transition_to_activity("waitingInput", name)
+            await self._activity.transition_to_activity("waitingInput", name)
 
             try:
                 done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self.stop_event)
                 if stopped:
-                    await cancel_tasks(read_tasks)
+                    await _cancel_tasks(read_tasks)
                     return None
 
                 for task in done_tasks:
-                    read_task = cast("asyncio.Future[ReadResult]", task)
-                    port_index = read_tasks.pop(read_task)
+                    port_index = read_tasks.pop(task)
                     try:
-                        msg = await read_task
+                        msg = await task
                     except capnp.KjException as error:
                         ports[port_index] = None
                         if self.stop_event.is_set():
@@ -237,17 +267,17 @@ class InputRuntime:
                     else:
                         buffers[port_index] = msg.value.as_struct(fbp_capnp.IP)
 
-                await cancel_tasks(read_tasks)
+                await _cancel_tasks(read_tasks)
                 if buffers:
                     port_index = next(iter(buffers))
                     return port_index, buffers.pop(port_index)
 
                 active_ports = self._active_reader_ports(ports)
             except asyncio.CancelledError:
-                await cancel_tasks(read_tasks)
+                await _cancel_tasks(read_tasks)
                 raise
             except Exception:
-                await cancel_tasks(read_tasks)
+                await _cancel_tasks(read_tasks)
                 raise
 
     @overload
@@ -294,7 +324,7 @@ class InputRuntime:
                 return None
 
             port_index, in_ip = next_result
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             port = ports[port_index]
             read_next_ip = (
                 (lambda: self.read_array_port_raw(name, port_index, port))
@@ -319,13 +349,13 @@ class InputRuntime:
         }
         results: dict[int, IPReader] = {}
         zip_finished = False
-        await self._ctx.transition_to_activity("waitingInput", name)
+        await self._activity.transition_to_activity("waitingInput", name)
 
         try:
             while read_tasks:
                 done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self.stop_event)
                 if stopped:
-                    await cancel_tasks(read_tasks)
+                    await _cancel_tasks(read_tasks)
                     return None
 
                 for task in done_tasks:
@@ -347,17 +377,17 @@ class InputRuntime:
                         results[port_index] = msg.value.as_struct(fbp_capnp.IP)
 
                 if zip_finished:
-                    await cancel_tasks(read_tasks)
-                    await self._ctx.transition_to_activity("processing")
+                    await _cancel_tasks(read_tasks)
+                    await self._activity.transition_to_activity("processing")
                     return None
 
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             return cast("list[IPReader | IPBuilder]", [results[index] for index, _port in active_ports])
         except asyncio.CancelledError:
-            await cancel_tasks(read_tasks)
+            await _cancel_tasks(read_tasks)
             raise
         except Exception:
-            await cancel_tasks(read_tasks)
+            await _cancel_tasks(read_tasks)
             raise
 
     async def coalesce_chunked_array_results(
@@ -374,11 +404,11 @@ class InputRuntime:
                         f"{name}[{port_index}]",
                         first_ip,
                         lambda port=port, port_index=port_index: self.read_array_port_raw(name, port_index, port),
-                    )
+                    ),
                 )
             elif first_ip.type == "closeBracket":
-                msg = f"{self._ctx.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
-                raise InputPortReadError(self._ctx.name, f"{name}[{port_index}]", msg)
+                msg = f"{self._identity.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
+                raise InputPortReadError(self._identity.name, f"{name}[{port_index}]", msg)
             else:
                 coalesced.append(first_ip)
         return coalesced
@@ -405,8 +435,8 @@ class InputRuntime:
             stream = await self.chunked_stream_for_ip(port_label, in_ip, read_next_ip)
             return await stream.collect_blob()
         if in_ip.type == "closeBracket":
-            msg = f"{self._ctx.name} received an unexpected closeBracket on input port '{port_label}'."
-            raise InputPortReadError(self._ctx.name, port_label, msg)
+            msg = f"{self._identity.name} received an unexpected closeBracket on input port '{port_label}'."
+            raise InputPortReadError(self._identity.name, port_label, msg)
         return in_ip
 
     async def chunked_stream_for_ip(
@@ -416,29 +446,31 @@ class InputRuntime:
         read_next_ip: Callable[[], Awaitable[IPReader | None]],
     ) -> ChunkedInputStream:
         if in_ip.type == "closeBracket":
-            msg = f"{self._ctx.name} received an unexpected closeBracket on input port '{port_label}'."
-            raise InputPortReadError(self._ctx.name, port_label, msg)
+            msg = f"{self._identity.name} received an unexpected closeBracket on input port '{port_label}'."
+            raise InputPortReadError(self._identity.name, port_label, msg)
 
         if in_ip.type == "openBracket":
             return ChunkedInputStream(
                 open_ip=in_ip,
-                process_name=self._ctx.name,
+                process_name=self._identity.name,
                 port=port_label,
                 _read_next_ip=read_next_ip,
                 _is_stopping=lambda: self.stop_event.is_set(),
-                _on_complete=lambda: self._ctx.transition_to_activity("processing", delay_processing=False),
+                _on_complete=lambda: self._activity.transition_to_activity("processing", delay_processing=False),
                 content_type=_ip_content_type(in_ip),
             )
 
         try:
             data, content_type = _ip_blob_payload(in_ip)
         except (capnp.KjException, TypeError) as error:
-            msg = f"{self._ctx.name} can only read common.capnp:Blob chunked payloads on input port '{port_label}'."
-            raise InputPortReadError(self._ctx.name, port_label, msg) from error
+            msg = (
+                f"{self._identity.name} can only read common.capnp:Blob chunked payloads on input port '{port_label}'."
+            )
+            raise InputPortReadError(self._identity.name, port_label, msg) from error
 
         return ChunkedInputStream(
             open_ip=in_ip,
-            process_name=self._ctx.name,
+            process_name=self._identity.name,
             port=port_label,
             _read_next_ip=lambda: asyncio.sleep(0, result=None),
             _is_stopping=lambda: self.stop_event.is_set(),
@@ -455,7 +487,7 @@ class InputRuntime:
                     self.in_ports[name] = None
                     logger.info("closed in port '%s'", name)
                 except (capnp.KjException, RuntimeError) as error:
-                    logger.error("%s: Exception closing in port '%s': %s", Path(__file__).name, name, error)
+                    logger.exception("%s: Exception closing in port '%s': %s", Path(__file__).name, name, error)
         for name, ports in self.array_in_ports.items():
             for index, port in enumerate(ports):
                 if port is not None:
@@ -464,4 +496,4 @@ class InputRuntime:
                         ports[index] = None
                         logger.info("closed array in port '%s[%s]'", name, index)
                     except (capnp.KjException, RuntimeError) as error:
-                        logger.error("Exception closing array in port '%s[%s]': %s", name, index, error)
+                        logger.exception("Exception closing array in port '%s[%s]': %s", name, index, error)

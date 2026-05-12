@@ -9,7 +9,10 @@ from pydantic import ValidationError
 
 from zalfmas_fbp.run.metadata import ComponentMetadata
 from zalfmas_fbp.run.process import Process, ProcessConfig
-from zalfmas_fbp.run.process.config_codec import config_value_from_python, python_value_from_capnp_value
+from zalfmas_fbp.run.process.config.config_codec import (
+    config_value_from_python,
+    python_value_from_capnp_value,
+)
 
 
 class _TypedConfig(ProcessConfig):

@@ -99,12 +99,12 @@ from zalfmas_fbp.components.dakis.write_raster import (
     WriteRaster,
 )
 from zalfmas_fbp.run import process
-from zalfmas_fbp.run.process import core as process_core
+from zalfmas_fbp.run.process import process as process_module
 
 
 def _set_bracketed_chunk_size(monkeypatch, size: int) -> None:
     monkeypatch.setattr(process, "DEFAULT_BRACKETED_CHUNK_SIZE", size)
-    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", size)
+    monkeypatch.setattr(process_module, "DEFAULT_BRACKETED_CHUNK_SIZE", size)
 
 
 def test_create_empty_raster_uses_default_config_and_writes_memory_file_bytes() -> None:
@@ -650,11 +650,12 @@ def test_write_file_to_disk_finishes_before_a_late_input_connection(tmp_path: Pa
         )
 
         assert await component.start(cast("Any", None)) is True
-        if component._run_task is None:
+        run_task = component.context.lifecycle.run_task
+        if run_task is None:
             raise AssertionError("Process component did not create a run task.")
 
-        await asyncio.wait_for(component._run_task, timeout=1)
-        assert component.process_state == "idle"
+        await asyncio.wait_for(run_task, timeout=1)
+        assert component.context.status.process_state == "idle"
 
         component.in_ports["in"] = cast(
             "Any",
@@ -837,11 +838,12 @@ def test_read_file_from_object_store_downloads_from_configured_s3_endpoint(monke
 
 async def _run_process(component) -> None:
     await component.start(cast("Any", None))
-    if component._run_task is None:
+    lifecycle = component.context.lifecycle
+    if lifecycle.run_task is None:
         raise AssertionError("Process component did not create a run task.")
-    await component._run_task
-    if component._run_exception is not None:
-        raise component._run_exception
+    await lifecycle.run_task
+    if lifecycle.run_exception is not None:
+        raise lifecycle.run_exception
 
 
 def _test_raster_bytes(*, width: int = 10, height: int = 10) -> bytes:

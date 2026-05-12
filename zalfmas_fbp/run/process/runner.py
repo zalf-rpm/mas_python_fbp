@@ -17,7 +17,7 @@ from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_log
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
 if TYPE_CHECKING:
-    from .core import Process
+    from .process import Process
 
 logger = logging.getLogger(__name__)
 

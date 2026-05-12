@@ -103,11 +103,12 @@ def run_process_component(
 
 async def _start_process_component(component: process.Process) -> None:
     await component.start(cast("Any", None))
-    if component._run_task is None:
+    lifecycle = component.context.lifecycle
+    if lifecycle.run_task is None:
         raise AssertionError("Process component did not create a run task.")
-    await component._run_task
-    if component._run_exception is not None:
-        raise component._run_exception
+    await lifecycle.run_task
+    if lifecycle.run_exception is not None:
+        raise lifecycle.run_exception
 
 
 def run_standard_component(

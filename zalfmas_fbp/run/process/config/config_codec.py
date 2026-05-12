@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 import capnp
 from mas.schema.common import common_capnp
 
-from .errors import ProcessConfigError
-from .types import ConfigScalar, ConfigValue
+from ..errors import ProcessConfigError
+from ..types import ConfigScalar, ConfigValue
 
 if TYPE_CHECKING:
     from mas.schema.common.common_capnp.types.builders import PairBuilder, ValueBuilder

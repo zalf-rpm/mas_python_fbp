@@ -9,13 +9,16 @@ from typing import TYPE_CHECKING, cast
 
 import capnp
 
-from .chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE
-from .chunked_io import bracket_ip as _bracket_ip
-from .chunked_io import chunked_blob_ip as _chunked_blob_ip
-from .chunked_io import ip_blob_payload as _ip_blob_payload
-from .errors import OutputPortWriteError
-from .io_runtime import ProcessRuntimeContext, wait_for_tasks_or_stop
-from .types import ArrayOutStrategy
+from ..context import ProcessPortState
+from ..errors import OutputPortWriteError
+from ..identity import ProcessIdentityContext
+from ..io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE
+from ..io.chunked_io import bracket_ip as _bracket_ip
+from ..io.chunked_io import chunked_blob_ip as _chunked_blob_ip
+from ..io.chunked_io import ip_blob_payload as _ip_blob_payload
+from ..task_utils import wait_for_tasks_or_stop
+from ..types import ArrayOutStrategy, ArrayOutWriteTasks, ArrayWriterPorts
+from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -23,26 +26,45 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-type ArrayWriterPorts = list["WriterClient | None"]
-type ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
-
 
 class OutputRuntime:
-    def __init__(self, ctx: ProcessRuntimeContext) -> None:
-        self._ctx = ctx
-        self.out_ports: dict[str, WriterClient | None] = {}
-        self.array_out_ports: dict[str, ArrayWriterPorts] = {}
-        self.array_out_next_indices: dict[str, int] = {}
-        self.array_out_write_tasks: dict[str, ArrayOutWriteTasks] = {}
+    def __init__(
+        self,
+        *,
+        identity: ProcessIdentityContext,
+        ports: ProcessPortState,
+        stop_event: asyncio.Event,
+        activity: ProcessActivityContext,
+    ) -> None:
+        self._identity: ProcessIdentityContext = identity
+        self._ports: ProcessPortState = ports
+        self._stop_event: asyncio.Event = stop_event
+        self._activity: ProcessActivityContext = activity
 
     @property
     def stop_event(self) -> asyncio.Event:
-        return self._ctx.stop_event
+        return self._stop_event
+
+    @property
+    def out_ports(self) -> dict[str, WriterClient | None]:
+        return self._ports.out_ports
+
+    @property
+    def array_out_ports(self) -> dict[str, ArrayWriterPorts]:
+        return self._ports.array_out_ports
+
+    @property
+    def array_out_next_indices(self) -> dict[str, int]:
+        return self._ports.array_out_next_indices
+
+    @property
+    def array_out_write_tasks(self) -> dict[str, ArrayOutWriteTasks]:
+        return self._ports.array_out_write_tasks
 
     def _output_port_rpc_error(self, port_label: str, error: capnp.KjException) -> OutputPortWriteError:
         description = str(getattr(error, "description", error))
-        logger.error("%s RPC exception writing output port '%s': %s", self._ctx.name, port_label, description)
-        return OutputPortWriteError(self._ctx.name, port_label, description)
+        logger.error("%s RPC exception writing output port '%s': %s", self._identity.name, port_label, description)
+        return OutputPortWriteError(self._identity.name, port_label, description)
 
     @staticmethod
     def _active_writer_ports(ports: ArrayWriterPorts) -> list[tuple[int, WriterClient]]:
@@ -71,9 +93,9 @@ class OutputRuntime:
             return False
 
         try:
-            await self._ctx.transition_to_activity("waitingOutput", name)
+            await self._activity.transition_to_activity("waitingOutput", name)
             await port.write(value=message)
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             return True
         except capnp.KjException as error:
             self.out_ports[name] = None
@@ -89,14 +111,14 @@ class OutputRuntime:
         chunk_size: int = DEFAULT_BRACKETED_CHUNK_SIZE,
     ) -> bool:
         if message.type != "standard":
-            msg = f"{self._ctx.name} can only write standard IPs as chunked payloads on output port '{name}'."
-            raise OutputPortWriteError(self._ctx.name, name, msg)
+            msg = f"{self._identity.name} can only write standard IPs as chunked payloads on output port '{name}'."
+            raise OutputPortWriteError(self._identity.name, name, msg)
 
         try:
             data, content_type = _ip_blob_payload(message)
         except (capnp.KjException, TypeError) as error:
-            msg = f"{self._ctx.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
-            raise OutputPortWriteError(self._ctx.name, name, msg) from error
+            msg = f"{self._identity.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
+            raise OutputPortWriteError(self._identity.name, name, msg) from error
 
         chunk_count = (len(data) + chunk_size - 1) // chunk_size
 
@@ -122,16 +144,16 @@ class OutputRuntime:
         chunk_count: int = 0,
     ) -> bool:
         if source.type != "standard":
-            msg = f"{self._ctx.name} can only write standard IPs as chunked payloads on output port '{name}'."
-            raise OutputPortWriteError(self._ctx.name, name, msg)
+            msg = f"{self._identity.name} can only write standard IPs as chunked payloads on output port '{name}'."
+            raise OutputPortWriteError(self._identity.name, name, msg)
 
         resolved_content_type = content_type
         if resolved_content_type is None:
             try:
                 _data, resolved_content_type = _ip_blob_payload(source)
             except (capnp.KjException, TypeError) as error:
-                msg = f"{self._ctx.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
-                raise OutputPortWriteError(self._ctx.name, name, msg) from error
+                msg = f"{self._identity.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
+                raise OutputPortWriteError(self._identity.name, name, msg) from error
 
         port = self.out_ports.get(name)
         if port is None:
@@ -147,7 +169,7 @@ class OutputRuntime:
         aclose = cast("Callable[[], Awaitable[object]] | None", getattr(chunk_iterator, "aclose", None))
 
         try:
-            await self._ctx.transition_to_activity("waitingOutput", name)
+            await self._activity.transition_to_activity("waitingOutput", name)
             await port.write(value=open_ip)
             open_sent = True
             async for chunk in chunk_iterator:
@@ -160,7 +182,7 @@ class OutputRuntime:
             if not aborted:
                 await port.write(value=close_ip)
                 close_sent = True
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
         except capnp.KjException as error:
             rpc_error = error
         finally:
@@ -174,9 +196,14 @@ class OutputRuntime:
 
             if aclose is not None:
                 try:
-                    await aclose()
+                    _ = await aclose()
                 except RuntimeError as error:
-                    logger.warning("%s chunk iterator cleanup failed on output port '%s': %s", self._ctx.name, name, error)
+                    logger.warning(
+                        "%s chunk iterator cleanup failed on output port '%s': %s",
+                        self._identity.name,
+                        name,
+                        error,
+                    )
 
         if rpc_error is not None:
             if self.stop_event.is_set():
@@ -207,7 +234,7 @@ class OutputRuntime:
             write_tasks = [
                 asyncio.create_task(
                     self.write_array_out_port(name, index, port, message),
-                    name=f"{self._ctx.name or self._ctx.id}-{name}[{index}]-broadcast-write",
+                    name=f"{self._identity.name or self._identity.id}-{name}[{index}]-broadcast-write",
                 )
                 for index, port in active_ports
             ]
@@ -216,7 +243,7 @@ class OutputRuntime:
             except Exception:
                 for task in write_tasks:
                     if not task.done():
-                        task.cancel()
+                        _ = task.cancel()
                 _ = await asyncio.gather(*write_tasks, return_exceptions=True)
                 raise
             return any(results)
@@ -285,11 +312,11 @@ class OutputRuntime:
             if not active_tasks:
                 return None
 
-            await self._ctx.transition_to_activity("waitingOutput", name)
+            await self._activity.transition_to_activity("waitingOutput", name)
             done_tasks, stopped = await wait_for_tasks_or_stop(active_tasks, self.stop_event)
             if stopped:
                 return None
-            await self._ctx.transition_to_activity("processing")
+            await self._activity.transition_to_activity("processing")
             for task in done_tasks:
                 write_task = cast("asyncio.Task[bool]", task)
                 _ = await self.consume_array_out_write_task(name, active_tasks[write_task])
@@ -310,7 +337,7 @@ class OutputRuntime:
         tasks = self.ensure_array_out_write_task_slots(name, ports)
         tasks[port_index] = asyncio.create_task(
             self.write_array_out_port(name, port_index, port, message, track_activity=False),
-            name=f"{self._ctx.name or self._ctx.id}-{name}[{port_index}]-write",
+            name=f"{self._identity.name or self._identity.id}-{name}[{port_index}]-write",
         )
         return True
 
@@ -324,10 +351,10 @@ class OutputRuntime:
     ) -> bool:
         try:
             if track_activity:
-                await self._ctx.transition_to_activity("waitingOutput", f"{name}[{port_index}]")
+                await self._activity.transition_to_activity("waitingOutput", f"{name}[{port_index}]")
             await port.write(value=message)
             if track_activity:
-                await self._ctx.transition_to_activity("processing")
+                await self._activity.transition_to_activity("processing")
             return True
         except capnp.KjException as error:
             self.array_out_ports[name][port_index] = None
@@ -365,7 +392,7 @@ class OutputRuntime:
                     self.out_ports[name] = None
                     logger.info("closed out port '%s'", name)
                 except (capnp.KjException, RuntimeError) as error:
-                    logger.error("%s: Exception closing out port '%s': %s", Path(__file__).name, name, error)
+                    logger.exception("%s: Exception closing out port '%s': %s", Path(__file__).name, name, error)
         for name, ports in self.array_out_ports.items():
             for index, port in enumerate(ports):
                 if port is not None:
@@ -374,4 +401,4 @@ class OutputRuntime:
                         ports[index] = None
                         logger.info("closed array out port '%s[%s]'", name, index)
                     except (capnp.KjException, RuntimeError) as error:
-                        logger.error("Exception closing array out port '%s[%s]': %s", name, index, error)
+                        logger.exception("Exception closing array out port '%s[%s]': %s", name, index, error)

@@ -18,7 +18,7 @@ from tests.component_harness import (
 )
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.metadata import ComponentMetadata
-from zalfmas_fbp.run.process import core as process_core
+from zalfmas_fbp.run.process import process as process_module
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import ActivityInfoBuilder, IPBuilder
@@ -141,7 +141,7 @@ class _StopRequestingWriter(InMemoryWriter):
         self.calls += 1
         await super().write(value)
         if self.calls == 2:
-            self.component._stop_requested.set()
+            self.component.context.lifecycle.stop_requested.set()
 
 
 class _StopAwareProcess(process.Process):
@@ -215,7 +215,7 @@ def _raise_multiline_runtime_error() -> None:
 def test_process_metadata_initializes_array_in_and_out_ports() -> None:
     component = process.Process(metadata=_array_port_meta())
 
-    assert component.process_state == "idle"
+    assert component.context.status.process_state == "idle"
     assert "items" in component.array_in_ports
     assert "items" not in component.in_ports
     assert "out" in component.array_out_ports
@@ -228,17 +228,59 @@ def test_process_metadata_initializes_array_in_and_out_ports() -> None:
     assert {"name": "out", "type": "array", "contentType": "Text"} in out_ports
 
 
+def test_process_metadata_updates_identifiable_name_and_description() -> None:
+    component = process.Process(
+        metadata=_standard_port_meta(),
+        id="custom-process-id",
+        name="custom-process-name",
+        description="custom process description",
+    )
+
+    assert component.id == "custom-process-id"
+    assert component.name == "standard-port-test"
+    assert component.description == "standard port test process"
+
+
+def test_port_messages_use_initial_metadata_content_types() -> None:
+    component = process.Process(
+        metadata=_standard_port_meta(
+            in_content_type="application/json",
+            out_content_type="application/octet-stream",
+        ),
+    )
+
+    in_ports = asyncio.run(component.inPorts(cast("Any", None)))
+    out_ports = asyncio.run(component.outPorts(cast("Any", None)))
+
+    assert {"name": "in", "type": "standard", "contentType": "application/json"} in in_ports
+    assert {"name": "out", "type": "standard", "contentType": "application/octet-stream"} in out_ports
+
+
+def test_port_messages_do_not_follow_reassigned_context_metadata() -> None:
+    component = process.Process(metadata=_standard_port_meta())
+    component.context.metadata = _standard_port_meta(
+        in_content_type="application/json",
+        out_content_type="application/octet-stream",
+    )
+
+    in_ports = asyncio.run(component.inPorts(cast("Any", None)))
+    out_ports = asyncio.run(component.outPorts(cast("Any", None)))
+
+    assert {"name": "in", "type": "standard", "contentType": "Text"} in in_ports
+    assert {"name": "out", "type": "standard", "contentType": "Text"} in out_ports
+
+
 def test_process_soft_stop_returns_to_idle_and_clears_stopping_flag() -> None:
     async def run_test() -> None:
         component = _StopAwareProcess()
 
-        assert component.process_state == "idle"
+        assert component.context.status.process_state == "idle"
         assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "running")
 
         assert await component.stop(RPC_CONTEXT) is True
 
-        assert component.process_state == "idle"
+        assert component.context.status.process_state == "idle"
         assert component.stopping is False
 
     asyncio.run(run_test())
@@ -247,14 +289,14 @@ def test_process_soft_stop_returns_to_idle_and_clears_stopping_flag() -> None:
 def test_process_stop_timeout_returns_false_while_task_is_still_stopping() -> None:
     async def run_test() -> None:
         component = _CancellationSuppressingProcess()
-        component.soft_stop_timeout_seconds = 0.01
+        component.context.lifecycle.soft_stop_timeout_seconds = 0.01
 
         assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "running")
 
         assert await component.stop(RPC_CONTEXT) is False
 
-        assert component.process_state == "stopping"
+        assert component.context.status.process_state == "stopping"
         assert component.stopping is True
 
         component.release.set()
@@ -288,12 +330,13 @@ def test_component_can_catch_input_port_failure_inside_run() -> None:
         component.in_ports["in"] = cast("Any", _BrokenReader())
 
         assert await component.start(RPC_CONTEXT) is True
-        if component._run_task is None:
+        run_task = component.context.lifecycle.run_task
+        if run_task is None:
             raise AssertionError("Process did not create a run task.")
-        await component._run_task
+        await run_task
 
         assert component.caught_error is True
-        assert component.process_state == "idle"
+        assert component.context.status.process_state == "idle"
         error_info = await component.lastError(RPC_CONTEXT)
         assert error_info.hasError is False
         assert error_info.phase == "unknown"
@@ -309,7 +352,7 @@ def test_stop_requested_read_returns_none_without_bubbling_error() -> None:
 
         read_task = asyncio.create_task(component.read_in("in"))
         await reader.started.wait()
-        component._stop_requested.set()
+        component.context.lifecycle.stop_requested.set()
 
         assert await asyncio.wait_for(read_task, timeout=1) is None
 
@@ -325,12 +368,12 @@ def test_process_reports_waiting_input_activity_while_read_is_blocked() -> None:
         assert await component.start(RPC_CONTEXT) is True
         await reader.started.wait()
 
-        assert component.activity_state == "waitingInput"
-        assert component.activity_port == "in"
+        assert component.context.status.activity_state == "waitingInput"
+        assert component.context.status.activity_port == "in"
 
         assert await component.stop(RPC_CONTEXT) is True
-        assert component.activity_state == "none"
-        assert component.activity_port == ""
+        assert component.context.status.activity_state == "none"
+        assert component.context.status.activity_port == ""
 
     asyncio.run(run_test())
 
@@ -345,8 +388,8 @@ def test_write_out_reports_waiting_output_activity_while_write_is_blocked() -> N
         write_task = asyncio.create_task(component.write_out("out", _text_ip("alpha")))
         await writer.started.wait()
 
-        assert component.activity_state == "waitingOutput"
-        assert component.activity_port == "out"
+        assert component.context.status.activity_state == "waitingOutput"
+        assert component.context.status.activity_port == "out"
 
         release.set()
         assert await write_task is True
@@ -398,8 +441,8 @@ def test_dead_state_transition_callbacks_are_removed() -> None:
 
         await component.transition_to_state("running")
 
-        assert component.process_state == "running"
-        assert component.state_transition_callbacks == []
+        assert component.context.status.process_state == "running"
+        assert component.context.status.state_transition_callbacks == []
 
     asyncio.run(run_test())
 
@@ -419,9 +462,9 @@ def test_dead_activity_transition_callbacks_are_removed() -> None:
 
         await component.transition_to_activity("waitingInput", "in")
 
-        assert component.activity_state == "waitingInput"
-        assert component.activity_port == "in"
-        assert component.activity_transition_callbacks == []
+        assert component.context.status.activity_state == "waitingInput"
+        assert component.context.status.activity_port == "in"
+        assert component.context.status.activity_transition_callbacks == []
 
     asyncio.run(run_test())
 
@@ -447,8 +490,8 @@ def test_short_processing_activity_is_suppressed() -> None:
         await component.transition_to_activity("waitingInput", "in")
         await asyncio.sleep((process.DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS + 5) / 1000)
 
-        assert component.activity_state == "waitingInput"
-        assert component.activity_port == "in"
+        assert component.context.status.activity_state == "waitingInput"
+        assert component.context.status.activity_port == "in"
         assert callback.changes == [
             (("none", ""), ("waitingInput", "in")),
         ]
@@ -469,7 +512,7 @@ def test_failed_process_can_be_restarted_and_stopped() -> None:
         assert component.runs == 2
 
         assert await component.stop(RPC_CONTEXT) is True
-        assert component.process_state == "idle"
+        assert component.context.status.process_state == "idle"
 
     asyncio.run(run_test())
 
@@ -715,14 +758,14 @@ def test_read_in_chunked_remains_waiting_input_until_close_bracket() -> None:
         read_task = asyncio.create_task(component.read_in_chunked("in"))
         await asyncio.sleep(0.015)
 
-        assert component.activity_state == "waitingInput"
-        assert component.activity_port == "in"
+        assert component.context.status.activity_state == "waitingInput"
+        assert component.context.status.activity_port == "in"
 
         message = await read_task
         assert message is not None
         assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
-        assert component.activity_state == "processing"
-        assert component.activity_port == ""
+        assert component.context.status.activity_state == "processing"
+        assert component.context.status.activity_port == ""
 
     asyncio.run(run_test())
 
@@ -751,20 +794,20 @@ def test_read_array_in_chunked_remains_waiting_input_until_close_bracket() -> No
         )
         await asyncio.sleep(0.015)
 
-        assert component.activity_state == "waitingInput"
-        assert component.activity_port == "items[0]"
+        assert component.context.status.activity_state == "waitingInput"
+        assert component.context.status.activity_port == "items[0]"
 
         message = await read_task
         assert message is not None
         assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
-        assert component.activity_state == "processing"
-        assert component.activity_port == ""
+        assert component.context.status.activity_state == "processing"
+        assert component.context.status.activity_port == ""
 
     asyncio.run(run_test())
 
 
 def test_write_out_chunked_chunks_data(monkeypatch) -> None:
-    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    monkeypatch.setattr(process_module, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = InMemoryWriter()
     component.out_ports["out"] = cast("Any", writer)
@@ -784,7 +827,7 @@ def test_write_out_chunked_chunks_data(monkeypatch) -> None:
 
 def test_write_out_chunked_remains_waiting_output_until_close_bracket(monkeypatch) -> None:
     async def run_test() -> None:
-        monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+        monkeypatch.setattr(process_module, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
         component = process.Process(metadata=_standard_port_meta())
         release = asyncio.Event()
         writer = _StepBlockingWriter(release)
@@ -793,8 +836,8 @@ def test_write_out_chunked_remains_waiting_output_until_close_bracket(monkeypatc
         write_task = asyncio.create_task(component.write_out_chunked("out", _data_ip(b"payload")))
         await writer.blocking_started.wait()
 
-        assert component.activity_state == "waitingOutput"
-        assert component.activity_port == "out"
+        assert component.context.status.activity_state == "waitingOutput"
+        assert component.context.status.activity_port == "out"
 
         release.set()
         assert await write_task is True
@@ -804,7 +847,7 @@ def test_write_out_chunked_remains_waiting_output_until_close_bracket(monkeypatc
 
 
 def test_write_out_chunked_best_effort_closes_stream_after_midstream_failure(monkeypatch) -> None:
-    monkeypatch.setattr(process_core, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
+    monkeypatch.setattr(process_module, "DEFAULT_BRACKETED_CHUNK_SIZE", 2)
     component = process.Process(metadata=_standard_port_meta())
     writer = _FailOnceThenWriteWriter()
     component.out_ports["out"] = cast("Any", writer)
@@ -848,12 +891,12 @@ def test_record_error_keeps_full_multiline_traceback() -> None:
     try:
         _raise_multiline_runtime_error()
     except RuntimeError as exc:
-        component._record_error(exc)
+        component._lifecycle_runtime.record_error(exc)
     else:
         raise AssertionError("multiline runtime error should have been raised")
 
-    assert component._last_error is not None
-    formatted_traceback = "".join(component._last_error.traceback or [])
+    assert component.context.lifecycle.last_error is not None
+    formatted_traceback = "".join(component.context.lifecycle.last_error.traceback or [])
     assert "if not _always_fail(" in formatted_traceback
     assert '"a",' in formatted_traceback
     assert '"h",' in formatted_traceback
@@ -977,7 +1020,7 @@ def _data_ip(value: bytes) -> IPBuilder:
 
 async def _wait_for_state(component: process.Process, expected: ProcessStateEnum) -> None:
     async def wait() -> None:
-        while component.process_state != expected:
+        while component.context.status.process_state != expected:
             await asyncio.sleep(0)
 
     await asyncio.wait_for(wait(), timeout=1)
@@ -985,13 +1028,18 @@ async def _wait_for_state(component: process.Process, expected: ProcessStateEnum
 
 async def _wait_for_activity(component: process.Process, expected: str, port: str = "") -> None:
     async def wait() -> None:
-        while component.activity_state != expected or component.activity_port != port:
+        status = component.context.status
+        while status.activity_state != expected or status.activity_port != port:
             await asyncio.sleep(0)
 
     await asyncio.wait_for(wait(), timeout=1)
 
 
-def _standard_port_meta() -> ComponentMetadata:
+def _standard_port_meta(
+    *,
+    in_content_type: str = "Text",
+    out_content_type: str = "Text",
+) -> ComponentMetadata:
     return ComponentMetadata.model_validate(
         {
             "info": {
@@ -1000,8 +1048,8 @@ def _standard_port_meta() -> ComponentMetadata:
                 "description": "standard port test process",
             },
             "type": "process",
-            "inPorts": [{"name": "in", "contentType": "Text"}],
-            "outPorts": [{"name": "out", "contentType": "Text"}],
+            "inPorts": [{"name": "in", "contentType": in_content_type}],
+            "outPorts": [{"name": "out", "contentType": out_content_type}],
         },
     )
 

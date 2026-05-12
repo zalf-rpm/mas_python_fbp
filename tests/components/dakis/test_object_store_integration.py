@@ -42,86 +42,22 @@ class ObjectStoreSmokeConfig:
     bucket: str
 
 
-def test_object_store_components_round_trip_against_real_bucket() -> None:
-    config = _object_store_smoke_config()
-    unique_id = uuid4().hex
-    path = f"copilot-smoke-tests/{unique_id}"
-    filename = "object-store-smoke.bin"
-    key = object_key(path, filename)
-    content_type = DEFAULT_CONTENT_TYPE
-    payload = f"copilot-object-store-smoke:{unique_id}".encode()
-    s3_client = _s3_client(config)
+def _smoke_env() -> dict[str, str]:
+    return {**_read_env_file(DOTENV_PATH), **os.environ}
 
-    try:
-        writer = WriteFileToObjectStore(write_file_to_object_store_metadata)
-        writer.apply_config_values(
-            {
-                "object_store_url": config.endpoint_url,
-                "access_key": config.access_key,
-                "secret_key": config.secret_key,
-                "bucket": config.bucket,
-            }
-        )
-        file_ips = list(
-            prepared_file_chunk_ips(
-                payload,
-                path=path,
-                filename=filename,
-                content_type=content_type,
-            )
-        )
 
-        run_process_component(
-            writer,
-            inputs={"in": [_ip_reader_message(ip) for ip in file_ips] + [done_message()]},
-            outputs=(),
-        )
-
-        reader = ReadFileFromObjectStore(read_file_from_object_store_metadata)
-        reader.apply_config_values(
-            {
-                "object_store_url": config.endpoint_url,
-                "access_key": config.access_key,
-                "secret_key": config.secret_key,
-                "bucket": config.bucket,
-                "path": path,
-                "filename": filename,
-                "content_type": content_type,
-            }
-        )
-
-        result = run_process_component(reader, inputs={}, outputs=("out",))
-        messages = result.output().values
-        assert messages[0].type == "openBracket"
-        assert messages[-1].type == "closeBracket"
-        assert _attr_text(messages[0], "path") == path
-        assert _attr_text(messages[0], "filename") == filename
-        assert _attr_text(messages[0], "content_type") == content_type
-        assert _attr_text(messages[1], "path") == ""
-        assert _attr_text(messages[-1], "path") == ""
-        assert _prepared_file_bytes(messages) == payload
-
-    finally:
-        s3_client.delete_object(Bucket=config.bucket, Key=key)
-
-    with pytest.raises(ClientError) as exc_info:
-        s3_client.head_object(Bucket=config.bucket, Key=key)
-
-    error_code = str(exc_info.value.response["Error"]["Code"])
-    assert error_code in {"404", "NoSuchKey", "NotFound"}
+def _real_object_store_smoke_requested(env: dict[str, str] | None = None) -> bool:
+    env = env or _smoke_env()
+    run_requested = env.get("RUN_OBJECT_STORE_SMOKE_TEST", "").strip().lower()
+    return run_requested in {"1", "true", "yes", "on"}
 
 
 def _object_store_smoke_config() -> ObjectStoreSmokeConfig:
-    env_file_values = _read_env_file(DOTENV_PATH)
-    env = {**env_file_values, **os.environ}
-    run_requested = env.get("RUN_OBJECT_STORE_SMOKE_TEST", "").strip().lower()
-    if run_requested not in {"1", "true", "yes", "on"}:
-        pytest.skip("Set RUN_OBJECT_STORE_SMOKE_TEST=1 to run the real object-store smoke test.")
-
+    env = _smoke_env()
     access_key = env.get("ACCESS_KEY", "").strip()
     secret_key = env.get("SECRET_ACCESS_KEY", "").strip()
     if not access_key or not secret_key:
-        pytest.skip("Set ACCESS_KEY and SECRET_ACCESS_KEY in the environment or .env to run this smoke test.")
+        pytest.fail("Set ACCESS_KEY and SECRET_ACCESS_KEY in the environment or .env to run this smoke test.")
 
     endpoint_url = env.get("OBJECT_STORE_URL", DEFAULT_OBJECT_STORE_URL).strip() or DEFAULT_OBJECT_STORE_URL
     bucket = env.get("OBJECT_STORE_BUCKET", DEFAULT_BUCKET).strip() or DEFAULT_BUCKET
@@ -178,3 +114,74 @@ def _prepared_file_bytes(messages) -> bytes:
 def _attr_text(ip, key: str) -> str:
     attr = common.get_fbp_attr(ip, key)
     return attr.as_text() if attr is not None else ""
+
+
+if _real_object_store_smoke_requested():
+
+    def test_object_store_components_round_trip_against_real_bucket() -> None:
+        config = _object_store_smoke_config()
+        unique_id = uuid4().hex
+        path = f"copilot-smoke-tests/{unique_id}"
+        filename = "object-store-smoke.bin"
+        key = object_key(path, filename)
+        content_type = DEFAULT_CONTENT_TYPE
+        payload = f"copilot-object-store-smoke:{unique_id}".encode()
+        s3_client = _s3_client(config)
+
+        try:
+            writer = WriteFileToObjectStore(write_file_to_object_store_metadata)
+            writer.apply_config_values(
+                {
+                    "object_store_url": config.endpoint_url,
+                    "access_key": config.access_key,
+                    "secret_key": config.secret_key,
+                    "bucket": config.bucket,
+                }
+            )
+            file_ips = list(
+                prepared_file_chunk_ips(
+                    payload,
+                    path=path,
+                    filename=filename,
+                    content_type=content_type,
+                )
+            )
+
+            run_process_component(
+                writer,
+                inputs={"in": [_ip_reader_message(ip) for ip in file_ips] + [done_message()]},
+                outputs=(),
+            )
+
+            reader = ReadFileFromObjectStore(read_file_from_object_store_metadata)
+            reader.apply_config_values(
+                {
+                    "object_store_url": config.endpoint_url,
+                    "access_key": config.access_key,
+                    "secret_key": config.secret_key,
+                    "bucket": config.bucket,
+                    "path": path,
+                    "filename": filename,
+                    "content_type": content_type,
+                }
+            )
+
+            result = run_process_component(reader, inputs={}, outputs=("out",))
+            messages = result.output().values
+            assert messages[0].type == "openBracket"
+            assert messages[-1].type == "closeBracket"
+            assert _attr_text(messages[0], "path") == path
+            assert _attr_text(messages[0], "filename") == filename
+            assert _attr_text(messages[0], "content_type") == content_type
+            assert _attr_text(messages[1], "path") == ""
+            assert _attr_text(messages[-1], "path") == ""
+            assert _prepared_file_bytes(messages) == payload
+
+        finally:
+            s3_client.delete_object(Bucket=config.bucket, Key=key)
+
+        with pytest.raises(ClientError) as exc_info:
+            s3_client.head_object(Bucket=config.bucket, Key=key)
+
+        error_code = str(exc_info.value.response["Error"]["Code"])
+        assert error_code in {"404", "NoSuchKey", "NotFound"}
