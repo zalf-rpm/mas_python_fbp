@@ -2,9 +2,30 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import capnp
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.enums import ProcessActivityStateEnum
+
+
+class ProcessRuntimeContext(Protocol):
+    @property
+    def name(self) -> str | None: ...
+
+    @property
+    def id(self) -> str | None: ...
+
+    @property
+    def stop_event(self) -> asyncio.Event: ...
+
+    async def transition_to_activity(
+        self,
+        new_state: ProcessActivityStateEnum,
+        port: str | None = None,
+        delay_processing: bool = True,
+    ) -> None: ...
 
 
 def kj_exception_description(error: capnp.KjException) -> str:

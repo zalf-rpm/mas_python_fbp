@@ -932,6 +932,24 @@ def test_connect_out_port_returns_disconnect_callback_for_array_port() -> None:
     assert asyncio.run(disconnect.disconnect(cast("Any", None))) is False
 
 
+def test_connect_out_port_supports_next_available_array_writes() -> None:
+    async def run_test() -> None:
+        writer = _SignalingWriter()
+        component = process.Process(metadata=_array_port_meta(), con_man=cast("Any", _FakeConnectionManager(writer)))
+
+        connected, _disconnect = await component.connectOutPort("out", cast("Any", "writer-sr"), cast("Any", None))
+
+        assert connected is True
+        assert (
+            await component.write_array_out("out", process.ArrayOutStrategy.NEXT_AVAILABLE, _text_ip("alpha")) is True
+        )
+
+        await component.close_out_ports()
+        assert text_outputs(writer) == ["alpha"]
+
+    asyncio.run(run_test())
+
+
 def test_disconnect_callback_for_failed_connection_is_noop() -> None:
     component = process.Process(metadata=_array_port_meta(), con_man=cast("Any", _FakeConnectionManager(None)))
 

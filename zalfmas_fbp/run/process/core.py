@@ -12,9 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Mapping
-from contextlib import suppress
-from pathlib import Path
+from collections.abc import AsyncIterable, Mapping
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -47,7 +45,6 @@ if TYPE_CHECKING:
         ProcessStateEnum,
     )
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
-    from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
 
 from zalfmas_common import common
@@ -58,14 +55,9 @@ from zalfmas_fbp.run.logging_config import (
 )
 from zalfmas_fbp.run.metadata import ComponentMetadata, ComponentPortMetadata
 
-from .chunked_io import (
-    DEFAULT_BRACKETED_CHUNK_SIZE,
-    ChunkedInputStream,
-)
-from .chunked_io import bracket_ip as _bracket_ip
-from .chunked_io import chunked_blob_ip as _chunked_blob_ip
-from .chunked_io import ip_blob_payload as _ip_blob_payload
-from .chunked_io import ip_content_type as _ip_content_type
+from . import input_runtime as _input_runtime
+from . import output_runtime as _output_runtime
+from .chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE, ChunkedInputStream
 from .config_codec import (
     config_from_ip as _config_from_ip,
 )
@@ -74,15 +66,8 @@ from .config_codec import (
     python_value_from_capnp_value,
 )
 from .errors import (
-    InputPortReadError,
-    OutputPortWriteError,
     ProcessConfigError,
     ProcessErrorInfo,
-)
-from .io_runtime import (
-    cancel_tasks,
-    kj_exception_description,
-    wait_for_tasks_or_stop,
 )
 from .transitions import PortDisconnect
 from .types import (
@@ -134,17 +119,12 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self.metadata: ComponentMetadata | None = metadata
         self._raw_config: RawConfig = {}
         self._config: ConfigT | RawConfig = self._raw_config
-        self.in_ports: dict[str, ReaderClient | None] = {}
-        self.array_in_ports: dict[str, ArrayReaderPorts] = {}
-        self._array_in_buffers: dict[str, dict[int, IPReader]] = {}
-        self.out_ports: dict[str, WriterClient | None] = {}
-        self.array_out_ports: dict[str, ArrayWriterPorts] = {}
-        self._array_out_next_indices: dict[str, int] = {}
-        self._array_out_write_tasks: dict[str, ArrayOutWriteTasks] = {}
         self._run_task: asyncio.Task[None] | None = None
         self._run_exception: BaseException | None = None
         self._last_error: ProcessErrorInfo | None = None
         self._stop_requested: asyncio.Event = asyncio.Event()
+        self._input_runtime = _input_runtime.InputRuntime(self)
+        self._output_runtime = _output_runtime.OutputRuntime(self)
         self.soft_stop_timeout_seconds: float = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
         self.process_state: ProcessStateEnum = "idle"
         self.state_transition_callbacks: list[StateTransitionClient] = []
@@ -279,6 +259,38 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     def raw_config(self) -> RawConfig:
         return self._raw_config
 
+    @property
+    def stop_event(self) -> asyncio.Event:
+        return self._stop_requested
+
+    @property
+    def in_ports(self) -> dict[str, ReaderClient | None]:
+        return self._input_runtime.in_ports
+
+    @property
+    def array_in_ports(self) -> dict[str, ArrayReaderPorts]:
+        return self._input_runtime.array_in_ports
+
+    @property
+    def _array_in_buffers(self) -> dict[str, dict[int, IPReader]]:
+        return self._input_runtime.array_in_buffers
+
+    @property
+    def out_ports(self) -> dict[str, WriterClient | None]:
+        return self._output_runtime.out_ports
+
+    @property
+    def array_out_ports(self) -> dict[str, ArrayWriterPorts]:
+        return self._output_runtime.array_out_ports
+
+    @property
+    def _array_out_next_indices(self) -> dict[str, int]:
+        return self._output_runtime.array_out_next_indices
+
+    @property
+    def _array_out_write_tasks(self) -> dict[str, ArrayOutWriteTasks]:
+        return self._output_runtime.array_out_write_tasks
+
     # inPorts @0 () -> (ports :List(Component.Port));
     @override
     async def inPorts(self, _context, **kwargs):
@@ -332,7 +344,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             index = len(self.array_out_ports[name])
             self.array_out_ports[name].append(writer)
             self._array_out_next_indices.setdefault(name, 0)
-            self._ensure_array_out_write_task_slots(name, self.array_out_ports[name])
+            self._output_runtime.ensure_array_out_write_task_slots(name, self.array_out_ports[name])
             return ConnectoutportResultTuple(
                 writer is not None,
                 PortDisconnect(self.array_out_ports, name, writer, index),
@@ -571,98 +583,16 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         return self._stop_requested.is_set()
 
     async def read_in(self, name: str) -> IPReader | IPBuilder | None:
-        in_ip = await self._read_in_raw(name)
-        if in_ip is None:
-            return None
-
-        if in_ip.type == "openBracket":
-            msg = f"{self.name} received a chunked payload on input port '{name}'; use read_in_chunked* instead."
-            raise InputPortReadError(self.name, name, msg)
-
-        if in_ip.type == "closeBracket":
-            msg = f"{self.name} received an unexpected closeBracket on input port '{name}'."
-            raise InputPortReadError(self.name, name, msg)
-
-        return in_ip
+        return await self._input_runtime.read_in(name)
 
     async def read_in_chunked(self, name: str) -> IPReader | IPBuilder | None:
-        in_ip = await self._read_in_raw(name)
-        if in_ip is None:
-            return None
-        return await self._coalesce_chunked_input(name, name, in_ip, lambda: self._read_in_raw(name))
+        return await self._input_runtime.read_in_chunked(name)
 
     async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
-        in_ip = await self._read_in_raw(name)
-        if in_ip is None:
-            return None
-        return await self._chunked_stream_for_ip(name, name, in_ip, lambda: self._read_in_raw(name))
-
-    def _clear_in_port(self, name: str) -> None:
-        self.in_ports[name] = None
-
-    def _clear_array_in_port(self, name: str, port_index: int) -> None:
-        ports = self.array_in_ports.get(name)
-        if ports is not None and port_index < len(ports):
-            ports[port_index] = None
-
-    def _input_port_rpc_error(self, port_label: str, error: capnp.KjException) -> InputPortReadError:
-        description = kj_exception_description(error)
-        logger.error("%s RPC exception reading input port '%s': %s", self.name, port_label, description)
-        return InputPortReadError(self.name, port_label, description)
-
-    def _output_port_rpc_error(self, port_label: str, error: capnp.KjException) -> OutputPortWriteError:
-        description = kj_exception_description(error)
-        logger.error("%s RPC exception writing output port '%s': %s", self.name, port_label, description)
-        return OutputPortWriteError(self.name, port_label, description)
-
-    async def _read_connected_port(
-        self,
-        *,
-        port: ReaderClient,
-        port_label: str,
-        on_disconnect: Callable[[], None],
-    ) -> IPReader | None:
-        if self._stop_requested.is_set():
-            return None
-
-        await self.transition_to_activity("waitingInput", port_label)
-        read_task = asyncio.ensure_future(port.read())
-        try:
-            done_tasks, stopped = await wait_for_tasks_or_stop({read_task}, self._stop_requested)
-            if stopped:
-                if read_task not in done_tasks:
-                    await cancel_tasks((read_task,))
-                    return None
-                _ = await read_task
-                return None
-
-            msg = await read_task
-            await self.transition_to_activity("processing")
-            if msg.which() == "done":
-                on_disconnect()
-                return None
-            return msg.value.as_struct(fbp_capnp.IP)
-        except asyncio.CancelledError:
-            await cancel_tasks((read_task,))
-            raise
-        except capnp.KjException as e:
-            on_disconnect()
-            if self._stop_requested.is_set():
-                return None
-            raise self._input_port_rpc_error(port_label, e) from e
-
-    async def _read_in_raw(self, name: str) -> IPReader | None:
-        port = self.in_ports.get(name)
-        if port is None:
-            return None
-        return await self._read_connected_port(
-            port=port,
-            port_label=name,
-            on_disconnect=lambda: self._clear_in_port(name),
-        )
+        return await self._input_runtime.read_in_chunked_stream(name)
 
     async def update_config_from_port(self, name: str = "conf") -> bool:
-        in_msg = await self._read_in_raw(name)
+        in_msg = await self._input_runtime.read_in_raw(name)
         if in_msg is None:
             return False
 
@@ -693,97 +623,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
     ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
-        strategy = ArrayInStrategy(strategy)
-        if self._stop_requested.is_set():
-            return None
-
-        ports = self.array_in_ports.get(name)
-        if not ports:
-            return None
-
-        active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
-        if not active_ports:
-            return None
-
-        if strategy == ArrayInStrategy.NEXT_AVAILABLE:
-            next_result = await self._read_array_in_next_available(name, active_ports, ports)
-            if next_result is None:
-                return None
-
-            port_index, in_ip = next_result
-            await self.transition_to_activity("processing")
-            if in_ip.type == "openBracket":
-                msg = (
-                    f"{self.name} received a chunked payload on array input port '{name}[{port_index}]'; "
-                    "use read_array_in_chunked instead."
-                )
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
-            if in_ip.type == "closeBracket":
-                msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
-            return in_ip
-
-        ordered_results = await self._read_array_zip_raw(name, active_ports, ports)
-        if ordered_results is None:
-            return None
-
-        bracketed_results = [ip for ip in ordered_results if ip.type in ("openBracket", "closeBracket")]
-        if bracketed_results:
-            msg = f"{self.name} received a chunked payload on array input port '{name}'; use read_array_in_chunked."
-            raise InputPortReadError(self.name, name, msg)
-        return ordered_results
-
-    async def _read_array_in_next_available(
-        self,
-        name: str,
-        active_ports: list[tuple[int, ReaderClient]],
-        ports: ArrayReaderPorts,
-    ) -> tuple[int, IPReader] | None:
-        buffers = self._array_in_buffers.setdefault(name, {})
-        if buffers:
-            port_index = next(iter(buffers))
-            return port_index, buffers.pop(port_index)
-
-        while active_ports:
-            read_tasks: dict[asyncio.Future[ReadResult], int] = {
-                asyncio.ensure_future(port.read()): i for i, port in active_ports
-            }
-            await self.transition_to_activity("waitingInput", name)
-
-            try:
-                done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self._stop_requested)
-                if stopped:
-                    await cancel_tasks(read_tasks)
-                    return None
-
-                for task in done_tasks:
-                    read_task = cast("asyncio.Future[ReadResult]", task)
-                    port_index = read_tasks.pop(read_task)
-                    try:
-                        msg = await read_task
-                    except capnp.KjException as e:
-                        ports[port_index] = None
-                        if self._stop_requested.is_set():
-                            continue
-                        raise self._input_port_rpc_error(f"{name}[{port_index}]", e) from e
-
-                    if msg.which() == "done":
-                        ports[port_index] = None
-                    else:
-                        buffers[port_index] = msg.value.as_struct(fbp_capnp.IP)
-
-                await cancel_tasks(read_tasks)
-                if buffers:
-                    port_index = next(iter(buffers))
-                    return port_index, buffers.pop(port_index)
-
-                active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
-            except asyncio.CancelledError:
-                await cancel_tasks(read_tasks)
-                raise
-            except Exception:
-                await cancel_tasks(read_tasks)
-                raise
+        return await self._input_runtime.read_array_in_any(name, strategy)
 
     @overload
     async def read_array_in_chunked(
@@ -804,227 +644,16 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
     ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
-        strategy = ArrayInStrategy(strategy)
-        if self._stop_requested.is_set():
-            return None
-
-        ports = self.array_in_ports.get(name)
-        if not ports:
-            return None
-
-        active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
-        if not active_ports:
-            return None
-
-        if strategy == ArrayInStrategy.NEXT_AVAILABLE:
-            next_result = await self._read_array_in_next_available(name, active_ports, ports)
-            if next_result is None:
-                return None
-
-            port_index, in_ip = next_result
-            await self.transition_to_activity("processing")
-            port = ports[port_index]
-            read_next_ip = (
-                (lambda: self._read_array_port_raw(name, port_index, port))
-                if in_ip.type == "openBracket" and port is not None
-                else (lambda: self._read_in_raw(name))
-            )
-            return await self._coalesce_chunked_input(name, f"{name}[{port_index}]", in_ip, read_next_ip)
-
-        ordered_results = await self._read_array_zip_raw(name, active_ports, ports)
-        if ordered_results is None:
-            return None
-        return await self._coalesce_chunked_array_results(name, active_ports, ports, ordered_results)
-
-    async def _read_array_zip_raw(
-        self,
-        name: str,
-        active_ports: list[tuple[int, ReaderClient]],
-        ports: ArrayReaderPorts,
-    ) -> list[IPReader | IPBuilder] | None:
-        read_tasks: dict[asyncio.Future[ReadResult], int] = {
-            asyncio.ensure_future(port.read()): i for i, port in active_ports
-        }
-        results: dict[int, IPReader] = {}
-        zip_finished = False
-        await self.transition_to_activity("waitingInput", name)
-
-        try:
-            while read_tasks:
-                done_tasks, stopped = await wait_for_tasks_or_stop(read_tasks, self._stop_requested)
-                if stopped:
-                    await cancel_tasks(read_tasks)
-                    return None
-
-                for task in done_tasks:
-                    read_task = cast("asyncio.Future[ReadResult]", task)
-                    port_index = read_tasks.pop(read_task)
-                    try:
-                        msg = await read_task
-                    except capnp.KjException as e:
-                        ports[port_index] = None
-                        if self._stop_requested.is_set():
-                            zip_finished = True
-                            continue
-                        raise self._input_port_rpc_error(f"{name}[{port_index}]", e) from e
-
-                    if msg.which() == "done":
-                        ports[port_index] = None
-                        zip_finished = True
-                    else:
-                        results[port_index] = msg.value.as_struct(fbp_capnp.IP)
-
-                if zip_finished:
-                    await cancel_tasks(read_tasks)
-                    await self.transition_to_activity("processing")
-                    return None
-
-            await self.transition_to_activity("processing")
-            return cast("list[IPReader | IPBuilder]", [results[i] for i, _port in active_ports])
-        except asyncio.CancelledError:
-            await cancel_tasks(read_tasks)
-            raise
-        except Exception:
-            await cancel_tasks(read_tasks)
-            raise
-
-    async def _coalesce_chunked_array_results(
-        self,
-        name: str,
-        active_ports: list[tuple[int, ReaderClient]],
-        ports: ArrayReaderPorts,
-        first_messages: list[IPReader | IPBuilder],
-    ) -> list[IPReader | IPBuilder]:
-        coalesced: list[IPReader | IPBuilder] = []
-        for (port_index, port), first_ip in zip(active_ports, first_messages, strict=True):
-            if first_ip.type == "openBracket":
-                coalesced.append(
-                    await self._coalesce_chunked_input(
-                        name,
-                        f"{name}[{port_index}]",
-                        first_ip,
-                        lambda port=port, port_index=port_index: self._read_array_port_raw(name, port_index, port),
-                    )
-                )
-            elif first_ip.type == "closeBracket":
-                msg = f"{self.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
-                raise InputPortReadError(self.name, f"{name}[{port_index}]", msg)
-            else:
-                coalesced.append(first_ip)
-        return coalesced
-
-    async def _read_array_port_raw(
-        self,
-        name: str,
-        port_index: int,
-        port: ReaderClient,
-    ) -> IPReader | None:
-        return await self._read_connected_port(
-            port=port,
-            port_label=f"{name}[{port_index}]",
-            on_disconnect=lambda: self._clear_array_in_port(name, port_index),
-        )
-
-    async def _coalesce_chunked_input(
-        self,
-        name: str,
-        port_label: str,
-        in_ip: IPReader | IPBuilder,
-        read_next_ip: Callable[[], Awaitable[IPReader | None]],
-    ) -> IPReader | IPBuilder:
-        if in_ip.type == "openBracket":
-            stream = await self._chunked_stream_for_ip(name, port_label, in_ip, read_next_ip)
-            return await stream.collect_blob()
-        if in_ip.type == "closeBracket":
-            msg = f"{self.name} received an unexpected closeBracket on input port '{port_label}'."
-            raise InputPortReadError(self.name, port_label, msg)
-        return in_ip
-
-    async def _chunked_stream_for_ip(
-        self,
-        name: str,
-        port_label: str,
-        in_ip: IPReader | IPBuilder,
-        read_next_ip: Callable[[], Awaitable[IPReader | None]],
-    ) -> ChunkedInputStream:
-        if in_ip.type == "closeBracket":
-            msg = f"{self.name} received an unexpected closeBracket on input port '{port_label}'."
-            raise InputPortReadError(self.name, port_label, msg)
-
-        if in_ip.type == "openBracket":
-            return ChunkedInputStream(
-                open_ip=in_ip,
-                process_name=self.name,
-                port=port_label,
-                _read_next_ip=read_next_ip,
-                _is_stopping=self._stop_requested.is_set,
-                _on_complete=lambda: self.transition_to_activity("processing", delay_processing=False),
-                content_type=_ip_content_type(in_ip),
-            )
-
-        try:
-            data, content_type = _ip_blob_payload(in_ip)
-        except (capnp.KjException, TypeError) as e:
-            msg = f"{self.name} can only read common.capnp:Blob chunked payloads on input port '{port_label}'."
-            raise InputPortReadError(self.name, port_label, msg) from e
-
-        return ChunkedInputStream(
-            open_ip=in_ip,
-            process_name=self.name,
-            port=port_label,
-            _read_next_ip=lambda: asyncio.sleep(0, result=None),
-            _is_stopping=self._stop_requested.is_set,
-            _on_complete=None,
-            _single_chunk=data,
-            content_type=content_type,
-        )
+        return await self._input_runtime.read_array_in_chunked_any(name, strategy)
 
     async def write_out(self, name: str, message: IPBuilder) -> bool:
-        return await self._write_out_single(name, message)
-
-    async def _write_out_single(self, name: str, message: IPBuilder) -> bool:
-        if self._stop_requested.is_set():
-            return False
-
-        port = self.out_ports.get(name)
-        if port is None:
-            return False
-
-        try:
-            await self.transition_to_activity("waitingOutput", name)
-            await port.write(value=message)
-            await self.transition_to_activity("processing")
-            return True
-        except capnp.KjException as e:
-            self.out_ports[name] = None
-            if self._stop_requested.is_set():
-                return False
-            raise self._output_port_rpc_error(name, e) from e
+        return await self._output_runtime.write_out(name, message)
 
     async def write_out_chunked(self, name: str, message: IPBuilder) -> bool:
-        if message.type != "standard":
-            msg = f"{self.name} can only write standard IPs as chunked payloads on output port '{name}'."
-            raise OutputPortWriteError(self.name, name, msg)
-
-        try:
-            data, content_type = _ip_blob_payload(message)
-        except (capnp.KjException, TypeError) as e:
-            msg = f"{self.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
-            raise OutputPortWriteError(self.name, name, msg) from e
-
-        chunk_size = DEFAULT_BRACKETED_CHUNK_SIZE
-        chunk_count = (len(data) + chunk_size - 1) // chunk_size
-
-        async def data_chunks() -> AsyncIterator[bytes]:
-            for offset in range(0, len(data), chunk_size):
-                yield data[offset : offset + chunk_size]
-
-        return await self._write_out_chunked_stream(
+        return await self._output_runtime.write_out_chunked(
             name,
             message,
-            chunks=data_chunks(),
-            content_type=content_type,
-            chunk_count=chunk_count,
+            chunk_size=DEFAULT_BRACKETED_CHUNK_SIZE,
         )
 
     async def write_out_chunked_stream(
@@ -1034,83 +663,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         *,
         chunks: AsyncIterable[bytes],
     ) -> bool:
-        if source.type != "standard":
-            msg = f"{self.name} can only write standard IPs as chunked payloads on output port '{name}'."
-            raise OutputPortWriteError(self.name, name, msg)
-
-        try:
-            _data, content_type = _ip_blob_payload(source)
-        except (capnp.KjException, TypeError) as e:
-            msg = f"{self.name} can only chunk common.capnp:Blob payloads on output port '{name}'."
-            raise OutputPortWriteError(self.name, name, msg) from e
-
-        return await self._write_out_chunked_stream(
-            name,
-            source,
-            chunks=chunks,
-            content_type=content_type,
-        )
-
-    async def _write_out_chunked_stream(
-        self,
-        name: str,
-        source: IPBuilder,
-        *,
-        chunks: AsyncIterable[bytes],
-        content_type: str | None,
-        chunk_count: int = 0,
-    ) -> bool:
-        port = self.out_ports.get(name)
-        if port is None:
-            return False
-
-        open_ip = _bracket_ip("openBracket", source, content_type=content_type, chunk_count=chunk_count)
-        close_ip = _bracket_ip("closeBracket", source, content_type=content_type, chunk_count=chunk_count)
-        open_sent = False
-        close_sent = False
-        aborted = False
-        rpc_error: capnp.KjException | None = None
-        chunk_iterator = chunks.__aiter__()
-        aclose = cast("Callable[[], Awaitable[object]] | None", getattr(chunk_iterator, "aclose", None))
-
-        try:
-            await self.transition_to_activity("waitingOutput", name)
-            await port.write(value=open_ip)
-            open_sent = True
-            async for chunk in chunk_iterator:
-                if self._stop_requested.is_set():
-                    aborted = True
-                    break
-                chunk_ip = _chunked_blob_ip(chunk, content_type=content_type)
-                await port.write(value=chunk_ip)
-
-            if not aborted:
-                await port.write(value=close_ip)
-                close_sent = True
-            await self.transition_to_activity("processing")
-        except capnp.KjException as e:
-            rpc_error = e
-        finally:
-            if open_sent and not close_sent:
-                with suppress(capnp.KjException, RuntimeError):
-                    await port.write(value=close_ip)
-                    close_sent = True
-
-            if rpc_error is not None and self.out_ports.get(name) is port:
-                self.out_ports[name] = None
-
-            if aclose is not None:
-                try:
-                    await aclose()
-                except RuntimeError as e:
-                    logger.warning("%s chunk iterator cleanup failed on output port '%s': %s", self.name, name, e)
-
-        if rpc_error is not None:
-            if self._stop_requested.is_set():
-                return False
-            raise self._output_port_rpc_error(name, rpc_error) from rpc_error
-
-        return not aborted
+        return await self._output_runtime.write_out_chunked_stream(name, source, chunks=chunks)
 
     async def write_array_out(
         self,
@@ -1118,176 +671,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         strategy: ArrayOutStrategy | str,
         message: IPBuilder,
     ) -> bool:
-        if self._stop_requested.is_set():
-            return False
-
-        ports = self.array_out_ports.get(name)
-        if not ports:
-            return False
-
-        strategy = ArrayOutStrategy(strategy)
-        if strategy == ArrayOutStrategy.BROADCAST:
-            active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
-            if not active_ports:
-                return False
-
-            write_tasks = [
-                asyncio.create_task(
-                    self._write_array_out_port(name, i, port, message),
-                    name=f"{self.name or self.id}-{name}[{i}]-broadcast-write",
-                )
-                for i, port in active_ports
-            ]
-            try:
-                results = await asyncio.gather(*write_tasks)
-            except Exception:
-                for task in write_tasks:
-                    if not task.done():
-                        task.cancel()
-                _ = await asyncio.gather(*write_tasks, return_exceptions=True)
-                raise
-            return any(results)
-
-        if strategy == ArrayOutStrategy.NEXT_AVAILABLE:
-            return await self._write_array_out_next_available(name, ports, message)
-
-        start_index = self._array_out_next_indices.get(name, 0)
-        for offset in range(len(ports)):
-            port_index = (start_index + offset) % len(ports)
-            port = ports[port_index]
-            if port is None:
-                continue
-
-            self._array_out_next_indices[name] = (port_index + 1) % len(ports)
-            if await self._write_array_out_port(name, port_index, port, message):
-                return True
-
-        return False
-
-    def _ensure_array_out_write_task_slots(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
-    ) -> ArrayOutWriteTasks:
-        tasks = self._array_out_write_tasks.setdefault(name, [])
-        if len(tasks) < len(ports):
-            tasks.extend([None] * (len(ports) - len(tasks)))
-        return tasks
-
-    async def _consume_array_out_write_task(self, name: str, port_index: int) -> bool:
-        tasks = self._array_out_write_tasks.get(name)
-        if tasks is None or port_index >= len(tasks):
-            return False
-
-        task = tasks[port_index]
-        if task is None:
-            return False
-
-        tasks[port_index] = None
-        try:
-            return await task
-        except asyncio.CancelledError:
-            return False
-
-    async def _wait_for_next_available_array_out_port(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
-    ) -> tuple[int, WriterClient] | None:
-        tasks = self._ensure_array_out_write_task_slots(name, ports)
-        while not self._stop_requested.is_set():
-            for port_index, task in enumerate(tasks[: len(ports)]):
-                if task is not None and task.done():
-                    _ = await self._consume_array_out_write_task(name, port_index)
-
-            active_ports = [(i, port) for i, port in enumerate(ports) if port is not None]
-            if not active_ports:
-                return None
-
-            start_index = self._array_out_next_indices.get(name, 0)
-            for offset in range(len(ports)):
-                port_index = (start_index + offset) % len(ports)
-                port = ports[port_index]
-                if port is None:
-                    continue
-                if tasks[port_index] is None:
-                    self._array_out_next_indices[name] = (port_index + 1) % len(ports)
-                    return port_index, port
-
-            active_tasks: dict[asyncio.Task[bool], int] = {
-                cast("asyncio.Task[bool]", tasks[i]): i for i, _port in active_ports if tasks[i] is not None
-            }
-            if not active_tasks:
-                return None
-
-            await self.transition_to_activity("waitingOutput", name)
-            done_tasks, stopped = await wait_for_tasks_or_stop(active_tasks, self._stop_requested)
-            if stopped:
-                return None
-            await self.transition_to_activity("processing")
-            for task in done_tasks:
-                write_task = cast("asyncio.Task[bool]", task)
-                _ = await self._consume_array_out_write_task(name, active_tasks[write_task])
-
-        return None
-
-    async def _write_array_out_next_available(
-        self,
-        name: str,
-        ports: ArrayWriterPorts,
-        message: IPBuilder,
-    ) -> bool:
-        next_port = await self._wait_for_next_available_array_out_port(name, ports)
-        if next_port is None:
-            return False
-
-        port_index, port = next_port
-        tasks = self._ensure_array_out_write_task_slots(name, ports)
-        tasks[port_index] = asyncio.create_task(
-            self._write_array_out_port(name, port_index, port, message, track_activity=False),
-            name=f"{self.name or self.id}-{name}[{port_index}]-write",
-        )
-        return True
-
-    async def _write_array_out_port(
-        self,
-        name: str,
-        port_index: int,
-        port: WriterClient,
-        message: IPBuilder,
-        track_activity: bool = True,
-    ) -> bool:
-        try:
-            if track_activity:
-                await self.transition_to_activity("waitingOutput", f"{name}[{port_index}]")
-            await port.write(value=message)
-            if track_activity:
-                await self.transition_to_activity("processing")
-            return True
-        except capnp.KjException as e:
-            self.array_out_ports[name][port_index] = None
-            if self._stop_requested.is_set():
-                return False
-            raise self._output_port_rpc_error(f"{name}[{port_index}]", e) from e
+        return await self._output_runtime.write_array_out(name, strategy, message)
 
     async def close_in_ports(self):
-        for name, port in self.in_ports.items():
-            if port is not None:
-                try:
-                    await port.close()
-                    self.in_ports[name] = None
-                    logger.info("closed in port '%s'", name)
-                except (capnp.KjException, RuntimeError) as e:
-                    logger.error("%s: Exception closing in port '%s': %s", Path(__file__).name, name, e)
-        for name, ports in self.array_in_ports.items():
-            for i, port in enumerate(ports):
-                if port is not None:
-                    try:
-                        await port.close()
-                        ports[i] = None
-                        logger.info("closed array in port '%s[%s]'", name, i)
-                    except (capnp.KjException, RuntimeError) as e:
-                        logger.error("Exception closing array in port '%s[%s]': %s", name, i, e)
+        await self._input_runtime.close_in_ports()
 
     async def force_close_ports(self):
         await self.transition_to_activity("closing")
@@ -1295,46 +682,8 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         await self.close_out_ports(cancel_pending_writes=True)
         await self.transition_to_activity("none")
 
-    async def _finalize_array_out_write_tasks(self, *, cancel_pending: bool) -> None:
-        task_refs: list[tuple[str, int, asyncio.Task[bool]]] = []
-        for name, tasks in self._array_out_write_tasks.items():
-            for port_index, task in enumerate(tasks):
-                if task is None:
-                    continue
-                if task.done():
-                    _ = await self._consume_array_out_write_task(name, port_index)
-                    continue
-                if cancel_pending:
-                    _ = task.cancel()
-                task_refs.append((name, port_index, task))
-
-        if task_refs:
-            _ = await asyncio.gather(*(task for _name, _port_index, task in task_refs), return_exceptions=True)
-            for name, port_index, _task in task_refs:
-                _ = await self._consume_array_out_write_task(name, port_index)
-
     async def close_out_ports(self, *, cancel_pending_writes: bool | None = None):
-        if cancel_pending_writes is None:
-            cancel_pending_writes = self._stop_requested.is_set()
-        await self._finalize_array_out_write_tasks(cancel_pending=cancel_pending_writes)
-
-        for name, port in self.out_ports.items():
-            if port is not None:
-                try:
-                    await port.close()
-                    self.out_ports[name] = None
-                    logger.info("closed out port '%s'", name)
-                except (capnp.KjException, RuntimeError) as e:
-                    logger.error("%s: Exception closing out port '%s': %s", Path(__file__).name, name, e)
-        for name, ports in self.array_out_ports.items():
-            for i, port in enumerate(ports):
-                if port is not None:
-                    try:
-                        await port.close()
-                        ports[i] = None
-                        logger.info("closed array out port '%s[%s]'", name, i)
-                    except (capnp.KjException, RuntimeError) as e:
-                        logger.error("Exception closing array out port '%s[%s]': %s", name, i, e)
+        await self._output_runtime.close_out_ports(cancel_pending_writes=cancel_pending_writes)
 
     async def serve(
         self,
