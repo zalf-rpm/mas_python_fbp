@@ -315,7 +315,7 @@ def test_process_stop_timeout_returns_false_while_task_is_still_stopping() -> No
     asyncio.run(run_test())
 
 
-def test_unexpected_input_port_failure_fails_process_and_records_last_error() -> None:
+def test_unexpected_input_port_failure_fails_process_and_records_last_run() -> None:
     async def run_test() -> None:
         component = _ReadOnceProcess(metadata=_standard_port_meta())
         component.in_ports["in"] = cast("Any", _BrokenReader())
@@ -323,12 +323,13 @@ def test_unexpected_input_port_failure_fails_process_and_records_last_error() ->
         assert await component.start(RPC_CONTEXT) is True
         await _wait_for_state(component, "failed")
 
-        error_info = await component.lastError(RPC_CONTEXT)
-        assert error_info.hasError is True
-        assert error_info.phase == "read"
-        assert error_info.port == "in"
-        assert error_info.errorType == "InputPortReadError"
-        assert error_info.causeType == "KjException"
+        run_info = await component.lastRun(RPC_CONTEXT)
+        assert run_info.hasRunInfo is True
+        assert run_info.outcome == "failed"
+        assert run_info.phase == "read"
+        assert run_info.port == "in"
+        assert run_info.detailType == "InputPortReadError"
+        assert run_info.causeType == "KjException"
 
     asyncio.run(run_test())
 
@@ -347,9 +348,10 @@ def test_component_can_catch_input_port_failure_inside_run() -> None:
 
         assert component.caught_error is True
         assert component.context.status.process_state == "idle"
-        error_info = await component.lastError(RPC_CONTEXT)
-        assert error_info.hasError is False
-        assert error_info.phase == "unknown"
+        run_info = await component.lastRun(RPC_CONTEXT)
+        assert run_info.hasRunInfo is True
+        assert run_info.outcome == "completed"
+        assert run_info.phase == "unknown"
 
     asyncio.run(run_test())
 
@@ -911,8 +913,8 @@ def test_record_error_keeps_full_multiline_traceback() -> None:
         msg = "multiline runtime error should have been raised"
         raise AssertionError(msg)
 
-    assert component.context.lifecycle.last_error is not None
-    formatted_traceback = "".join(component.context.lifecycle.last_error.traceback or [])
+    assert component.context.lifecycle.last_run is not None
+    formatted_traceback = "".join(component.context.lifecycle.last_run.traceback or [])
     assert "if not _always_fail(" in formatted_traceback
     assert '"a",' in formatted_traceback
     assert '"h",' in formatted_traceback

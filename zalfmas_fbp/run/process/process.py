@@ -35,7 +35,8 @@ if TYPE_CHECKING:
     )
     from mas.schema.fbp.fbp_capnp.types.enums import (
         ProcessActivityStateEnum,
-        ProcessErrorInfoPhaseEnum,
+        ProcessRunInfoOutcomeEnum,
+        ProcessRunInfoPhaseEnum,
         ProcessStateEnum,
     )
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
@@ -169,7 +170,19 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self._config_runtime.apply_config_values(config_values)
 
     @staticmethod
-    def _schema_error_phase(phase: str) -> ProcessErrorInfoPhaseEnum:
+    def _schema_run_outcome(outcome: str) -> ProcessRunInfoOutcomeEnum:
+        match outcome:
+            case "completed":
+                return "completed"
+            case "stopped":
+                return "stopped"
+            case "failed":
+                return "failed"
+            case _:
+                return "none"
+
+    @staticmethod
+    def _schema_run_phase(phase: str) -> ProcessRunInfoPhaseEnum:
         match phase:
             case "config":
                 return "config"
@@ -184,22 +197,23 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             case _:
                 return "unknown"
 
-    def _last_error_message(self):
-        last_error = self.context.lifecycle.last_error
-        if last_error is None:
-            return fbp_capnp.Process.ErrorInfo.new_message(hasError=False)
+    def _last_run_message(self):
+        last_run = self.context.lifecycle.last_run
+        if last_run is None:
+            return fbp_capnp.Process.RunInfo.new_message(hasRunInfo=False)
 
-        return fbp_capnp.Process.ErrorInfo.new_message(
-            hasError=True,
-            processId=last_error.process_id or "",
-            processName=last_error.process_name or "",
-            phase=self._schema_error_phase(last_error.phase),
-            port=last_error.port or "",
-            errorType=last_error.error_type,
-            message=last_error.message,
-            causeType=last_error.cause_type or "",
-            causeMessage=last_error.cause_message or "",
-            traceback=last_error.traceback or [],
+        return fbp_capnp.Process.RunInfo.new_message(
+            hasRunInfo=True,
+            processId=last_run.process_id or "",
+            processName=last_run.process_name or "",
+            outcome=self._schema_run_outcome(last_run.outcome),
+            phase=self._schema_run_phase(last_run.phase),
+            port=last_run.port or "",
+            detailType=last_run.detail_type,
+            message=last_run.message,
+            causeType=last_run.cause_type or "",
+            causeMessage=last_run.cause_message or "",
+            traceback=last_run.traceback or [],
         )
 
     @property
@@ -303,10 +317,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             self.context.status.activity_transition_callbacks.append(transitionCallback)
         return self._state_runtime.activity_message()
 
-    # lastError @9 () -> (info :ErrorInfo);
+    # lastRun @9 () -> (info :RunInfo);
     @override
-    async def lastError(self, _context, **kwargs):
-        return self._last_error_message()
+    async def lastRun(self, _context, **kwargs):
+        return self._last_run_message()
 
     @property
     def stopping(self) -> bool:
@@ -443,4 +457,3 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
                 await server.serve_forever()
         finally:
             await self._lifecycle_runtime.force_close_ports()
-            await self.transition_to_state("closed")

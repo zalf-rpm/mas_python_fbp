@@ -3,6 +3,7 @@ from .errors import (
     OutputPortWriteError,
     ProcessConfigError,
     ProcessErrorInfo,
+    ProcessRunInfo,
     ProcessRuntimeError,
 )
 from .io.chunked_io import (
@@ -45,6 +46,7 @@ __all__ = [
     "ProcessConfig",
     "ProcessConfigError",
     "ProcessErrorInfo",
+    "ProcessRunInfo",
     "ProcessRuntimeError",
     "RawConfig",
     "StateTransition",

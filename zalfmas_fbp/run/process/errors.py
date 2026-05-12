@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 class ProcessRuntimeError(RuntimeError):
@@ -28,13 +29,17 @@ class OutputPortWriteError(ProcessRuntimeError):
 
 
 @dataclass
-class ProcessErrorInfo:
+class ProcessRunInfo:
     process_id: str | None
     process_name: str | None
+    outcome: Literal["none", "completed", "stopped", "failed"]
     phase: str
     port: str | None
-    error_type: str
+    detail_type: str
     message: str
     cause_type: str | None = None
     cause_message: str | None = None
     traceback: list[str] | None = None
+
+
+ProcessErrorInfo = ProcessRunInfo

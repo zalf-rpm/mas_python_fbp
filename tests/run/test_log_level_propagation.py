@@ -230,7 +230,7 @@ def test_process_factory_create_returns_process_handle(monkeypatch: Any) -> None
         monkeypatch.setattr(
             local_components_service.process,
             "start_local_process_component",
-            lambda *_args, **_kwargs: proc,
+            lambda *_args, **kwargs: proc,
         )
 
         factory = local_components_service.ProcessFactory(

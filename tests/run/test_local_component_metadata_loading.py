@@ -78,7 +78,7 @@ def test_load_component_metadata_refreshes_legacy_cached_metadata(monkeypatch: p
 
     stdout = json.dumps(_flat_standard_metadata(category={"id": "console", "name": "Console"}))
 
-    def fake_run(*_args: Any, **_kwargs: Any) -> SimpleNamespace:
+    def fake_run(*_args: Any, **kwargs: Any) -> SimpleNamespace:
         return SimpleNamespace(stdout=stdout)
 
     monkeypatch.setattr(local_components_service.sp, "run", fake_run)

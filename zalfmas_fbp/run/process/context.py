@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
-from .errors import ProcessErrorInfo
+from .errors import ProcessRunInfo
 from .types import ArrayOutWriteTasks, ArrayReaderPorts, ArrayWriterPorts, ProcessConfig, RawConfig
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class ProcessPortState:
 class ProcessLifecycleState:
     run_task: asyncio.Task[None] | None = None
     run_exception: BaseException | None = None
-    last_error: ProcessErrorInfo | None = None
+    last_run: ProcessRunInfo | None = None
     stop_requested: asyncio.Event = field(default_factory=asyncio.Event)
     soft_stop_timeout_seconds: float = 30.0
 

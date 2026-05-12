@@ -50,7 +50,7 @@ class PortDisconnect(fbp_capnp.Process.Disconnect.Server):
         self.disconnected: bool = False
 
     @override
-    async def disconnect(self, _context, **_kwargs) -> bool:
+    async def disconnect(self, _context, **kwargs) -> bool:
         if self.disconnected or self.port is None:
             return False
 
