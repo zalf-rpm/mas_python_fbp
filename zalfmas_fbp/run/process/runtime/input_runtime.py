@@ -21,7 +21,6 @@ from zalfmas_fbp.run.process.types import ArrayInStrategy, ArrayReaderPorts
 from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
@@ -91,7 +90,7 @@ class InputRuntime:
                 active_ports.append((index, port))
         return active_ports
 
-    async def read_in(self, name: str) -> IPReader | IPBuilder | None:
+    async def read_in(self, name: str) -> IPReader | None:
         in_ip = await self.read_in_raw(name)
         if in_ip is None:
             return None
@@ -106,7 +105,7 @@ class InputRuntime:
 
         return in_ip
 
-    async def read_in_chunked(self, name: str) -> IPReader | IPBuilder | None:
+    async def read_in_chunked(self, name: str) -> IPReader | None:
         in_ip = await self.read_in_raw(name)
         if in_ip is None:
             return None
@@ -169,27 +168,27 @@ class InputRuntime:
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | None: ...
+    ) -> list[IPReader] | None: ...
 
     @overload
     async def read_array_in(
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | IPBuilder | None: ...
+    ) -> IPReader | None: ...
 
     async def read_array_in(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         return await self.read_array_in_any(name, strategy)
 
     async def read_array_in_any(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         strategy = ArrayInStrategy(strategy)
         if self.stop_event.is_set():
             return None
@@ -288,27 +287,27 @@ class InputRuntime:
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | None: ...
+    ) -> list[IPReader] | None: ...
 
     @overload
     async def read_array_in_chunked(
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | IPBuilder | None: ...
+    ) -> IPReader | None: ...
 
     async def read_array_in_chunked(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         return await self.read_array_in_chunked_any(name, strategy)
 
     async def read_array_in_chunked_any(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         strategy = ArrayInStrategy(strategy)
         if self.stop_event.is_set():
             return None
@@ -346,7 +345,7 @@ class InputRuntime:
         name: str,
         active_ports: list[tuple[int, ReaderClient]],
         ports: ArrayReaderPorts,
-    ) -> list[IPReader | IPBuilder] | None:
+    ) -> list[IPReader] | None:
         read_tasks: dict[asyncio.Future[ReadResult], int] = {
             asyncio.ensure_future(port.read()): index for index, port in active_ports
         }
@@ -386,7 +385,7 @@ class InputRuntime:
                     return None
 
             await self._activity.transition_to_activity("processing")
-            return cast("list[IPReader | IPBuilder]", [results[index] for index, _port in active_ports])
+            return [results[index] for index, _port in active_ports]
         except asyncio.CancelledError:
             await _cancel_tasks(read_tasks)
             raise
@@ -398,9 +397,9 @@ class InputRuntime:
         self,
         name: str,
         active_ports: list[tuple[int, ReaderClient]],
-        first_messages: list[IPReader | IPBuilder],
-    ) -> list[IPReader | IPBuilder]:
-        coalesced: list[IPReader | IPBuilder] = []
+        first_messages: list[IPReader],
+    ) -> list[IPReader]:
+        coalesced: list[IPReader] = []
         for (port_index, port), first_ip in zip(active_ports, first_messages, strict=True):
             if first_ip.type == "openBracket":
                 coalesced.append(
@@ -432,9 +431,9 @@ class InputRuntime:
     async def coalesce_chunked_input(
         self,
         port_label: str,
-        in_ip: IPReader | IPBuilder,
+        in_ip: IPReader,
         read_next_ip: Callable[[], Awaitable[IPReader | None]],
-    ) -> IPReader | IPBuilder:
+    ) -> IPReader:
         if in_ip.type == "openBracket":
             stream = await self.chunked_stream_for_ip(port_label, in_ip, read_next_ip)
             return await stream.collect_blob()
@@ -446,7 +445,7 @@ class InputRuntime:
     async def chunked_stream_for_ip(
         self,
         port_label: str,
-        in_ip: IPReader | IPBuilder,
+        in_ip: IPReader,
         read_next_ip: Callable[[], Awaitable[IPReader | None]],
     ) -> ChunkedInputStream:
         if in_ip.type == "closeBracket":

@@ -24,6 +24,7 @@ from .state_runtime import ProcessActivityContext
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
     from mas.schema.fbp.fbp_capnp.types.clients import WriterClient
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class OutputRuntime:
             tasks.extend([None] * (len(ports) - len(tasks)))
         return tasks
 
-    async def write_out(self, name: str, message: IPBuilder) -> bool:
+    async def write_out(self, name: str, message: IPBuilder | IPReader) -> bool:
         if self.stop_event.is_set():
             return False
 
@@ -108,7 +109,7 @@ class OutputRuntime:
     async def write_out_chunked(
         self,
         name: str,
-        message: IPBuilder,
+        message: IPBuilder | IPReader,
         *,
         chunk_size: int = DEFAULT_BRACKETED_CHUNK_SIZE,
     ) -> bool:
@@ -139,7 +140,7 @@ class OutputRuntime:
     async def write_out_chunked_stream(
         self,
         name: str,
-        source: IPBuilder,
+        source: IPBuilder | IPReader,
         *,
         chunks: AsyncIterable[bytes],
         content_type: str | None = None,
@@ -218,7 +219,7 @@ class OutputRuntime:
         self,
         name: str,
         strategy: ArrayOutStrategy | str,
-        message: IPBuilder,
+        message: IPBuilder | IPReader,
     ) -> bool:
         if self.stop_event.is_set():
             return False
@@ -329,7 +330,7 @@ class OutputRuntime:
         self,
         name: str,
         ports: ArrayWriterPorts,
-        message: IPBuilder,
+        message: IPBuilder | IPReader,
     ) -> bool:
         next_port = await self.wait_for_next_available_array_out_port(name, ports)
         if next_port is None:
@@ -348,7 +349,7 @@ class OutputRuntime:
         name: str,
         port_index: int,
         port: WriterClient,
-        message: IPBuilder,
+        message: IPBuilder | IPReader,
         track_activity: bool = True,
     ) -> bool:
         try:

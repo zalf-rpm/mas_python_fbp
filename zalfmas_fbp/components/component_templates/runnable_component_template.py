@@ -90,7 +90,7 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             text = in_ip.content.as_text()
-            out_ip = fbp_capnp.IP.new_message(content=f'{config["prefix"]}{text}')
+            out_ip = fbp_capnp.IP.new_message(content=f"{config['prefix']}{text}")
             common.copy_and_set_fbp_attrs(in_ip, out_ip, **_extra_attributes(config))
             await pc.out_ports["out"].write(value=out_ip)
 

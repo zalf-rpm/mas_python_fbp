@@ -4,6 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
 import capnp
+from capnp.lib.capnp import _DynamicStructReader
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
@@ -751,6 +752,7 @@ def test_read_in_chunked_coalesces_chunks() -> None:
     message = asyncio.run(component.read_in_chunked("in"))
 
     assert message is not None
+    assert isinstance(message, _DynamicStructReader)
     assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
 
 
@@ -779,6 +781,7 @@ def test_read_in_chunked_remains_waiting_input_until_close_bracket() -> None:
 
         message = await read_task
         assert message is not None
+        assert isinstance(message, _DynamicStructReader)
         assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
         assert component.context.status.activity_state == "processing"
         assert component.context.status.activity_port == ""
@@ -815,6 +818,7 @@ def test_read_array_in_chunked_remains_waiting_input_until_close_bracket() -> No
 
         message = await read_task
         assert message is not None
+        assert isinstance(message, _DynamicStructReader)
         assert bytes(message.content.as_struct(common_capnp.Blob).data) == b"payload"
         assert component.context.status.activity_state == "processing"
         assert component.context.status.activity_port == ""
@@ -898,6 +902,39 @@ def test_write_out_chunked_stream_closes_async_generator_when_aborted() -> None:
 
         assert await component.write_out_chunked_stream("out", source, chunks=chunks()) is False
         assert closed.is_set()
+
+    asyncio.run(run_test())
+
+
+def test_chunked_read_returns_reader_and_can_be_written_directly() -> None:
+    async def run_test() -> None:
+        component = process.Process(metadata=_standard_port_meta())
+        open_ip = fbp_capnp.IP.new_message(type="openBracket")
+        open_ip.attributes = [{"key": "source", "value": "upstream"}]  # pyright: ignore[reportArgumentType]
+        close_ip = fbp_capnp.IP.new_message(type="closeBracket")
+        writer = InMemoryWriter()
+        component.in_ports["in"] = cast(
+            "Any",
+            InMemoryReader(
+                [
+                    PortMessage(PortValue(open_ip)),
+                    PortMessage(PortValue(_data_ip(b"payload"))),
+                    PortMessage(PortValue(close_ip)),
+                    done_message(),
+                ],
+            ),
+        )
+        component.out_ports["out"] = cast("Any", writer)
+
+        message = await component.read_in_chunked("in")
+
+        assert message is not None
+        assert isinstance(message, _DynamicStructReader)
+        assert await component.write_out("out", message) is True
+        assert len(writer.values) == 1
+        assert bytes(writer.values[0].content.as_struct(common_capnp.Blob).data) == b"payload"
+        assert writer.values[0].attributes[0].key == "source"
+        assert writer.values[0].attributes[0].value.as_text() == "upstream"
 
     asyncio.run(run_test())
 

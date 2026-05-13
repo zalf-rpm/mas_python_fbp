@@ -348,10 +348,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     def stopping(self) -> bool:
         return self.context.lifecycle.stop_requested.is_set()
 
-    async def read_in(self, name: str) -> IPReader | IPBuilder | None:
+    async def read_in(self, name: str) -> IPReader | None:
         return await self._input_runtime.read_in(name)
 
-    async def read_in_chunked(self, name: str) -> IPReader | IPBuilder | None:
+    async def read_in_chunked(self, name: str) -> IPReader | None:
         return await self._input_runtime.read_in_chunked(name)
 
     async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
@@ -376,20 +376,20 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | None: ...
+    ) -> list[IPReader] | None: ...
 
     @overload
     async def read_array_in(
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | IPBuilder | None: ...
+    ) -> IPReader | None: ...
 
     async def read_array_in(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         return await self._input_runtime.read_array_in_any(name, strategy)
 
     @overload
@@ -397,26 +397,26 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | None: ...
+    ) -> list[IPReader] | None: ...
 
     @overload
     async def read_array_in_chunked(
         self,
         name: str,
         strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | IPBuilder | None: ...
+    ) -> IPReader | None: ...
 
     async def read_array_in_chunked(
         self,
         name: str,
         strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
-    ) -> list[IPReader | IPBuilder] | IPReader | IPBuilder | None:
+    ) -> list[IPReader] | IPReader | None:
         return await self._input_runtime.read_array_in_chunked_any(name, strategy)
 
-    async def write_out(self, name: str, message: IPBuilder) -> bool:
+    async def write_out(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out(name, message)
 
-    async def write_out_chunked(self, name: str, message: IPBuilder) -> bool:
+    async def write_out_chunked(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out_chunked(
             name,
             message,
@@ -426,7 +426,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     async def write_out_chunked_stream(
         self,
         name: str,
-        source: IPBuilder,
+        source: IPBuilder | IPReader,
         *,
         chunks: AsyncIterable[bytes],
     ) -> bool:
@@ -436,7 +436,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         self,
         name: str,
         strategy: ArrayOutStrategy | str,
-        message: IPBuilder,
+        message: IPBuilder | IPReader,
     ) -> bool:
         return await self._output_runtime.write_array_out(name, strategy, message)
 

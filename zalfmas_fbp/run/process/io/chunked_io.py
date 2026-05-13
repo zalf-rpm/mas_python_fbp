@@ -88,7 +88,7 @@ def bracket_ip(
 
 @dataclass
 class ChunkedInputStream:
-    open_ip: IPReader | IPBuilder
+    open_ip: IPReader
     process_name: str | None
     port: str
     _read_next_ip: Callable[[], Awaitable[IPReader | None]]
@@ -140,7 +140,7 @@ class ChunkedInputStream:
             self.content_type = chunk_content_type
         return chunk
 
-    async def collect_blob(self) -> IPBuilder:
+    async def collect_blob(self) -> IPReader:
         chunks: list[bytes] = []
         async for chunk in self:
             chunks.append(chunk)
@@ -148,4 +148,4 @@ class ChunkedInputStream:
             b"".join(chunks),
             content_type=self.content_type,
             source=self.open_ip,
-        )
+        ).as_reader()
