@@ -12,8 +12,7 @@ dependencies = [
   "matplotlib>=3.10.9,<4",
   "pycapnp>=2.2.2,<3",
   "zalfmas-common>=0.1.42,<0.2",
-  "zalfmas-capnp-schemas @ git+https://github.com/zalf-rpm/mas_capnproto_schemas@last-error",
-  "zalfmas-capnp-schemas",
+  "zalfmas-capnp-schemas>=0.1.63,<0.2",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
   "pydantic>=2.13.4,<3",
@@ -23,9 +22,20 @@ dependencies = [
   "geopandas>=1.1.3,<2",
   "pyarrow>=24.0.0,<25",
   "duckdb>=1.5.2,<2",
+  "owslib>=0.35.0,<0.36",
   "boto3>=1.43.6,<2",
-  "types-boto3-s3>=1.43.5,<2",
+  "types-boto3[all,s3]>=1.43.5,<2",
 ]
+
+[tool.pixi.dependencies]
+libsodium = ">=1.0.22,<2"
+pixi-pycharm = ">=0.0.11,<0.0.12"
+
+[dependency-groups]
+dev = ["ruff", "pyright", "ty"]
+
+[tool.pixi.environments]
+dev = ["dev"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -38,14 +48,8 @@ include = [{ path = "zalfmas_fbp/run/default_configs" }]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
-[tool.pixi.dependencies]
-libsodium = ">=1.0.22,<2"
-pixi-pycharm = ">=0.0.11,<0.0.12"
-pyright = ">=1.1.409,<2"
-ruff = ">=0.15.12,<0.16"
-
 # Referencing local packages in editable mode for pixi
-[tool.pixi.pypi-dependencies]
+# [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
@@ -57,14 +61,27 @@ ruff = ">=0.15.12,<0.16"
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
 # zalfmas-services = { path = "../mas_python_services", develop = true }
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.15.0"
-
 [tool.ruff]
 line-length = 120
 target-version = "py312"
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "T", "G", "BLE", "COM"]
+select = [
+  "E",
+  "F",
+  "I",
+  "UP",
+  "T",
+  "G",
+  "BLE",
+  "COM",
+  "PTH",
+  "C417",
+  "TRY",
+  "ASYNC109",
+  # "D100",
+  # "D101",
+]
+
 ignore = ["E501", "COM812"]
 
 [tool.pyright]

@@ -1,4 +1,4 @@
-FROM ghcr.io/prefix-dev/pixi:0.67.1 AS build
+FROM ghcr.io/prefix-dev/pixi:0.68.0 AS build
 
 # copy source code, pixi.toml and pixi.lock to the container
 COPY . /app
