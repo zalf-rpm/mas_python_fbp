@@ -7,6 +7,9 @@ from zalfmas_fbp.components.console.console_output import METADATA as console_ou
 from zalfmas_fbp.components.dakis.create_empty_raster import (
     METADATA as create_empty_raster_metadata,
 )
+from zalfmas_fbp.components.dakis.fetch_rbs_by_raster import (
+    METADATA as fetch_rbs_metadata,
+)
 from zalfmas_fbp.components.dakis.filter_geoparquet_by_raster import (
     METADATA as filter_geoparquet_metadata,
 )
@@ -122,6 +125,7 @@ def test_component_metadata_requires_canonical_default_config_shape() -> None:
         pytest.param(copy_metadata, id="copy"),
         pytest.param(load_balancer_metadata, id="load-balancer"),
         pytest.param(create_empty_raster_metadata, id="create-empty-raster"),
+        pytest.param(fetch_rbs_metadata, id="fetch-rbs-by-raster"),
         pytest.param(filter_geoparquet_metadata, id="filter-geoparquet-by-raster"),
         pytest.param(relabel_geoparquet_metadata, id="relabel-geoparquet"),
         pytest.param(write_geoparquet_metadata, id="write-geoparquet"),

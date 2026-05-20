@@ -38,11 +38,18 @@ from zalfmas_fbp.components.dakis.common.file_payload import (
     prepared_file_chunk_ips,
     prepared_file_ip,
 )
+from zalfmas_fbp.components.dakis.common.rbs import rbs_gml_files_to_geoparquet_bytes
 from zalfmas_fbp.components.dakis.create_empty_raster import (
     METADATA as create_empty_raster_metadata,
 )
 from zalfmas_fbp.components.dakis.create_empty_raster import (
     CreateEmptyRaster,
+)
+from zalfmas_fbp.components.dakis.fetch_rbs_by_raster import (
+    METADATA as fetch_rbs_metadata,
+)
+from zalfmas_fbp.components.dakis.fetch_rbs_by_raster import (
+    FetchRBSByRaster,
 )
 from zalfmas_fbp.components.dakis.filter_geoparquet_by_raster import (
     METADATA as filter_geoparquet_metadata,
@@ -231,6 +238,62 @@ def test_filter_geoparquet_by_raster_writes_geometries_without_optional_raster_o
     filtered = gpd.read_parquet(cast("Any", BytesIO(geoparquet_bytes)))
     assert filtered["id"].to_list() == [1, 3]
     assert _geo_metadata_from_bytes(geoparquet_bytes)["columns"]["geometry"]["crs"] is not None
+
+
+def test_fetch_rbs_by_raster_writes_geoparquet(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+    output = _geoparquet_bytes(
+        gpd.GeoDataFrame(
+            {
+                "gml_id": ["rbs-1"],
+                "ackerzahlOderGruenlandzahl": [42],
+                "geometry": [box(2, 2, 4, 4)],
+            },
+            crs="EPSG:25833",
+        ),
+    )
+
+    def fake_fetch(raster_bytes: bytes, **kwargs: Any) -> bytes:
+        captured["raster_bytes"] = raster_bytes
+        captured["config"] = kwargs["config"]
+        return output
+
+    monkeypatch.setattr("zalfmas_fbp.components.dakis.fetch_rbs_by_raster.rbs_for_raster_as_geoparquet", fake_fetch)
+
+    raster_bytes = _test_raster_bytes()
+    component = FetchRBSByRaster(fetch_rbs_metadata)
+    component.apply_config_values({"grid_size": 2, "max_cell_retries": 1})
+
+    result = run_process_component(
+        component,
+        inputs={"in": [_raster_message(raster_bytes), done_message()]},
+    )
+
+    geoparquet_bytes = _payload_bytes(_prepared_payload_from_messages(result.output().values))
+    fetched = gpd.read_parquet(cast("Any", BytesIO(geoparquet_bytes)))
+    assert fetched["gml_id"].to_list() == ["rbs-1"]
+    assert captured["raster_bytes"] == raster_bytes
+    assert captured["config"].grid_size == 2
+    assert captured["config"].retry.max_cell_retries == 1
+
+
+def test_rbs_empty_result_is_readable_geoparquet() -> None:
+    geoparquet_bytes = rbs_gml_files_to_geoparquet_bytes([])
+    frame = gpd.read_parquet(cast("Any", BytesIO(geoparquet_bytes)))
+
+    assert frame.empty
+    assert frame.columns.to_list() == [
+        "gml_id",
+        "geometry",
+        "nutzungsart",
+        "bodenart",
+        "zustandsstufe",
+        "bodenzahlOderGruenlandgrundzahl",
+        "ackerzahlOderGruenlandzahl",
+        "bodenstufe",
+    ]
+    assert frame.crs is not None
+    assert frame.crs.to_epsg() == 25833
 
 
 def test_relabel_geoparquet_maps_codes_drops_unmapped_rows_and_sets_default_priority(tmp_path: Path) -> None:
