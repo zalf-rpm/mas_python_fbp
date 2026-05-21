@@ -19,3 +19,9 @@ target "mas_python_fbp" {
     "org.opencontainers.image.documentation=https://github.com/zalf-rpm/mas_python_fbp/blob/docker/README.md"
   ]
 }
+
+target "mas_python_fbp-dev" {
+  inherits = ["mas_python_fbp"]
+  tags     = ["zalfrpm/mas_python_fbp:dev"]
+  target   = "dev"
+}

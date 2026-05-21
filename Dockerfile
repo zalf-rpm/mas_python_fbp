@@ -1,37 +1,50 @@
-FROM ghcr.io/prefix-dev/pixi:0.68.0 AS build
+FROM ghcr.io/prefix-dev/pixi:0.68.0 AS build-base
 
-# copy source code, pixi.toml and pixi.lock to the container
-COPY . /app
 WORKDIR /app
-# install git so pixi can install the dependencies
+
+COPY pyproject.toml pixi.lock poetry.lock README.md ./
+COPY zalfmas_fbp ./zalfmas_fbp
+
 RUN pixi global install git
-# assumes that you have a `prod` environment defined in your pixi.toml
-RUN pixi install
-# Create the shell-hook bash script to activate the environment
-RUN pixi shell-hook > /shell-hook.sh
 
-# extend the shell-hook script to run the command passed to the container
+FROM build-base AS prod-build
+RUN pixi install --locked --environment default
+RUN pixi shell-hook --environment default > /shell-hook.sh
 RUN echo 'exec "$@"' >> /shell-hook.sh
+COPY binaries /app/binaries
+COPY configs /app/configs
 
-FROM debian:13 AS prod
+FROM build-base AS dev-build
+RUN pixi install --locked --environment dev
+RUN pixi shell-hook --environment dev > /shell-hook.sh
+RUN echo 'exec "$@"' >> /shell-hook.sh
+COPY binaries /app/binaries
+COPY configs /app/configs
+
+FROM debian:13 AS runtime
 
 WORKDIR /app
 
 RUN useradd -m -s /bin/bash appuser
 
-# only copy the production environment into prod container
-# please note that the "prefix" (path) needs to stay the same as in the build container
-COPY --from=build /app/.pixi/envs/default /app/.pixi/envs/default
-COPY --from=build /shell-hook.sh /shell-hook.sh
-COPY --from=build /app/binaries /app/binaries
-COPY --from=build --chown=appuser:appuser /app/configs /app/configs
-COPY --from=build /app/zalfmas_fbp /app/zalfmas_fbp
 RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
 
 EXPOSE 8000
 
 USER appuser
 
-# set the entrypoint to the shell-hook script (activate the environment and run the command)
-# no more pixi needed in the prod container
+FROM runtime AS prod
+COPY --from=prod-build /app/.pixi/envs/default /app/.pixi/envs/default
+COPY --from=prod-build /shell-hook.sh /shell-hook.sh
+COPY --from=prod-build /app/binaries /app/binaries
+COPY --from=prod-build --chown=appuser:appuser /app/configs /app/configs
+COPY --from=prod-build --chown=appuser:appuser /app/zalfmas_fbp /app/zalfmas_fbp
+ENTRYPOINT ["/bin/bash", "/shell-hook.sh"]
+
+FROM runtime AS dev
+COPY --from=dev-build /app/.pixi/envs/dev /app/.pixi/envs/dev
+COPY --from=dev-build /shell-hook.sh /shell-hook.sh
+COPY --from=dev-build /app/binaries /app/binaries
+COPY --from=dev-build --chown=appuser:appuser /app/configs /app/configs
+COPY --from=dev-build --chown=appuser:appuser /app/zalfmas_fbp /app/zalfmas_fbp
 ENTRYPOINT ["/bin/bash", "/shell-hook.sh"]
