@@ -15,16 +15,32 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import override
 
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
+
+
+class Config(process.ProcessConfig):
+    lift_from_attr: str = Field(
+        "attribute_name",
+        description="Attribute to read from IP.",
+    )
+    lift_from_type: str = Field(
+        "mas.schema.some_path.some_file_capnp:Type",
+        description="Capnp struct type to read from attribute.",
+    )
+    lifted_attrs: list[str] = Field(
+        ["attr1", "attr2", "attr3"],
+        description="Attributes to lift from struct into metadata.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -36,7 +52,7 @@ METADATA = meta.Component(
         name="lift attributes",
         description="Lift attributes.",
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="conf",
@@ -55,69 +71,64 @@ METADATA = meta.Component(
             desc="The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
         ),
     ],
-    defaultConfig={
-        "lift_from_attr": meta.ConfigEntry(
-            value="name",
-            type="string",
-            desc="Attribute to read from IP.",
-        ),
-        "lift_from_type": meta.ConfigEntry(
-            value="schema.capnp:Type",
-            type="string",
-            desc="Capnp struct type to read from attribute.",
-        ),
-        "lifted_attrs": meta.ConfigEntry(
-            value=["attr1", "attr2", "attr3"],
-            type="List",
-            desc="Attributes to lift from struct into metadata.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class Component(process.Process[Config]):
+    def __init__(
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    lift_from_type = common.load_capnp_module(config["lift_from_type"])
-    lft_fieldnames = lift_from_type.schema.fieldnames
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
-    while pc.in_ports["in"] and pc.out_ports["out"]:
-        try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
+        lift_from_type, _ = common.load_capnp_module(self.config.lift_from_type)
+        lft_fieldnames = lift_from_type.schema.fieldnames
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            lift_from_attr = common.get_fbp_attr(in_ip, config["lift_from_attr"]).as_struct(lift_from_type)
+        while self.in_ports["in"] and self.out_ports["out"]:
+            try:
+                in_ip = await self.read_in("in")
+                if in_ip is None:
+                    self.in_ports["in"] = None
+                    continue
 
-            out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-            lifted_attrs = config["lifted_attrs"]
-            attrs = []
-            for attr in in_ip.attributes:
-                attrs.append(attr)
-            if lift_from_attr:
-                for l_attr_name in lifted_attrs:
-                    if l_attr_name in lft_fieldnames:
-                        attrs.append(
-                            {
-                                "key": l_attr_name,
-                                "value": lift_from_attr.__getattr__(l_attr_name),
-                            },
-                        )
-            out_ip.attributes = attrs
-            await pc.out_ports["out"].write(value=out_ip)
+                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr).as_struct(lift_from_type)
 
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
+                out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
+                attrs = []
+                for attr in in_ip.attributes:
+                    attrs.append({"key": attr.key, "value": attr.value})
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+                if lift_from_attr:
+                    for l_attr_name in self.config.lifted_attrs:
+                        if l_attr_name in lft_fieldnames:
+                            attrs.append(
+                                {
+                                    "key": l_attr_name,
+                                    "value": lift_from_attr.__getattribute__(l_attr_name),
+                                },
+                            )
+
+                out_ip.attributes = attrs  # pyright: ignore
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s process finished", self.name)
+                    return
+
+            except Exception:
+                logger.exception("%s Exception", Path(__file__).name)
+
+        logger.info("%s process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
 
 
 if __name__ == "__main__":

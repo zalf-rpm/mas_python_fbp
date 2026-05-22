@@ -13,15 +13,27 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-from typing import Any
+import logging
+from pathlib import Path
+from typing import override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+
+class Config(process.ProcessConfig):
+    to_attr: str = Field(
+        "attr",
+        description="The attribute's name to add to the outgoing message.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -33,7 +45,7 @@ METADATA = meta.Component(
         name="Add content",
         description="Add content to incoming IP, optionally moving the old to an attribute.",
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="conf",
@@ -56,56 +68,56 @@ METADATA = meta.Component(
             desc="IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
         ),
     ],
-    defaultConfig={
-        "to_attr": meta.ConfigEntry(
-            value="attr",
-            type="Text",
-            desc="The attribute's name to add to the outgoing message.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr,
-        ins=["conf", "in", "content"],
-        outs=["out"],
-    )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class Component(process.Process[Config]):
+    def __init__(
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    new_content = None
-    while pc.in_ports["in"] and (pc.in_ports["content"] or new_content) and pc.out_ports["out"]:
-        try:
-            if pc.in_ports["content"]:
-                content_msg = await pc.in_ports["content"].read()
-                if content_msg.which() == "done":
-                    pc.in_ports["content"] = None
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
+
+        new_content = None
+        while self.in_ports["in"] and (self.in_ports["content"] or new_content) and self.out_ports["out"]:
+            try:
+                if self.in_ports["content"]:
+                    content_ip = await self.read_in("content")
+                    if content_ip is None:
+                        self.in_ports["content"] = None
+                        continue
+                    new_content = content_ip.content
+
+                in_ip = await self.read_in("in")
+                if in_ip is None:
+                    self.in_ports["in"] = None
                     continue
-                content_ip = content_msg.value.as_struct(fbp_capnp.IP)
-                new_content = content_ip.content
 
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+                out_ip = fbp_capnp.IP.new_message(content=new_content)
+                if self.config.to_attr:
+                    common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: in_ip.content})
+                else:
+                    common.copy_and_set_fbp_attrs(in_ip, out_ip)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s: Could not send IP. Process finished.", self.name)
+                    return
 
-            out_ip = fbp_capnp.IP.new_message(content=new_content)
-            if config["to_attr"]:
-                common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: in_ip.content})
-            else:
-                common.copy_and_set_fbp_attrs(in_ip, out_ip)
-            await pc.out_ports["out"].write(value=out_ip)
+            except capnp.KjException as e:
+                logger.exception("%s: RPC Exception: %s", Path(__file__).name, e.description())
 
-        except capnp.KjException:
-            pass
-
-    await pc.close_out_ports()
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
 
 
 if __name__ == "__main__":

@@ -15,17 +15,26 @@
 
 import json
 import logging
-from pathlib import Path
-from typing import Any
+from typing import override
 
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
+from zalfmas_common import common
 from zalfmas_common.model import monica_io
 
-import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
+
+
+class Config(process.ProcessConfig):
+    to_attr: str | None = Field(
+        None,
+        description="Set output into this attribute.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -37,7 +46,7 @@ METADATA = meta.Component(
         name="Create MONICA JSON env",
         description="Create MONICA JSON environment.",
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="conf",
@@ -62,57 +71,57 @@ METADATA = meta.Component(
             contentType="Text (JSON)",
         ),
     ],
-    defaultConfig={
-        "to_attr": meta.ConfigEntry(
-            value=None,
-            type="Text (JSON)",
-            desc="Set output into this attribute.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr,
-        ins=["conf", "sim", "crop", "site"],
-        outs=["out"],
-    )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class Component(process.Process[Config]):
+    def __init__(
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    while pc.in_ports["sim"] and pc.in_ports["crop"] and pc.in_ports["site"] and pc.out_ports["out"]:
-        try:
-            sim = await p.read_dict_from_port_done(pc, "sim")
-            crop = await p.read_dict_from_port_done(pc, "crop")
-            site = await p.read_dict_from_port_done(pc, "site")
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
 
-            if sim and crop and site:
-                env_template = monica_io.create_env_json_from_json_config(
-                    {
-                        "crop": crop,
-                        "site": site,
-                        "sim": sim,
-                        "climate": "",
-                    },
-                )
+        while self.in_ports["sim"] and self.in_ports["crop"] and self.in_ports["site"] and self.out_ports["out"]:
+            try:
+                sim = await p.read_dict_from_port_done(self.in_ports, "sim")
+                crop = await p.read_dict_from_port_done(self.in_ports, "crop")
+                site = await p.read_dict_from_port_done(self.in_ports, "site")
 
-                out_ip = fbp_capnp.IP.new_message()
-                to_attr = config.get("to_attr")
-                if to_attr and len(to_attr.as_text()) > 0:
-                    out_ip.attributes = [{"key": to_attr.as_text(), "value": json.dumps(env_template)}]  # pyright: ignore
-                else:
-                    out_ip.content = json.dumps(env_template)
-                await pc.out_ports["out"].write(value=out_ip)
+                if sim and crop and site:
+                    env_template = monica_io.create_env_json_from_json_config(
+                        {
+                            "crop": crop,
+                            "site": site,
+                            "sim": sim,
+                            "climate": "",
+                        },
+                    )
 
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
+                    out_ip = fbp_capnp.IP.new_message()
+                    if self.config.to_attr is not None and len(self.config.to_attr) > 0:
+                        out_ip.attributes = [
+                            {"key": self.config.to_attr, "value": json.dumps(env_template)}]  # pyright: ignore
+                    else:
+                        out_ip.content = json.dumps(env_template)
+                    if not await self.write_out("out", out_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+            except Exception as e:
+                logger.exception("%s: Exception: %s", self.name, e)
+
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
 
 
 if __name__ == "__main__":

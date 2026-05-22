@@ -25,6 +25,13 @@ from typing import (
 )
 
 import capnp
+from capnp.lib.capnp import (
+    _CapabilityClient,
+    _DynamicCapabilityClient,
+    _DynamicObjectReader,
+    _InterfaceSchema,
+)
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 
 if TYPE_CHECKING:
@@ -40,7 +47,7 @@ if TYPE_CHECKING:
         ProcessStateEnum,
     )
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
-
+    from mas.schema.common.common_capnp.types.readers import StructuredTextReader
 
 from zalfmas_common import common
 
@@ -105,21 +112,19 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
                 return
 
     def __init__(
-        self,
-        metadata: ComponentMetadata | None = None,
-        con_man: common.ConnectionManager | None = None,
-        id: str | None = None,
-        name: str | None = None,
-        description: str | None = None,
+            self,
+            metadata: ComponentMetadata | None = None,
+            con_man: common.ConnectionManager | None = None,
     ):
-        common.Identifiable.__init__(self, id=id, name=name, description=description)
+        common.Identifiable.__init__(self, id=metadata.info.id, name=metadata.info.name,
+                                     description=metadata.info.description)
         common.GatewayRegistrable.__init__(self, con_man or common.ConnectionManager())
 
         metadata_config_model = self._metadata_config_model(metadata)
         if (
-            self.config_model is not None
-            and metadata_config_model is not None
-            and self.config_model is not metadata_config_model
+                self.config_model is not None
+                and metadata_config_model is not None
+                and self.config_model is not metadata_config_model
         ):
             msg = (
                 f"{type(self).__name__} defines config model {self.config_model.__name__}, "
@@ -305,10 +310,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         await self._state_runtime.transition_to_state(new_state)
 
     async def transition_to_activity(
-        self,
-        new_state: ProcessActivityStateEnum,
-        port: str | None = None,
-        delay_processing: bool = True,
+            self,
+            new_state: ProcessActivityStateEnum,
+            port: str | None = None,
+            delay_processing: bool = True,
     ) -> None:
         await self._state_runtime.transition_to_activity(new_state, port, delay_processing)
 
@@ -373,43 +378,47 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
 
     @overload
     async def read_array_in(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader] | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
+    ) -> list[IPReader] | None:
+        ...
 
     @overload
     async def read_array_in(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
+    ) -> IPReader | None:
+        ...
 
     async def read_array_in(
-        self,
-        name: str,
-        strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
+            self,
+            name: str,
+            strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
     ) -> list[IPReader] | IPReader | None:
         return await self._input_runtime.read_array_in_any(name, strategy)
 
     @overload
     async def read_array_in_chunked(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
-    ) -> list[IPReader] | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.ZIP, "zip"] = ArrayInStrategy.ZIP,
+    ) -> list[IPReader] | None:
+        ...
 
     @overload
     async def read_array_in_chunked(
-        self,
-        name: str,
-        strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
-    ) -> IPReader | None: ...
+            self,
+            name: str,
+            strategy: Literal[ArrayInStrategy.NEXT_AVAILABLE, "next_available"],
+    ) -> IPReader | None:
+        ...
 
     async def read_array_in_chunked(
-        self,
-        name: str,
-        strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
+            self,
+            name: str,
+            strategy: ArrayInStrategy | str = ArrayInStrategy.ZIP,
     ) -> list[IPReader] | IPReader | None:
         return await self._input_runtime.read_array_in_chunked_any(name, strategy)
 
@@ -424,19 +433,19 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         )
 
     async def write_out_chunked_stream(
-        self,
-        name: str,
-        source: IPBuilder | IPReader,
-        *,
-        chunks: AsyncIterable[bytes],
+            self,
+            name: str,
+            source: IPBuilder | IPReader,
+            *,
+            chunks: AsyncIterable[bytes],
     ) -> bool:
         return await self._output_runtime.write_out_chunked_stream(name, source, chunks=chunks)
 
     async def write_array_out(
-        self,
-        name: str,
-        strategy: ArrayOutStrategy | str,
-        message: IPBuilder | IPReader,
+            self,
+            name: str,
+            strategy: ArrayOutStrategy | str,
+            message: IPBuilder | IPReader,
     ) -> bool:
         return await self._output_runtime.write_array_out(name, strategy, message)
 
@@ -450,11 +459,11 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         await self._lifecycle_runtime.close_out_ports(cancel_pending_writes=cancel_pending_writes)
 
     async def serve(
-        self,
-        writer_sr: str | None = None,
-        serve_bootstrap: bool = False,
-        host: str | None = None,
-        port: int | None = None,
+            self,
+            writer_sr: str | None = None,
+            serve_bootstrap: bool = False,
+            host: str | None = None,
+            port: int | None = None,
     ):
         if writer_sr and len(writer_sr) > 0 and (writer_cap := await self.con_man.try_connect(writer_sr)) is not None:
             writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
@@ -479,3 +488,24 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
                 await server.serve_forever()
         finally:
             await self._lifecycle_runtime.force_close_ports()
+
+    # try to read capability from port or a sturdy ref out of a structured text
+    # return structured text if not a sturdy ref or else the IPReader as second element in the tuple
+    async def cast_cap_or_connect(self, anyPointerReader: _DynamicObjectReader,
+                                  interface_type: Type[_InterfaceSchema]) -> Tuple[
+        _DynamicCapabilityClient | _CapabilityClient | None, StructuredTextReader | None]:
+        try:
+            return (anyPointerReader.as_interface(interface_type), None)
+        except capnp.KjException:
+            try:
+                st = anyPointerReader.as_struct(common_capnp.StructuredText)
+                if st.type == "sturdyRef":
+                    return (await self.con_man.try_connect(st.value, retry_secs=1), None)
+                else:
+                    return (None, st)
+            except (capnp.KjException, RuntimeError, OSError, TypeError):
+                logger.exception(
+                    "%s: Error: Couldn't connect to capability from port.",
+                    self.name,
+                )
+        return (None, None)

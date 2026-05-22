@@ -15,16 +15,37 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
+from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
+
+
+class ReadFileConfig(process.ProcessConfig):
+    to_attr: str | None = Field(
+        None,
+        description="store read file content into 'to_attr'",
+    )
+    file: str | None = Field(
+        None,
+        description="Path to file to read.",
+    )
+    lines_mode: bool = Field(
+        True,
+        description="Send single lines if true else send whole file content at once.",
+    )
+    skip_lines: int = Field(
+        0,
+        description="If lines mode is true, skip that many lines at the beginning of the file.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -36,7 +57,7 @@ METADATA = meta.Component(
         name="read file",
         description="Read a file and send full string or lines downstream.",
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="conf",
@@ -50,69 +71,64 @@ METADATA = meta.Component(
             desc="Output either full file content or each line as as separate message.",
         ),
     ],
-    defaultConfig={
-        "to_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="store read file content into 'to_attr'",
-        ),
-        "file": meta.ConfigEntry(
-            value="",
-            type="string",
-            desc="Path to file to read.",
-        ),
-        "lines_mode": meta.ConfigEntry(
-            value=True,
-            type="bool",
-            desc="Send single lines if true else send whole file content at once.",
-        ),
-        "skip_lines": meta.ConfigEntry(
-            value=0,
-            type="int",
-            desc="If lines mode is true, skip that many lines at the beginning of the file.",
-        ),
-    },
+    config=ReadFileConfig,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class ReadFile(process.Process[ReadFileConfig]):
+    def __init__(
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    skip_lines = config["skip_lines"]
-    if config["file"] and pc.out_ports["out"]:
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
+
+        if self.config.file is None or not self.out_ports["out"]:
+            logger.info("%s: No filename supplied or out port closed. Process finished.", self.name)
+            return
+
         try:
-            with Path(config["file"]).open() as _:
-                if config["lines_mode"]:
-                    for line in _:
+            skip_lines = self.config.skip_lines
+            with Path(self.config.file).open() as file:
+                if self.config.lines_mode:
+                    for line in file:
                         if skip_lines > 0:
                             skip_lines -= 1
                             continue
 
                         out_ip = fbp_capnp.IP.new_message()
-                        if config["to_attr"] and len(config["to_attr"]) > 0:
-                            out_ip.attributes = [{"key": config["to_attr"], "value": line}]  # pyright: ignore
+                        if self.config.to_attr is not None and len(self.config.to_attr) > 0:
+                            out_ip.attributes = [{"key": self.config.to_attr, "value": line}]  # pyright: ignore
                         else:
                             out_ip.content = line
-                        await pc.out_ports["out"].write(value=out_ip)
+                        if not await self.write_out("out", out_ip):
+                            logger.info("%s: Could not send IP. Process finished.", self.name)
+                            return
                 else:
-                    file_content = _.read()
+                    file_content = file.read()
                     out_ip = fbp_capnp.IP.new_message()
-                    if config["to_attr"] and len(config["to_attr"]) > 0:
-                        out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]  # pyright: ignore
+                    if self.config.to_attr is not None and len(self.config.to_attr) > 0:
+                        out_ip.attributes = [{"key": self.config.to_attr, "value": file_content}]
                     else:
                         out_ip.content = file_content
-                    await pc.out_ports["out"].write(value=out_ip)
+                    if not await self.write_out("out", out_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
 
         except capnp.KjException as e:
-            logger.exception("%s: RPC Exception: %s", Path(__file__).name, e.description)
+            logger.exception("%s: RPC Exception: %s", Path(__file__).name, e.description())
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(ReadFile(METADATA), METADATA)
 
 
 if __name__ == "__main__":

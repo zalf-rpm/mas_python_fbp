@@ -15,17 +15,25 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
+
+
+class Config(process.ProcessConfig):
+    to_attr: str = Field(
+        "attr",
+        description="The attribute's name to add to the outgoing message.",
+    )
+
 
 METADATA = meta.Component(
     category=meta.Category(
@@ -37,7 +45,7 @@ METADATA = meta.Component(
         name="add attribute",
         description="Add attribute to incoming IP.",
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="conf",
@@ -60,54 +68,53 @@ METADATA = meta.Component(
             desc="IP (from in port) and attribute 'to_attr' containing content from attr port.",
         ),
     ],
-    defaultConfig={
-        "to_attr": meta.ConfigEntry(
-            value="attr",
-            type="Text",
-            desc="The attribute's name to add to the outgoing message.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr,
-        ins=["conf", "in", "attr"],
-        outs=["out"],
-    )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class Component(process.Process[Config]):
+    def __init__(
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    attr = None
-    while pc.in_ports["in"] and (pc.in_ports["attr"] or attr) and pc.out_ports["out"]:
-        try:
-            if pc.in_ports["attr"]:
-                attr_msg = await pc.in_ports["attr"].read()
-                if attr_msg.which() == "done":
-                    pc.in_ports["attr"] = None
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
+
+        attr = None
+        while self.in_ports["in"] and (self.in_ports["attr"] or attr) and self.out_ports["out"]:
+            try:
+                if self.in_ports["attr"]:
+                    attr_ip = await self.read_in("attr")
+                    if attr_ip is None:
+                        self.in_ports["attr"] = None
+                        continue
+                    attr = attr_ip.content
+
+                in_ip = await self.read_in("in")
+                if in_ip is None:
+                    self.in_ports["in"] = None
                     continue
-                attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
-                attr = attr_ip.content
 
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+                out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
+                common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s: Could not send IP. Process finished.", self.name)
+                    return
 
-            out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: attr})
-            await pc.out_ports["out"].write(value=out_ip)
+            except capnp.KjException as e:
+                logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, self.name, e.description)
 
-        except capnp.KjException as e:
-            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
-
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
 
 
 if __name__ == "__main__":
