@@ -77,9 +77,9 @@ METADATA = meta.Component(
 
 class Component(process.Process[Config]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
@@ -107,8 +107,7 @@ class Component(process.Process[Config]):
 
                     out_ip = fbp_capnp.IP.new_message()
                     if self.config.to_attr is not None and len(self.config.to_attr) > 0:
-                        out_ip.attributes = [
-                            {"key": self.config.to_attr, "value": json.dumps(env_template)}]  # pyright: ignore
+                        out_ip.attributes = [{"key": self.config.to_attr, "value": json.dumps(env_template)}]  # pyright: ignore
                     else:
                         out_ip.content = json.dumps(env_template)
                     if not await self.write_out("out", out_ip):

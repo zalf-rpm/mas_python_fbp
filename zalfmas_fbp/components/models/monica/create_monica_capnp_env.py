@@ -109,9 +109,9 @@ METADATA = meta.Component(
 
 class Component(process.Process[Config]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
@@ -157,8 +157,9 @@ class Component(process.Process[Config]):
                     if (timeseries_ip := await self.read_in("timeseries")) is None:
                         self.in_port["climate"] = None
                     else:
-                        timeseries, st_timeseries_path = await self.cast_cap_or_connect(timeseries_ip.content,
-                                                                                        climate_capnp.TimeSeries)
+                        timeseries, st_timeseries_path = await self.cast_cap_or_connect(
+                            timeseries_ip.content, climate_capnp.TimeSeries
+                        )
                         if timeseries:
                             capnp_env.timeSeries = timeseries
                             timeseries_set = True
@@ -175,8 +176,9 @@ class Component(process.Process[Config]):
                         remove=self.config.remove_timeseries_attr,
                     )
                     if is_capnp:
-                        attr_timeseries, st_timeseries_path = await self.cast_cap_or_connect(timeseries_val,
-                                                                                             climate_capnp.TimeSeries)
+                        attr_timeseries, st_timeseries_path = await self.cast_cap_or_connect(
+                            timeseries_val, climate_capnp.TimeSeries
+                        )
                         if attr_timeseries:
                             capnp_env.timeSeries = attr_timeseries
                         elif st_timeseries_path and st_timeseries_path.type == "unstructured":
@@ -195,14 +197,14 @@ class Component(process.Process[Config]):
                     if (soil_ip := await self.read_in("soil")) is None:
                         self.in_port["soil"] = None
                     else:
-                        soil_profile, soil_st = await self.cast_cap_or_connect(soil_ip.content,
-                                                                               soil_capnp.Profile)
+                        soil_profile, soil_st = await self.cast_cap_or_connect(soil_ip.content, soil_capnp.Profile)
                         if soil_profile:
                             capnp_env.soilProfile = soil_profile
                             soil_set = True
                         elif soil_st and soil_st.type == "json":
-                            json_env["params"]["siteParameters"][
-                                "SoilProfileParameters"] = soil_profile_json_array = json.loads(soil_st.value)
+                            json_env["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile_json_array = (
+                                json.loads(soil_st.value)
+                            )
                             soil_set = True
 
                 # try to set soil profile from attribute
@@ -214,8 +216,7 @@ class Component(process.Process[Config]):
                         remove=self.config.remove_soil_attr,
                     )
                     if is_capnp:
-                        attr_soil_profile, soil_st = await self.cast_cap_or_connect(soil_val,
-                                                                                    soil_capnp.Profile)
+                        attr_soil_profile, soil_st = await self.cast_cap_or_connect(soil_val, soil_capnp.Profile)
                         if attr_soil_profile:
                             capnp_env.soilProfile = attr_soil_profile
                         elif soil_st and soil_st.type == "json":

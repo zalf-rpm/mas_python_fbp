@@ -82,15 +82,15 @@ METADATA = meta.Component(
             desc="The updated JSON text.",
         ),
     ],
-    config=CompConfig
+    config=CompConfig,
 )
 
 
 class Component(process.Process[CompConfig]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
@@ -172,9 +172,9 @@ class Component(process.Process[CompConfig]):
                                         attr_dir = attr_val.__dir__()
                                         # check if this is common.capnp/StructuredText
                                         if (
-                                                "schema" in attr_dir
-                                                and attr_val.schema.node.id == 17108059578820121684
-                                                and attr_val.type == "json"
+                                            "schema" in attr_dir
+                                            and attr_val.schema.node.id == 17108059578820121684
+                                            and attr_val.type == "json"
                                         ):
                                             is_json = True
                                             attr_val = json.loads(attr_val.value)
