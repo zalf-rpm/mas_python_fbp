@@ -49,7 +49,7 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
         ),
         meta.Port(
             name="in",
@@ -65,6 +65,7 @@ METADATA = meta.Component(
     outPorts=[
         meta.Port(
             name="out",
+            contentType="AnyPointer",
             desc="IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
         ),
     ],

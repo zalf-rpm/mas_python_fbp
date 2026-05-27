@@ -33,12 +33,12 @@ class Config(process.ProcessConfig):
         description="Attribute to read from IP.",
     )
     lift_from_type: str = Field(
-        "mas.schema.some_path.some_file_capnp:Type",
-        description="Capnp struct type to read from attribute.",
+        None,
+        description="@0x123.... = some/path/some_fil._capnp:Type -> Capnp struct type to read from attribute. Not needed if the attributes valueType field is set.",
     )
     lifted_attrs: list[str] = Field(
         ["attr1", "attr2", "attr3"],
-        description="Attributes to lift from struct into metadata.",
+        description='["attr1", "attr2", "attr3"] -> Attributes to lift from struct into metadata.',
     )
 
 
@@ -56,7 +56,7 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
         ),
         meta.Port(
             name="in",
@@ -89,8 +89,10 @@ class Component(process.Process[Config]):
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
-        lift_from_type, _ = common.load_capnp_module(self.config.lift_from_type)
-        lft_fieldnames = lift_from_type.schema.fieldnames
+        lift_from_schema = None
+        if self.config.lift_from_type is not None:
+            lift_from_schema = common.schema_from_content_type_string(self.config.lift_from_type)
+        lift_fieldnames = lift_from_schema.fieldnames if lift_from_schema else []
 
         while self.in_ports["in"] and self.out_ports["out"]:
             try:
@@ -99,16 +101,16 @@ class Component(process.Process[Config]):
                     self.in_ports["in"] = None
                     continue
 
-                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr).as_struct(lift_from_type)
+                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, lift_from_schema)
 
                 out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
                 attrs = []
                 for attr in in_ip.attributes:
-                    attrs.append({"key": attr.key, "value": attr.value})
+                    attrs.append({"key": attr.key, "value": attr.value, "valueType": attr.valueType})
 
                 if lift_from_attr:
                     for l_attr_name in self.config.lifted_attrs:
-                        if l_attr_name in lft_fieldnames:
+                        if l_attr_name in lift_fieldnames:
                             attrs.append(
                                 {
                                     "key": l_attr_name,

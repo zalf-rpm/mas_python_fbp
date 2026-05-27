@@ -6,4 +6,7 @@
   <component name="RuffConfiguration">
     <option name="enabled" value="true" />
   </component>
+  <component name="TyConfiguration">
+    <option name="enabled" value="true" />
+  </component>
 </project>
