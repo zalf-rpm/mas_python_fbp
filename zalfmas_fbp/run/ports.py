@@ -39,8 +39,6 @@ ArrayWriterPorts = list["WriterClient | None"]
 logger = logging.getLogger(__name__)
 
 
-# get the value from attributes attrs if it is an attribute access, then return true in the tuple
-# else just return the original value and return false in the tuple
 def get_attr_val(
     name: Any,
     attrs: dict,
@@ -49,6 +47,25 @@ def get_attr_val(
     as_text: bool = False,
     remove: bool = True,
 ) -> tuple[Any, bool]:
+    """
+    Retrieve the value of an attribute from a given dictionary of attributes. This function
+    supports optional type conversion to various forms such as struct, interface, or text.
+
+    :param name: The name of the attribute to retrieve. It can be of any type. If it is a string
+        and starts with '@', the corresponding attribute in the dictionary is processed.
+    :param attrs: A dictionary containing the attributes.
+    :param as_struct: Specifies the type to which the attribute value should be converted using
+        the `as_struct` method, if applicable. Default is None.
+    :param as_interface: Specifies the type to which the attribute value should be converted using
+        the `as_interface` method, if applicable. Default is None.
+    :param as_text: A boolean indicating whether the attribute value should be converted
+        to text representation using the `as_text` method. Default is False.
+    :param remove: A boolean indicating whether the retrieved attribute should be removed from
+        the dictionary. Default is True.
+    :return: A tuple containing the resolved attribute value and a boolean flag indicating whether
+        the retrieval operation was successful.
+    :rtype: tuple[Any, bool]
+    """
     if type(name) is str and len(name) > 0 and name[0] == "@" and name[1:] in attrs:
         if remove:
             attr_val = attrs.pop(name[1:])
