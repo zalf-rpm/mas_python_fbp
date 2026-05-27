@@ -16,8 +16,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import override
+from typing import Any, override
 
+import capnp
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class CompConfig(process.ProcessConfig):
     types: dict[str, str] = Field(
-        {"@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"},
+        {"@setup": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"},
         description="Define the loadable type the attribute being referenced has.",
     )
     update: list[list[str | int | list[str | int]]] = Field(
@@ -67,7 +69,7 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
         ),
         meta.Port(
             name="in",
@@ -96,7 +98,7 @@ class Component(process.Process[CompConfig]):
 
     @override
     async def run(self):
-        logger.info(f"{self.name} process running")
+        logger.info("%s process running", self.name)
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
@@ -109,11 +111,16 @@ class Component(process.Process[CompConfig]):
                 attrs = {kv.key: kv.value for kv in in_ip.attributes}
                 j_content = json.loads(in_ip.content.as_text())
 
-                def as_type(attr_val, capnp_type_desc: str):
-                    if capnp_type_desc.lower() == "text":
-                        return attr_val.as_text()
-                    struct_type, _ = common.load_capnp_module(capnp_type_desc)
-                    return attr_val.as_struct(struct_type)
+                def as_type(
+                    attr_val, capnp_type_string: str
+                ) -> tuple[Any | None, capnp.lib.capnp._Schema | capnp.lib.capnp._SchemaType]:
+                    schema = common.schema_from_content_type_string(capnp_type_string)
+                    is_builtin = isinstance(schema, capnp.lib.capnp._SchemaType)
+                    if is_builtin and schema == capnp.types.Text:
+                        return attr_val.as_text(), schema
+                    elif not is_builtin:
+                        return attr_val.as_struct(schema), schema
+                    return None, schema
 
                 # allowed_operation = update | replace | add
                 # update = structures of j and spec have to match exactly
@@ -157,7 +164,8 @@ class Component(process.Process[CompConfig]):
                                 j[k] = v
                         # a list as value is treated as sub object access if the first element is an attribute (@) access
                         elif type(v) is list:
-                            # attribute access
+                            # attribute access, where the attribute referenced via @ has to be found in the IPs attributes
+                            # and this attribute necessarily has to be a capnp struct
                             if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
                                 attr_val, is_capnp = p.get_attr_val(
                                     v[0],
@@ -166,22 +174,28 @@ class Component(process.Process[CompConfig]):
                                 )
                                 # attribute sub access
                                 if is_capnp and len(v) > 1 and v[0] in self.config.types:
-                                    attr_val = as_type(attr_val, self.config.types[v[0]])
+                                    attr_val, _ = as_type(attr_val, self.config.types[v[0]])
                                     is_json = False
-                                    for field_name in v[1:]:
+                                    sub_access_len = len(v[1:])
+                                    for i, field_name in enumerate(v[1:]):
                                         attr_dir = attr_val.__dir__()
-                                        # check if this is common.capnp/StructuredText
+                                        # check if this is common.capnp/StructuredText[JSON], in that case get values
+                                        # out of a JSON dict, but only if the user didn't want to access the value directly
+                                        # (next subaccess would have been value)
                                         if (
                                             "schema" in attr_dir
-                                            and attr_val.schema.node.id == 17108059578820121684
+                                            and attr_val.schema
+                                            == common_capnp.StructuredText.schema  # 17108059578820121684
                                             and attr_val.type == "json"
+                                            and sub_access_len > (1 + i)
+                                            and v[1 + i + 1] != "value"
                                         ):
                                             is_json = True
                                             attr_val = json.loads(attr_val.value)
 
                                         # is array index
                                         if isinstance(field_name, int):
-                                            if len(attr_val) > field_name:
+                                            if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
                                                 attr_val = attr_val[field_name]
                                         # is json access
                                         elif is_json and field_name in attr_val:
@@ -204,7 +218,7 @@ class Component(process.Process[CompConfig]):
                                 remove=False,
                             )
                             if is_attr_val and spec[k] in self.config.types:
-                                attr_val = as_type(attr_val, self.config.types[spec[k]])
+                                attr_val, _ = as_type(attr_val, self.config.types[spec[k]])
                             if i and type(j) is list:
                                 j[i] = attr_val
                             else:
