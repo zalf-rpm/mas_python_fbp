@@ -1,6 +1,6 @@
 .pixi/
 .git/
-__pycache__/
+**/__pycache__
 *.py[cod]
 *.egg-info/
 .pytest_cache/
@@ -10,3 +10,4 @@ build/
 dist/
 outputs/
 resources/
+.codex

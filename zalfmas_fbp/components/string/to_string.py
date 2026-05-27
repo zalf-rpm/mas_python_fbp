@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import capnp
+from capnp import types as capnp_types
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
@@ -29,10 +31,28 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 
+def _content_to_str(c: Any, schema_or_type: Any) -> str:
+    if hasattr(schema_or_type, "as_struct"):
+        c = c.as_struct(schema_or_type.as_struct())
+    elif schema_or_type is capnp_types.Text:
+        return c.as_text()
+    elif schema_or_type is capnp_types.Void:
+        return ""
+    elif schema_or_type is capnp_types.AnyPointer:
+        return str(c)
+
+    return str(c)
+
+
 class ToStringConfig(process.ProcessConfig):
     struct_type: str | None = Field(
-        None,
-        description="A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to.",
+        "@0xed6c098b67cad454 = common/common.capnp:StructuredText",
+        description=(
+            "A Cap'n Proto content type string with a struct schema id (e.g. "
+            "'@0xed6c098b67cad454 = common/common.capnp:StructuredText') or 'Text' for "
+            "plain text content. If the incoming IP has a parseable sysAttributes.contentType, "
+            "that schema takes precedence over this configured value."
+        ),
     )
 
 
@@ -54,7 +74,7 @@ METADATA = meta.Component(
         ),
         meta.Port(
             name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
         ),
     ],
     outPorts=[
@@ -65,6 +85,17 @@ METADATA = meta.Component(
     ],
     config=ToStringConfig,
 )
+
+
+def _schema_from_content_type_string(content_type: str | None) -> Any | None:
+    if not content_type:
+        return None
+
+    try:
+        return common.schema_from_content_type_string(content_type)
+    except (AttributeError, RuntimeError, TypeError, ValueError, capnp.KjException):
+        logger.debug("Failed to parse Cap'n Proto schema from content type %r.", content_type, exc_info=True)
+        return None
 
 
 class ToString(process.Process[ToStringConfig]):
@@ -80,16 +111,7 @@ class ToString(process.Process[ToStringConfig]):
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
-        struct_type = self.config.struct_type
-        if struct_type is None:
-            t = None
-        else:
-            try:
-                t: Any
-                t, _ = common.load_capnp_module(struct_type)
-            except (AttributeError, ImportError, RuntimeError, TypeError, ValueError):
-                logger.exception("Failed to load Cap'n Proto module.")
-                t = None
+        configured_schema = _schema_from_content_type_string(self.config.struct_type)
 
         while True:
             in_msg = await self.read_in("in")
@@ -97,13 +119,17 @@ class ToString(process.Process[ToStringConfig]):
                 break
 
             c = in_msg.content
-            if t:
-                c = c.as_struct(t)
-            logger.info("%s received: %s", self.name, c)
+            resolved = _schema_from_content_type_string(process.ip_content_type(in_msg))
+            if resolved is capnp_types.AnyPointer or resolved is None:
+                resolved = configured_schema
 
-            c_str = str(c)
-            c_str = c_str.replace("<", "")
-            c_str = c_str.replace(">", "")
+            if resolved is None or resolved is capnp_types.AnyPointer:
+                c_str = str(c)
+            else:
+                c_str = _content_to_str(c, resolved)
+
+            logger.info("%s received: %s", self.name, c_str)
+
             out_ip = fbp_capnp.IP.new_message(content=c_str)
             if not await self.write_out("out", out_ip):
                 logger.info("%s process finished", self.name)
