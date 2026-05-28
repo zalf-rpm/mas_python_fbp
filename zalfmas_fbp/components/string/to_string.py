@@ -31,19 +31,6 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 
-def _content_to_str(c: Any, schema_or_type: Any) -> str:
-    if hasattr(schema_or_type, "as_struct"):
-        c = c.as_struct(schema_or_type.as_struct())
-    elif schema_or_type is capnp_types.Text:
-        return c.as_text()
-    elif schema_or_type is capnp_types.Void:
-        return ""
-    elif schema_or_type is capnp_types.AnyPointer:
-        return str(c)
-
-    return str(c)
-
-
 class ToStringConfig(process.ProcessConfig):
     struct_type: str | None = Field(
         "@0xed6c098b67cad454 = common/common.capnp:StructuredText",
@@ -96,6 +83,19 @@ def _schema_from_content_type_string(content_type: str | None) -> Any | None:
     except (AttributeError, RuntimeError, TypeError, ValueError, capnp.KjException):
         logger.debug("Failed to parse Cap'n Proto schema from content type %r.", content_type, exc_info=True)
         return None
+
+
+def _content_to_str(c: Any, schema_or_type: Any) -> str:
+    if hasattr(schema_or_type, "as_struct"):
+        c = c.as_struct(schema_or_type.as_struct())
+    elif schema_or_type is capnp_types.Text:
+        return c.as_text()
+    elif schema_or_type is capnp_types.Void:
+        return ""
+    elif schema_or_type is capnp_types.AnyPointer:
+        return str(c)
+
+    return str(c)
 
 
 class ToString(process.Process[ToStringConfig]):
