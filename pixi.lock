@@ -29,501 +29,69 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.5.20-hbd8a1cb_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/pixi-pycharm-0.0.11-unix_hf108a03_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.13-8_cp313.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
-      - pypi: https://files.pythonhosted.org/packages/00/95/279ccc8a0270ed9c8f1bd2c671e9279e375516c450e9476c1203f75b4b52/types_boto3_iot-1.43.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/00/dc/06e345d552464ae7c60a34d9531d7549ad05c7a22a72469e590b6fceee64/types_boto3_logs-1.43.9-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/01/ef/f76069188ed0249c2ea95d9fd48e1f2773b5d7ad0875e31140f79fae22fe/types_boto3_aiops-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/02/54/f2edf1b015e0eae7ee27ca8acba4b179c3418a2554fe6fb0e192d2f75284/types_boto3_ec2-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/02/e6/b6a6db283d035606cbc6d988432a7b82f09005c6c468c619c0c415da5fa7/types_boto3_personalize-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/03/32/4b7b243d81fd9ebeadbce80f21047705663f4e505106dab934df34c913b9/types_boto3_kinesis_video_webrtc_storage-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/03/ae/9d3e95f9dbe7d777b7ec9e26fc236d8e29029b6cb5131e7ae0dbc5299915/types_boto3_wellarchitected-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/03/eb/8ec9fb4e5ae0169c4f0127ea078c115a6578092bebc3bafa286528439944/types_boto3_controltower-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/04/0a/2fe1b6551949962de1793ab82ea034fb99d862f3b5f2a78646eca34affe4/types_boto3_marketplace_reporting-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/04/5b/6ca4414445b7c85e31e85ce9c6eab454b74f015147f0e84a0ae4b0540383/types_boto3_xray-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/04/73/5cc869b093b075f9515fdb9899950f8452b415f4da31cc77afbb1e1e3c57/types_boto3_resiliencehub-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/04/81/d3dedddf8061dc314c3c5f8c2714a1bbfdfb8b0aa2e19f5a4fd73563bf7f/types_boto3_migrationhub_config-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/04/83/243e011c10d797f43e49960de37b6a490402944c6d5a2284502d91f16ea3/types_boto3_apigatewayv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/07/8a/bda8e81e9edfdb63570fa142f7f6c7ca9d7bf5b4bbec8242c4832d38caf0/types_boto3_pi-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/07/af/03cf5d1a543a72f542de2062c16f44b151c37a207c117e5c730db3ef78be/types_boto3_chime_sdk_messaging-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/07/d9/ed91ee5da2a91a600c57bab34f937f82c0b2464810a07520f582a400f86e/types_boto3_marketplace_agreement-1.43.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/07/f8/41db9de19d7987d6b04715a02b3b40aea467000275d9d758ffaa31af7d50/pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/08/b3/978434b0fa872bf72567f3a61d7d31ceb3aefa1a0bb5536b1d73a18edd63/types_boto3_backup-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/09/1e/264c8118f358619c4954b94aa450279f54be02cf4d107f25aded51c9f3c7/types_boto3_guardduty-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/09/21/63528a0ae74bd1254bcb527cce4dae664c25310ea23c78cd482a1868cc56/types_boto3_tnb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/09/72/8a250262a325298209adfc2b191d48b36cd7ab97b03400af05950398df69/types_boto3_license_manager_user_subscriptions-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0b/a1/fc4223edb0efba4c1e92596f8dbf2d7370de1d75fa94469279e5267c1a14/types_boto3_forecast-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0b/f7/85273299ab57117850cc0a936c64151171fac4da49bc6fba0dad984a7c5f/affine-2.4.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0c/30/bb91d840edc5cfba4a6e0a9daa122dc936fa571bc22cddc2b6ff1c506cb6/types_boto3_codedeploy-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0d/3c/f51c1b9b2f8b6c212e15bc7e0bc2eff36ad7bb5a0cadb0cd41358550b16d/types_boto3_customer_profiles-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0d/7a/fc20c5ad10f5c8acc88fca66875635a3ac93dbc285be1398e369a89011fa/types_boto3_managedblockchain-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0d/e7/0ff499ad41b3b5315ac5f410ca17baa90b50f5e621e91119d3ce3f8d86eb/types_boto3_lexv2_models-1.43.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0f/3f/6b7b01c9f42cd299f5afe9b4b7f0f158162f186444f59f3912d5f0eabe88/types_boto3_dax-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0f/b3/4ea0fb0ee0a5ef0563300b22dc7954ee8b4b7704a869dfc1f81e0f755605/types_boto3_shield-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0f/de/09671edafac4e0171056a148e7ee21fb08d72e3d054a3d4fc0fedc54a066/types_boto3_rolesanywhere-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/10/12/c4a029defcb3f824a80e27a0a32225d29bb8cae7463dc96f9c834a3292a1/types_boto3_dynamodb-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/8f/d3ddb16c5a4befdf31a23307f72828686ab2096f068eaf56631e136c1fdd/tomli-2.4.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/d6/e83a9a303940ef08a98c695f7cdfcc389d4470664f86a52c43040ffc89db/types_boto3_lakeformation-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/12/dc/1be568fc3cbfd0fb0a628031c0e83e4336adf93c9ab82ea9149cc9b41038/types_boto3_entityresolution-1.43.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/14/04/c67376a41c18dde0b381522bcf9608be015f8f4766f76177fb136b2f106e/types_boto3_securitylake-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/15/f3/55f9e31c61f8131ed6bda2471af50a71d4d0064dab07ad9a7c487b09e64b/types_boto3_bedrock_runtime-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/16/6b/330d8ebae582b30c2959a1ef4c3bc344ebde48c2ff0c3f113c4710735e11/pyright-1.1.409-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/18/5e/89a1913fd824fa0fe51c80b35b36cf63f9006db2460c5400de11eb27e196/types_boto3_devops_guru-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/19/c1/8044d3bfd01373c9cf90c5aa897ce166e710420a9f1f06a510acdfb787ed/types_boto3_iam-1.43.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/19/ca/62491811efa0280c88ba2f9cc9cd425dd6f8974a8f1eb363a997a9f68327/types_boto3_route53domains-1.43.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1a/91/4fca2b9e260e6d4592ebc34aa464b50e25da0aa1a1e0808f8bdeb7bc9175/types_boto3_s3vectors-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1b/30/8d7bd2a3576ac564b9a6583930275ab88ddbbabcfe227a10087dd0b23fa3/types_boto3_docdb_elastic-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1b/68/2e9674b5139e8bcac974be296b6c173a56ead50966e45cac9c16ddf6a97c/types_boto3_finspace-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1b/89/5cfcd80024f8b4bc50f3c90b4984de07f46e3c80f2ffd0042cce5339f6d5/types_boto3_neptune-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1c/b0/e89178341109bdf15c2da66becd614a9292de336cec3798b4bf1557074bb/types_boto3_ssm_quicksetup-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1c/e9/a1dbc2f18533f4d61bea31619ac6f35656ed5b528c53b81a8562bb397377/types_boto3_sns-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1c/ef/ad052443765cbfb40a275d35ec23313146a00428156565edc1347b141037/types_boto3_license_manager_linux_subscriptions-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1d/2f/03e9c407ee7d676f692f923a197bb99db30c4c4551f99fef0cab7b1e2d40/types_boto3_batch-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1d/54/3b139c8b4681d63273c18dbd51550e42d662cd6ae0212597eea4716c0749/types_boto3_ecr-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1d/63/399b33693de33624f8efb659015cab0d1a6fd9c5fd42a610dc481175154d/types_boto3_redshift_serverless-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1d/91/898bc7c4d80cf3bc7b29fee6a93becd1836c069b65151a472afd8cde7861/types_boto3_dms-1.43.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1d/b6/c8e5e27cf5ee5d0ae374b9bd985575c58cfba5a56acb820cfaa817431c8b/types_boto3_networkmanager-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1e/74/35487a564f816617e1c52a0547936e6d16395e5103ae77569bbc7f210455/types_boto3_mediaconnect-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1e/c0/56472c251d09858a53e51efbd485b09e1995d8731668b76d52e5dd6ee0f1/ruff-0.15.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/1e/d6/d5dea2230be2f848c770342a29d416b2e61886364603f513ab694a52ee1c/types_boto3_sagemaker-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/20/39/471e03c8b3222d3e5e9c2ffdc8b9c3b1abd01ec588a84c2764e593c18736/types_boto3_cloudsearchdomain-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/21/5c/21a4fc94697b4eff0c7699dbd8b2fa03690f7d125f49ac76e5bae6e78c72/types_boto3_launch_wizard-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/21/87/c3b9d5882afa77a67cd8f3d028bd9b9c185b4fe98518e3e0958249505fc3/types_boto3_connect-1.43.10-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/24/8c/17fb365ed41efcb8cf9481bbfd81070c1da30327296e9d5b58e642b6e710/types_boto3_simspaceweaver-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/24/fa/97a5e0a4ca97894b077c565ea907b58190977c808b1264c36d7be63497ab/types_boto3_application_signals-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/25/8f/d4b35c3d221a7fc6c87dd9ce1f9e9433b91b73d5b5740b9cae32ad8d1e90/types_boto3_es-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/26/f0/30a3c6db8ce6dd9dbc44fbe55893d24b7fd5bd32c66ab3880658793c3c05/types_boto3_compute_optimizer-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/27/54/8aa171d3645b18270f8399e223f1a33c2b70c0f23b794712a2b87a1270f2/types_boto3_pca_connector_scep-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/28/1c/5b4fe1944511eed187672f75473b67f1a6c20ba19f0e51e72d02a7d83323/types_boto3-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/28/28/88ae0617f04b1cc897063e2ae9b97313cd0723e59078a71d72147c2d98af/types_boto3_qapps-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/29/12/4d0e41558f8c612b1d48eeca1a441ab55f1b8a49b27884a0ffd51b8bf92d/types_boto3_sdb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/29/31/45edc82558bef35673dcfa0292684f8cdcee559e67e9dee2038259a0e370/types_boto3_scheduler-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/29/61/81686c6562f6f1eb6933d19b9498503cd5005a215c0740a91c228bc372ba/types_boto3_appfabric-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2b/0a/7b98e1e119878a27ba8618ca1e18b14f992ff1eda40f47bccccf4de44121/kiwisolver-1.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/2b/0e/6c1a0c578217744eef6edb776c623f99608189af2e927508dc2e8ae453c3/types_boto3_dynamodbstreams-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2c/75/fa9e63713936e997958841f4d577c8fda68c3ed8558e54b1190010868363/types_boto3_lex_models-1.43.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2d/57/e0d2cfce2f397e49bd2ccfb900d192b8bb27a33a95d3b03de148618f300f/types_boto3_applicationcostprofiler-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2d/58/90a0a43201f5e146bcca835f8356a173daa54fef0f76f0a27a9fa089737f/types_boto3_directconnect-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2d/c1/abbf88f1759f63e5374cdb18370b5713452c4900a9e75bf9a38641fddafa/types_boto3_memorydb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2f/92/2d341093d20f49466b3857b10a29606fe2813b5d99308c8e7a8fc891eede/types_boto3_geo_places-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2f/c9/5ee3eaed2275fca755911b16fec5761a5aa52874309482a814f1ec1fc5c9/types_boto3_mediapackage_vod-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2f/ea/417d580ed116e8338b185ff72cba3b39af0c7100fc9ac5bd4bd1962a1f4f/types_boto3_bedrock_agentcore-1.43.11-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/30/06/e678ed04d4512117aed0c0522e55602aea20f24e8798a101c2c4fb8c2c34/types_boto3_arc_region_switch-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/31/98/21ff7c54c58f03363cebc1f72ec9efbd85482b84aa6866792812bb86bf84/types_boto3_kinesis_video_archived_media-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/31/fb/784ec66e816bdc580866ceaeb38ec7ba47773b589264102475e6774e1f2a/types_boto3_codestar_connections-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/31/ff/3ee65a3e4e9832794a8bcfd622f1f6da4168f754563ab6fb971a31958602/types_boto3_servicediscovery-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/32/0a/33a55afd5ebbf89d74c7732d6ce18393f5f81751411706b31c44cc082ff9/types_boto3_qconnect-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/33/33/c56c2bba78812ecfc3c16c9b890d4a5743ee8d2860f588690dfc361a3aa5/types_boto3_cognito_idp-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/33/5a/30c6596a9bfd6ebbd6df00fc328a24da3ccb353a54dc44fe47a64732ee7c/types_boto3_ssm_sap-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/33/cf/d532e35e0ccdff4456346ea9d48ef39e3248c33b2ba4394f94ed96102585/types_boto3_kinesisanalytics-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/35/e5/f18829d377bd415729b5105dcea088af14a75c2fc3654242bdb0c4745a87/types_boto3_connectparticipant-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/36/0f/91d49a99cda0f80e58f5c7aea817e93d1272e30c35b7bc8e4c318d786456/types_boto3_iot_jobs_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/36/7c/018c7e6a84fc71603a6c6a1ad86c238b8defa36bbd5d260514d8b0917c57/types_boto3_codestar_notifications-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/36/ab/976e26bb3317f81fd783da34e3da327b00915c597b3b4708d78782cb8d7b/types_boto3_signer_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/36/d7/30f3ba4d69fa0c55344d9dbbe8ee10607304894df1f9e6e95405b6313431/types_boto3_wickr-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/37/1f/9c9e79795a68c985a9d00a8b2d6a0b69c85d7638e136ece891bad7d9b2eb/types_boto3_iotevents-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/37/a3/5013fd6acd1f33a9816bbe1108ccfbea0138d522790e454fe537624fd8cc/types_boto3_amplifyuibuilder-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/37/db/c0c6bdf84254d0eda46e7493e77fe51b83287954af5e03894859f42a6849/types_boto3_managedblockchain_query-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/37/e1/08af811394ca720a077a4a9fda7cce33c043819e56e0d722d21c977de444/types_boto3_kms-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/38/14/1eb7bb7fa56e1343e74fd0f7f98a8552f5efa6f8bb9d24356d9e6ff23d56/types_boto3_braket-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/38/90/83e4aebad3823ba5be888aa341b0d4c3878a3f4a6cc277077c20b22769fd/types_boto3_trustedadvisor-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/38/99/531db3f09e65cc9709f1b175a85966e79cbbcddcd7e72cf2ec6ee8dc24e6/types_boto3_translate-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/39/c6/6e7daea77680793a1410f134869008f8199ef3c3277c1d6144460cbfd536/types_boto3_sqs-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3a/03/83180f43bbb2ef114968a79e3ce9deef92419fcbb1f00a1a4e4d91024813/types_boto3_cloudtrail_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3b/05/0d0df2376287f4a9773ffff2f858f59fade7c9ed1b3995196678e947a871/types_boto3_kinesisvideo-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3b/1e/e21fb363d71cadf39405bb0d9f7dbbe4a444de3425d86e249c4a8734c3cc/types_boto3_stepfunctions-1.43.7-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/2b/58/a58fc997655386daa2e25784e30c288aa3e3819e401f77029ee4899fb55a/s3transfer-0.18.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3c/fc/2cdb34cdf64e9aca5ad08871eafa97e81ff8ecbe3923af9bfe4e3c032f45/types_boto3_clouddirectory-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3d/f9/85fad9e78086a69a7a784037167dd518abf561ffb00bfdfff14f1cc4e63a/types_boto3_ivs-1.43.10-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/3e/5a/d127ae1c0b7b8aa27f250023fa25aa4cadb16aee47437fcc0a2390022445/types_boto3_datazone-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/41/23/2765b30772e1b064ec4b2885e921e2b07511f170bc4f05d28f7b97d027fd/types_boto3_serverlessrepo-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/42/0c/fb94362e43a8e3a1ce6177064c277f38cbad2aa44d77fc68329875b0fb27/types_boto3_ssm_contacts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/42/5a/660f4b1e30668360b75c24343b1ab39f51db275ed09481d23f6a488f13c2/types_boto3_imagebuilder-1.43.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/43/70/2bf2bf72af63c65d8a4eeda26e4cc3451b0bdb346f06581d4236e8c66474/types_boto3_s3tables-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/43/8d/e848bc89c238d93d7eaec02ab15a6ffbfe8148d8558a6580b9116ea9564f/types_boto3_grafana-1.43.11-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/44/a6/7232f4995fbd3fdfc6123cec1f0488260c9ed32993fdca24aa7a20496b0c/types_boto3_ivs_realtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/45/3f/e7356e248ec9ab52a5cdcec5eac9c79f7de296d56891c9ee5664808ffcd0/types_boto3_ecr_public-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/45/b1/e4e84acdf1a77e21d62562c70b6af4ceaa915361995f0fa065a997428d33/types_boto3_elb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/46/03/2dc85bdebd7c9debf632daf30bf3378166279a65d984920a6f2fddab0185/types_boto3_signin-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/35/b874f79d03e9f900012cf609f7fff97b77164f2e14ee5aac282f8a999c1b/pyogrio-0.12.1-cp313-cp313-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/46/68/5e7362aaff0209b1b9a48de872a5ed5073a843eeee947b617f3d5246f185/types_boto3_macie2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/46/8f/25933240485c0662bb3fa430ed0c6b8b8124ab3bc136154c07ce12644cb0/botocore-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/47/15/c08a9b6a7a37b9a9b207c893247abb72529b024281c7cc20457da8b2f876/types_boto3_ec2_instance_connect-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/47/e4/fc5a414aaacfc45e2b9184c7feab842a1c08834634404a2fa9e7f3d12468/types_boto3_machinelearning-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/4a/1af9aa9810fb30668568f2c4dd3eec2412c8e9762b69201d971c509b295e/rasterio-1.5.0-cp313-cp313-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/48/62/17a66996c0b5565a6f4b3e84cf79fc23a06d02450a2394d46cdbd4269474/types_boto3_personalize_events-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/48/6b/6d26aba8a5010c72c24d78a91d1ed46e2d5952c28904836d1d31054ef7ec/types_boto3_simpledbv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/48/95/06f6c2f9bfd9370e94cf11bd6696fb0d180d4971837b30dea1d6dd48c0dd/types_boto3_cloudfront-1.43.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/48/97/1427cb94a73dc894c302813d190c5fba8ca3626bda897ff336b3da4a5274/types_boto3_mgn-1.43.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/48/b2/66e7501e7f08803d1b2b1fcebefb970c6697c8f1b3c0bc34c01e3c15768b/types_boto3_ds-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/49/a1/3f539d43d458d62fdf0d41bf031c3825f1f900ca73a634cb0ccbac9c7d17/types_boto3_iotwireless-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/49/c3/c81df024497bd473309e49faed565391c5f9797fe69cbb518baf2332a851/types_boto3_wafv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/49/df/963ad335b861d4f3dca9cc24f5e4b66112dd174e00827971966c3b8f242c/types_boto3_connectcampaigns-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4b/27/efe1f1429ff3bd673fbd66157dbd12570d98a4f5674e9a0da545920a1002/types_boto3_datapipeline-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4b/32/e0f13a1c5b0f8572d0ec6ae2f6c677b7991fafd95da523159c19eff0696a/contourpy-1.3.3-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/4b/54/5a9999d1ed98e0690503dd3f6972b60de274589949b1bda4bffed22fa40e/types_boto3_ssm_guiconnect-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4b/68/f1b971015836e63f2adf33ac75174f74bff1408a874436b9276446919ef7/types_boto3_apigateway-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4b/7f/33ba4918f20e1fd160271380472a24c2776b459e987ddfcdebb3293ab177/types_boto3_drs-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4b/98/d7d209569a059169709bd402aef7a2dbcca8c0addb006fc7180ea730752b/types_boto3_sso_oidc-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4c/3b/422a200f66e12eb7cbbbb408a32a40b8205b753e4de97576b3c3c5cf501d/types_boto3_opensearchserverless-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4c/3e/c2d6216f182d396d59ec697ed7858317530e57492e5901a79caea06d021c/types_boto3_cloudwatch-1.43.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4c/aa/289fb28a5c5a3af4a7f9a4ea8b988b750e578aed98bf68c16725c2bc41f5/types_boto3_vpc_lattice-1.43.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4c/d3/75eec795aba4be0f040d038ca5272227de0ad9a5d6c82ffe1464843ada48/types_boto3_neptune_graph-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4e/c7/4cb4ad53c8876511457fc5a5f8473b5df486af74136c4a04cc64e19c5585/types_boto3_cloudcontrol-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4e/d6/d7a4a2e2a88aaab73f3d2a5a1fb7a2ee9ca62de563493d6f5575a756d295/types_boto3_repostspace-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4e/e1/608b057b4d13934e45133c90f31b6f40e060701ff0321c4b319b3b49deb9/types_boto3_qbusiness-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/36/e0703d73bc9f89b95014173c9c7754816630a3282f2727637de5b076e5e4/poetry_core-2.4.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/50/c8/c728e54a5bc1903d1719606931711aeded2f678e498c0c52d9d09d91abb7/types_boto3_service_quotas-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/50/e5/0109d49754d765b0dd71b7190775e36d565a490d45bd4a31664d291104fa/types_boto3_codepipeline-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/51/00/a713c9c19d232f46605cac6b67a4ade64341725dcfd3faa574e73ec57395/types_boto3_payment_cryptography_data-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/51/98/20947990a6118aafa9b960ee64b178b3d233bff03f6596b654f68da9b15d/types_boto3_resource_explorer_2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/53/75/2470cd83ae552280019b494fcb0ba41281ec2ae44ac1b235f504a7d0a810/types_boto3_kendra-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/53/bd/6314de5fa247c28704f8ed17a5057d853d7b46348bdcaa37a4857261cc65/types_boto3_athena-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/53/c4/8839800c02abb42fb4fab97e93e47e6b1fd8ae2da2f970abf8e78f2e202d/types_boto3_route53-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/53/ce/b4e20155940aabd7f583a031f3557f29db8c6cedbe5b526997d68b0ff66b/types_boto3_marketplacecommerceanalytics-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/54/da/788730eb4a404c0f5e337b4ea0b701e9b99fb2d8c9ff2d9ed522d291f28f/types_boto3_sagemaker_metrics-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/54/f2/d9735de7318a9185db14fbbe51a91a363970a6d03bd2185b033d313795c3/types_boto3_ssm_incidents-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/55/6c/3db2fe4d78077d5716c509b4ef7af80d7b49d48ea3f4de3b3448ee8b23af/types_boto3_efs-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/56/18/167b2aae0614a6f4d7fe11f85517d3f4ba56e1b0807534a172a9dfe6f4c5/types_boto3_sts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/57/09/d74cf74ec1f11703ccd24d6852da49d3a5ddcf647b920768001dfd4c9bb8/types_boto3_chime_sdk_identity-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/57/27/a9dee63bb70caef3b803c5448481a3808ce32700ee44c81e0e5b248b692a/types_boto3_account-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/57/9d/bd72d46e743e846293ce57ba6f659ae72dff8c97c89abab46956ec80f7b9/types_boto3_frauddetector-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/57/b2/1789fa7b1d7537b3fbab8453684c8f21a9eb472a2decfd45cded093eb5b2/types_boto3_transfer-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/58/d1/c65c53553d9eb3e1075c13d539ea7c30c1698f2c14f29ea5cd895ee18326/types_boto3_bcm_pricing_calculator-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/58/ee/ae789d6ba98402feefe9588010b6c4c01f8f162db865ce73fff996c508f2/types_boto3_supplychain-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/59/07/a6f95db3bf579afac184c47e92f776d023a1c8757b1e47e28228cb4dbbf7/types_boto3_chime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/59/2c/eaf21b0363fcc8f87a29b9c104f70bc0547700f2ef77380f7015cdbef5a9/types_boto3_workspaces_thin_client-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/59/8c/57e832b7af6d7c5abe66eb3fbe3a3a32f4d11ea23a1aa7131371035be991/certifi-2026.5.20-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5a/fb/c6d3a63acbf7d2c92f78b4b1e572e9ae3fd5f7ae57c3be25b9513fd5c67e/types_boto3_codeguru_reviewer-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5b/3e/6459e2ed8221c544046f3ec264091f39a9bd78a7a2d0c1737c420a79dfed/types_boto3_freetier-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5b/64/44710bfed9bf9ae1824140dae21b37ce34b335be6673d962dba41e0e7451/types_boto3_iot_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5b/a6/b23c30d03e192385cd44d93ff9ca1ee2d9b44ab67a258b73b5086b852de4/types_boto3_medical_imaging-1.43.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5b/b2/a7f0d059c664b5fcdf4529df0e15d5075289146e04007fe8c7236051b7c7/spotpy-1.6.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5c/c1/e1b1cd6789941b2b747ca690fe9a0ba247788fdaf86aaf9092b567d5ee92/types_boto3_sso-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5d/0f/6b114f8b0559e604001c51cd0196cf452ab6f84649a377cec8265d0a1608/types_boto3_nova_act-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5d/41/da84f96684a10e8610e6326b00c86523cf2af60945f32be6878e2aedff5a/types_boto3_bedrock_agentcore_control-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5d/e9/88b676699022aac3debfd17655df54d7790aa3024cebd4ae41a01544ed6a/types_boto3_appconfigdata-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5d/f6/729c2dfcc4bc1f1702e54c213c154eabfd46cf538924989ff0e8c400af0f/types_boto3_iotsecuretunneling-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5e/29/6b5a49e5e948d3d50fca06bec14776e79869dc1a8dcdb00bc42b4f47b800/types_boto3_m2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5e/29/f507e94c06f6bc24cc5512d05b5279525171f7132cba915017bff2174c93/types_boto3_internetmonitor-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5e/75/972f8404fb8a854e1a4d2a83a2d6fdf413a2053472a049c76e7ab3448c44/types_boto3_servicecatalog-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5f/fc/89cc129118aa42e85b7e5ff6b7fe0820d90afe8a124feb05cd70bf343382/types_boto3_autoscaling-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/60/a0/8720df4336a89fd06ecbc79d94c7f1686627f6524a44758de3f6e827acde/types_boto3_codecommit-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/60/f6/e19abd73bbcc17ec712e50f6d6ed2849d429e4d3c9cb31643a183d31101a/types_boto3_marketplace_deployment-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/61/45/62058d816710e738ea3d7e6eb87ac5091175837e7ddd4aecbb46bd67dc27/types_boto3_cloudfront_keyvaluestore-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/62/87/ab62e33422443f5ae460847fc5ab762d117078ee5023534896190fe4d2f0/types_boto3_snow_device_management-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/62/b8/d1af3bea3d0769043f86e25febf904fa116b8682e044fdd81597aa681333/types_boto3_pricing-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/63/4c/0907c3f76adb9dd90e67610b31e0304a35814e65c4c41a354a262c09b885/duckdb-1.5.3-cp313-cp313-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/63/66/055100fbab4b9580853869781cb521cd0506b6c71832b0befeacbf3ed19c/types_boto3_rum-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/64/03/b2a49b3ab45cfe82be164f8bfa77b19219a4cd8cc2b08a3d32dd27d675cb/types_boto3_rtbfabric-1.43.11-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/64/32/41ab955deaf346b773fd827bd238c1a6b310910c2ffdbf12f54885a633be/types_boto3_uxc-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/64/a9/eff1cf35ea75094611c40dc6a87f2dc94277dc1f5f2322811a64b5a51725/types_boto3_auditmanager-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/66/f5/b8c625cfe9fb3f8f989961c5f3d752372dec1621ae071a737d43e2faa071/types_boto3_eks-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/67/57/ecd20ebbf3ac5a571bbc80a0b197fe5790fbb37c6606df8145930367926f/types_boto3_mailmanager-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/67/ee/21d4e8536afd1a328f01b359b4d3997b291ffd35a237c877b331c1c3b71c/pillow-12.2.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/68/4f/2632620ee29ec2d00ad12b4e25b00d2ce91a2a973f492a04a130e39e0c2c/types_boto3_redshift-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/69/26/5373dbae0c4d0b87bf896e7a1196ca9078200766251db810315849f530ac/types_boto3_servicecatalog_appregistry-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/69/76/377f214118a1f9cfc20e0b460ccaea97ef12556d3a6dfea3b91932f9ca91/types_boto3_glacier-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/69/a0/0f776816bf18ee3b3898378d925306c12cf168d1c7631021c0049e412253/types_boto3_neptunedata-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/69/bb/ee8a710d66f9bb4ff1ffa3cf317b9b15ce5ce7e6294cfb54067303485d21/types_boto3_deadline-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/01/0883f88ea9ab592d6ce1087f7f9bfd52d6b1b042c1cd3099a91c8310ce74/types_boto3_lexv2_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/3c/7ef332efd92519a274294ff044dd84a98f4e57f670690a9e20efd879cdf9/types_boto3_waf_regional-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/43/8bd850ee71a191bf072e31302c73a66be413fecdd98fdcd111ecbcce13ca/tomlkit-0.15.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/64/74705c4b665b3841f9638e571e9aa13acf76823bff0bc7d36ddca8afa515/types_boto3_eks_auth-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/88/4b9d6a90cc2d7bba882b2276f0d231e496b6a140ef162bbe5e8c755df756/types_boto3_pinpoint-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/90/93e38843074974e49b50ac93097e0a3cf2a4287baa2a62d21b2bea427880/types_boto3_sagemaker_featurestore_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6a/d6/3a1887294b981c9373271a81bd83ac7d603643f77ba5ca88a963426ff7ae/types_boto3_pca_connector_ad-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6b/eb/ad208edad050e41b5f9002f912d4445654dac5415a2fe86bcf843d463862/types_boto3_meteringmarketplace-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6c/a9/d67c41b2ea361b187254fa44bad80b66bdb1024c8d726fc30719782fef97/types_boto3_databrew-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6c/ae/2ede0dc0c6bd4dd293a56a70aa43562bd95789a3faaceb87f1b4922c091e/types_boto3_mediatailor-1.43.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6d/3d/f02170da6a52c1570da2cb60767e126a3d8adee2b1d333543edde6449eae/types_boto3_workspaces-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6d/75/bbbcd9226cb76f38af71237c546cfe1c22936d09329e3d0bf59bea5d98ff/types_boto3_keyspacesstreams-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6d/fb/7ec76b5a3cbc0558b648ce05f31e4f98e0cb1d6aae0993264c1752b3beee/types_boto3_detective-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6e/ca/7f091a3884ea9448293402d59ce0630cd9c81476841f08d819b8082ddbee/types_boto3_panorama-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/6f/0e/88785341c771a486174dc44798b29230f81ead04b721159c9dd3fdf6a39b/types_boto3_secretsmanager-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/70/0c/b6c83c75753f2b94c9eb06bdfe7ed48377fbecd58c29c2f86072f60f7035/types_boto3_outposts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/70/74/a3de7441c12664643f066ae19d96f9d0bee39486e86463f81b3ad1466fec/types_boto3_billingconductor-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/71/4d/c1611204e24f7778ba09f969dfffcd2d2a98b3ea5ac29da52487a5bea06d/types_boto3_elbv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/71/50/e0397d97e7b5452d9def8f57a5dbd235bb3abaedc2d170e4f9d71556121d/types_boto3_ebs-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/73/86/43fa9f15c5b9fb6e82620428827cd3c284aa933431405d1bcf5231ae3d3e/cligj-0.7.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/73/d7/6e0fdab42675eca220575fb0a3e3ebc3ddcb0d3fd8f944f815aaffbad42b/types_boto3_pinpoint_sms_voice_v2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/74/23/a72474a488a500f830f178536e3e40c6c05a2b46862154f3b51d04fcd0ee/types_boto3_connect_contact_lens-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/74/27/e5b8f34d02d9995b80abcef563ea1f8b56d20134d8f4e5e81733b1feceb2/pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/75/00/a7f300f8b833df2a9b51f03253d73e4a45e9e10b0020d11b59d3a88596d9/types_boto3_mediaconvert-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/75/97/25996961150b36f7dee2ce0a259a4dc4df858be5845b1af0a2dff1f9170b/types_boto3_rekognition-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/75/98/92b74bbcb1599f8a318172645be02e69240dc7b5df94c80a35d38e3ffc11/types_boto3_securityhub-1.43.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/75/db/d18cce83bfbe36d1c3cd6f2b6c261e350448c901ac87e22349fb98a0244b/types_boto3_taxsettings-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/76/4b/44d32393198c7a29f791de31cae004665cf46c6609436771dc0515ff104b/types_boto3_mq-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/76/fb/e65c284faac313e2aac84ed537092d0fccd245ccde3e58ba06cabc68899a/types_boto3_comprehendmedical-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/77/bd/2a801aa9e7da521b08c594b965a7aaea564019b9a81695d35b7b37469a6f/types_boto3_autoscaling_plans-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/21/26a7fd6c621beb9b1846fe1dec30942a07a32dd016f4f359f86e18ad16f0/zalfmas_capnp_schemas-0.1.66-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/57/d5e604ba5af828f8d6792172c37b7229dbe5944b9d88755be320c72330b6/zalfmas_common-0.1.45-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/79/90/d9e56ab6b655f81a11fdcccf5efb22342c176a0862aeb808558ea4b3c0d0/types_boto3_sagemaker_a2i_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/7a/38/019ed98d5979c043bb7f41e4ad3a6a5b1fba33f5b546b138e9e345b29091/types_boto3_s3files-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/7a/a8d32501bb95ecff342004a674720164f95ad616f269450b3bc13dc88ae3/netcdf4-1.7.4-cp311-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/7c/f2/0b477ec65aaeadcda4d1f9358f2617be85f4582c9d2b54be43be563b7f9e/types_boto3_voice_id-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/81/7d/e9b2bcc31977ae47833442954f29e22194de3351a1e02545df7d7238f9e7/types_boto3_glue-1.43.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/82/48/fd09dcd648b4a9f0e13b581ccebe18a83c47f7793bdee5a8889ca60d84c1/types_boto3_appmesh-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/83/cf/aefdcf5750df6a711aa2cd9ece51ed233b71c9897945b2a2a972165fd55b/types_boto3_ram-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/82/c500220d4eccca845a06f2f9d0747ad8043f8b893ef5278e2019cbc906cc/pycapnp-2.2.2-cp313-cp313-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/84/9a/1dcf1fb6c21ba8fcacce1b292339859199ea60db7e2f9db57a1deabf1b40/types_boto3_socialmessaging-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/84/9f/8fb7c222b100d314137fa40ec050de56cd8c6d957d1cfff685ce72f15b17/pyarrow-24.0.0-cp313-cp313-manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/84/ef/4dcd2a75cb4fa0cb204d66147f959ee7364ddae9ee6992dbb67bac9e391f/types_boto3_globalaccelerator-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/85/49/e9e74048033e45e0ad191ddba0a5ce64de5b189cafa1e26cada23cf65d6e/types_boto3_pinpoint_sms_voice-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/85/c1/404641d4c67dd205e7113f159fde199fecbd73b9feb9184fab63ef8a7227/types_boto3_bedrock_data_automation_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/85/dd/904873250a6554fbae40cddbf9198e3cc37a2f1319d5e1a5ce82fe269c17/s3transfer-0.17.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/86/26/6e7d9b6934f6c3ee8782c750e8c803e7f96ca83da65867fcfe3ca64bdf89/types_boto3_route53_recovery_cluster-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/86/7b/8d8ab170c359c7c68e859523313823d803f2b865b63a06dc38853cdc7473/types_boto3_cur-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/86/ab/2b8bbb05753cf3eb2198fcf160b11ed467c016d79a76669d204cc72bb5a4/types_boto3_rds_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/86/d6/9725dc1afb794ad369166241e520f3370539e214259e3efdaae804d9a6ab/types_boto3_greengrass-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/87/01/34c968b833595f6b2703aff3f892e31d00bcd3152fdf15fdc394c778ac9e/types_boto3_swf-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/88/23/35f046eccbdc68a0769bb9ebf93fa6e8ac793c1af48e9fe6eef40953ce23/types_boto3_notificationscontacts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/89/5d/29fa9fd0d3d99c28a5e9a8b141d61b30e167512d277acb56c7f7d704002a/types_boto3_groundstation-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/89/ca/f017727b11895908c5dedc829cf2ec35e0c4b2a26ba875db325fef2cefdf/botocore_stubs-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8a/13/d584e29477a2df1d6f6142bf8dfe050667c000169865b11e3e55b5225c2b/types_boto3_wisdom-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/17/4402d0d14ccf1dfc70932600b68097fbbf9c898a4871d2cbbe79c7801a32/matplotlib-3.10.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/8a/66/cff27f947bc8e234b739325674ab5ddee8ba769451743e71f82bec475272/types_boto3_kafka-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8a/6d/1473dde070b568b88d7f5e3c6a499f992a45b8258adfb9239c5eaa7950a4/types_boto3_textract-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8a/d8/d4e6a8a9ea62190f8a1fa731301a45556c6ec0b8f1bf10088e0d14c3c202/types_boto3_bcm_data_exports-1.43.6-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8b/23/e564ab71dfcde7c97ff62a7e76f0302fe27aa7713d44d81c4a2e4dad31a6/types_boto3_bedrock_data_automation-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8b/ad/80b140d52e3e4c4d212c75fea841e4a424fbb8a04918440d0c1e50fec578/types_boto3_emr-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8c/05/9ed3cd43c3d15c5ecb941c77f6fd1007905c73b617970ca0784c7010389b/types_boto3_route53globalresolver-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8e/f3/63ec42b4e609660db5e9922e0942f5f314058b1ef3be2f71bdf9731bfebb/types_boto3_sesv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/8f/bb/ea4fd979dc1a9847fd450045a9a1386bb21f9b14184ae06bb016538fe348/types_boto3_iotsitewise-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/90/06/5d96d9b09e40470e05d79871a8a8a5f5b270bd2709364c45f85538306a85/pymep-1.0.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/90/4f/d315806be6a05fbb2c5311629a0cc4defc4470aa74212b13cfb685cb1d19/types_boto3_cost_optimization_hub-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/90/89/1138ab5879ae815ec03c2d700e3e6c8bdb19efe69d56deb54ca8394512b0/types_boto3_mgh-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/91/d3/c7473f116cf103f67d87273ea42b2654af79b9fc25754df580fd6632bb6c/types_boto3_route53_recovery_control_config-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/91/d4/affe55ecf2397089c57f1da767fd252c09ab5f6ae9018933a879c18cee6b/types_boto3_storagegateway-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/92/c6/5ded46be1028273fcff8107b2632b7632100209d1ad425a24459ab4d561a/types_boto3_b2bi-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/16/70255075a9859a0e3adb789b68ceb0e210dec03934245fd98d248226572f/idna-3.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/29/e0cbad24248d667b01436794e3aa46e0c8cb36518517f3a16b17b0f19821/types_boto3_bcm_recommended_actions-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/2f/5773ed62b52c3077bd6c090d10847fe6f5448d1e1594fa2ad0608a2de0ba/types_boto3_bcm_dashboards-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/9d/030f4e72bb14172b10cf7431e9c8e7cea176d98dc4167bb81910936eafd7/types_boto3_synthetics-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/a3/ad699ff4a2824f087448f2d957947ea320b45ec904a441c3afab93f41470/types_boto3_ds_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/b7/3a2ddd60a8ae625aa7ba86b0559050bc52c77e28db61010855eb579f1735/types_boto3_evs-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/95/29/722a6440b9e70ac247f1b34764708d10de27e6cb12c5c7fb37d627a6207a/types_boto3_accessanalyzer-1.43.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/95/97/d59d999f00aec90fc7a4efb742fc11e6c160552aa1b313438d3497998644/geojson_pydantic-2.1.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/95/bf/424b0d48d48a65a5a91f2f89f5493f338e4bd08da7748db650b6987635f2/types_boto3_invoicing-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/95/eb/6c060987fe793e97d1ccf9656044ae876dcbc3bbed115b88d534f4300772/types_boto3_cognito_sync-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/97/e6/8d4da87a6a63610e9ae2c96b15e78399b90a24c69b915d31b3b2988ad4fb/types_boto3_cleanroomsml-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/27/e88220fe6274eccd3bdf95d9382918716d312f6f6cef6a46332d1ee2feff/types_s3transfer-0.16.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/a6/f842bc6a76d128ddf25039b62837da2e430275e43115cc8b1c2d306225b3/types_boto3_snowball-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/c6/4332709c556c8f7d99306aa8cee032641a9fd0be374f46e2a118ade97646/types_boto3_timestream_query-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/98/dc/0f29468f0e77533f2d40927dbc035e851dcd72cf6dc0cf7b4080a36fba8e/types_boto3_iottwinmaker-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/99/68/1237369725aa617bb358263d535803e3053fdbc593513ec5ed9c9896b5b6/pandas-3.0.3-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/99/84/9bfbf428b54446672cad51c6e673d14e65c535b3b5f48631c36f8b4cc8c0/types_boto3_pipes-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/99/b4/e9627f1dc11705d90fa934f32073a76729e0086cf288c945ed32bce198fc/types_boto3_appsync-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9b/42/6c183cdeeadee05f1464e6a2b08d8bfa0e9ea0a9e7529f1ed058e4db3db5/types_boto3_sso_admin-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9b/74/20464795a327755236f4028a04b5804a5dac00b1e42978c23746e103042c/types_boto3_application_insights-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9b/b5/c067d3e8601ba446b16a2378c281b572b070bd5162687c3e84c6f94c02fe/types_boto3_budgets-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9c/54/51ec6b086e5820129d122b56219adfa241d92ac93e7a284aacdabda554b2/types_boto3_bedrock-1.43.8-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9d/a0/6bb44ae7749261dc0bf812b82a5bc168ada037b415c40fdbc1991aa9e8a6/types_boto3_discovery-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9d/c5/a2072861592fce99747adaa9eb0185c0a48d57ed79da0836688a809a9d23/types_boto3_medialive-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9d/ce/ce28dada59de6118f505264d5913c5624dcafb7f69410ebc5321c19a9607/types_boto3_iotthingsgraph-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9e/76/db2f256a075deba75e4cec1c9e9c3ae1103a3204643705a4e93a84937999/types_boto3_codeguruprofiler-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9e/81/8fcb46bd59cc07ee6b7ec10090415a675771aa45db017287dc0df21e63b6/types_boto3_kendra_ranking-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9e/e9/df83eb76d276398e49d00fd41519685919dc020ead453db6e911e2888ebf/types_boto3_workspaces_web-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9f/43/4cec2527bc611cbf369569f1abfa59f6ffb7d7667f0fcffb259a900c039e/types_boto3_mpa-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9f/51/c55e22364e444b22d40f3545bc16fc3fa436b40cb3b7f6875ed26ad4c116/types_boto3_savingsplans-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9f/e6/fc9ebe631ca492cf255e9fcce0ad56ed3e8ce8b40505f5be2f717de8bdad/types_boto3_support_app-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a0/0d/150ab8dbe8c4492eb8c3e4a412601e535668f2ee0e0f8cfbf75ac97b3a79/types_boto3_gameliftstreams-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a0/13/d8970cdc39a65b06696cf30799a2cb34bd081ab04e145ff47712a65c7660/types_boto3_cloudtrail-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a0/a6/704fbf052edf2497d09292e5f9555b400594924f1154d6c86f2173c2fc11/types_awscrt-0.33.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a0/ea/a30d26ef6877a8dd5fbaa5d68905d0fa87a61092524a6c39838767cca248/types_boto3_networkmonitor-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a1/d4/d9c6b6167a9ed4d867f52bb711582abb70dd366e39e01eab67eadeed7bf6/types_boto3_bedrock_agent-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a1/dd/1e48aef93d99cb48a194c16a43ccaaff000eb20c956a1f72f216ac4d1a57/types_boto3_mwaa-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a2/15/b77d5c2d8e74aca8c1f6232640029935953017c192faf3631e1234b5f0cc/types_boto3_ssm-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a2/4f/badc0c4717549c21138c116c35ae315ef4ed5034375e3743f510aafa7beb/types_boto3_s3control-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a3/ba/9b7ad298ef9bf3469bb19f4b3a5c82b0111b07223a0206edea9aca4a47d6/types_boto3_healthlake-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a4/cb/041c4e3bd2ab31e5c7a003177db59e0632705497e6f03ed502ceb3a9f968/types_boto3_appintegrations-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a4/fd/d0c0f0a335ad660abbf9fb4784efdd2efdc5db7c3ada95a4adba1b0f75ed/types_boto3_devops_agent-1.43.11-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a4/ff/05c21f0be07f5c58c110647beecb8322150e34ace2cd4d596c834cb4e93f/types_boto3_amp-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a5/5a/f40d79e7617a9153d875428842b80ad6f4001407780ecc32c19b4f9d9bbf/types_boto3_events-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/9d/3584b9984ca4c047aea75214ce1a4c4c73d849bd71b604264b7f5653f8a8/numpy-2.4.6-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/a5/cb/523d707311039a4359afbc5f5e0a86b794fab276175c5723fc55128dbaf9/types_boto3_elasticbeanstalk-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/76/dbe4a00b50385e40194231dcfe5a12c059de7cf90e89c83407d2b085b719/lxml-6.1.1-cp313-cp313-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/a6/81/1d8e4e86a76fbe4b775b7bbb1002e913ef5b5686dc838dfcb173e095344b/types_boto3_omics-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a7/f7/5a16fae8001f1a586eff150bbce29a0fc59fd0d590565024b65cc3e07a7c/types_boto3_partnercentral_account-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a8/c8/177dcff2adc77380c790b27e6bb79a37beca8be83334e8a6ba8a1aa0aa65/types_boto3_lookoutequipment-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a9/11/e764105390e8440c21f66792b7202b52da039786cc381c99a32b74ce408b/types_boto3_application_autoscaling-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a9/2f/43f722e01349598500575e56e121f56241026ed6f73c04496ad0b81d6cd6/types_boto3_odb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a9/57/b0325b73e391defa3d45b14769b68c39d34acbbb4378427ad5c584fa919e/types_boto3_sustainability-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a9/b1/1146a429b12ff21eb8416b1482861940c74a746a50a33db8fc9cf2e969e7/types_boto3_greengrassv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/aa/45/8277b78650cc2cdc1bf942a8c7d15f18d462c7b00a863b2fec82ef8cafc6/types_boto3_mediapackage-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ac/15/82c9c57709397a1c426d1f5bbfe7a0594e9d08cfc1d32ff8c8a83055a5ac/types_boto3_route53resolver-1.43.6-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ad/b0/71fe35ce60e1181f7f3064ca2b25eb4c38e00f5901ad831d93332cc59a6b/types_boto3_inspector2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/af/c0/7d687e40f4b7046ede66026ecd1b0a93d47afe26d9170f5926a1605c8641/boto3-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/af/e4/b1e4937490ed53049febb3781cdabf1ddce4d822e8948773e72726d07fc3/types_boto3_cognito_identity-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/af/ff/d841790d6fcc72616feb5a00b8548cdd878b50b4f31ed998bf8d9d52c47e/types_boto3_s3-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b1/a7/c65bfba2b8c15c5d77db7ad0dfa7da9e89ad00d0062beeb938d93eaa5456/types_boto3_connectcases-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b1/c0/ec3385edd9f5b1cd9ea67186e0fb07480555ac3833fa5e79928e23701908/types_boto3_iotevents_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b3/35/71f4985960be78295e8c8d7620453e22798829aebf52defdc94da8b7c752/types_boto3_ses-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b4/6e/fc1ee23012eaad3038e6f551de5e06c776ca1e0f35350e7f0812fb8c38d2/types_boto3_marketplace_discovery-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b4/d5/7d73d1052dbf8faa946d7b0e2e3c0812042a3ca27457926ef6212ddd8aa7/types_boto3_lightsail-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b4/f1/7178bd81227d8ac4baf388236fc21b922613771eaa5cfb6772f24e842b33/types_boto3_inspector_scan-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/b5/77/6e56e3b4f4593390a73c222bcf9987896db6b0b0855b3e5703891683eba3/types_boto3_connecthealth-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b5/d6/c33453a1f7f0ed1e4f723819937b6a85ed47e046d12b275b7083203189bf/types_boto3_amplify-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b6/12/d2112f871838a99ceecff5b5c0458a341028a05045ef7f62f07deb2edac2/types_boto3_bedrock_agent_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b6/c3/789c4334cdaea6d5433b683bd355c83cf3fb166bae45b2e5cdc5852ff09b/types_boto3_fis-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b6/d4/388735affdaacd1e9b79e17e4a38898aec551a4711b76102c677b4be05f6/types_boto3_codecatalyst-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b8/92/f7d367a0662cdd66f656f20e72b14ff7faa9426c7f5cffc182cd2d56771e/types_boto3_iot_managed_integrations-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b9/98/5c200e5da72577d91a7e0342cc4265c5cf510835bfc5d6342c41b852c0c3/types_boto3_migration_hub_refactor_spaces-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b9/af/dee9ddc7eaaa030a7fc987ca441f0f966a9b92cb49be75ac066c4e15006d/types_boto3_iotfleetwise-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b9/d6/fb3fd2c97bb663b649f81b7b793c2500828f9b08f438af17a0f69f14b55f/types_boto3_codeartifact-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/b9/fc/0231c198bcb0b7d0bda3df524f0d2e126e33728d6a8d0acb8673a5afda76/types_boto3_osis-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ba/08/52f06ff2f04d376f9cd2c211aefcf2b37f1978e43289341f362fc99f6a0e/cftime-1.6.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/ba/e8/81e0680cdf548f6189f1c434f2ea6f37671790558c16858ae681b95fce79/types_boto3_signer-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bb/08/2b59f0366273a73f906888b31b143b4ad6e2c22cbcf997b2de1215025d53/types_boto3_comprehend-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bb/42/9352c1afb0122a2da53d1538e58efe8bddba37d951904c861b86fcb6cca1/types_boto3_devicefarm-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bb/a4/45410a3dd022f124de9b2fc173578061821dc1eedc5f7366b96c7ac47c51/types_boto3_partnercentral_channel-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bb/c9/8c59a524d25767cf8c302d9aab402afbea0a3cf419be3098ee2843c24ae6/types_boto3_schemas-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bd/03/5020e57b7d0b84539c286bc34cf39c63fa42609cf9a3dd5565e7da23541b/types_boto3_backup_gateway-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bd/8f/ccdf6245d598e6cc573307e38454265f66bc9afc9a878de6ff63b5169b09/types_boto3_firehose-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bd/9d/7e4aac59a01ff65e9ede38049f04a91cb6279635aecee7579c6323a7696d/types_boto3_dsql-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bd/bf/c84dc78814bff572e2ecaa66f33caf8c525f308c3709cc9c654f86834e26/types_boto3_chime_sdk_meetings-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/be/8c/97a4296caf35808dea7faeb09fe748c4b3fa155db9c2eb9aff8380b59a7b/types_boto3_verifiedpermissions-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bf/9b/6f8b1028bd9dc759cf32e823d371712fb219a9d212abba5ac6d054dcbe43/types_boto3_transcribe-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bf/a8/74b2dc5266fd5d0365024ea960277cbd0f1d6195d2ed9c6c30b607555ec1/types_boto3_mediastore_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/bf/b9/2658f753636bcc0ea581e3318f2002bf3b401da1104f9c4fe882a25a4368/types_boto3_workdocs-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c0/23/739d0bb6401b25ef22cfe8edd3f963c2571c790e44a698d25f941d0b2672/types_boto3_appflow-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c0/e6/bc4172b6a5705d5ce8151ff0f8410b8e9b8292537229cb1e715355a668ef/types_boto3_importexport-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c0/f7/e2a7e105e00b98d0a1be721b51d7abb9c6148a73ee45519c8c7e46b256f5/types_boto3_apprunner-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c1/00/1f49564bdf3fc8a41dcf1d7a90dc8ce1d1f6c65c7cdfbd41199cfd1507ec/types_boto3_mturk-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c1/91/8c2d2a5e54d416d40715999ccde80317059d5f16ab34a363446df3a8b0c3/types_boto3_geo_maps-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c2/4d/db4ea3f442aa59b3141470d3b258bd200df2fb054bf1be79f89a761de767/types_boto3_arc_zonal_shift-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c2/e7/3596e5280729ac3f6734d5a34cb828cae0bb5fc1b6aea9a7b72a681a2218/types_boto3_route53_recovery_readiness-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c5/a9/f4a377113f1636603c7740ef1799d9acdb16f0ebd5310af49ad558823dbb/types_boto3_ivschat-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c5/de/84383531d5d5f6fbcb717218d02b1eb9419661cb2b3fe2e1a937c07745d2/types_boto3_mwaa_serverless-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c6/95/f5a02416a89844c5b05cc235041391d1d127d5b1af96bf3b676ee14feae9/types_boto3_marketplace_entitlement-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c7/93/903f5a42e95d3f4056db9b0272812cf8fa0e11aa6b51d53aaac0b7224c0e/types_boto3_notifications-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c8/6c/51044727f6533f56c23a4c20899f35c83ec73de13891ed92da63c84673b3/types_boto3_oam-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ca/06/eb66e8f424bad8fac0f23234b86d1918b98156ca7933c9e0132d31433304/types_boto3_emr_containers-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ca/25/a0d36e1e718e3a35d6ff8cf049f11ff80fc1fc61e658293511f4b8450544/types_boto3_support-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ca/32/6ebfeab3fe50cc5cadfebcb232dd21423787d56c61f03fa70e825af3daed/types_boto3_organizations-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/cb/6f/72bd3091d574ea85f365314b3350b358859682df827f842d7fc8967fda10/types_boto3_appstream-1.43.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/cc/a9/c24184be90dc6087dc4af62478a9b3ffc797b6826ce7766611676395c664/types_boto3_emr_serverless-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cd/12/74c145b9e273b2b479f1ea578c7778d96d0c34f2d112fd0ec96c905bb792/owslib-0.35.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ce/2c/51121cad414850d24867191ce1c90dc975be3cbea175f854f0321e61008c/types_boto3_gamelift-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ce/36/0b805d8c485f872f65a509cbe3b58a5d0d17bee855333b54a150c79d3061/fonttools-4.63.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/ce/60/6504bdf39de2896e54b6299fa25873fea0403a31cb928353b2af53626122/types_boto3_workmail-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/cf/73/2a97d953702cfa640395a9f0f68753fc5275d1b11cd5dfe1dfed8a90647f/types_boto3_inspector-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d0/2c/15697fae1a1aff28a8ccb9dbb65f4a8c873cad6c688963d51f9ec6f1dc40/types_boto3_mediapackagev2-1.43.9-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d0/e0/5607ddd01c4dd823fb8364847a54e1f364122dd8fa0182f3626cf54de360/types_boto3_amplifybackend-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d1/85/f391fce47303d5044dfcdebecf2945aeefa6e35e2baf6de4bf7d714fc082/types_boto3_backupsearch-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d1/d0/28711cb1a05935d6143c135031d83315415adc37b622b50a280ab51d30d9/types_boto3_partnercentral_benefits-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d3/2d/2b67832d652853f72cf6e983fb86a85be4d9de153c7f5094462add498601/types_boto3_redshift_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d3/b6/23b6d92ce5830dd8e998257301841e787296b153b22d067a92918562d118/types_boto3_dataexchange-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d3/c3/0d6e89d221f9132c10601123362b9822e55ece10523749ceffe9dc9c1fcc/types_boto3_resource_groups-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d3/e0/6a8dccf4ee01e4b32d0a50ec4464f0639de0dfe1b9abb0dd0491efbb5305/types_boto3_quicksight-1.43.10-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d4/87/94e7c27e18c0b1590a46e6ced70bbe4dafb7947ec44293a9a29ec6b2974b/types_boto3_docdb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d4/d2/b432dde81419299b4ed689eacf30e06aa4114fbab328d76489d327a07aed/types_boto3_finspace_data-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d4/de/cf8b3a96045357cb7f3a8aba254d93945bb4fb94ac0efaa992dcbc9155b5/types_boto3_keyspaces-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d5/42/797a039c17cc886cb86f63d4378b0e4cc934e6490edd81d88411c9d8b6d6/types_boto3_connectcampaignsv2-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d5/53/dcae5c696cf833fb38470ce98efc5c625330509ba3cfc9f1dd128d45a95e/types_boto3_ce-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d6/26/7be26820eaafa17b21204a136b2a02d9a55f89155b10fb61218fe5edf657/types_boto3_kafkaconnect-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/d7/56/ecf6de150c9243e890222db19d09e31dde66b478d0bebcf40f8951ce5ab9/types_boto3_pinpoint_email-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d6/ff/1625713b2ecac9f9bb65c7a51e71cb206b3089ba38f86ba5eff34e947176/botocore-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/a5/bcb82a6056bc8ad0dbfdb0956ae1ff3b8eb9dd76c187723e82a3c5678982/pysodium-0.7.18.tar.gz
-      - pypi: https://files.pythonhosted.org/packages/d9/0a/e009493159ddd9d0ae99f654f119a5efb1005571bae4e0ad0d4c98d825a6/types_boto3_config-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/db/4f/c01a9393a178f175c894aa65b4fd0c829b20c630d7ebc0d4e7488f4ed034/types_boto3_rds-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/db/98/31e6deeeb2ff30f827497b4ba72310f818937012e3472a6baae83eccd267/types_boto3_proton-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/dc/06/f3abfa630ee1930106431c7e047859f33b9a34719d1a0e1e53fa994b02fe/types_boto3_datasync-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/de/34/8de0991df32dba38f6cb2ac7b6b120e303200cb3c37ef5acf4bf305a0ae0/types_boto3_sagemaker_edge-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/de/a4/d1179d2e399bdac3ae1bf37ebbc8106ab2e473ac9c4fad7859e09ded6734/types_boto3_migrationhuborchestrator-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/de/bd/ff3eee5ef48e3ce710b8f563834eafc75dd5050d81f1dc8d4f088bf29298/types_boto3_cloudformation-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/df/aa/13166f28a0ca6d69e256ef826e5f3630d0349d7f45726eec52e952240420/types_boto3_network_firewall-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/de/a7/f76514cc40ad6234098ecdebda08732d75964776c51a42845b7da10649e2/idna-3.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/df/b4/84bf02ab9f5ff970ed0e851424d6f4dbbc7bfaa13990c2ac85c82f4e8e9b/types_boto3_compute_optimizer_automation-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e0/07/baf943af9d7fa42530ea339ec7fe5ab8b58f32753e6f139fa22e1593473c/types_boto3_payment_cryptography-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e0/46/0233b5bd899dddadf935bb07bd3d76fb1e971e8e16ea13143779b008b554/types_boto3_networkflowmonitor-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e0/f4/a454f1c836525890b56a0d61c315723270d02c15ae13e4bc2e11671ed630/types_boto3_fms-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e1/6b/51cd66c1543141de227d7066d22a7ad6ce07ca918234637ef979d1a5c503/types_boto3_billing-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e2/43/732303133a724c8c81f503756e2aa643fe6415ba68fdf194991f2cf32587/types_boto3_kinesis-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e2/53/4adeab1ae332347049441863de87d0c26687f60bc94e8c2c05a49a1b368d/types_boto3_observabilityadmin-1.43.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e2/c1/b8505c339d5dca46a08be4a411cc80f38a3d5eb27c99ab04e9a5046ec6da/types_boto3_polly-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e2/c5/4688652870e350a76a8157f7ffb59ad54f37d5d10725aa7076f66ac94ec8/ty-0.0.39-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/e3/8f/6162ecc9c0c2aa155a0a8a9f47e9d48e9bf8ebe229b9302f1bf7f69e948b/types_boto3_sagemaker_geospatial-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e3/f7/a5ecadb999d4c71a8124717fcb5c91b342e00f25a8736669441eb778a11d/types_boto3_workspaces_instances-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e5/18/03fac621ab89475b32795225ea0bf6810f20f8a7e0b6ca4cd979d899c6c2/types_boto3_sagemaker_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e5/26/e9996df6080daebc43da3b5a90b905afd864f5735baf486c6ed1ba4edf12/types_boto3_pcs-1.43.7-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e6/28/fae5073941aae1a306c17eca41d6d00f72916612231458bfd512391fe32c/types_boto3_cloud9-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e6/e8/96cd96408af96b0d2522d9d50b71cd03172c3ceb3431c51a78dcadef8d49/types_boto3_chime_sdk_media_pipelines-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e7/8d/57efc876ff21a102803a31f03efd7a7ac3b8c35daed475ea9e6d5067cc19/types_boto3_appconfig-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e7/8d/df54408e0d346afc52e2b381662df459682921cb182e7d8be7e5d680dd12/types_boto3_resourcegroupstaggingapi-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e8/2e/413b8520f503496950dc9f25461f958562e39a1f334d9d471a14a74e2c21/types_boto3_chatbot-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e8/b4/79123785a7fa77987857f6405862e22ebb97797870d3179d8fc4d4e26c4e/types_boto3_personalize_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/bb/8e73e61865d85437f948b1aacf9b4ed35b4670d1f9eeceead168c87e0801/types_boto3_timestream_influxdb-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e9/d9/f3fb9a06bf56aaefd6a1bd9337b551aed60809edad5b930b67667be86983/types_boto3_iotdeviceadvisor-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ea/60/d5b0caa9a882df98877edcdd79e629c2e34e0c32727ac9bb3a78ac9f431c/types_boto3_location-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ea/91/f73af5d9de0e88ef701abe78c44ae678bce657e9b00259aee592eb652a2a/types_boto3_kinesisanalyticsv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/eb/39/440f496dfa74f8a561d448e9d4b4a4d3fbd8528df44bf57e47f6406626e0/types_boto3_workmailmessageflow-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ec/91/f0e96dcd11bcaeaf188943896468d1e5ae64fe306376623c5279014b9ab3/types_boto3_elementalinference-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ec/bb/2ca7a50b1a1869c0dfb5ae612b10f3312dd419accf5b87ae040f585bb7f1/types_boto3_timestream_write-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/09/cd5e08ae35b85609b28c144c44e927fb30999eb3af8c070ef8a97f0454aa/types_boto3_health-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/54/ca3548e2dff4ac01377ef33a90928f11f666168bc8e6408734ab78957e20/types_boto3_codeconnections-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/66/d1394015500c20434a98b702ecccc76e2d27373f76ccc13340eca9131dbc/types_boto3_controlcatalog-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/7b/71d8e73bc2db465b2d7f77404219fe7d22e8078cc600b08f3a8babc8548b/types_boto3_license_manager-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/a0/350a731279fcb2df9eb14566800b5893480f8c67c98fca9fc8fa63c28792/types_boto3_ecs-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/a6/1090297f5f6f2ab6e20ddae90326f469ba5fdbf4c19ef63ac6bd1ac9a4e2/types_boto3_cloudhsm-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/d3/505bbeed47a6fbc7c27f417a3de36c3edad9c8bec4774d74f7efcf219e62/types_boto3_route53profiles-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ee/58/21c55451ea2b6a707137d8aa28e3ea6a65ff4f176a7a4e3930ef433a21bb/types_boto3_apigatewaymanagementapi-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ee/79/33e702db62f0e4e066d7c0312616c1570a9b381490458d1aa4fa9e37a9a7/types_boto3_mediastore-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ef/a1/8378fa609956931eb7585c2be78ec0bb9efb5ee1dc0b894574b871ce61cd/types_boto3_cloudhsmv2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f0/85/c9423fd57861dbeec8cd55a2e102fe72e0eb2f727335fd283e7bb8dbebfd/types_boto3_kinesis_video_media-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f1/32/3dd61a6adb71ca42d3fe0045c0b96de7650f0ab3e82a4dc821134ad9910e/types_boto3_security_ir-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f1/5a/4ccf7145898755b864596de2c4118ab9b2fd2d56737109a8f4740e90108c/types_boto3_cloudsearch-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f1/db/9166cf7f2cf76de357e2e0b20f40c270c7419eaf5b40f905f31df0f2cb9e/types_boto3_dlm-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f2/a2/83fc37e2a58090e3d2ff79175a95493c664bcd0b653dd75cb9134645a4e5/shapely-2.1.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/f2/a8/deab7d0f639bc5dac3fa6c06ca5ebba2ff4e9d3edff2c0eb5d6a6f6c1493/types_boto3_migrationhubstrategy-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f3/7d/9fe8733977ed64cd3ac60624766283bb8c148e1fb93c0633931ae5696237/types_boto3_geo_routes-1.43.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f3/b2/7e42292f10eed65205bb95cd46f6dc511ccf73203d01cc1b914fe938ffd4/types_boto3_waf-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f3/f6/52d3222cd983e44476835eff8250c215b840c1f86270cba45d8e59d52564/types_boto3_artifact-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/0d/35bea539319094abbf152dce68b22a07ad7cd9b52cb182149b24a25313b7/types_boto3_acm-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/d6/1365e3b3a0c0ca22a894565d05cb1bdb3196f5b4edafe2538633de66e806/types_boto3_kinesis_video_signaling-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f4/e9/6c0a680cfb4ed029d1495e4574703cd75bd44d072fb4299cc6eb7b7ea2f7/types_boto3_partnercentral_selling-1.43.9-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f5/35/9a4df4b6fa85a01602b03a57364d046a2cc995755143b9a44679ac8ea643/types_boto3_acm_pca-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f5/4b/3ddf836c88c901c389cc03bb22f7a116ee96fed8cfed10e2fc7e356df192/types_boto3_identitystore-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f5/5f/f17563f28ff03c7b6799c50d01d5d856a1d55f2676f537ca8d28c7f627cd/scipy-1.17.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/f6/54/db5d7b6fcf44507be36382afdd8aa30eadf0eb1f7bc6eb2caf6b41582392/types_boto3_rbin-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f6/59/88ae2a79cfafffe8f635d6b94d712f8eec3cfa457252a51f293de6c2987f/types_boto3_elasticache-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f6/ae/d9c12947c7bb31a3823bfbb6df2bfa11bcad55591e39f883d94789800b57/types_boto3_codebuild-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f6/cf/f355918941903d4ced630ea690f249a0c6e1624c943fcdbebe847e2a1ff4/types_boto3_chime_sdk_voice-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f7/30/e854363f2f2f0bbf512fabad7f90f300b6142c964ac2857120f0c92b7318/types_boto3_s3outposts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f7/a9/bc655f04cd1f41230f006c5dcb0bcd57a8432bc1daaf58d056977f4f06be/types_boto3_lex_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f7/cc/cd8f48035a5832a9016d4fba335c3bdcb4d2336e96875a790303766e5453/types_boto3_marketplace_catalog-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f8/2b/7b86e2f154b3d58f22b513c325676ca8bf65338dd7e710667b1fd8d01f5a/types_boto3_codeguru_security-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/85/c2b1706e51942de19076eff082f8495e57d5151364e78b5bef4af4a1d94a/pyproj-3.7.2-cp313-cp313-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/f8/9b/c108cdb55560eaf253f0cbdb61b29971e9fb34d9c3499b0e96e4e60ed8a5/pyzmq-27.1.0-cp312-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/f9/4d/6a1988b8f7ee8a790ae85d845bb71b704c72fee33ce110ea6057f86077a1/types_boto3_lambda-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/f9/f7/2566f204353ee14c042e45aed36cc6dc2822fa511d30a6d68f2ccab980d6/types_boto3_interconnect-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f9/1e/30b218998dee295873f33c591bb5daf08c42ec27e5fb0ebb13977677e96f/boto3-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fa/07/330e3a0dda4c404d6da83b327270906e9654a24f6c546dc886a0eb0ffb23/charset_normalizer-3.4.7-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/fb/16/3f5fff578434dbc2157c044a216e7b7025647e43b99b21569f0844910767/types_boto3_fsx-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fd/7b/122376b1fd3c62c1ed9dc80c931ace4844b3c55407b6fb2d199377c9736f/pydantic-2.13.4-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/fd/8d/ab077c5d83d7dca70e41b506a635f2f0bf2ffc291ed84f69975ba0c36af4/types_boto3_forecastquery-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/fe/21/bb5996e716d518c365f8995f3a0fd0d4c0fc8a94952469b9de6bde594957/types_boto3_securityagent-1.43.14-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/fe/5e/385d3ddbfdb38e29164e941729c9e1137d7e6ee7000fd87dbdb2dba4ab03/types_boto3_opensearch-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ff/42/79c936447344577deab8e9db35c77ee3ceb49706b8996fa1f578709d7078/types_boto3_cleanrooms-1.43.13-py3-none-any.whl
   dev:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -554,7 +122,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pixi-pycharm-0.0.11-unix_hf108a03_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.13-8_cp313.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
-      - pypi: https://files.pythonhosted.org/packages/00/95/279ccc8a0270ed9c8f1bd2c671e9279e375516c450e9476c1203f75b4b52/types_boto3_iot-1.43.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/dc/06e345d552464ae7c60a34d9531d7549ad05c7a22a72469e590b6fceee64/types_boto3_logs-1.43.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/01/ef/f76069188ed0249c2ea95d9fd48e1f2773b5d7ad0875e31140f79fae22fe/types_boto3_aiops-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/54/f2edf1b015e0eae7ee27ca8acba4b179c3418a2554fe6fb0e192d2f75284/types_boto3_ec2-1.43.14-py3-none-any.whl
@@ -562,6 +129,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/03/32/4b7b243d81fd9ebeadbce80f21047705663f4e505106dab934df34c913b9/types_boto3_kinesis_video_webrtc_storage-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/ae/9d3e95f9dbe7d777b7ec9e26fc236d8e29029b6cb5131e7ae0dbc5299915/types_boto3_wellarchitected-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/eb/8ec9fb4e5ae0169c4f0127ea078c115a6578092bebc3bafa286528439944/types_boto3_controltower-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/03/ff/c3918d90efa927e4a53abac291b8e0823a54e0d67661c5b71929a9cc75d3/types_boto3_customer_profiles-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/0a/2fe1b6551949962de1793ab82ea034fb99d862f3b5f2a78646eca34affe4/types_boto3_marketplace_reporting-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/5b/6ca4414445b7c85e31e85ce9c6eab454b74f015147f0e84a0ae4b0540383/types_boto3_xray-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/04/73/5cc869b093b075f9515fdb9899950f8452b415f4da31cc77afbb1e1e3c57/types_boto3_resiliencehub-1.43.0-py3-none-any.whl
@@ -578,7 +146,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0b/a1/fc4223edb0efba4c1e92596f8dbf2d7370de1d75fa94469279e5267c1a14/types_boto3_forecast-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0b/f7/85273299ab57117850cc0a936c64151171fac4da49bc6fba0dad984a7c5f/affine-2.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0c/30/bb91d840edc5cfba4a6e0a9daa122dc936fa571bc22cddc2b6ff1c506cb6/types_boto3_codedeploy-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/0d/3c/f51c1b9b2f8b6c212e15bc7e0bc2eff36ad7bb5a0cadb0cd41358550b16d/types_boto3_customer_profiles-1.43.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/7a/fc20c5ad10f5c8acc88fca66875635a3ac93dbc285be1398e369a89011fa/types_boto3_managedblockchain-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/e7/0ff499ad41b3b5315ac5f410ca17baa90b50f5e621e91119d3ce3f8d86eb/types_boto3_lexv2_models-1.43.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0f/3f/6b7b01c9f42cd299f5afe9b4b7f0f158162f186444f59f3912d5f0eabe88/types_boto3_dax-1.43.0-py3-none-any.whl
@@ -589,10 +156,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/d6/e83a9a303940ef08a98c695f7cdfcc389d4470664f86a52c43040ffc89db/types_boto3_lakeformation-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/12/dc/1be568fc3cbfd0fb0a628031c0e83e4336adf93c9ab82ea9149cc9b41038/types_boto3_entityresolution-1.43.2-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/13/e7/51419d902346225d9ea98cfe817f3b55c3945c39fdaba40322eb92d107ee/types_boto3_bedrock_agentcore_control-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/04/c67376a41c18dde0b381522bcf9608be015f8f4766f76177fb136b2f106e/types_boto3_securitylake-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/15/f3/55f9e31c61f8131ed6bda2471af50a71d4d0064dab07ad9a7c487b09e64b/types_boto3_bedrock_runtime-1.43.12-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/16/6b/330d8ebae582b30c2959a1ef4c3bc344ebde48c2ff0c3f113c4710735e11/pyright-1.1.409-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/18/5e/89a1913fd824fa0fe51c80b35b36cf63f9006db2460c5400de11eb27e196/types_boto3_devops_guru-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/19/c1/8044d3bfd01373c9cf90c5aa897ce166e710420a9f1f06a510acdfb787ed/types_boto3_iam-1.43.2-py3-none-any.whl
@@ -610,7 +176,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/1d/91/898bc7c4d80cf3bc7b29fee6a93becd1836c069b65151a472afd8cde7861/types_boto3_dms-1.43.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1d/b6/c8e5e27cf5ee5d0ae374b9bd985575c58cfba5a56acb820cfaa817431c8b/types_boto3_networkmanager-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1e/74/35487a564f816617e1c52a0547936e6d16395e5103ae77569bbc7f210455/types_boto3_mediaconnect-1.43.13-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1e/c0/56472c251d09858a53e51efbd485b09e1995d8731668b76d52e5dd6ee0f1/ruff-0.15.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/1e/d6/d5dea2230be2f848c770342a29d416b2e61886364603f513ab694a52ee1c/types_boto3_sagemaker-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/20/39/471e03c8b3222d3e5e9c2ffdc8b9c3b1abd01ec588a84c2764e593c18736/types_boto3_cloudsearchdomain-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/21/5c/21a4fc94697b4eff0c7699dbd8b2fa03690f7d125f49ac76e5bae6e78c72/types_boto3_launch_wizard-1.43.0-py3-none-any.whl
@@ -618,22 +183,22 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/24/8c/17fb365ed41efcb8cf9481bbfd81070c1da30327296e9d5b58e642b6e710/types_boto3_simspaceweaver-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/24/fa/97a5e0a4ca97894b077c565ea907b58190977c808b1264c36d7be63497ab/types_boto3_application_signals-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/25/8f/d4b35c3d221a7fc6c87dd9ce1f9e9433b91b73d5b5740b9cae32ad8d1e90/types_boto3_es-1.43.7-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/26/3f/ba5639e52f8db3b62c405d51fd6208fb2860e478eed986e5b2d519a3ed05/types_boto3_resiliencehubv2-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/26/f0/30a3c6db8ce6dd9dbc44fbe55893d24b7fd5bd32c66ab3880658793c3c05/types_boto3_compute_optimizer-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/27/54/8aa171d3645b18270f8399e223f1a33c2b70c0f23b794712a2b87a1270f2/types_boto3_pca_connector_scep-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/28/1c/5b4fe1944511eed187672f75473b67f1a6c20ba19f0e51e72d02a7d83323/types_boto3-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/28/28/88ae0617f04b1cc897063e2ae9b97313cd0723e59078a71d72147c2d98af/types_boto3_qapps-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/29/12/4d0e41558f8c612b1d48eeca1a441ab55f1b8a49b27884a0ffd51b8bf92d/types_boto3_sdb-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/29/31/45edc82558bef35673dcfa0292684f8cdcee559e67e9dee2038259a0e370/types_boto3_scheduler-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/29/61/81686c6562f6f1eb6933d19b9498503cd5005a215c0740a91c228bc372ba/types_boto3_appfabric-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2b/0a/7b98e1e119878a27ba8618ca1e18b14f992ff1eda40f47bccccf4de44121/kiwisolver-1.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/2b/0e/6c1a0c578217744eef6edb776c623f99608189af2e927508dc2e8ae453c3/types_boto3_dynamodbstreams-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/2b/58/a58fc997655386daa2e25784e30c288aa3e3819e401f77029ee4899fb55a/s3transfer-0.18.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2c/75/fa9e63713936e997958841f4d577c8fda68c3ed8558e54b1190010868363/types_boto3_lex_models-1.43.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/57/e0d2cfce2f397e49bd2ccfb900d192b8bb27a33a95d3b03de148618f300f/types_boto3_applicationcostprofiler-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/58/90a0a43201f5e146bcca835f8356a173daa54fef0f76f0a27a9fa089737f/types_boto3_directconnect-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/c1/abbf88f1759f63e5374cdb18370b5713452c4900a9e75bf9a38641fddafa/types_boto3_memorydb-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/92/2d341093d20f49466b3857b10a29606fe2813b5d99308c8e7a8fc891eede/types_boto3_geo_places-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2f/c9/5ee3eaed2275fca755911b16fec5761a5aa52874309482a814f1ec1fc5c9/types_boto3_mediapackage_vod-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2f/ea/417d580ed116e8338b185ff72cba3b39af0c7100fc9ac5bd4bd1962a1f4f/types_boto3_bedrock_agentcore-1.43.11-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/30/06/e678ed04d4512117aed0c0522e55602aea20f24e8798a101c2c4fb8c2c34/types_boto3_arc_region_switch-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/98/21ff7c54c58f03363cebc1f72ec9efbd85482b84aa6866792812bb86bf84/types_boto3_kinesis_video_archived_media-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/31/fb/784ec66e816bdc580866ceaeb38ec7ba47773b589264102475e6774e1f2a/types_boto3_codestar_connections-1.43.0-py3-none-any.whl
@@ -656,6 +221,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/38/99/531db3f09e65cc9709f1b175a85966e79cbbcddcd7e72cf2ec6ee8dc24e6/types_boto3_translate-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/39/c6/6e7daea77680793a1410f134869008f8199ef3c3277c1d6144460cbfd536/types_boto3_sqs-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3a/03/83180f43bbb2ef114968a79e3ce9deef92419fcbb1f00a1a4e4d91024813/types_boto3_cloudtrail_data-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/3a/af/f6e4cff6d6711ac76cd56bc4c9ad51a367ea0a149dbc6c3e423272a41dd6/types_boto3-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/05/0d0df2376287f4a9773ffff2f858f59fade7c9ed1b3995196678e947a871/types_boto3_kinesisvideo-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3b/1e/e21fb363d71cadf39405bb0d9f7dbbe4a444de3425d86e249c4a8734c3cc/types_boto3_stepfunctions-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl
@@ -673,7 +239,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/46/03/2dc85bdebd7c9debf632daf30bf3378166279a65d984920a6f2fddab0185/types_boto3_signin-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/35/b874f79d03e9f900012cf609f7fff97b77164f2e14ee5aac282f8a999c1b/pyogrio-0.12.1-cp313-cp313-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/46/68/5e7362aaff0209b1b9a48de872a5ed5073a843eeee947b617f3d5246f185/types_boto3_macie2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/46/8f/25933240485c0662bb3fa430ed0c6b8b8124ab3bc136154c07ce12644cb0/botocore-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/47/15/c08a9b6a7a37b9a9b207c893247abb72529b024281c7cc20457da8b2f876/types_boto3_ec2_instance_connect-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/47/e4/fc5a414aaacfc45e2b9184c7feab842a1c08834634404a2fa9e7f3d12468/types_boto3_machinelearning-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/4a/1af9aa9810fb30668568f2c4dd3eec2412c8e9762b69201d971c509b295e/rasterio-1.5.0-cp313-cp313-manylinux_2_28_x86_64.whl
@@ -682,6 +247,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/48/95/06f6c2f9bfd9370e94cf11bd6696fb0d180d4971837b30dea1d6dd48c0dd/types_boto3_cloudfront-1.43.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/97/1427cb94a73dc894c302813d190c5fba8ca3626bda897ff336b3da4a5274/types_boto3_mgn-1.43.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/b2/66e7501e7f08803d1b2b1fcebefb970c6697c8f1b3c0bc34c01e3c15768b/types_boto3_ds-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/49/8d/6aef4e111a65c31a91626f526bee1d37204ff1035aee4db41909752dfb13/types_boto3_bedrock_runtime-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/49/a1/3f539d43d458d62fdf0d41bf031c3825f1f900ca73a634cb0ccbac9c7d17/types_boto3_iotwireless-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/49/c3/c81df024497bd473309e49faed565391c5f9797fe69cbb518baf2332a851/types_boto3_wafv2-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/49/df/963ad335b861d4f3dca9cc24f5e4b66112dd174e00827971966c3b8f242c/types_boto3_connectcampaigns-1.43.0-py3-none-any.whl
@@ -691,7 +257,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/4b/68/f1b971015836e63f2adf33ac75174f74bff1408a874436b9276446919ef7/types_boto3_apigateway-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4b/7f/33ba4918f20e1fd160271380472a24c2776b459e987ddfcdebb3293ab177/types_boto3_drs-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4b/98/d7d209569a059169709bd402aef7a2dbcca8c0addb006fc7180ea730752b/types_boto3_sso_oidc-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/4c/3b/422a200f66e12eb7cbbbb408a32a40b8205b753e4de97576b3c3c5cf501d/types_boto3_opensearchserverless-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4c/3e/c2d6216f182d396d59ec697ed7858317530e57492e5901a79caea06d021c/types_boto3_cloudwatch-1.43.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4c/aa/289fb28a5c5a3af4a7f9a4ea8b988b750e578aed98bf68c16725c2bc41f5/types_boto3_vpc_lattice-1.43.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4c/d3/75eec795aba4be0f040d038ca5272227de0ad9a5d6c82ffe1464843ada48/types_boto3_neptune_graph-1.43.0-py3-none-any.whl
@@ -724,12 +289,10 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/5a/3f/db9134de97db4a216bfa5d76102f5aba65d87bdca3d939bcb1e4f153553f/zalfmas_services-0.1.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5a/fb/c6d3a63acbf7d2c92f78b4b1e572e9ae3fd5f7ae57c3be25b9513fd5c67e/types_boto3_codeguru_reviewer-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5b/3e/6459e2ed8221c544046f3ec264091f39a9bd78a7a2d0c1737c420a79dfed/types_boto3_freetier-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5b/64/44710bfed9bf9ae1824140dae21b37ce34b335be6673d962dba41e0e7451/types_boto3_iot_data-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5b/a6/b23c30d03e192385cd44d93ff9ca1ee2d9b44ab67a258b73b5086b852de4/types_boto3_medical_imaging-1.43.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5b/b2/a7f0d059c664b5fcdf4529df0e15d5075289146e04007fe8c7236051b7c7/spotpy-1.6.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5c/c1/e1b1cd6789941b2b747ca690fe9a0ba247788fdaf86aaf9092b567d5ee92/types_boto3_sso-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/0f/6b114f8b0559e604001c51cd0196cf452ab6f84649a377cec8265d0a1608/types_boto3_nova_act-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/5d/41/da84f96684a10e8610e6326b00c86523cf2af60945f32be6878e2aedff5a/types_boto3_bedrock_agentcore_control-1.43.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/e9/88b676699022aac3debfd17655df54d7790aa3024cebd4ae41a01544ed6a/types_boto3_appconfigdata-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/f6/729c2dfcc4bc1f1702e54c213c154eabfd46cf538924989ff0e8c400af0f/types_boto3_iotsecuretunneling-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/29/6b5a49e5e948d3d50fca06bec14776e79869dc1a8dcdb00bc42b4f47b800/types_boto3_m2-1.43.0-py3-none-any.whl
@@ -754,7 +317,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/69/26/5373dbae0c4d0b87bf896e7a1196ca9078200766251db810315849f530ac/types_boto3_servicecatalog_appregistry-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/69/76/377f214118a1f9cfc20e0b460ccaea97ef12556d3a6dfea3b91932f9ca91/types_boto3_glacier-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/69/a0/0f776816bf18ee3b3898378d925306c12cf168d1c7631021c0049e412253/types_boto3_neptunedata-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/69/bb/ee8a710d66f9bb4ff1ffa3cf317b9b15ce5ce7e6294cfb54067303485d21/types_boto3_deadline-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/69/a4/fb86ccc723ef5d734031601560722eb7e98ceacf0be400956d4a2176502e/types_boto3_bedrock-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/01/0883f88ea9ab592d6ce1087f7f9bfd52d6b1b042c1cd3099a91c8310ce74/types_boto3_lexv2_runtime-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/3c/7ef332efd92519a274294ff044dd84a98f4e57f670690a9e20efd879cdf9/types_boto3_waf_regional-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/43/8bd850ee71a191bf072e31302c73a66be413fecdd98fdcd111ecbcce13ca/tomlkit-0.15.0-py3-none-any.whl
@@ -784,6 +347,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/75/db/d18cce83bfbe36d1c3cd6f2b6c261e350448c901ac87e22349fb98a0244b/types_boto3_taxsettings-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/4b/44d32393198c7a29f791de31cae004665cf46c6609436771dc0515ff104b/types_boto3_mq-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/fb/e65c284faac313e2aac84ed537092d0fccd245ccde3e58ba06cabc68899a/types_boto3_comprehendmedical-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/77/a1/2f7d85969c911b8beb8e027348f16dcc3c6ec08586ab2ce901612d5db715/types_boto3_s3control-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/bd/2a801aa9e7da521b08c594b965a7aaea564019b9a81695d35b7b37469a6f/types_boto3_autoscaling_plans-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/21/26a7fd6c621beb9b1846fe1dec30942a07a32dd016f4f359f86e18ad16f0/zalfmas_capnp_schemas-0.1.66-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
@@ -802,14 +366,12 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/84/ef/4dcd2a75cb4fa0cb204d66147f959ee7364ddae9ee6992dbb67bac9e391f/types_boto3_globalaccelerator-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/85/49/e9e74048033e45e0ad191ddba0a5ce64de5b189cafa1e26cada23cf65d6e/types_boto3_pinpoint_sms_voice-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/85/c1/404641d4c67dd205e7113f159fde199fecbd73b9feb9184fab63ef8a7227/types_boto3_bedrock_data_automation_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/85/dd/904873250a6554fbae40cddbf9198e3cc37a2f1319d5e1a5ce82fe269c17/s3transfer-0.17.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/26/6e7d9b6934f6c3ee8782c750e8c803e7f96ca83da65867fcfe3ca64bdf89/types_boto3_route53_recovery_cluster-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/7b/8d8ab170c359c7c68e859523313823d803f2b865b63a06dc38853cdc7473/types_boto3_cur-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/ab/2b8bbb05753cf3eb2198fcf160b11ed467c016d79a76669d204cc72bb5a4/types_boto3_rds_data-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/d6/9725dc1afb794ad369166241e520f3370539e214259e3efdaae804d9a6ab/types_boto3_greengrass-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/01/34c968b833595f6b2703aff3f892e31d00bcd3152fdf15fdc394c778ac9e/types_boto3_swf-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/23/35f046eccbdc68a0769bb9ebf93fa6e8ac793c1af48e9fe6eef40953ce23/types_boto3_notificationscontacts-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/89/5d/29fa9fd0d3d99c28a5e9a8b141d61b30e167512d277acb56c7f7d704002a/types_boto3_groundstation-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/89/ca/f017727b11895908c5dedc829cf2ec35e0c4b2a26ba875db325fef2cefdf/botocore_stubs-1.43.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/13/d584e29477a2df1d6f6142bf8dfe050667c000169865b11e3e55b5225c2b/types_boto3_wisdom-1.43.0-py3-none-any.whl
@@ -828,7 +390,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/91/d3/c7473f116cf103f67d87273ea42b2654af79b9fc25754df580fd6632bb6c/types_boto3_route53_recovery_control_config-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/91/d4/affe55ecf2397089c57f1da767fd252c09ab5f6ae9018933a879c18cee6b/types_boto3_storagegateway-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/92/c6/5ded46be1028273fcff8107b2632b7632100209d1ad425a24459ab4d561a/types_boto3_b2bi-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/94/16/70255075a9859a0e3adb789b68ceb0e210dec03934245fd98d248226572f/idna-3.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/29/e0cbad24248d667b01436794e3aa46e0c8cb36518517f3a16b17b0f19821/types_boto3_bcm_recommended_actions-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/2f/5773ed62b52c3077bd6c090d10847fe6f5448d1e1594fa2ad0608a2de0ba/types_boto3_bcm_dashboards-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/94/9d/030f4e72bb14172b10cf7431e9c8e7cea176d98dc4167bb81910936eafd7/types_boto3_synthetics-1.43.0-py3-none-any.whl
@@ -838,6 +399,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/95/97/d59d999f00aec90fc7a4efb742fc11e6c160552aa1b313438d3497998644/geojson_pydantic-2.1.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/95/bf/424b0d48d48a65a5a91f2f89f5493f338e4bd08da7748db650b6987635f2/types_boto3_invoicing-1.43.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/95/eb/6c060987fe793e97d1ccf9656044ae876dcbc3bbed115b88d534f4300772/types_boto3_cognito_sync-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/96/bb/832372515e95353c06452b27c113480f3c4657826481929cf5009b864f7f/types_boto3_pcs-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/97/e6/8d4da87a6a63610e9ae2c96b15e78399b90a24c69b915d31b3b2988ad4fb/types_boto3_cleanroomsml-1.43.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/98/27/e88220fe6274eccd3bdf95d9382918716d312f6f6cef6a46332d1ee2feff/types_s3transfer-0.16.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/98/a6/f842bc6a76d128ddf25039b62837da2e430275e43115cc8b1c2d306225b3/types_boto3_snowball-1.43.0-py3-none-any.whl
@@ -849,7 +411,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/9b/42/6c183cdeeadee05f1464e6a2b08d8bfa0e9ea0a9e7529f1ed058e4db3db5/types_boto3_sso_admin-1.43.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9b/74/20464795a327755236f4028a04b5804a5dac00b1e42978c23746e103042c/types_boto3_application_insights-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9b/b5/c067d3e8601ba446b16a2378c281b572b070bd5162687c3e84c6f94c02fe/types_boto3_budgets-1.43.15-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9c/54/51ec6b086e5820129d122b56219adfa241d92ac93e7a284aacdabda554b2/types_boto3_bedrock-1.43.8-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/9b/bd/a79615f446e3f9a57a8bff2e65aba41f514a51f19824e80cd71f2d6d6441/types_boto3_opensearchserverless-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9d/a0/6bb44ae7749261dc0bf812b82a5bc168ada037b415c40fdbc1991aa9e8a6/types_boto3_discovery-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9d/c5/a2072861592fce99747adaa9eb0185c0a48d57ed79da0836688a809a9d23/types_boto3_medialive-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/9d/ce/ce28dada59de6118f505264d5913c5624dcafb7f69410ebc5321c19a9607/types_boto3_iotthingsgraph-1.43.0-py3-none-any.whl
@@ -867,12 +429,12 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a1/d4/d9c6b6167a9ed4d867f52bb711582abb70dd366e39e01eab67eadeed7bf6/types_boto3_bedrock_agent-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a1/dd/1e48aef93d99cb48a194c16a43ccaaff000eb20c956a1f72f216ac4d1a57/types_boto3_mwaa-1.43.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a2/15/b77d5c2d8e74aca8c1f6232640029935953017c192faf3631e1234b5f0cc/types_boto3_ssm-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/a2/4f/badc0c4717549c21138c116c35ae315ef4ed5034375e3743f510aafa7beb/types_boto3_s3control-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a3/ba/9b7ad298ef9bf3469bb19f4b3a5c82b0111b07223a0206edea9aca4a47d6/types_boto3_healthlake-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/cb/041c4e3bd2ab31e5c7a003177db59e0632705497e6f03ed502ceb3a9f968/types_boto3_appintegrations-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/fd/d0c0f0a335ad660abbf9fb4784efdd2efdc5db7c3ada95a4adba1b0f75ed/types_boto3_devops_agent-1.43.11-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a4/ff/05c21f0be07f5c58c110647beecb8322150e34ace2cd4d596c834cb4e93f/types_boto3_amp-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/5a/f40d79e7617a9153d875428842b80ad6f4001407780ecc32c19b4f9d9bbf/types_boto3_events-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/a5/5e/c43935fb57006db3a508c51163448bb553d93eb089882b101180bf81d514/types_boto3_appstream-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a5/9d/3584b9984ca4c047aea75214ce1a4c4c73d849bd71b604264b7f5653f8a8/numpy-2.4.6-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/a5/cb/523d707311039a4359afbc5f5e0a86b794fab276175c5723fc55128dbaf9/types_boto3_elasticbeanstalk-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a6/76/dbe4a00b50385e40194231dcfe5a12c059de7cf90e89c83407d2b085b719/lxml-6.1.1-cp313-cp313-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
@@ -886,9 +448,9 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/aa/45/8277b78650cc2cdc1bf942a8c7d15f18d462c7b00a863b2fec82ef8cafc6/types_boto3_mediapackage-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ac/15/82c9c57709397a1c426d1f5bbfe7a0594e9d08cfc1d32ff8c8a83055a5ac/types_boto3_route53resolver-1.43.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ad/b0/71fe35ce60e1181f7f3064ca2b25eb4c38e00f5901ad831d93332cc59a6b/types_boto3_inspector2-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/af/c0/7d687e40f4b7046ede66026ecd1b0a93d47afe26d9170f5926a1605c8641/boto3-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/e4/b1e4937490ed53049febb3781cdabf1ddce4d822e8948773e72726d07fc3/types_boto3_cognito_identity-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/af/ff/d841790d6fcc72616feb5a00b8548cdd878b50b4f31ed998bf8d9d52c47e/types_boto3_s3-1.43.14-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/b0/6b/8d37110b2d9eb632e010fab890647ae672174e1cb7345d08f466751d63c4/types_boto3_bedrock_agentcore-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/a7/c65bfba2b8c15c5d77db7ad0dfa7da9e89ad00d0062beeb938d93eaa5456/types_boto3_connectcases-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b1/c0/ec3385edd9f5b1cd9ea67186e0fb07480555ac3833fa5e79928e23701908/types_boto3_iotevents_data-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b3/35/71f4985960be78295e8c8d7620453e22798829aebf52defdc94da8b7c752/types_boto3_ses-1.43.0-py3-none-any.whl
@@ -917,6 +479,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/bd/8f/ccdf6245d598e6cc573307e38454265f66bc9afc9a878de6ff63b5169b09/types_boto3_firehose-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/9d/7e4aac59a01ff65e9ede38049f04a91cb6279635aecee7579c6323a7696d/types_boto3_dsql-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bd/bf/c84dc78814bff572e2ecaa66f33caf8c525f308c3709cc9c654f86834e26/types_boto3_chime_sdk_meetings-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/bd/cb/f4e13e7844d9a2048270f8a47ca18834c9367eba71fb64ddcb8f4fffa270/types_boto3_iot_data-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/be/8c/97a4296caf35808dea7faeb09fe748c4b3fa155db9c2eb9aff8380b59a7b/types_boto3_verifiedpermissions-1.43.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bf/9b/6f8b1028bd9dc759cf32e823d371712fb219a9d212abba5ac6d054dcbe43/types_boto3_transcribe-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/bf/a8/74b2dc5266fd5d0365024ea960277cbd0f1d6195d2ed9c6c30b607555ec1/types_boto3_mediastore_data-1.43.0-py3-none-any.whl
@@ -925,6 +488,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c0/e6/bc4172b6a5705d5ce8151ff0f8410b8e9b8292537229cb1e715355a668ef/types_boto3_importexport-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c0/f7/e2a7e105e00b98d0a1be721b51d7abb9c6148a73ee45519c8c7e46b256f5/types_boto3_apprunner-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c1/00/1f49564bdf3fc8a41dcf1d7a90dc8ce1d1f6c65c7cdfbd41199cfd1507ec/types_boto3_mturk-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/c1/45/9a58f0be139271c4ed4d5a6d21be59ad27e9b2e2c624e6d70a51c918700d/types_boto3_iot-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c1/91/8c2d2a5e54d416d40715999ccde80317059d5f16ab34a363446df3a8b0c3/types_boto3_geo_maps-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c2/4d/db4ea3f442aa59b3141470d3b258bd200df2fb054bf1be79f89a761de767/types_boto3_arc_zonal_shift-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c2/e7/3596e5280729ac3f6734d5a34cb828cae0bb5fc1b6aea9a7b72a681a2218/types_boto3_route53_recovery_readiness-1.43.0-py3-none-any.whl
@@ -938,7 +502,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ca/06/eb66e8f424bad8fac0f23234b86d1918b98156ca7933c9e0132d31433304/types_boto3_emr_containers-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ca/25/a0d36e1e718e3a35d6ff8cf049f11ff80fc1fc61e658293511f4b8450544/types_boto3_support-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ca/32/6ebfeab3fe50cc5cadfebcb232dd21423787d56c61f03fa70e825af3daed/types_boto3_organizations-1.43.16-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/cb/6f/72bd3091d574ea85f365314b3350b358859682df827f842d7fc8967fda10/types_boto3_appstream-1.43.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cc/a9/c24184be90dc6087dc4af62478a9b3ffc797b6826ce7766611676395c664/types_boto3_emr_serverless-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cd/12/74c145b9e273b2b479f1ea578c7778d96d0c34f2d112fd0ec96c905bb792/owslib-0.35.0-py3-none-any.whl
@@ -954,6 +517,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/d3/b6/23b6d92ce5830dd8e998257301841e787296b153b22d067a92918562d118/types_boto3_dataexchange-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d3/c3/0d6e89d221f9132c10601123362b9822e55ece10523749ceffe9dc9c1fcc/types_boto3_resource_groups-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d3/e0/6a8dccf4ee01e4b32d0a50ec4464f0639de0dfe1b9abb0dd0491efbb5305/types_boto3_quicksight-1.43.10-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d4/07/6d1b3192715d42e8c9887876684a941eff28ec5d79c23a0f3758377e2182/basedpyright-1.39.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d4/87/94e7c27e18c0b1590a46e6ced70bbe4dafb7947ec44293a9a29ec6b2974b/types_boto3_docdb-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d4/d2/b432dde81419299b4ed689eacf30e06aa4114fbab328d76489d327a07aed/types_boto3_finspace_data-1.43.0-py3-none-any.whl
@@ -961,15 +525,19 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/d5/42/797a039c17cc886cb86f63d4378b0e4cc934e6490edd81d88411c9d8b6d6/types_boto3_connectcampaignsv2-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d5/53/dcae5c696cf833fb38470ce98efc5c625330509ba3cfc9f1dd128d45a95e/types_boto3_ce-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/26/7be26820eaafa17b21204a136b2a02d9a55f89155b10fb61218fe5edf657/types_boto3_kafkaconnect-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d6/ff/1625713b2ecac9f9bb65c7a51e71cb206b3089ba38f86ba5eff34e947176/botocore-1.43.17-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d7/3e/13042bbaaa8b2eefbe366df8cec6fa8987946fd83fb1c6cf462dc6e1fe71/types_boto3_controlcatalog-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/56/ecf6de150c9243e890222db19d09e31dde66b478d0bebcf40f8951ce5ab9/types_boto3_pinpoint_email-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d7/a5/bcb82a6056bc8ad0dbfdb0956ae1ff3b8eb9dd76c187723e82a3c5678982/pysodium-0.7.18.tar.gz
       - pypi: https://files.pythonhosted.org/packages/d9/0a/e009493159ddd9d0ae99f654f119a5efb1005571bae4e0ad0d4c98d825a6/types_boto3_config-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/da/d5/91ac63951ec75927a486b83b8cafe650e360fa70ac01dc94adfb32b93b97/nodejs_wheel_binaries-24.15.0-py2.py3-none-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/db/4f/c01a9393a178f175c894aa65b4fd0c829b20c630d7ebc0d4e7488f4ed034/types_boto3_rds-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/db/98/31e6deeeb2ff30f827497b4ba72310f818937012e3472a6baae83eccd267/types_boto3_proton-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/06/f3abfa630ee1930106431c7e047859f33b9a34719d1a0e1e53fa994b02fe/types_boto3_datasync-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/de/34/8de0991df32dba38f6cb2ac7b6b120e303200cb3c37ef5acf4bf305a0ae0/types_boto3_sagemaker_edge-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/de/a4/d1179d2e399bdac3ae1bf37ebbc8106ab2e473ac9c4fad7859e09ded6734/types_boto3_migrationhuborchestrator-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/de/a7/f76514cc40ad6234098ecdebda08732d75964776c51a42845b7da10649e2/idna-3.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/de/bd/ff3eee5ef48e3ce710b8f563834eafc75dd5050d81f1dc8d4f088bf29298/types_boto3_cloudformation-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/df/aa/13166f28a0ca6d69e256ef826e5f3630d0349d7f45726eec52e952240420/types_boto3_network_firewall-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl
@@ -985,7 +553,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e3/8f/6162ecc9c0c2aa155a0a8a9f47e9d48e9bf8ebe229b9302f1bf7f69e948b/types_boto3_sagemaker_geospatial-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/f7/a5ecadb999d4c71a8124717fcb5c91b342e00f25a8736669441eb778a11d/types_boto3_workspaces_instances-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/18/03fac621ab89475b32795225ea0bf6810f20f8a7e0b6ca4cd979d899c6c2/types_boto3_sagemaker_runtime-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e5/26/e9996df6080daebc43da3b5a90b905afd864f5735baf486c6ed1ba4edf12/types_boto3_pcs-1.43.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e6/28/fae5073941aae1a306c17eca41d6d00f72916612231458bfd512391fe32c/types_boto3_cloud9-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e6/e8/96cd96408af96b0d2522d9d50b71cd03172c3ceb3431c51a78dcadef8d49/types_boto3_chime_sdk_media_pipelines-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
@@ -1003,7 +570,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/ec/bb/2ca7a50b1a1869c0dfb5ae612b10f3312dd419accf5b87ae040f585bb7f1/types_boto3_timestream_write-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/09/cd5e08ae35b85609b28c144c44e927fb30999eb3af8c070ef8a97f0454aa/types_boto3_health-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/54/ca3548e2dff4ac01377ef33a90928f11f666168bc8e6408734ab78957e20/types_boto3_codeconnections-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ed/66/d1394015500c20434a98b702ecccc76e2d27373f76ccc13340eca9131dbc/types_boto3_controlcatalog-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/7b/71d8e73bc2db465b2d7f77404219fe7d22e8078cc600b08f3a8babc8548b/types_boto3_license_manager-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/a0/350a731279fcb2df9eb14566800b5893480f8c67c98fca9fc8fa63c28792/types_boto3_ecs-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ed/a6/1090297f5f6f2ab6e20ddae90326f469ba5fdbf4c19ef63ac6bd1ac9a4e2/types_boto3_cloudhsm-1.43.0-py3-none-any.whl
@@ -1029,6 +595,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/f5/5f/f17563f28ff03c7b6799c50d01d5d856a1d55f2676f537ca8d28c7f627cd/scipy-1.17.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/f6/54/db5d7b6fcf44507be36382afdd8aa30eadf0eb1f7bc6eb2caf6b41582392/types_boto3_rbin-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f6/59/88ae2a79cfafffe8f635d6b94d712f8eec3cfa457252a51f293de6c2987f/types_boto3_elasticache-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/f6/ad/b946d4ae0cf7ce11009e25f8d120852b1d82b59016b8e636b3f9540d60b7/types_boto3_deadline-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f6/ae/d9c12947c7bb31a3823bfbb6df2bfa11bcad55591e39f883d94789800b57/types_boto3_codebuild-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f6/cf/f355918941903d4ced630ea690f249a0c6e1624c943fcdbebe847e2a1ff4/types_boto3_chime_sdk_voice-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f7/30/e854363f2f2f0bbf512fabad7f90f300b6142c964ac2857120f0c92b7318/types_boto3_s3outposts-1.43.0-py3-none-any.whl
@@ -1037,12 +604,14 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/f8/2b/7b86e2f154b3d58f22b513c325676ca8bf65338dd7e710667b1fd8d01f5a/types_boto3_codeguru_security-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f8/85/c2b1706e51942de19076eff082f8495e57d5151364e78b5bef4af4a1d94a/pyproj-3.7.2-cp313-cp313-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/f8/9b/c108cdb55560eaf253f0cbdb61b29971e9fb34d9c3499b0e96e4e60ed8a5/pyzmq-27.1.0-cp312-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/f9/1e/30b218998dee295873f33c591bb5daf08c42ec27e5fb0ebb13977677e96f/boto3-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f9/4d/6a1988b8f7ee8a790ae85d845bb71b704c72fee33ce110ea6057f86077a1/types_boto3_lambda-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f9/f7/2566f204353ee14c042e45aed36cc6dc2822fa511d30a6d68f2ccab980d6/types_boto3_interconnect-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fa/07/330e3a0dda4c404d6da83b327270906e9654a24f6c546dc886a0eb0ffb23/charset_normalizer-3.4.7-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/fb/16/3f5fff578434dbc2157c044a216e7b7025647e43b99b21569f0844910767/types_boto3_fsx-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fd/7b/122376b1fd3c62c1ed9dc80c931ace4844b3c55407b6fb2d199377c9736f/pydantic-2.13.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fd/8d/ab077c5d83d7dca70e41b506a635f2f0bf2ffc291ed84f69975ba0c36af4/types_boto3_forecastquery-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/fe/1c/e6e5e568f22be4fb05d6244234aba384c06b451252453b821e1a529263cf/ruff-0.15.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/fe/21/bb5996e716d518c365f8995f3a0fd0d4c0fc8a94952469b9de6bde594957/types_boto3_securityagent-1.43.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fe/5e/385d3ddbfdb38e29164e941729c9e1137d7e6ee7000fd87dbdb2dba4ab03/types_boto3_opensearch-1.43.16-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ff/42/79c936447344577deab8e9db35c77ee3ceb49706b8996fa1f578709d7078/types_boto3_cleanrooms-1.43.13-py3-none-any.whl
@@ -1324,13 +893,6 @@ packages:
   purls: []
   size: 119135
   timestamp: 1767016325805
-- pypi: https://files.pythonhosted.org/packages/00/95/279ccc8a0270ed9c8f1bd2c671e9279e375516c450e9476c1203f75b4b52/types_boto3_iot-1.43.2-py3-none-any.whl
-  name: types-boto3-iot
-  version: 1.43.2
-  sha256: 60fdeb6ecec920d3ca78bc4ad87f66384e1195948dd81516039b447c2d8ae547
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/00/dc/06e345d552464ae7c60a34d9531d7549ad05c7a22a72469e590b6fceee64/types_boto3_logs-1.43.9-py3-none-any.whl
   name: types-boto3-logs
   version: 1.43.9
@@ -1377,6 +939,13 @@ packages:
   name: types-boto3-controltower
   version: 1.43.0
   sha256: 0dc8ddb856fb5a3404ce71c960a1add9f9fa07f60f1aa521f533dffb51019ce0
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/03/ff/c3918d90efa927e4a53abac291b8e0823a54e0d67661c5b71929a9cc75d3/types_boto3_customer_profiles-1.43.17-py3-none-any.whl
+  name: types-boto3-customer-profiles
+  version: 1.43.17
+  sha256: 407f358e4f85b092b8b894c4f7f2439611eab448f78b5303199967b7ce78c2bd
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -1496,13 +1065,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/0d/3c/f51c1b9b2f8b6c212e15bc7e0bc2eff36ad7bb5a0cadb0cd41358550b16d/types_boto3_customer_profiles-1.43.12-py3-none-any.whl
-  name: types-boto3-customer-profiles
-  version: 1.43.12
-  sha256: a3e697718cb79eba7d3da59aac95ba043a53a35fcd4a38bcadee790366ba415e
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/0d/7a/fc20c5ad10f5c8acc88fca66875635a3ac93dbc285be1398e369a89011fa/types_boto3_managedblockchain-1.43.0-py3-none-any.whl
   name: types-boto3-managedblockchain
   version: 1.43.0
@@ -1572,6 +1134,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/13/e7/51419d902346225d9ea98cfe817f3b55c3945c39fdaba40322eb92d107ee/types_boto3_bedrock_agentcore_control-1.43.17-py3-none-any.whl
+  name: types-boto3-bedrock-agentcore-control
+  version: 1.43.17
+  sha256: 61412e2419d4ec33ca5f8da0dde475048e43df8d496efb21f24b54e9c2a36095
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/14/04/c67376a41c18dde0b381522bcf9608be015f8f4766f76177fb136b2f106e/types_boto3_securitylake-1.43.0-py3-none-any.whl
   name: types-boto3-securitylake
   version: 1.43.0
@@ -1584,25 +1153,6 @@ packages:
   version: 1.1.0
   sha256: a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/15/f3/55f9e31c61f8131ed6bda2471af50a71d4d0064dab07ad9a7c487b09e64b/types_boto3_bedrock_runtime-1.43.12-py3-none-any.whl
-  name: types-boto3-bedrock-runtime
-  version: 1.43.12
-  sha256: ea49a74a17e878d58a568e8714a55f00de1048c727799c1963ecde2cf4137dae
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/16/6b/330d8ebae582b30c2959a1ef4c3bc344ebde48c2ff0c3f113c4710735e11/pyright-1.1.409-py3-none-any.whl
-  name: pyright
-  version: 1.1.409
-  sha256: aa3ea228cab90c845c7a60d28db7a844c04315356392aa09fafcee98c8c22fb3
-  requires_dist:
-  - nodeenv>=1.6.0
-  - typing-extensions>=4.1
-  - twine>=3.4.1 ; extra == 'dev'
-  - nodejs-wheel-binaries ; extra == 'nodejs'
-  - twine>=3.4.1 ; extra == 'all'
-  - nodejs-wheel-binaries ; extra == 'all'
-  requires_python: '>=3.7'
 - pypi: https://files.pythonhosted.org/packages/18/5e/89a1913fd824fa0fe51c80b35b36cf63f9006db2460c5400de11eb27e196/types_boto3_devops_guru-1.43.0-py3-none-any.whl
   name: types-boto3-devops-guru
   version: 1.43.0
@@ -1720,11 +1270,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/1e/c0/56472c251d09858a53e51efbd485b09e1995d8731668b76d52e5dd6ee0f1/ruff-0.15.14-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  name: ruff
-  version: 0.15.14
-  sha256: 715c543cf450c4888251f91c52f1942a800541d9bddd7ac060aa4e6b77ae7cba
-  requires_python: '>=3.7'
 - pypi: https://files.pythonhosted.org/packages/1e/d6/d5dea2230be2f848c770342a29d416b2e61886364603f513ab694a52ee1c/types_boto3_sagemaker-1.43.16-py3-none-any.whl
   name: types-boto3-sagemaker
   version: 1.43.16
@@ -1774,6 +1319,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/26/3f/ba5639e52f8db3b62c405d51fd6208fb2860e478eed986e5b2d519a3ed05/types_boto3_resiliencehubv2-1.43.17-py3-none-any.whl
+  name: types-boto3-resiliencehubv2
+  version: 1.43.17
+  sha256: 8b9309d82b3e7203b27e6779f218668c228b158f559879e43d66302ebf4b88e2
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/26/f0/30a3c6db8ce6dd9dbc44fbe55893d24b7fd5bd32c66ab3880658793c3c05/types_boto3_compute_optimizer-1.43.0-py3-none-any.whl
   name: types-boto3-compute-optimizer
   version: 1.43.0
@@ -1788,16 +1340,260 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/28/1c/5b4fe1944511eed187672f75473b67f1a6c20ba19f0e51e72d02a7d83323/types_boto3-1.43.16-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/28/28/88ae0617f04b1cc897063e2ae9b97313cd0723e59078a71d72147c2d98af/types_boto3_qapps-1.43.0-py3-none-any.whl
+  name: types-boto3-qapps
+  version: 1.43.0
+  sha256: 74583b55dcc8d7af4b4f1d6208c84b638d20e9f88f2e325d557c708d5914a791
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/29/12/4d0e41558f8c612b1d48eeca1a441ab55f1b8a49b27884a0ffd51b8bf92d/types_boto3_sdb-1.43.0-py3-none-any.whl
+  name: types-boto3-sdb
+  version: 1.43.0
+  sha256: 44923786bcae81642b2769625a91a4dbd26a08c1e3676e99da479a918023070c
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/29/31/45edc82558bef35673dcfa0292684f8cdcee559e67e9dee2038259a0e370/types_boto3_scheduler-1.43.0-py3-none-any.whl
+  name: types-boto3-scheduler
+  version: 1.43.0
+  sha256: 77f30d602e767e3875739345f1e48dd44881952e6f46e44254b817082bd7ef23
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/29/61/81686c6562f6f1eb6933d19b9498503cd5005a215c0740a91c228bc372ba/types_boto3_appfabric-1.43.0-py3-none-any.whl
+  name: types-boto3-appfabric
+  version: 1.43.0
+  sha256: 5b776ea6218c4570c79f372d8694c3cf5869dfc4f14469b64149a78af8d816e0
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2b/0a/7b98e1e119878a27ba8618ca1e18b14f992ff1eda40f47bccccf4de44121/kiwisolver-1.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+  name: kiwisolver
+  version: 1.5.0
+  sha256: 332b4f0145c30b5f5ad9374881133e5aa64320428a57c2c2b61e9d891a51c2f3
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/2b/0e/6c1a0c578217744eef6edb776c623f99608189af2e927508dc2e8ae453c3/types_boto3_dynamodbstreams-1.43.0-py3-none-any.whl
+  name: types-boto3-dynamodbstreams
+  version: 1.43.0
+  sha256: 0bc5b55c38cfc43adb3bba77b032d10e3a67a9e6655db744c41b43edf1b3c7cc
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2b/58/a58fc997655386daa2e25784e30c288aa3e3819e401f77029ee4899fb55a/s3transfer-0.18.0-py3-none-any.whl
+  name: s3transfer
+  version: 0.18.0
+  sha256: 239c13b09e65ad0346e1be7348b8a202dcad44ac7ea7c6eb858fc881dce739b6
+  requires_dist:
+  - botocore>=1.37.4,<2.0a0
+  - botocore[crt]>=1.37.4,<2.0a0 ; extra == 'crt'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/2c/75/fa9e63713936e997958841f4d577c8fda68c3ed8558e54b1190010868363/types_boto3_lex_models-1.43.3-py3-none-any.whl
+  name: types-boto3-lex-models
+  version: 1.43.3
+  sha256: 6477535d54366952711024d7d8249d7b41f34c0f6898905bb163d1fb52e914ac
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2d/57/e0d2cfce2f397e49bd2ccfb900d192b8bb27a33a95d3b03de148618f300f/types_boto3_applicationcostprofiler-1.43.0-py3-none-any.whl
+  name: types-boto3-applicationcostprofiler
+  version: 1.43.0
+  sha256: cac7f4d4e570d20e3c731f9447dc6f5bc166de41ea687893b79ca683f522b646
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2d/58/90a0a43201f5e146bcca835f8356a173daa54fef0f76f0a27a9fa089737f/types_boto3_directconnect-1.43.0-py3-none-any.whl
+  name: types-boto3-directconnect
+  version: 1.43.0
+  sha256: 382000f1d10f6f56dd689c22923a512342835ebe65f975c0b8b0d7eca075c455
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2d/c1/abbf88f1759f63e5374cdb18370b5713452c4900a9e75bf9a38641fddafa/types_boto3_memorydb-1.43.0-py3-none-any.whl
+  name: types-boto3-memorydb
+  version: 1.43.0
+  sha256: ab759588f1c13164c55ab2f043f6e93bd0ce5ba8187fe7536f8ea7f4328d44b7
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2f/92/2d341093d20f49466b3857b10a29606fe2813b5d99308c8e7a8fc891eede/types_boto3_geo_places-1.43.0-py3-none-any.whl
+  name: types-boto3-geo-places
+  version: 1.43.0
+  sha256: b2fa43f283ab5e597f714f59bef3ead8f3da8f0a3ca7cae55c73d2fd4cf217f5
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/2f/c9/5ee3eaed2275fca755911b16fec5761a5aa52874309482a814f1ec1fc5c9/types_boto3_mediapackage_vod-1.43.0-py3-none-any.whl
+  name: types-boto3-mediapackage-vod
+  version: 1.43.0
+  sha256: d452c379be77382683f54fa57bea174b40d5e371a60921c5e99f0f1ed76943dd
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/30/06/e678ed04d4512117aed0c0522e55602aea20f24e8798a101c2c4fb8c2c34/types_boto3_arc_region_switch-1.43.7-py3-none-any.whl
+  name: types-boto3-arc-region-switch
+  version: 1.43.7
+  sha256: 227ab1c6970ddf6c5efaca75b7bc84f7c2334868d3bb97f40dbb6a44af483e64
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/31/98/21ff7c54c58f03363cebc1f72ec9efbd85482b84aa6866792812bb86bf84/types_boto3_kinesis_video_archived_media-1.43.0-py3-none-any.whl
+  name: types-boto3-kinesis-video-archived-media
+  version: 1.43.0
+  sha256: 98a30ec4bf7d2e916d1c53423b17974806243d30397693f074289a3b1a9edd86
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/31/fb/784ec66e816bdc580866ceaeb38ec7ba47773b589264102475e6774e1f2a/types_boto3_codestar_connections-1.43.0-py3-none-any.whl
+  name: types-boto3-codestar-connections
+  version: 1.43.0
+  sha256: ab196ab4227f04180f455aa4bd591cbf6522639938d16a32ded2749905859717
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/31/ff/3ee65a3e4e9832794a8bcfd622f1f6da4168f754563ab6fb971a31958602/types_boto3_servicediscovery-1.43.0-py3-none-any.whl
+  name: types-boto3-servicediscovery
+  version: 1.43.0
+  sha256: 16e3ec7db6d043beb847916673b152a8c44b7b11caa2ce9ca80ee48f1c1e5916
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/32/0a/33a55afd5ebbf89d74c7732d6ce18393f5f81751411706b31c44cc082ff9/types_boto3_qconnect-1.43.14-py3-none-any.whl
+  name: types-boto3-qconnect
+  version: 1.43.14
+  sha256: df22fd636bddba74c6621c3cb631b87e6739427453bbcf82ee80959fd28e4a10
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/33/33/c56c2bba78812ecfc3c16c9b890d4a5743ee8d2860f588690dfc361a3aa5/types_boto3_cognito_idp-1.43.0-py3-none-any.whl
+  name: types-boto3-cognito-idp
+  version: 1.43.0
+  sha256: dadcab577265984c9692b526ceba292d0cd63eca262f8f133c29045cc43647d6
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/33/5a/30c6596a9bfd6ebbd6df00fc328a24da3ccb353a54dc44fe47a64732ee7c/types_boto3_ssm_sap-1.43.0-py3-none-any.whl
+  name: types-boto3-ssm-sap
+  version: 1.43.0
+  sha256: baf05bf5b7c8f924c5d5238a5164b4084dcb0f2e590c4c3984d5b771575caa88
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/33/cf/d532e35e0ccdff4456346ea9d48ef39e3248c33b2ba4394f94ed96102585/types_boto3_kinesisanalytics-1.43.0-py3-none-any.whl
+  name: types-boto3-kinesisanalytics
+  version: 1.43.0
+  sha256: 70bad45b8808a7df81cc81c0818d807a72802296e7bf73d04d52f76611326541
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/35/e5/f18829d377bd415729b5105dcea088af14a75c2fc3654242bdb0c4745a87/types_boto3_connectparticipant-1.43.0-py3-none-any.whl
+  name: types-boto3-connectparticipant
+  version: 1.43.0
+  sha256: 97a0d93819e67bdfb94c7b0728d4265145f63efa95691917f1938309a669ba06
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/36/0f/91d49a99cda0f80e58f5c7aea817e93d1272e30c35b7bc8e4c318d786456/types_boto3_iot_jobs_data-1.43.0-py3-none-any.whl
+  name: types-boto3-iot-jobs-data
+  version: 1.43.0
+  sha256: 9f3571457e338011691ddd91443bafe59f4f315d25edce6f81857cb2df122f47
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/36/7c/018c7e6a84fc71603a6c6a1ad86c238b8defa36bbd5d260514d8b0917c57/types_boto3_codestar_notifications-1.43.0-py3-none-any.whl
+  name: types-boto3-codestar-notifications
+  version: 1.43.0
+  sha256: 30e1676e98bc579e9dfb41cfc35daf6344615a942364ffba9e0e2fbb16ea4d1e
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/36/ab/976e26bb3317f81fd783da34e3da327b00915c597b3b4708d78782cb8d7b/types_boto3_signer_data-1.43.0-py3-none-any.whl
+  name: types-boto3-signer-data
+  version: 1.43.0
+  sha256: f4fa5017714f31e301ceee7e30ee647fa5011397af43c774a602209bafa8eb15
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/36/d7/30f3ba4d69fa0c55344d9dbbe8ee10607304894df1f9e6e95405b6313431/types_boto3_wickr-1.43.0-py3-none-any.whl
+  name: types-boto3-wickr
+  version: 1.43.0
+  sha256: e4c24a6334a5473549744888b5f8f2a7fc186b32f0bda83c76aa7a6c9fa2a10d
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/37/1f/9c9e79795a68c985a9d00a8b2d6a0b69c85d7638e136ece891bad7d9b2eb/types_boto3_iotevents-1.43.0-py3-none-any.whl
+  name: types-boto3-iotevents
+  version: 1.43.0
+  sha256: 2c691489b2b3be0168c7308c27b96ceae1c9b7253cffb29946ca29e6b99ba0d8
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/37/a3/5013fd6acd1f33a9816bbe1108ccfbea0138d522790e454fe537624fd8cc/types_boto3_amplifyuibuilder-1.43.0-py3-none-any.whl
+  name: types-boto3-amplifyuibuilder
+  version: 1.43.0
+  sha256: 3f544a664966eec99504b5b07a0143b8eb4863f70a33d96498b473b2d7a37f29
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/37/db/c0c6bdf84254d0eda46e7493e77fe51b83287954af5e03894859f42a6849/types_boto3_managedblockchain_query-1.43.0-py3-none-any.whl
+  name: types-boto3-managedblockchain-query
+  version: 1.43.0
+  sha256: 1afaeb57423360190eb2cac65013b811d36d39852d0b4f8ed3ea49443d04fe7d
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/37/e1/08af811394ca720a077a4a9fda7cce33c043819e56e0d722d21c977de444/types_boto3_kms-1.43.12-py3-none-any.whl
+  name: types-boto3-kms
+  version: 1.43.12
+  sha256: e3c2d0e510593920464aff052382fc31d7159c15cb2c439c5ad8988f6c8417e2
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/38/14/1eb7bb7fa56e1343e74fd0f7f98a8552f5efa6f8bb9d24356d9e6ff23d56/types_boto3_braket-1.43.0-py3-none-any.whl
+  name: types-boto3-braket
+  version: 1.43.0
+  sha256: 42b3fd52166493f72b043a00898adbe4ec11fc480b57d55143bf06e6b1e8510b
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/38/90/83e4aebad3823ba5be888aa341b0d4c3878a3f4a6cc277077c20b22769fd/types_boto3_trustedadvisor-1.43.0-py3-none-any.whl
+  name: types-boto3-trustedadvisor
+  version: 1.43.0
+  sha256: 46086b4e25a3da1ad2272d2e4286deb9627b751df91b2a751bc027c667f7d02b
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/38/99/531db3f09e65cc9709f1b175a85966e79cbbcddcd7e72cf2ec6ee8dc24e6/types_boto3_translate-1.43.0-py3-none-any.whl
+  name: types-boto3-translate
+  version: 1.43.0
+  sha256: 63a2351bb721bea05a39f2617abb8f32d838b5c885d84a3a97b1fff6b1108245
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/39/c6/6e7daea77680793a1410f134869008f8199ef3c3277c1d6144460cbfd536/types_boto3_sqs-1.43.0-py3-none-any.whl
+  name: types-boto3-sqs
+  version: 1.43.0
+  sha256: c23e43a13822208d26a946c991ebf9b4ba7194dec5b5537fd4eb850a2a5c25a7
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/3a/03/83180f43bbb2ef114968a79e3ce9deef92419fcbb1f00a1a4e4d91024813/types_boto3_cloudtrail_data-1.43.0-py3-none-any.whl
+  name: types-boto3-cloudtrail-data
+  version: 1.43.0
+  sha256: c9bccf85661200ab493034747663f4a5b7743fcc38443ff1a19d6cc22d1eb36e
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/3a/af/f6e4cff6d6711ac76cd56bc4c9ad51a367ea0a149dbc6c3e423272a41dd6/types_boto3-1.43.17-py3-none-any.whl
   name: types-boto3
-  version: 1.43.16
-  sha256: 16913c6f345e07d2ac51ff212a462044cbd3f33b0ed59d965cc3a5510d3f776b
+  version: 1.43.17
+  sha256: 116d7a5d01de2cf9647414736e206a97cf6e51e979c01597e9bec0d1ea104c28
   requires_dist:
   - botocore-stubs
   - types-s3transfer
   - typing-extensions>=4.1.0 ; python_full_version < '3.12'
   - types-boto3-full>=1.43.0,<1.44.0 ; extra == 'full'
-  - boto3==1.43.16 ; extra == 'boto3'
+  - boto3==1.43.17 ; extra == 'boto3'
   - types-boto3-accessanalyzer>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-account>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-acm>=1.43.0,<1.44.0 ; extra == 'all'
@@ -2121,6 +1917,7 @@ packages:
   - types-boto3-rekognition>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-repostspace>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-resiliencehub>=1.43.0,<1.44.0 ; extra == 'all'
+  - types-boto3-resiliencehubv2>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-resource-explorer-2>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-resource-groups>=1.43.0,<1.44.0 ; extra == 'all'
   - types-boto3-resourcegroupstaggingapi>=1.43.0,<1.44.0 ; extra == 'all'
@@ -2551,6 +2348,7 @@ packages:
   - types-boto3-rekognition>=1.43.0,<1.44.0 ; extra == 'rekognition'
   - types-boto3-repostspace>=1.43.0,<1.44.0 ; extra == 'repostspace'
   - types-boto3-resiliencehub>=1.43.0,<1.44.0 ; extra == 'resiliencehub'
+  - types-boto3-resiliencehubv2>=1.43.0,<1.44.0 ; extra == 'resiliencehubv2'
   - types-boto3-resource-explorer-2>=1.43.0,<1.44.0 ; extra == 'resource-explorer-2'
   - types-boto3-resource-groups>=1.43.0,<1.44.0 ; extra == 'resource-groups'
   - types-boto3-resourcegroupstaggingapi>=1.43.0,<1.44.0 ; extra == 'resourcegroupstaggingapi'
@@ -2651,249 +2449,6 @@ packages:
   - types-boto3-workspaces-thin-client>=1.43.0,<1.44.0 ; extra == 'workspaces-thin-client'
   - types-boto3-workspaces-web>=1.43.0,<1.44.0 ; extra == 'workspaces-web'
   - types-boto3-xray>=1.43.0,<1.44.0 ; extra == 'xray'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/28/28/88ae0617f04b1cc897063e2ae9b97313cd0723e59078a71d72147c2d98af/types_boto3_qapps-1.43.0-py3-none-any.whl
-  name: types-boto3-qapps
-  version: 1.43.0
-  sha256: 74583b55dcc8d7af4b4f1d6208c84b638d20e9f88f2e325d557c708d5914a791
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/29/12/4d0e41558f8c612b1d48eeca1a441ab55f1b8a49b27884a0ffd51b8bf92d/types_boto3_sdb-1.43.0-py3-none-any.whl
-  name: types-boto3-sdb
-  version: 1.43.0
-  sha256: 44923786bcae81642b2769625a91a4dbd26a08c1e3676e99da479a918023070c
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/29/31/45edc82558bef35673dcfa0292684f8cdcee559e67e9dee2038259a0e370/types_boto3_scheduler-1.43.0-py3-none-any.whl
-  name: types-boto3-scheduler
-  version: 1.43.0
-  sha256: 77f30d602e767e3875739345f1e48dd44881952e6f46e44254b817082bd7ef23
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/29/61/81686c6562f6f1eb6933d19b9498503cd5005a215c0740a91c228bc372ba/types_boto3_appfabric-1.43.0-py3-none-any.whl
-  name: types-boto3-appfabric
-  version: 1.43.0
-  sha256: 5b776ea6218c4570c79f372d8694c3cf5869dfc4f14469b64149a78af8d816e0
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2b/0a/7b98e1e119878a27ba8618ca1e18b14f992ff1eda40f47bccccf4de44121/kiwisolver-1.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-  name: kiwisolver
-  version: 1.5.0
-  sha256: 332b4f0145c30b5f5ad9374881133e5aa64320428a57c2c2b61e9d891a51c2f3
-  requires_python: '>=3.10'
-- pypi: https://files.pythonhosted.org/packages/2b/0e/6c1a0c578217744eef6edb776c623f99608189af2e927508dc2e8ae453c3/types_boto3_dynamodbstreams-1.43.0-py3-none-any.whl
-  name: types-boto3-dynamodbstreams
-  version: 1.43.0
-  sha256: 0bc5b55c38cfc43adb3bba77b032d10e3a67a9e6655db744c41b43edf1b3c7cc
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2c/75/fa9e63713936e997958841f4d577c8fda68c3ed8558e54b1190010868363/types_boto3_lex_models-1.43.3-py3-none-any.whl
-  name: types-boto3-lex-models
-  version: 1.43.3
-  sha256: 6477535d54366952711024d7d8249d7b41f34c0f6898905bb163d1fb52e914ac
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2d/57/e0d2cfce2f397e49bd2ccfb900d192b8bb27a33a95d3b03de148618f300f/types_boto3_applicationcostprofiler-1.43.0-py3-none-any.whl
-  name: types-boto3-applicationcostprofiler
-  version: 1.43.0
-  sha256: cac7f4d4e570d20e3c731f9447dc6f5bc166de41ea687893b79ca683f522b646
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2d/58/90a0a43201f5e146bcca835f8356a173daa54fef0f76f0a27a9fa089737f/types_boto3_directconnect-1.43.0-py3-none-any.whl
-  name: types-boto3-directconnect
-  version: 1.43.0
-  sha256: 382000f1d10f6f56dd689c22923a512342835ebe65f975c0b8b0d7eca075c455
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2d/c1/abbf88f1759f63e5374cdb18370b5713452c4900a9e75bf9a38641fddafa/types_boto3_memorydb-1.43.0-py3-none-any.whl
-  name: types-boto3-memorydb
-  version: 1.43.0
-  sha256: ab759588f1c13164c55ab2f043f6e93bd0ce5ba8187fe7536f8ea7f4328d44b7
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2f/92/2d341093d20f49466b3857b10a29606fe2813b5d99308c8e7a8fc891eede/types_boto3_geo_places-1.43.0-py3-none-any.whl
-  name: types-boto3-geo-places
-  version: 1.43.0
-  sha256: b2fa43f283ab5e597f714f59bef3ead8f3da8f0a3ca7cae55c73d2fd4cf217f5
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2f/c9/5ee3eaed2275fca755911b16fec5761a5aa52874309482a814f1ec1fc5c9/types_boto3_mediapackage_vod-1.43.0-py3-none-any.whl
-  name: types-boto3-mediapackage-vod
-  version: 1.43.0
-  sha256: d452c379be77382683f54fa57bea174b40d5e371a60921c5e99f0f1ed76943dd
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/2f/ea/417d580ed116e8338b185ff72cba3b39af0c7100fc9ac5bd4bd1962a1f4f/types_boto3_bedrock_agentcore-1.43.11-py3-none-any.whl
-  name: types-boto3-bedrock-agentcore
-  version: 1.43.11
-  sha256: 82bdf53f5aaf27e44b30dfab2cf23052b4cd73e4395cb4a65779eca82e8a2e7d
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/30/06/e678ed04d4512117aed0c0522e55602aea20f24e8798a101c2c4fb8c2c34/types_boto3_arc_region_switch-1.43.7-py3-none-any.whl
-  name: types-boto3-arc-region-switch
-  version: 1.43.7
-  sha256: 227ab1c6970ddf6c5efaca75b7bc84f7c2334868d3bb97f40dbb6a44af483e64
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/31/98/21ff7c54c58f03363cebc1f72ec9efbd85482b84aa6866792812bb86bf84/types_boto3_kinesis_video_archived_media-1.43.0-py3-none-any.whl
-  name: types-boto3-kinesis-video-archived-media
-  version: 1.43.0
-  sha256: 98a30ec4bf7d2e916d1c53423b17974806243d30397693f074289a3b1a9edd86
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/31/fb/784ec66e816bdc580866ceaeb38ec7ba47773b589264102475e6774e1f2a/types_boto3_codestar_connections-1.43.0-py3-none-any.whl
-  name: types-boto3-codestar-connections
-  version: 1.43.0
-  sha256: ab196ab4227f04180f455aa4bd591cbf6522639938d16a32ded2749905859717
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/31/ff/3ee65a3e4e9832794a8bcfd622f1f6da4168f754563ab6fb971a31958602/types_boto3_servicediscovery-1.43.0-py3-none-any.whl
-  name: types-boto3-servicediscovery
-  version: 1.43.0
-  sha256: 16e3ec7db6d043beb847916673b152a8c44b7b11caa2ce9ca80ee48f1c1e5916
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/32/0a/33a55afd5ebbf89d74c7732d6ce18393f5f81751411706b31c44cc082ff9/types_boto3_qconnect-1.43.14-py3-none-any.whl
-  name: types-boto3-qconnect
-  version: 1.43.14
-  sha256: df22fd636bddba74c6621c3cb631b87e6739427453bbcf82ee80959fd28e4a10
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/33/33/c56c2bba78812ecfc3c16c9b890d4a5743ee8d2860f588690dfc361a3aa5/types_boto3_cognito_idp-1.43.0-py3-none-any.whl
-  name: types-boto3-cognito-idp
-  version: 1.43.0
-  sha256: dadcab577265984c9692b526ceba292d0cd63eca262f8f133c29045cc43647d6
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/33/5a/30c6596a9bfd6ebbd6df00fc328a24da3ccb353a54dc44fe47a64732ee7c/types_boto3_ssm_sap-1.43.0-py3-none-any.whl
-  name: types-boto3-ssm-sap
-  version: 1.43.0
-  sha256: baf05bf5b7c8f924c5d5238a5164b4084dcb0f2e590c4c3984d5b771575caa88
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/33/cf/d532e35e0ccdff4456346ea9d48ef39e3248c33b2ba4394f94ed96102585/types_boto3_kinesisanalytics-1.43.0-py3-none-any.whl
-  name: types-boto3-kinesisanalytics
-  version: 1.43.0
-  sha256: 70bad45b8808a7df81cc81c0818d807a72802296e7bf73d04d52f76611326541
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/35/e5/f18829d377bd415729b5105dcea088af14a75c2fc3654242bdb0c4745a87/types_boto3_connectparticipant-1.43.0-py3-none-any.whl
-  name: types-boto3-connectparticipant
-  version: 1.43.0
-  sha256: 97a0d93819e67bdfb94c7b0728d4265145f63efa95691917f1938309a669ba06
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/36/0f/91d49a99cda0f80e58f5c7aea817e93d1272e30c35b7bc8e4c318d786456/types_boto3_iot_jobs_data-1.43.0-py3-none-any.whl
-  name: types-boto3-iot-jobs-data
-  version: 1.43.0
-  sha256: 9f3571457e338011691ddd91443bafe59f4f315d25edce6f81857cb2df122f47
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/36/7c/018c7e6a84fc71603a6c6a1ad86c238b8defa36bbd5d260514d8b0917c57/types_boto3_codestar_notifications-1.43.0-py3-none-any.whl
-  name: types-boto3-codestar-notifications
-  version: 1.43.0
-  sha256: 30e1676e98bc579e9dfb41cfc35daf6344615a942364ffba9e0e2fbb16ea4d1e
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/36/ab/976e26bb3317f81fd783da34e3da327b00915c597b3b4708d78782cb8d7b/types_boto3_signer_data-1.43.0-py3-none-any.whl
-  name: types-boto3-signer-data
-  version: 1.43.0
-  sha256: f4fa5017714f31e301ceee7e30ee647fa5011397af43c774a602209bafa8eb15
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/36/d7/30f3ba4d69fa0c55344d9dbbe8ee10607304894df1f9e6e95405b6313431/types_boto3_wickr-1.43.0-py3-none-any.whl
-  name: types-boto3-wickr
-  version: 1.43.0
-  sha256: e4c24a6334a5473549744888b5f8f2a7fc186b32f0bda83c76aa7a6c9fa2a10d
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/37/1f/9c9e79795a68c985a9d00a8b2d6a0b69c85d7638e136ece891bad7d9b2eb/types_boto3_iotevents-1.43.0-py3-none-any.whl
-  name: types-boto3-iotevents
-  version: 1.43.0
-  sha256: 2c691489b2b3be0168c7308c27b96ceae1c9b7253cffb29946ca29e6b99ba0d8
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/37/a3/5013fd6acd1f33a9816bbe1108ccfbea0138d522790e454fe537624fd8cc/types_boto3_amplifyuibuilder-1.43.0-py3-none-any.whl
-  name: types-boto3-amplifyuibuilder
-  version: 1.43.0
-  sha256: 3f544a664966eec99504b5b07a0143b8eb4863f70a33d96498b473b2d7a37f29
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/37/db/c0c6bdf84254d0eda46e7493e77fe51b83287954af5e03894859f42a6849/types_boto3_managedblockchain_query-1.43.0-py3-none-any.whl
-  name: types-boto3-managedblockchain-query
-  version: 1.43.0
-  sha256: 1afaeb57423360190eb2cac65013b811d36d39852d0b4f8ed3ea49443d04fe7d
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/37/e1/08af811394ca720a077a4a9fda7cce33c043819e56e0d722d21c977de444/types_boto3_kms-1.43.12-py3-none-any.whl
-  name: types-boto3-kms
-  version: 1.43.12
-  sha256: e3c2d0e510593920464aff052382fc31d7159c15cb2c439c5ad8988f6c8417e2
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/38/14/1eb7bb7fa56e1343e74fd0f7f98a8552f5efa6f8bb9d24356d9e6ff23d56/types_boto3_braket-1.43.0-py3-none-any.whl
-  name: types-boto3-braket
-  version: 1.43.0
-  sha256: 42b3fd52166493f72b043a00898adbe4ec11fc480b57d55143bf06e6b1e8510b
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/38/90/83e4aebad3823ba5be888aa341b0d4c3878a3f4a6cc277077c20b22769fd/types_boto3_trustedadvisor-1.43.0-py3-none-any.whl
-  name: types-boto3-trustedadvisor
-  version: 1.43.0
-  sha256: 46086b4e25a3da1ad2272d2e4286deb9627b751df91b2a751bc027c667f7d02b
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/38/99/531db3f09e65cc9709f1b175a85966e79cbbcddcd7e72cf2ec6ee8dc24e6/types_boto3_translate-1.43.0-py3-none-any.whl
-  name: types-boto3-translate
-  version: 1.43.0
-  sha256: 63a2351bb721bea05a39f2617abb8f32d838b5c885d84a3a97b1fff6b1108245
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/39/c6/6e7daea77680793a1410f134869008f8199ef3c3277c1d6144460cbfd536/types_boto3_sqs-1.43.0-py3-none-any.whl
-  name: types-boto3-sqs
-  version: 1.43.0
-  sha256: c23e43a13822208d26a946c991ebf9b4ba7194dec5b5537fd4eb850a2a5c25a7
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/3a/03/83180f43bbb2ef114968a79e3ce9deef92419fcbb1f00a1a4e4d91024813/types_boto3_cloudtrail_data-1.43.0-py3-none-any.whl
-  name: types-boto3-cloudtrail-data
-  version: 1.43.0
-  sha256: c9bccf85661200ab493034747663f4a5b7743fcc38443ff1a19d6cc22d1eb36e
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/3b/05/0d0df2376287f4a9773ffff2f858f59fade7c9ed1b3995196678e947a871/types_boto3_kinesisvideo-1.43.0-py3-none-any.whl
   name: types-boto3-kinesisvideo
@@ -3043,16 +2598,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/46/8f/25933240485c0662bb3fa430ed0c6b8b8124ab3bc136154c07ce12644cb0/botocore-1.43.16-py3-none-any.whl
-  name: botocore
-  version: 1.43.16
-  sha256: 8ab05b1346d26a3c6d69c7338051f07bd4739a090f414d2cff43c0dbc1e18ca7
-  requires_dist:
-  - jmespath>=0.7.1,<2.0.0
-  - python-dateutil>=2.1,<3.0.0
-  - urllib3>=1.25.4,!=2.2.0,<3
-  - awscrt==0.32.2 ; extra == 'crt'
-  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/47/15/c08a9b6a7a37b9a9b207c893247abb72529b024281c7cc20457da8b2f876/types_boto3_ec2_instance_connect-1.43.0-py3-none-any.whl
   name: types-boto3-ec2-instance-connect
   version: 1.43.0
@@ -3134,6 +2679,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/49/8d/6aef4e111a65c31a91626f526bee1d37204ff1035aee4db41909752dfb13/types_boto3_bedrock_runtime-1.43.17-py3-none-any.whl
+  name: types-boto3-bedrock-runtime
+  version: 1.43.17
+  sha256: e754ef950a62f1f508657b096d9735d9541c2bf2d77eeafc2d0a2c640af0aedd
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/49/a1/3f539d43d458d62fdf0d41bf031c3825f1f900ca73a634cb0ccbac9c7d17/types_boto3_iotwireless-1.43.0-py3-none-any.whl
   name: types-boto3-iotwireless
   version: 1.43.0
@@ -3212,13 +2764,6 @@ packages:
   name: types-boto3-sso-oidc
   version: 1.43.0
   sha256: 2e5360eea339068b41ff8f4c495f2d2f34bc3dfbf38c93713745f8adbe8f58f6
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/4c/3b/422a200f66e12eb7cbbbb408a32a40b8205b753e4de97576b3c3c5cf501d/types_boto3_opensearchserverless-1.43.0-py3-none-any.whl
-  name: types-boto3-opensearchserverless
-  version: 1.43.0
-  sha256: a6b872e9c0c2a6ed4afd9031e255cf0d3694f7888dad25c56abb0590b6744088
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -3454,13 +2999,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/5b/64/44710bfed9bf9ae1824140dae21b37ce34b335be6673d962dba41e0e7451/types_boto3_iot_data-1.43.0-py3-none-any.whl
-  name: types-boto3-iot-data
-  version: 1.43.0
-  sha256: c7231916673e80fe6635f78534a1a2310e4808cf000908749f30347c6685293b
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/5b/a6/b23c30d03e192385cd44d93ff9ca1ee2d9b44ab67a258b73b5086b852de4/types_boto3_medical_imaging-1.43.4-py3-none-any.whl
   name: types-boto3-medical-imaging
   version: 1.43.4
@@ -3497,13 +3035,6 @@ packages:
   name: types-boto3-nova-act
   version: 1.43.0
   sha256: 193e046b9b818eb43dca4ae7f1e8a51d502c85ec39a3fa56ed6a6aad2f35aa10
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/5d/41/da84f96684a10e8610e6326b00c86523cf2af60945f32be6878e2aedff5a/types_boto3_bedrock_agentcore_control-1.43.13-py3-none-any.whl
-  name: types-boto3-bedrock-agentcore-control
-  version: 1.43.13
-  sha256: 4f421f9f83cc72e75c7720354d0e475501eab21a5db329ebfa4a7e723de0ab3f
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -3703,10 +3234,10 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/69/bb/ee8a710d66f9bb4ff1ffa3cf317b9b15ce5ce7e6294cfb54067303485d21/types_boto3_deadline-1.43.0-py3-none-any.whl
-  name: types-boto3-deadline
-  version: 1.43.0
-  sha256: 0d62d9ea450f7b032ce43603dd0eef2e6e15be5c0addfd751a186eff16d99c0d
+- pypi: https://files.pythonhosted.org/packages/69/a4/fb86ccc723ef5d734031601560722eb7e98ceacf0be400956d4a2176502e/types_boto3_bedrock-1.43.17-py3-none-any.whl
+  name: types-boto3-bedrock
+  version: 1.43.17
+  sha256: 81987e95aea7e86410c5c0624f77edc465a6b984c11bbb504345756710754b00
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -3910,6 +3441,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/77/a1/2f7d85969c911b8beb8e027348f16dcc3c6ec08586ab2ce901612d5db715/types_boto3_s3control-1.43.17-py3-none-any.whl
+  name: types-boto3-s3control
+  version: 1.43.17
+  sha256: cbd86e723587eac366f44fb4cd4b9eedfdea8ed55196ee8154aaa10f08389bdc
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/77/bd/2a801aa9e7da521b08c594b965a7aaea564019b9a81695d35b7b37469a6f/types_boto3_autoscaling_plans-1.43.0-py3-none-any.whl
   name: types-boto3-autoscaling-plans
   version: 1.43.0
@@ -4052,14 +3590,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/85/dd/904873250a6554fbae40cddbf9198e3cc37a2f1319d5e1a5ce82fe269c17/s3transfer-0.17.1-py3-none-any.whl
-  name: s3transfer
-  version: 0.17.1
-  sha256: 5b9827d1044159bbb01b86ef8902760ea39281927f5de31de75e1d657177bf4c
-  requires_dist:
-  - botocore>=1.37.4,<2.0a0
-  - botocore[crt]>=1.37.4,<2.0a0 ; extra == 'crt'
-  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/86/26/6e7d9b6934f6c3ee8782c750e8c803e7f96ca83da65867fcfe3ca64bdf89/types_boto3_route53_recovery_cluster-1.43.0-py3-none-any.whl
   name: types-boto3-route53-recovery-cluster
   version: 1.43.0
@@ -4102,11 +3632,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl
-  name: nodeenv
-  version: 1.10.0
-  sha256: 5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827
-  requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*'
 - pypi: https://files.pythonhosted.org/packages/89/5d/29fa9fd0d3d99c28a5e9a8b141d61b30e167512d277acb56c7f7d704002a/types_boto3_groundstation-1.43.0-py3-none-any.whl
   name: types-boto3-groundstation
   version: 1.43.0
@@ -4243,15 +3768,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/94/16/70255075a9859a0e3adb789b68ceb0e210dec03934245fd98d248226572f/idna-3.16-py3-none-any.whl
-  name: idna
-  version: '3.16'
-  sha256: cc246e3a3f89580c3a951b5ad298ca4638078b2cdd4f115654332b5c26daded5
-  requires_dist:
-  - ruff>=0.6.2 ; extra == 'all'
-  - mypy>=1.11.2 ; extra == 'all'
-  - pytest>=8.3.2 ; extra == 'all'
-  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/94/29/e0cbad24248d667b01436794e3aa46e0c8cb36518517f3a16b17b0f19821/types_boto3_bcm_recommended_actions-1.43.0-py3-none-any.whl
   name: types-boto3-bcm-recommended-actions
   version: 1.43.0
@@ -4312,6 +3828,13 @@ packages:
   name: types-boto3-cognito-sync
   version: 1.43.0
   sha256: fd05805e69fa631301c5e14a141a2d825f6e7f985becced9ab3da9be101dd9f7
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/96/bb/832372515e95353c06452b27c113480f3c4657826481929cf5009b864f7f/types_boto3_pcs-1.43.17-py3-none-any.whl
+  name: types-boto3-pcs
+  version: 1.43.17
+  sha256: 93e143e47873bf243a109ea827d6558803b6ca787d8aa389912ab7a05438caf3
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -4473,10 +3996,10 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/9c/54/51ec6b086e5820129d122b56219adfa241d92ac93e7a284aacdabda554b2/types_boto3_bedrock-1.43.8-py3-none-any.whl
-  name: types-boto3-bedrock
-  version: 1.43.8
-  sha256: d47f7c37935994aad6f2478c2c1ccc4df0a2c9f075077d76feb64a805193d886
+- pypi: https://files.pythonhosted.org/packages/9b/bd/a79615f446e3f9a57a8bff2e65aba41f514a51f19824e80cd71f2d6d6441/types_boto3_opensearchserverless-1.43.17-py3-none-any.whl
+  name: types-boto3-opensearchserverless
+  version: 1.43.17
+  sha256: 57faf5e436b5eb1156ac280e336049bf41d7926719f4a1bc7d940be6ff448cb4
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -4602,13 +4125,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/a2/4f/badc0c4717549c21138c116c35ae315ef4ed5034375e3743f510aafa7beb/types_boto3_s3control-1.43.0-py3-none-any.whl
-  name: types-boto3-s3control
-  version: 1.43.0
-  sha256: f3c0bb80ef9618fc5d31701acacffd8687588900cafa923b1783a1280e43f4e1
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/a3/ba/9b7ad298ef9bf3469bb19f4b3a5c82b0111b07223a0206edea9aca4a47d6/types_boto3_healthlake-1.43.0-py3-none-any.whl
   name: types-boto3-healthlake
   version: 1.43.0
@@ -4641,6 +4157,13 @@ packages:
   name: types-boto3-events
   version: 1.43.0
   sha256: b6121c4c064a7a672331d2312e541b11831891eaaf086eacb9e06e7c1df55745
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/a5/5e/c43935fb57006db3a508c51163448bb553d93eb089882b101180bf81d514/types_boto3_appstream-1.43.17-py3-none-any.whl
+  name: types-boto3-appstream
+  version: 1.43.17
+  sha256: b597401d6edcd61d4aca05f71d5a9bc80f5e1dc65a01931dd0353ead63b7e981
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -4736,16 +4259,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/af/c0/7d687e40f4b7046ede66026ecd1b0a93d47afe26d9170f5926a1605c8641/boto3-1.43.16-py3-none-any.whl
-  name: boto3
-  version: 1.43.16
-  sha256: dffc8a3cd3edbc0ad95b9c6b983e873b76ede46d3aa0709f94db253f2ff2388f
-  requires_dist:
-  - botocore>=1.43.16,<1.44.0
-  - jmespath>=0.7.1,<2.0.0
-  - s3transfer>=0.17.0,<0.18.0
-  - botocore[crt]>=1.21.0,<2.0a0 ; extra == 'crt'
-  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/af/e4/b1e4937490ed53049febb3781cdabf1ddce4d822e8948773e72726d07fc3/types_boto3_cognito_identity-1.43.0-py3-none-any.whl
   name: types-boto3-cognito-identity
   version: 1.43.0
@@ -4757,6 +4270,13 @@ packages:
   name: types-boto3-s3
   version: 1.43.14
   sha256: a80ddd1a290dbbbb244868466621ea772c36f6647327637b89423f53e34ea0a1
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/b0/6b/8d37110b2d9eb632e010fab890647ae672174e1cb7345d08f466751d63c4/types_boto3_bedrock_agentcore-1.43.17-py3-none-any.whl
+  name: types-boto3-bedrock-agentcore
+  version: 1.43.17
+  sha256: f7d74dbebea4d5782c4a6091c3634745873a059b3f30f2c2876b0bb40a60c51c
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -4991,6 +4511,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/bd/cb/f4e13e7844d9a2048270f8a47ca18834c9367eba71fb64ddcb8f4fffa270/types_boto3_iot_data-1.43.17-py3-none-any.whl
+  name: types-boto3-iot-data
+  version: 1.43.17
+  sha256: c9dcb756e077659db14860ae553ec090d10dbc675b964a659fce6d066f478a9e
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/be/8c/97a4296caf35808dea7faeb09fe748c4b3fa155db9c2eb9aff8380b59a7b/types_boto3_verifiedpermissions-1.43.13-py3-none-any.whl
   name: types-boto3-verifiedpermissions
   version: 1.43.13
@@ -5044,6 +4571,13 @@ packages:
   name: types-boto3-mturk
   version: 1.43.0
   sha256: 9031b9c7deaeb461ad2e76b629073b94665edc38af9c652cec1f963e5a7ef3f5
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/c1/45/9a58f0be139271c4ed4d5a6d21be59ad27e9b2e2c624e6d70a51c918700d/types_boto3_iot-1.43.17-py3-none-any.whl
+  name: types-boto3-iot
+  version: 1.43.17
+  sha256: c0cad3624641fd48713e02de9edc95dcf43f7f0f709c34d20b5bce3a1cfae166
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -5133,13 +4667,6 @@ packages:
   name: types-boto3-organizations
   version: 1.43.16
   sha256: 0cd8485a53f28d6d0d3e25fa128c95498c6fb9c60769f32a71ff3c50044bf8bc
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/cb/6f/72bd3091d574ea85f365314b3350b358859682df827f842d7fc8967fda10/types_boto3_appstream-1.43.2-py3-none-any.whl
-  name: types-boto3-appstream
-  version: 1.43.2
-  sha256: e247ad6eca9619a620a22261c18b69fe5ac74364f5e574bfa072f6df0ec9c7e6
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -5276,6 +4803,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/d4/07/6d1b3192715d42e8c9887876684a941eff28ec5d79c23a0f3758377e2182/basedpyright-1.39.6-py3-none-any.whl
+  name: basedpyright
+  version: 1.39.6
+  sha256: 5e0b9befbae6b26d0fbcc6645ac26923725e749d1224539e24f05ab07f9365ad
+  requires_dist:
+  - nodejs-wheel-binaries>=20.13.1
+  requires_python: '>=3.8'
 - pypi: https://files.pythonhosted.org/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl
   name: pytest
   version: 9.0.3
@@ -5338,6 +4872,23 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/d6/ff/1625713b2ecac9f9bb65c7a51e71cb206b3089ba38f86ba5eff34e947176/botocore-1.43.17-py3-none-any.whl
+  name: botocore
+  version: 1.43.17
+  sha256: 499af7c942ecfd404322974e82c6b5d05a8ea16e9f19320b353e16f401adc5b4
+  requires_dist:
+  - jmespath>=0.7.1,<2.0.0
+  - python-dateutil>=2.1,<3.0.0
+  - urllib3>=1.25.4,!=2.2.0,<3
+  - awscrt==0.32.2 ; extra == 'crt'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/d7/3e/13042bbaaa8b2eefbe366df8cec6fa8987946fd83fb1c6cf462dc6e1fe71/types_boto3_controlcatalog-1.43.17-py3-none-any.whl
+  name: types-boto3-controlcatalog
+  version: 1.43.17
+  sha256: 7a58f8a788373841da31e7c0eb5f198e646c751f3ded6cca79f133406edddba7
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/d7/56/ecf6de150c9243e890222db19d09e31dde66b478d0bebcf40f8951ce5ab9/types_boto3_pinpoint_email-1.43.0-py3-none-any.whl
   name: types-boto3-pinpoint-email
   version: 1.43.0
@@ -5356,6 +4907,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/da/d5/91ac63951ec75927a486b83b8cafe650e360fa70ac01dc94adfb32b93b97/nodejs_wheel_binaries-24.15.0-py2.py3-none-manylinux_2_28_x86_64.whl
+  name: nodejs-wheel-binaries
+  version: 24.15.0
+  sha256: 20ee0536809795da8a4942fc1ab4cbdebbcaaf29383eab67ba8874268fb00008
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.8'
+  requires_python: '>=3.7'
 - pypi: https://files.pythonhosted.org/packages/db/4f/c01a9393a178f175c894aa65b4fd0c829b20c630d7ebc0d4e7488f4ed034/types_boto3_rds-1.43.0-py3-none-any.whl
   name: types-boto3-rds
   version: 1.43.0
@@ -5397,6 +4955,15 @@ packages:
   sha256: e125e42b7096dc7d3c94c6b5f4f00cc5c60b8d198e8dec8b9490abbc572e654e
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/de/a7/f76514cc40ad6234098ecdebda08732d75964776c51a42845b7da10649e2/idna-3.17-py3-none-any.whl
+  name: idna
+  version: '3.17'
+  sha256: 466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c
+  requires_dist:
+  - ruff>=0.6.2 ; extra == 'all'
+  - mypy>=1.11.2 ; extra == 'all'
+  - pytest>=8.3.2 ; extra == 'all'
   requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/de/bd/ff3eee5ef48e3ce710b8f563834eafc75dd5050d81f1dc8d4f088bf29298/types_boto3_cloudformation-1.43.0-py3-none-any.whl
   name: types-boto3-cloudformation
@@ -5496,13 +5063,6 @@ packages:
   name: types-boto3-sagemaker-runtime
   version: 1.43.0
   sha256: d024a3b00f52c8ea4b3a51669fba5cc0530ef722adcd4a20b1f5b6f549643cfe
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/e5/26/e9996df6080daebc43da3b5a90b905afd864f5735baf486c6ed1ba4edf12/types_boto3_pcs-1.43.7-py3-none-any.whl
-  name: types-boto3-pcs
-  version: 1.43.7
-  sha256: 2f12aaa4ed357bfdc5acee0ccda12645e1da66401996b56f07041e66a0843ae1
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -5628,13 +5188,6 @@ packages:
   name: types-boto3-codeconnections
   version: 1.43.0
   sha256: c69eeaf370ad8952fef360fa2b38791f3f62b9317a501c50107780bdead3df90
-  requires_dist:
-  - typing-extensions ; python_full_version < '3.12'
-  requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/ed/66/d1394015500c20434a98b702ecccc76e2d27373f76ccc13340eca9131dbc/types_boto3_controlcatalog-1.43.0-py3-none-any.whl
-  name: types-boto3-controlcatalog
-  version: 1.43.0
-  sha256: 636cc6f9349cf377e76777a06cb09b70ad4b37259c6fcbca665b27c67e67caed
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
@@ -5858,6 +5411,13 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/f6/ad/b946d4ae0cf7ce11009e25f8d120852b1d82b59016b8e636b3f9540d60b7/types_boto3_deadline-1.43.17-py3-none-any.whl
+  name: types-boto3-deadline
+  version: 1.43.17
+  sha256: 33ad94214281f18d10061b0b9c2f7ad00b4c90d7fa4c8ecc4520d71be0027892
+  requires_dist:
+  - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/f6/ae/d9c12947c7bb31a3823bfbb6df2bfa11bcad55591e39f883d94789800b57/types_boto3_codebuild-1.43.0-py3-none-any.whl
   name: types-boto3-codebuild
   version: 1.43.0
@@ -5914,6 +5474,16 @@ packages:
   requires_dist:
   - cffi ; implementation_name == 'pypy'
   requires_python: '>=3.8'
+- pypi: https://files.pythonhosted.org/packages/f9/1e/30b218998dee295873f33c591bb5daf08c42ec27e5fb0ebb13977677e96f/boto3-1.43.17-py3-none-any.whl
+  name: boto3
+  version: 1.43.17
+  sha256: f6b3862a0b14e237f9323223ee76b0563e87a6bbe6d94a42e7b008a901ba8950
+  requires_dist:
+  - botocore>=1.43.17,<1.44.0
+  - jmespath>=0.7.1,<2.0.0
+  - s3transfer>=0.18.0,<0.19.0
+  - botocore[crt]>=1.21.0,<2.0a0 ; extra == 'crt'
+  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/f9/4d/6a1988b8f7ee8a790ae85d845bb71b704c72fee33ce110ea6057f86077a1/types_boto3_lambda-1.43.0-py3-none-any.whl
   name: types-boto3-lambda
   version: 1.43.0
@@ -5959,6 +5529,11 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/fe/1c/e6e5e568f22be4fb05d6244234aba384c06b451252453b821e1a529263cf/ruff-0.15.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  name: ruff
+  version: 0.15.15
+  sha256: 48decfa11d740de4889de623be1463308346312f2409a56e24aa280c86162dc4
+  requires_python: '>=3.7'
 - pypi: https://files.pythonhosted.org/packages/fe/21/bb5996e716d518c365f8995f3a0fd0d4c0fc8a94952469b9de6bde594957/types_boto3_securityagent-1.43.14-py3-none-any.whl
   name: types-boto3-securityagent
   version: 1.43.14
