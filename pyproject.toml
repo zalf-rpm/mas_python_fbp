@@ -52,14 +52,6 @@ platforms = ["linux-64"]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
-# Example for referencing local packages in editable mode just uncomment these lines while keeping the above it will overwrite
-# If the line for the package in the dependencies section is commented out it will have no effect
-
-# [tool.poetry.dependencies]
-# zalfmas-common = { path = "../mas_python_common", develop = true }
-# zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", develop = true }
-# zalfmas-services = { path = "../mas_python_services", develop = true }
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -70,6 +62,7 @@ include = [{ path = "zalfmas_fbp/run/default_configs" }]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+
 [tool.ruff.lint]
 select = [
   "E",
@@ -87,7 +80,6 @@ select = [
   # "D100",
   # "D101",
 ]
-
 ignore = ["E501", "COM812"]
 
 [tool.basedpyright]
