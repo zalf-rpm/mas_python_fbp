@@ -13,39 +13,58 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
-from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from subprocess import Popen
-from typing import cast
+from typing import TYPE_CHECKING, override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import (
-    common_capnp,
-    fbp_capnp,
-    service_capnp,
-)
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.persistence import persistence_capnp
+from mas.schema.service import service_capnp
 from zalfmas_common import common
 from zalfmas_common import service as serv
 
-import zalfmas_fbp.run.channels as channels
+from zalfmas_fbp.run import channels
+from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import StartupInfoReader
+    from mas.schema.service.service_capnp.types.clients import AdminClient
+
+logger = logging.getLogger(__name__)
+configure_logging(default_level="INFO")
 
 
 class StopChannelProcess(service_capnp.Stoppable.Server):
-    def __init__(self, proc: Popen[bytes] | Popen[str], remove_from_service=None):
-        self.proc = proc
-        self.remove_from_service = remove_from_service
+    def __init__(
+        self,
+        proc: Popen[bytes] | Popen[str] | None,
+        remove_from_service: Callable[[], tuple[Popen[str] | Popen[bytes], StopChannelProcess] | None] | None = None,
+    ):
+        self.proc: Popen[bytes] | Popen[str] | None = proc
+        self.remove_from_service: Callable[[], tuple[Popen[str] | Popen[bytes], StopChannelProcess] | None] | None = (
+            remove_from_service
+        )
 
+    @override
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
-            rt = self.proc.returncode == 0
+            # give it a sec to terminate
+            await asyncio.sleep(1)
+            stopped = self.proc.poll() is not None
             self.proc = None
             if self.remove_from_service:
-                self.remove_from_service()
-            context.results.success = rt
+                _ = self.remove_from_service()
+            context.results.success = stopped
+            return
         context.results.success = False
 
 
@@ -58,6 +77,7 @@ class Params:
     readerSrts: list[str] = field(default_factory=list)
     writerSrts: list[str] = field(default_factory=list)
     bufferSize: int = 1
+    registerAtGateway: bool = False
 
 
 class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identifiable):
@@ -70,45 +90,51 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
         description: str | None = None,
         verbose: bool = False,
         channel_host_name: str | None = None,
-        admin=None,
-        restorer=None,
+        channel_gateways: list[dict[str, str]] | None = None,
+        admin: AdminClient | None = None,
+        restorer: common.Restorer | None = None,
     ):
         common.Identifiable.__init__(self, id=id, name=name, description=description)
 
         self.con_man: common.ConnectionManager = con_man
         self.path_to_channel: str = path_to_channel
         self.startup_info_id: str = str(uuid.uuid4())
-        self.channels: dict[
-            str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]
-        ] = {}
-        self.first_reader = None
-        self.first_writer_sr = None
-        self.chan_id_to_info = defaultdict(list)
+        self.channels: dict[str, tuple[Popen[str] | Popen[bytes], StopChannelProcess]] = {}
+        self.first_reader: fbp_capnp.types.clients.ReaderClient | None = None
+        self.first_writer_sr: str | None = None
+        self.chan_id_to_info: dict[str, list[StartupInfoReader]] = {}
         self.verbose: bool = verbose
         self.channel_host_name: str | None = channel_host_name
+        self.channel_gateways: list[dict[str, str]] = channel_gateways or []
+        self.gateway_heartbeat_tasks: list[asyncio.Task[None]] = []
 
     def __del__(self):
         for _, (chan, _) in self.channels.items():
             chan.terminate()
 
     async def create_startup_info_channel(self):
-        first_chan, first_reader_sr, self.first_writer_sr = (
-            channels.start_first_channel(self.path_to_channel)
-        )
+        first_chan, first_reader_sr, self.first_writer_sr = channels.start_first_channel(self.path_to_channel)
         self.channels[self.startup_info_id] = (
             first_chan,
             StopChannelProcess(first_chan),
         )
-        self.first_reader = await self.con_man.try_connect(
-            first_reader_sr, cast_as=fbp_capnp.Channel.Reader
-        )
+        if not first_reader_sr:
+            return
 
-    async def get_start_infos(self, chan, chan_id, no_of_chans):
+        if (first_reader_cap := await self.con_man.try_connect(first_reader_sr)) is None:
+            msg = f"Couldn't connect to startup reader {first_reader_sr}."
+            raise RuntimeError(msg)
+
+        self.first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
+
+    async def get_start_infos(self, chan: Popen[bytes], chan_id: str, no_of_chans: int):
         if chan_id in self.chan_id_to_info:
             return self.chan_id_to_info.pop(chan_id)
-        start_infos = []
+        start_infos: list[StartupInfoReader] = []
         received_infos = 0
         while chan.poll() is None and received_infos < no_of_chans:
+            if not self.first_reader:
+                continue
             p = (await self.first_reader.read()).value.as_struct(common_capnp.Pair)
             msg_chan_id = p.fst.as_text()
             info = p.snd.as_struct(fbp_capnp.Channel.StartupInfo)
@@ -119,6 +145,65 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
                 self.chan_id_to_info[msg_chan_id].append(info)
         return start_infos
 
+    async def _register_at_gateway(self, cap, gateway_config: dict[str, str]):
+        gateway_sr = gateway_config.get("sturdy_ref")
+        if not gateway_sr:
+            msg = "Channel gateway config is missing 'sturdy_ref'"
+            raise ValueError(msg)
+
+        gateway_cap = await self.con_man.try_connect(gateway_sr)
+        if gateway_cap is None:
+            msg = f"Couldn't connect to channel gateway at sturdy_ref: {gateway_sr}"
+            raise RuntimeError(msg)
+
+        gateway = gateway_cap.cast_as(persistence_capnp.Gateway)
+        res = await gateway.register(cap)
+        heartbeat = res.heartbeat
+        heartbeat_interval = res.secsHeartbeatInterval
+
+        async def beat_gateway_heartbeat():
+            while True:
+                await asyncio.sleep(heartbeat_interval)
+                await heartbeat.beat()
+
+        self.gateway_heartbeat_tasks.append(asyncio.create_task(beat_gateway_heartbeat()))
+        return res.sturdyRef
+
+    async def _gateway_ref_for_cap(self, cap):
+        last_error: Exception | None = None
+        for gateway_config in self.channel_gateways:
+            try:
+                return await self._register_at_gateway(cap, gateway_config)
+            except (capnp.KjException, RuntimeError, ValueError) as error:
+                last_error = error
+                logger.exception("Error registering channel endpoint at gateway %s", gateway_config)
+        msg = "Couldn't register channel endpoint at any configured gateway"
+        raise RuntimeError(msg) from last_error
+
+    async def _replace_startup_info_refs_with_gateway_refs(self, info: StartupInfoReader):
+        gateway_reader_srs = [await self._gateway_ref_for_cap(reader) for reader in info.readers]
+        gateway_writer_srs = [await self._gateway_ref_for_cap(writer) for writer in info.writers]
+        return {
+            "bufferSize": info.bufferSize,
+            "closeSemantics": info.closeSemantics,
+            "channelSR": await self._gateway_ref_for_cap(info.channel),
+            "readerSRs": gateway_reader_srs,
+            "writerSRs": gateway_writer_srs,
+            "channel": info.channel,
+            "readers": list(info.readers),
+            "writers": list(info.writers),
+        }
+
+    async def _replace_startup_infos_refs_with_gateway_refs(self, startup_infos: list[StartupInfoReader]):
+        if not self.channel_gateways:
+            logger.warning("Channel gateway registration requested, but no service.gateways are configured")
+            return startup_infos
+        try:
+            return [await self._replace_startup_info_refs_with_gateway_refs(info) for info in startup_infos]
+        except (capnp.KjException, RuntimeError, ValueError):
+            logger.exception("Channel gateway registration failed; returning direct channel refs.")
+            return startup_infos
+
     # struct Params {
     #    name            @0 :Text;       # name of channel
     #    noOfChannels    @1 :UInt16 = 1; # how many channels to create
@@ -127,17 +212,20 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
     #    readerSrts      @4 :List(Text); # fixed sturdy ref tokens per reader
     #    writerSrts      @5 :List(Text); # fixed sturdy ref tokens per writer
     #    bufferSize      @6 :UInt16 = 1; # how large is the buffer supposed to be
+    #    registerAtGateway @7 :Bool = false; # return gateway-routed refs if a gateway is available
     # }
 
+    @override
     async def start_context(
-        self, context
+        self,
+        context,
     ):  # start @0 Params -> (startupInfos :List(Channel.StartupInfo), stop :Stoppable);
         if self.first_reader is None:
             await self.create_startup_info_channel()
-        ps = cast(Params, context.params)
+        ps = context.params
         config_chan_id = str(uuid.uuid4())
-        reader_srts = ",".join(ps.readerSrts) if ps._has("readerSrts") else None
-        writer_srts = ",".join(ps.writerSrts) if ps._has("writerSrts") else None
+        reader_srts = ",".join(ps.readerSrts) if ps.readerSrts else None
+        writer_srts = ",".join(ps.writerSrts) if ps.writerSrts else None
         chan = channels.start_channel(
             self.path_to_channel,
             config_chan_id,
@@ -157,9 +245,10 @@ class StartChannelsService(fbp_capnp.StartChannelsService.Server, common.Identif
             chan,
             StopChannelProcess(chan, lambda: self.channels.pop(config_chan_id, None)),
         )
-        context.results.startupInfos = await self.get_start_infos(
-            chan, config_chan_id, ps.noOfChannels
-        )
+        startup_infos = await self.get_start_infos(chan, config_chan_id, ps.noOfChannels)
+        if getattr(ps, "registerAtGateway", False):
+            startup_infos = await self._replace_startup_infos_refs_with_gateway_refs(startup_infos)
+        context.results.startupInfos = startup_infos
         context.results.stop = stop
 
 
@@ -168,23 +257,24 @@ async def main():
         component_description="local start channels service",
         default_config_path="./configs/channel_starter_service.toml",
     )
-    config, _ = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    add_log_level_argument(parser, default_level="INFO")
+    config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
+    configure_logging(args.log_level)
 
     restorer = common.Restorer()
     con_man = common.ConnectionManager(restorer)
 
     config_service_section = config.get("service")
     if not isinstance(config_service_section, dict):
-        logging.error("Need service section in config")
+        logger.error("Need service section in config")
         return
 
-    config_service_section = cast(dict[str, str], config_service_section)
+    # config_service_section = cast(dict[str, str], config_service_section)
 
     path_to_channel = config_service_section.get("path_to_channel", None)
     if path_to_channel is None:
-        logging.error("Need path to channel binary")
+        logger.error("Need path to channel binary")
         return
-
     service = StartChannelsService(
         con_man=con_man,
         path_to_channel=path_to_channel,
@@ -192,13 +282,13 @@ async def main():
         name=config_service_section.get("name", None),
         description=config_service_section.get("description", None),
         channel_host_name=config_service_section.get("channel_host", None),
+        channel_gateways=config_service_section.get("gateways", None),
         restorer=restorer,
+        verbose=config_service_section.get("verbose", False),
     )
 
     await service.create_startup_info_channel()
-    await serv.init_and_run_service_from_config(
-        config=config, service=service, restorer=restorer
-    )
+    await serv.init_and_run_service_from_config(config=config, service=service, restorer=restorer)
 
 
 if __name__ == "__main__":

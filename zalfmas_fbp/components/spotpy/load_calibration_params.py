@@ -13,27 +13,61 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import csv
 import json
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as pp
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="spotpy",
+        name="Spotpy",
+    ),
+    info=meta.Info(
+        id="028290bb-a38c-4599-9948-fc73723e9654",
+        name="create SpotPy calibration params",
+        description="Creates/sets up parameters for Spotpy calibration.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="params",
+            contentType="Text (JSON list)",
+            desc="output spotpy calibration params as json list string",
+        ),
+    ],
+    defaultConfig={
+        "path_to_calibrate_csv": meta.ConfigEntry(
+            value="calibratethese.csv",
+            type="string",
+            desc="path to csv file with parameters to calibrate",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await pp.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf"], outs=["params"]
-    )
-    await pp.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await pp.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf"], outs=["params"])
+    await pp.update_config_from_port(config, pc.in_ports["conf"])
 
     params = []
     if config["path_to_calibrate_csv"]:
-        with open(config["path_to_calibrate_csv"]) as params_csv:
+        with Path(config["path_to_calibrate_csv"]).open() as params_csv:
             dialect = csv.Sniffer().sniff(params_csv.read(), delimiters=";,\t")
             params_csv.seek(0)
             reader = csv.reader(params_csv, dialect)
@@ -56,34 +90,21 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     p["derive_function"] = lambda _, _2: eval(row[8])
                 params.append(p)
 
-    if ports["params"]:
+    if pc.out_ports["params"]:
         try:
             params_ip = fbp_capnp.IP.new_message(content=json.dumps(params))
-            ports["params"].write(value=params_ip).wait()
-            await ports["params"].close()
+            pc.out_ports["params"].write(value=params_ip).wait()
+            await pc.out_ports["params"].close()
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "path_to_calibrate_csv": "calibratethese.csv",  # path to csv file with calibration parameter information
-    "port:conf": "[TOML string] -> component configuration",
-    "port:params": "[str]",  # output spotpy calibration params as json list string
-}
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Load the calibration parameters"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

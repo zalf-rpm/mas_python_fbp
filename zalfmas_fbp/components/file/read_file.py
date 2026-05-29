@@ -13,82 +13,122 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
+from pydantic import Field
+from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf"], outs=["out"]
+class ReadFileConfig(process.ProcessConfig):
+    to_attr: str | None = Field(
+        None,
+        description="store read file content into 'to_attr'",
     )
-    await p.update_config_from_port(config, ports["conf"])
+    file: str | None = Field(
+        None,
+        description="Path to file to read.",
+    )
+    lines_mode: bool = Field(
+        True,
+        description="Send single lines if true else send whole file content at once.",
+    )
+    skip_lines: int = Field(
+        0,
+        description="If lines mode is true, skip that many lines at the beginning of the file.",
+    )
 
-    skip_lines = config["skip_lines"]
-    if config["file"] and ports["out"]:
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="file",
+        name="File",
+    ),
+    info=meta.Info(
+        id="7ba769ca-eba1-437c-b61a-bef27e24b1dc",
+        name="read file",
+        description="Read a file and send full string or lines downstream.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+            desc="Output either full file content or each line as as separate message.",
+        ),
+    ],
+    config=ReadFileConfig,
+)
+
+
+class ReadFile(process.Process[ReadFileConfig]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
+
+        if self.config.file is None or not self.out_ports["out"]:
+            logger.info("%s: No filename supplied or out port closed. Process finished.", self.name)
+            return
+
         try:
-            with open(config["file"]) as _:
-                if config["lines_mode"]:
-                    for line in _.readlines():
+            skip_lines = self.config.skip_lines
+            with Path(self.config.file).open() as file:
+                if self.config.lines_mode:
+                    for line in file:
                         if skip_lines > 0:
                             skip_lines -= 1
                             continue
 
                         out_ip = fbp_capnp.IP.new_message()
-                        if config["to_attr"] and len(config["to_attr"]) > 0:
-                            out_ip.attributes = [{"key": config["to_attr"], "value": line}]
+                        if self.config.to_attr is not None and len(self.config.to_attr) > 0:
+                            out_ip.attributes = [{"key": self.config.to_attr, "value": line}]  # pyright: ignore
                         else:
                             out_ip.content = line
-                        await ports["out"].write(value=out_ip)
+                        if not await self.write_out("out", out_ip):
+                            logger.info("%s: Could not send IP. Process finished.", self.name)
+                            return
                 else:
-                    file_content = _.read()
+                    file_content = file.read()
                     out_ip = fbp_capnp.IP.new_message()
-                    if config["to_attr"] and len(config["to_attr"]) > 0:
-                        out_ip.attributes = [{"key": config["to_attr"], "value": file_content}]
+                    if self.config.to_attr is not None and len(self.config.to_attr) > 0:
+                        out_ip.attributes = [{"key": self.config.to_attr, "value": file_content}]
                     else:
                         out_ip.content = file_content
-                    await ports["out"].write(value=out_ip)
+                    if not await self.write_out("out", out_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: RPC Exception:",
-                e.description,
-            )
+            logger.exception("%s: RPC Exception: %s", Path(__file__).name, e.description())
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_toml = """
-to_attr = "" # [string] -> store read file content into 'to_attr'
-file = "" # [string] -> path to file to read
-lines_mode = true # [true | false] -> send single lines if true else send whole file content at once
-skip_lines = 0 # [int] -> if lines mode is true, skip that many lines at the beginning of the file
-"""
-
-default_config = {
-    "to_attr": None,
-    "file": None,
-    "lines_mode": False,
-    "skip_lines": 0,
-    "opt:to_attr": "[string] -> store read file content into 'to_attr'",
-    "opt:file": "[string] -> path to file to read",
-    "opt:lines_mode": "[true | false] -> send single lines if true else send whole file content at once",
-    "opt:skip_lines": "[int] -> if lines mode is true, skip that many lines at the beginning of the file",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:out": "[string] -> lines or whole file read",
-}
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Read a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser, default_config)
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    process.run_process_from_metadata_and_cmd_args(ReadFile(METADATA), METADATA)
 
 
 if __name__ == "__main__":

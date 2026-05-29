@@ -13,70 +13,108 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import override
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+import zalfmas_fbp.run.process as process
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in", "attr"], outs=["out"]
+class Config(process.ProcessConfig):
+    to_attr: str = Field(
+        "attr",
+        description="The attribute's name to add to the outgoing message.",
     )
-    await p.update_config_from_port(config, ports["conf"])
 
-    attr = None
-    while ports["in"] and (ports["attr"] or attr) and ports["out"]:
-        try:
-            if ports["attr"]:
-                attr_msg = await ports["attr"].read()
-                if attr_msg.which() == "done":
-                    ports["attr"] = None
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="ip",
+        name="IP (Flow packages)",
+    ),
+    info=meta.Info(
+        id="1d442f41-dee4-4973-ad99-09855af1d7ad",
+        name="add attribute",
+        description="Add attribute to incoming IP.",
+    ),
+    type="process",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="AnyPointer",
+            desc="Arbitrary content.",
+        ),
+        meta.Port(
+            name="attr",
+            contentType="AnyPointer",
+            desc="Arbitrary content to store as attached attribute with name 'to_attr'.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            desc="IP (from in port) and attribute 'to_attr' containing content from attr port.",
+        ),
+    ],
+    config=Config,
+)
+
+
+class Component(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        if await self.update_config_from_port("conf"):
+            logger.info("%s updated config from conf port", self.name)
+
+        attr = None
+        while self.in_ports["in"] and (self.in_ports["attr"] or attr) and self.out_ports["out"]:
+            try:
+                if self.in_ports["attr"]:
+                    attr_ip = await self.read_in("attr")
+                    if attr_ip is None:
+                        self.in_ports["attr"] = None
+                        continue
+                    attr = attr_ip.content
+
+                in_ip = await self.read_in("in")
+                if in_ip is None:
+                    self.in_ports["in"] = None
                     continue
-                attr_ip = attr_msg.value.as_struct(fbp_capnp.IP)
-                attr = attr_ip.content
 
-            in_msg = await ports["in"].read()
-            if in_msg.which() == "done":
-                ports["in"] = None
-                continue
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+                out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
+                common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s: Could not send IP. Process finished.", self.name)
+                    return
 
-            out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **{config["to_attr"]: attr})
-            await ports["out"].write(value=out_ip)
+            except capnp.KjException as e:
+                logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, self.name, e.description)
 
-        except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
-
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "to_attr": "attr",
-    "opt:to_attr": "[string] -> store received content from connected 'attr' port under 'to_attr' name in attributes section of IP",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[anypointer] -> arbitrary content",
-    "port:attr": "[anypointer] -> arbitrary content to store as attached attribute with name 'to_attr'",
-    "port:out": "[IP + attr] -> IP (from in port) and attribute 'to_attr' containing content from attr port",
-}
+        logger.info("%s: process finished", self.name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Add attribute to IP")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
 
 
 if __name__ == "__main__":

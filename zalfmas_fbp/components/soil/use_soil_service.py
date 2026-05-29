@@ -13,40 +13,139 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp, geo_capnp, soil_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
+from mas.schema.soil import soil_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="soil",
+        name="Soil",
+    ),
+    info=meta.Info(
+        id="89da0cb9-2079-4245-aecc-068194bc1637",
+        name="Use soil service",
+        description="Use the soil service to get the soil profiles at a given Lat/Lon coord.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="latlon",
+            contentType="geo.capnp.LatLonCoord",
+            desc="Lat/Lon coordinate",
+        ),
+        meta.Port(
+            name="service",
+            contentType="soil.capnp:Service | Text (SturdyRef)",
+            desc="Capability or sturdy ref to service.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="grid.capnp:Grid.Value",
+            desc="value at requested location",
+        ),
+    ],
+    defaultConfig={
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message.",
+        ),
+        "mandatory": meta.ConfigEntry(
+            value=["soilType", "organicCarbon", "rawDensity"],
+            type=[
+                "soilType",
+                "sand",
+                "clay",
+                "silt",
+                "organicCarbon",
+                "organicMatter",
+                "rawDensity",
+                "bulkDensity",
+                "fieldCapacity",
+                "permanentWiltingPoint",
+                "saturation",
+                "sceleton",
+                "pH",
+            ],
+            desc="Which soil attributes are needed in the result to be valid?",
+        ),
+        "optional": meta.ConfigEntry(
+            value=[],
+            type=[
+                "soilType",
+                "sand",
+                "clay",
+                "silt",
+                "organicCarbon",
+                "organicMatter",
+                "rawDensity",
+                "bulkDensity",
+                "fieldCapacity",
+                "permanentWiltingPoint",
+                "saturation",
+                "sceleton",
+                "pH",
+            ],
+            desc="Which soil attributes are needed in the result to be valid?",
+        ),
+        "only_raw_data": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(
         port_infos_reader_sr,
-        ins=["conf", "in", "service"],
+        ins=["conf", "latlon", "service"],
         outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     service = None
-    if ports["service"]:
-        service = ports.read_or_connect("service", cast_as=soil_capnp.Service)
+    if pc.in_ports["service"]:
+        service = (
+            service_cap.cast_as(soil_capnp.Service)
+            if (service_cap := await pc.read_or_connect("service")) is not None
+            else None
+        )
         if not service:
-            print(
-                f"{os.path.basename(__file__)} No soil service could be received or connected to."
-            )
+            logger.error("%s No soil service could be received or connected to.", Path(__file__).name)
             return
 
     mandatory = config["mandatory"]
-    while ports["in"] and ports["out"] and service:
+    optional = config["optional"]
+    while pc.in_ports["latlon"] and pc.out_ports["out"] and service:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["latlon"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["latlon"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -57,7 +156,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
 
             profiles = await service.profilesAt(
-                coord, {"mandatory": mandatory, "onlyRawData": False}
+                coord,
+                {"mandatory": mandatory, "optional": optional, "onlyRawData": config["only_raw_data"]},
             ).profiles
             if len(profiles) > 0:
                 profile = profiles[0]
@@ -70,34 +170,17 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     out_ip,
                     **({config["to_attr"]: profile} if config["to_attr"] else {}),
                 )
-                await ports["out"].write(value=out_ip)
+                await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception :", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "to_attr": "[string]",  # store result on attribute with this name
-    "mandatory": ["soilType", "organicCarbon", "rawDensity"],
-    "port:conf": "[TOML string] -> component configuration",
-    "port:service": "[sturdy ref | capability]",  # capability or sturdy ref to service
-    "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
-    "port:out": "[grid_capnp.Grid.Value]",  # value at requested location
-}
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get soil profiles at lat/lon location."
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

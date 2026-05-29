@@ -13,29 +13,54 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import io
-import os
+import logging
 from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
+        name="timeseries data -> csv",
+        description="Create CSV string out of timeseries data.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     def py_date(capnp_date):
         return date(year=capnp_date.year, month=capnp_date.month, day=capnp_date.day)
 
-    def data_to_csv(header: list, data: list[list[float]], start_date: date):
+    def data_to_csv(header: list[Any], data: list[list[float]], start_date: date):
         csv_buffer = io.StringIO()
         h_str = ",".join([str(h) for h in header])
         csv_buffer.write(h_str + "\n")
@@ -45,11 +70,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             csv_buffer.write(current_date.strftime("%Y-%m-%d") + "," + d_str + "\n")
         return csv_buffer.getvalue()
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -64,16 +89,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
                 out_ip.content = csv
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {})
-            )
-            await ports["out"].write(value=out_ip)
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {}))
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -88,13 +111,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Write timeseries data to CSV file"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

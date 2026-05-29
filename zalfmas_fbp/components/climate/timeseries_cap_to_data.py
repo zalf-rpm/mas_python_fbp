@@ -13,22 +13,76 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
+from capnp.lib.capnp import KjException
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="b510d603-8f2a-4fbd-ac24-634362b4b0f4",
+        name="timeseries capability -> data",
+        description="Get the actual data from a timeseries capability.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+        meta.Port(
+            name="conf",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+        ),
+        "subrange_start": meta.ConfigEntry(
+            value=None,
+            type="iso-date",
+        ),
+        "subrange_end": meta.ConfigEntry(
+            value=None,
+            type="iso-date",
+        ),
+        "subheader": meta.ConfigEntry(
+            value=["tavg", "precip"],
+        ),
+        "transposed": meta.ConfigEntry(
+            value=False,
+        ),
+        "maintain_substreams": meta.ConfigEntry(
+            value=False,
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     def create_capnp_date(py_date):  # isodate):
         # py_date = date.fromisoformat(isodate)
@@ -40,11 +94,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         capnp_date.month = py_date.month
         capnp_date.day = py_date.day
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -52,31 +106,32 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # pass through brackets as we just want to preserve structure for downstream components
             if in_ip.type == "openBracket":
                 if config["maintain_substreams"]:
-                    await ports["out"].write(in_ip)
+                    await pc.out_ports["out"].write(in_ip)
                 continue
-            elif in_ip.type == "closeBracket":
+            if in_ip.type == "closeBracket":
                 if config["maintain_substreams"]:
-                    await ports["out"].write(in_ip)
+                    await pc.out_ports["out"].write(in_ip)
 
             attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            cap_or_sr = attr if attr else in_ip.content
+            cap_or_sr = attr or in_ip.content
             timeseries = None
             try:
                 timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
-            except Exception:
+            except (KjException, TypeError):
                 try:
-                    timeseries = await ports.connection_manager.try_connect(
-                        cap_or_sr.as_text(),
-                        cast_as=climate_capnp.TimeSeries,
-                        retry_secs=1,
+                    timeseries = (
+                        timeseries_cap.cast_as(climate_capnp.TimeSeries)
+                        if (
+                            timeseries_cap := await pc.connection_manager.try_connect(
+                                cap_or_sr.as_text(),
+                                retry_secs=1,
+                            )
+                        )
+                        is not None
+                        else None
                     )
-                except Exception as e:
-                    print(
-                        "Error: Couldn't connect to timeseries.",
-                        cap_or_sr,
-                        "Exception:",
-                        e,
-                    )
+                except (KjException, RuntimeError, OSError, TypeError):
+                    logger.exception("Error: Couldn't connect to timeseries. %s", cap_or_sr)
                     continue
             if timeseries is None:
                 continue
@@ -108,16 +163,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             resolution = timeseries.resolution()
             se_date_prom = timeseries.range()
             header_size = len(header)
-            ds = (
-                (await timeseries.dataT()).data
-                if tsd.isTransposed
-                else (await timeseries.data()).data
-            )
+            ds = (await timeseries.dataT()).data if tsd.isTransposed else (await timeseries.data()).data
             tsd.init("data", len(ds))
             for i in range(len(ds)):
-                l = tsd.data.init(i, header_size)
+                row_data = tsd.data.init(i, header_size)
                 for j in range(header_size):
-                    l[j] = ds[i][j]
+                    row_data[j] = ds[i][j]
             se_date = await se_date_prom
             tsd.startDate = se_date.startDate
             tsd.endDate = se_date.endDate
@@ -130,16 +181,14 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             out_ip = fbp_capnp.IP.new_message()
             if not config["to_attr"]:
                 out_ip.content = tsd
-            common.copy_and_set_fbp_attrs(
-                in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {})
-            )
-            await ports["out"].write(value=out_ip)
+            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {}))
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -164,13 +213,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Retrieve timeseries data from capability and forward data downstream"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

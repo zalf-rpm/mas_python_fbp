@@ -13,27 +13,81 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp, geo_capnp
+from capnp.lib.capnp import KjException
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.geo import geo_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="ce4749cc-abab-4830-9eb3-1c44c9d451ce",
+        name="datasets -> timeseries",
+        description="Get timeseries capabilties from a dataset.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="ds",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="ts",
+        ),
+    ],
+    defaultConfig={
+        "no_of_locations_at_once": meta.ConfigEntry(
+            value=10,
+            type="int",
+            desc="number of locations to send at once",
+        ),
+        "continue_after_location_id": meta.ConfigEntry(
+            value=False,
+            type="string",
+            desc="continue after a particular location id",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="send data attached to attribute 'to_attr'",
+        ),
+        "create_substream": meta.ConfigEntry(
+            value=False,
+            type="[true | false]",
+            desc="create a substream for each datasets' timeseries",
+        ),
+        "maintain_incoming_substreams": meta.ConfigEntry(
+            value=False,
+            type="[true | false]",
+            desc="if false, ignore bracket IPs, thus flatten incoming substreams",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["ds"] and ports["ts"]:
+    while pc.in_ports["ds"] and pc.out_ports["ts"]:
         try:
-            ds_msg = await ports["ds"].read()
+            ds_msg = await pc.in_ports["ds"].read()
             if ds_msg.which() == "done":
-                ports["ds"] = None
+                pc.in_ports["ds"] = None
                 continue
 
             ds_ip = ds_msg.value.as_struct(fbp_capnp.IP)
@@ -41,66 +95,64 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             # pass through brackets as we just want to preserve structure for downstream components
             if ds_ip.type == "openBracket":
                 if config["maintain_incoming_substreams"]:
-                    await ports["ts"].write(ds_ip)
+                    await pc.out_ports["ts"].write(ds_ip)
                 continue
-            elif ds_ip.type == "closeBracket":
+            if ds_ip.type == "closeBracket":
                 if config["maintain_incoming_substreams"]:
-                    await ports["ts"].write(ds_ip)
+                    await pc.out_ports["ts"].write(ds_ip)
 
             dataset = None
             try:
                 dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
-            except Exception:
+            except (KjException, TypeError):
                 try:
-                    dataset = ports.connection_manager.try_connect(
-                        ds_ip.content.as_text(),
-                        cast_as=climate_capnp.Dataset,
-                        retry_secs=1,
+                    dataset = (
+                        dataset_cap.cast_as(climate_capnp.Dataset)
+                        if (
+                            dataset_cap := await pc.connection_manager.try_connect(
+                                ds_ip.content.as_text(),
+                                retry_secs=1,
+                            )
+                        )
+                        is not None
+                        else None
                     )
-                except Exception as e:
-                    print("Error: Couldn't connect to dataset. Exception:", e)
+                except (KjException, RuntimeError, OSError, TypeError):
+                    logger.exception("Error: Couldn't connect to dataset.")
                     continue
             if dataset is None:
                 continue
 
             if config["continue_after_location_id"]:
-                callback = dataset.streamLocations(
-                    config["continue_after_location_id"]
-                ).locationsCallback
+                callback = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
             else:
                 callback = dataset.streamLocations().locationsCallback
             info = await dataset.info()
             # callback = await callback_prom
 
             if config["create_substream"]:
-                await ports["ts"].write(
-                    value=fbp_capnp.IP.new_message(type="openBracket", content=info.id)
-                )
+                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
             while True:
-                ls = (
-                    await callback.nextLocations(int(config["no_of_locations_at_once"]))
-                ).locations
+                ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
                 if len(ls) == 0:
                     break
-                for l in ls:
-                    rc = l.customData[0].value.as_struct(geo_capnp.RowCol)
+                for location in ls:
+                    rc = location.customData[0].value.as_struct(geo_capnp.RowCol)
                     attrs = [{"key": "id", "value": f"row-{rc.row}_col-{rc.col}"}]
                     if config["to_attr"]:
-                        attrs.append({"key": config["to_attr"], "value": l.timeSeries})
+                        attrs.append({"key": config["to_attr"], "value": location.timeSeries})
                     out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                     if not config["to_attr"]:
-                        out_ip.content = l.timeSeries
-                    await ports["ts"].write(value=out_ip)
+                        out_ip.content = location.timeSeries
+                    await pc.out_ports["ts"].write(value=out_ip)
             if config["create_substream"]:
-                await ports["ts"].write(
-                    value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id)
-                )
+                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -122,13 +174,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

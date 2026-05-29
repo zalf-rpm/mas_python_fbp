@@ -13,36 +13,64 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
-import os
+import logging
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="consumers",
+        name="Consumers",
+    ),
+    info=meta.Info(
+        id="b5dea358-e34e-49ad-b20d-4d97159114a0",
+        name="africa calibration",
+        description="Consumer to work in an Africa calibration flow.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="result",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="year_to_yield",
+        ),
+    ],
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "result"], outs=["year_to_yield"]
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr,
+        ins=["conf", "result"],
+        outs=["year_to_yield"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    path_to_out_file = os.path.join(config["path_to_out"], "/consumer.out")
-    if not os.path.exists(config["path_to_out"]):
+    path_to_out_dir = Path(config["path_to_out"])
+    path_to_out_file = path_to_out_dir / "consumer.out"
+    if not path_to_out_dir.exists():
         try:
-            os.makedirs(config["path_to_out"])
+            path_to_out_dir.mkdir(parents=True)
         except OSError:
-            print(
-                "run-calibration-consumer.py: Couldn't create dir:",
-                config["path_to_out"],
-                "!",
-            )
-    with open(path_to_out_file, "a") as _:
+            logger.exception("run-calibration-consumer.py: Couldn't create dir: %s !", config["path_to_out"])
+    with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 
     country_id_to_year_to_yields = defaultdict(lambda: defaultdict(list))
@@ -50,9 +78,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     envs_received = 0
     no_of_envs_expected = None
     close_out_port = False
-    while ports["result"] and ports["year_to_yield"]:
+    while pc.in_ports["result"] and pc.out_ports["year_to_yield"]:
         try:
-            msg = await ports["result"].read()
+            msg = await pc.in_ports["result"].read()
             if msg.which() == "done":
                 close_out_port = True
                 continue
@@ -66,9 +94,9 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             else:
                 envs_received += 1
 
-                out_str = f"{os.path.basename(__file__)}: received result customId: {custom_id}\n"
-                print(out_str)
-                with open(path_to_out_file, "a") as _:
+                out_str = f"{Path(__file__).name}: received result customId: {custom_id}\n"
+                logger.info("%s", out_str.rstrip())
+                with path_to_out_file.open("a") as _:
                     _.write(out_str)
 
                 country_id = custom_id["country_id"]
@@ -77,14 +105,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     results = data.get("results", [])
                     for vals in results:
                         if "Year" in vals:
-                            country_id_to_year_to_yields[country_id][
-                                int(vals["Year"])
-                            ].append(vals["Yield"])
+                            country_id_to_year_to_yields[country_id][int(vals["Year"])].append(vals["Yield"])
 
             if no_of_envs_expected == envs_received:
-                out_str = f"{os.path.basename(__file__)}: {datetime.now()} last expected env received\n"
-                print(out_str)
-                with open(path_to_out_file, "a") as _:
+                out_str = f"{Path(__file__).name}: {datetime.now()} last expected env received\n"
+                logger.info("%s", out_str.rstrip())
+                with path_to_out_file.open("a") as _:
                     _.write(out_str)
 
                 country_id_and_year_to_avg_yield = {}
@@ -92,14 +118,10 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     for year, yields in rest.items():
                         no_of_yields = len(yields)
                         if no_of_yields > 0:
-                            country_id_and_year_to_avg_yield[f"{country_id}|{year}"] = (
-                                sum(yields) / no_of_yields
-                            )
+                            country_id_and_year_to_avg_yield[f"{country_id}|{year}"] = sum(yields) / no_of_yields
 
-                out_ip = fbp_capnp.IP.new_message(
-                    content=json.dumps(country_id_and_year_to_avg_yield)
-                )
-                await ports["year_to_yield"].write(value=out_ip)
+                out_ip = fbp_capnp.IP.new_message(content=json.dumps(country_id_and_year_to_avg_yield))
+                await pc.out_ports["year_to_yield"].write(value=out_ip)
 
                 # reset and wait for next round
                 country_id_to_year_to_yields.clear()
@@ -107,13 +129,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 envs_received = 0
 
                 if close_out_port:
-                    ports["result"] = None
+                    pc.in_ports["result"] = None
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -125,13 +147,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Copy IP to all attached array out ports"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

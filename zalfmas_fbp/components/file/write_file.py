@@ -13,94 +13,117 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="file",
+        name="File",
+    ),
+    info=meta.Info(
+        id="b3867019-5f42-4c59-9438-a49fe9452e6f",
+        name="write file",
+        description="Write input into a file.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+            desc="The input data to be written to a file.",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    defaultConfig={
+        "id_attr": meta.ConfigEntry(
+            value="id",
+            type="string",
+            desc="The attribute to get id for the filepattern from",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Instead of the IP content, get the content from that 'attr'.",
+        ),
+        "filepath_pattern": meta.ConfigEntry(
+            value="csv_{id}.csv",
+            type="string",
+            desc="The pattern to use for the filename. Can contain {id} as placeholder for the id attribute.",
+        ),
+        "path_to_out_dir": meta.ConfigEntry(
+            value="path to output dir",
+            type="string",
+            desc="The path to the output directory where the files will be written.",
+        ),
+        "append": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If True, append to existing files instead of overwriting them.",
+        ),
+        "debug": meta.ConfigEntry(
+            value=False,
+            type="bool",
+            desc="If True, print debug information to the console.",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     count = 0
-    while ports["in"]:
+    while pc.in_ports["in"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             id_attr = common.get_fbp_attr(in_ip, config["id_attr"])
             id = id_attr.as_text() if id_attr else str(count)
             content_attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            content = (
-                content_attr.as_text() if content_attr else in_ip.content.as_text()
-            )
+            content = content_attr.as_text() if content_attr else in_ip.content.as_text()
 
-            filepath = config["path_to_out_dir"] + config["filepath_pattern"].format(
-                id=id
-            )
-            with open(filepath, "at" if config["append"] else "wt") as _:
+            filepath = Path(config["path_to_out_dir"]) / config["filepath_pattern"].format(id=id)
+            with filepath.open("at" if config["append"] else "wt") as _:
                 _.write(content)
                 count += 1
 
             if config["debug"]:
-                print("wrote", filepath)
+                logger.info("wrote %s", filepath)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-"""
-#id_attr = "id"
-#from_attr = 
-#filepath_pattern = "csv_{id}.csv"
-#path_to_out_dir = "path to output dir"
-#append = false
-#debug = false
-"""
-default_config = {
-    "id_attr": "id",
-    "from_attr": None,
-    "filepath_pattern": "csv_{id}.csv",
-    "path_to_out_dir": "/home/berg/GitHub/mas-infrastructure/src/python/fbp/out/",
-    "append": False,
-    "debug": False,
-    "opt:from_attr": "[name:string] -> get file content from attibute set in 'from_attr'",
-    "opt:append": "[true | false] -> open file to be written in append mode or overwrite mode ",
-    "opt:debug": "[true | false] -> if true output filepath to console",
-    "opt:file": "[string] -> path to file to read",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> write string to file",
-}
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Write a text file")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

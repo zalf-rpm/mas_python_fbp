@@ -13,33 +13,101 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import csv
 import json
-import os
+import logging
 from collections import defaultdict
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="spotpy",
+        name="Spotpy",
+    ),
+    info=meta.Info(
+        id="993e5cdf-1c55-4a75-9538-e7906676fedb",
+        name="read observed values",
+        description="Read the observed values for the calibration.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="country_ids",
+            contentType="Text (JSON Array or Number)",
+            desc="[1,2,3] :string of serialized json array containing country ids",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+            desc="{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield",
+        ),
+    ],
+    defaultConfig={
+        "path_to_yield_data": meta.ConfigEntry(
+            value="data/FAO_yield_data.csv",
+            type="string",
+            desc="path to yield data",
+        ),
+        "crop": meta.ConfigEntry(
+            value="maize",
+            type="string",
+            desc="crop to calibrate, e.g. maize | millet | sorghum",
+        ),
+        "from_year": meta.ConfigEntry(
+            value=2010,
+            type="int",
+            desc="start year for calibration",
+        ),
+        "to_year": meta.ConfigEntry(
+            value=2020,
+            type="int",
+            desc="end year for calibration",
+        ),
+        "no_data_value": meta.ConfigEntry(
+            value=-9999,
+            type="int",
+            desc="no data value",
+        ),
+        "default_country_ids": meta.ConfigEntry(
+            value=[],
+            type="list",
+            desc="string of serialized json array containing country ids",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "country_ids"], outs=["out"]
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr,
+        ins=["conf", "country_ids"],
+        outs=["out"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     # get default country ids
     country_ids = config["default_country_ids"]
 
-    while ports["country_ids"] and ports["out"]:
+    while pc.in_ports["country_ids"] and pc.out_ports["out"]:
         try:
-            msg = await ports["country_ids"].read()
+            msg = await pc.in_ports["country_ids"].read()
             if msg.which() == "done":
-                ports["country_ids"] = None
+                pc.in_ports["country_ids"] = None
                 continue
             country_ids_ip = msg.value.as_struct(fbp_capnp.IP)
             c_ids_txt = country_ids_ip.content.as_text()
@@ -49,7 +117,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     country_ids = [country_ids]
 
             crop_to_country_to_year_to_value = defaultdict(lambda: defaultdict(dict))
-            with open(config["path_to_yield_data"]) as file:
+            with Path(config["path_to_yield_data"]).open() as file:
                 dialect = csv.Sniffer().sniff(file.read(), delimiters=";,\t")
                 file.seek(0)
                 reader = csv.reader(file, dialect)
@@ -59,11 +127,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     country_id = int(row[4])
                     year = int(row[2])
                     value = float(row[3]) * 1000.0  # t/ha -> kg/ha
-                    if (
-                        country_ids is None
-                        or len(country_ids) == 0
-                        or country_id in country_ids
-                    ):
+                    if country_ids is None or len(country_ids) == 0 or country_id in country_ids:
                         crop_to_country_to_year_to_value[crop][country_id][year] = value
 
             # fill in no data values
@@ -81,41 +145,20 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             param_set_id = "-".join([str(id) for id in country_ids])
             out_ip = fbp_capnp.IP.new_message(
                 attributes=[{"key": "param_set_id", "value": param_set_id}],
-                content=json.dumps(
-                    crop_to_country_to_year_to_value.get(config["crop"], {})
-                ),
+                content=json.dumps(crop_to_country_to_year_to_value.get(config["crop"], {})),
             )
 
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "path_to_yield_data": "data/FAO_yield_data.csv",
-    "crop": "maize",  # maize | millet | sorghum
-    "from_year": 2010,
-    "to_year": 2020,
-    "no_data_value": -9999,
-    "default_country_ids": [],
-    "port:conf": "[TOML string] -> component configuration",
-    "port:country_ids": None,  # [1,2,3] :string of serialized json array containing country ids
-    "port:out": "",  # {country_id: {year: yield}} :string of json serialized mapping from country id to year to yield
-}
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Copy IP to all attached array out ports"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

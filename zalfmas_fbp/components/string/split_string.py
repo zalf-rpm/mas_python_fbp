@@ -13,71 +13,91 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="string",
+        name="String",
+    ),
+    info=meta.Info(
+        id="d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+        name="split string",
+        description="Splits a string along delimiter.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+            contentType="Text",
+        ),
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text",
+        ),
+    ],
+    defaultConfig={
+        "split_at": meta.ConfigEntry(
+            value=",",
+            type="string",
+            desc="Split string at this character.",
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    print(f"{os.path.basename(__file__)}: {config['name']} connected port(s)")
-    await p.update_config_from_port(config, ports["conf"])
-    if ports["conf"]:
-        print(
-            f"{os.path.basename(__file__)}: {config['name']} updated config from config port"
-        )
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    logger.info("%s: %s connected port(s)", Path(__file__).name, config["name"])
+    _ = await p.update_config_from_port(config, pc.in_ports["conf"])
+    if pc.in_ports["conf"]:
+        logger.info("%s: %s updated config from config port", Path(__file__).name, config["name"])
 
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-            print(f"{os.path.basename(__file__)}: {config['name']} received:", s)
+            logger.info("%s: %s received: %s", Path(__file__).name, config["name"], s)
             s = s.rstrip()
             vals = s.split(config["split_at"])
 
             for val in vals:
                 out_ip = fbp_capnp.IP.new_message(content=val)
-                await ports["out"].write(value=out_ip)
-                print(f"{os.path.basename(__file__)}: {config['name']} sent:", val)
+                await pc.out_ports["out"].write(value=out_ip)
+                logger.info("%s: %s sent: %s", Path(__file__).name, config["name"], val)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: {config['name']} process finished")
-
-
-default_config = {
-    "name": "split_string",
-    "split_at": ",",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string] -> string to split",
-    "port:out": "[list[text | float | int]] -> output split list cast to cast_to type",
-}
+    await pc.close_out_ports()
+    logger.info("%s: %s process finished", Path(__file__).name, config["name"])
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser("Split a string.")
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

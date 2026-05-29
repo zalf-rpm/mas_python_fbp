@@ -13,29 +13,84 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common, geo
 
 from zalfmas_fbp.run import components as c
+from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import ports as p
 
+logger = logging.getLogger(__name__)
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "in"], outs=["out"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+METADATA = meta.Component(
+    category=meta.Category(
+        id="geo",
+        name="Geo",
+    ),
+    info=meta.Info(
+        id="b753df51-40f1-4778-ac47-82858c8ef80c",
+        name="Proj transform coords",
+        description="Transform coordinates using the Proj library.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+            contentType="common.capnp:StructuredText[JSON | TOML]",
+        ),
+        meta.Port(
+            name="in",
+            contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+            desc="Input geo coordinate.",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
+            desc="Output geo coordinate.",
+        ),
+    ],
+    defaultConfig={
+        "from_name": meta.ConfigEntry(
+            value="LatLon",
+            type="string",
+            desc="Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+        ),
+        "to_name": meta.ConfigEntry(
+            value="LatLon",
+            type="string",
+            desc="Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
+        ),
+        "from_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the input coordinate.",
+        ),
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="Attribute name to use as the output.",
+        ),
+    },
+)
+
+
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     from_type = geo.name_to_struct_type(config["from_name"])
-    while ports["in"] and ports["out"]:
+    while pc.in_ports["in"] and pc.out_ports["out"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
@@ -53,43 +108,19 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 out_ip,
                 **({config["to_attr"]: to_coord} if config["to_attr"] else {}),
             )
-            await ports["out"].write(value=out_ip)
+            await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: {config['name']} RPC Exception:",
-                e.description,
-            )
+            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
-
-
-default_config = {
-    "from_name": "utm32n",
-    "to_name": "latlon",
-    "from_attr": None,
-    "to_attr": None,
-    "opt:from_name": "[string (known name like utm32n)] -> source CRS -> refer to know name in zalfmas_common.geo lib",
-    "opt:to_name": "[string (known name like latlon)] -> target CRS -> refer to know name in zalfmas_common.geo lib",
-    "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
-    "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> input geo coord",
-    "port:out": "[geo_capnp:LatLonCoord | geo_capnp:UTMCoord | geo_capnp:GKCoord] -> transformed geo coord",
-}
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -13,41 +13,75 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import json
-import os
+from __future__ import annotations
 
-import tomli
-from capnp.lib.capnp import KjException
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp
+import json
+import logging
+import tomllib
+from collections.abc import Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from capnp.lib.capnp import (
+    KjException,
+    _CapabilityClient,
+    _DynamicCapabilityClient,
+    _InterfaceSchema,
+)
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient, WriterClient
 
-def get_attr_val(config_val, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
-    if (
-        type(config_val) is str
-        and len(config_val) > 0
-        and config_val[0] == "@"
-        and config_val[1:] in attrs
-    ):
+ArrayWriterPorts = list["WriterClient | None"]
+logger = logging.getLogger(__name__)
+
+
+def get_attr_val(
+    name: Any,
+    attrs: dict,
+    as_struct: Any | None = None,
+    as_interface: Any | None = None,
+    as_text: bool = False,
+    remove: bool = True,
+) -> tuple[Any, bool]:
+    """
+    Retrieve the value of an attribute from a given dictionary of attributes. This function
+    supports optional type conversion to various forms such as struct, interface, or text.
+
+    :param name: The name of the attribute to retrieve. It can be of any type. If it is a string
+        and starts with '@', the corresponding attribute in the dictionary is processed.
+    :param attrs: A dictionary containing the attributes.
+    :param as_struct: Specifies the type to which the attribute value should be converted using
+        the `as_struct` method, if applicable. Default is None.
+    :param as_interface: Specifies the type to which the attribute value should be converted using
+        the `as_interface` method, if applicable. Default is None.
+    :param as_text: A boolean indicating whether the attribute value should be converted
+        to text representation using the `as_text` method. Default is False.
+    :param remove: A boolean indicating whether the retrieved attribute should be removed from
+        the dictionary. Default is True.
+    :return: A tuple containing the resolved attribute value and a boolean flag indicating whether
+        the retrieval operation was successful.
+    :rtype: tuple[Any, bool]
+    """
+    if type(name) is str and len(name) > 0 and name[0] == "@" and name[1:] in attrs:
         if remove:
-            attr_val = attrs.pop(config_val[1:])
+            attr_val = attrs.pop(name[1:])
         else:
-            attr_val = attrs[config_val[1:]]
+            attr_val = attrs[name[1:]]
         if as_struct:
             return attr_val.as_struct(as_struct), True
-        elif as_interface:
+        if as_interface:
             return attr_val.as_interface(as_interface), True
-        elif as_text:
+        if as_text:
             return attr_val.as_text(), True
-        else:
-            return attr_val, True
-    else:
-        return config_val, False
+        return attr_val, True
+    return name, False
 
 
-def get_config_val(
-    config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True
-):
+def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):
     if key in config:
         cval = config[key]
         return get_attr_val(
@@ -58,145 +92,140 @@ def get_config_val(
             as_text=as_text,
             remove=remove,
         )
-    else:
-        return None, None
+    return None, None
 
 
 # toml or json
-async def update_config_from_port(config, port, config_type="toml"):
+async def update_config_from_port(config: dict[str, Any], port: ReaderClient | None, config_type: str = "toml"):
     if port:
-        xxx_config = None
-        try:
-            conf_msg = await port.read()
-            if conf_msg.which() == "done":
-                return None
-            conf_ip = conf_msg.value.as_struct(fbp_capnp.IP)
-            try:  # first try to read as structured text
-                conf_st = conf_ip.content.as_struct(common_capnp.StructuredText)
-                if conf_st.type == "toml":
-                    xxx_config = tomli.loads(conf_st.value)
-                elif conf_st.type == "json":
-                    xxx_config = json.loads(conf_st.value)
-            except:
-                try:  # if structured text fails, try as plain text and use config_type parameter
-                    conf_str = conf_ip.content.as_text()
-                    if config_type == "toml":
-                        xxx_config = tomli.loads(conf_str)
-                    elif config_type == "json":
-                        xxx_config = json.loads(conf_str)
-                except:
-                    pass
-            if xxx_config:
-                config.update(xxx_config)
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)} update_config_from_port: config: {xxx_config} Exception:",
-                e,
-            )
+        if xxx_config := await read_dict_from_port(port, config_type):
+            config.update(xxx_config)
     return config
 
 
-async def read_dict_from_port(ports, port_name, config_type="json", set_port_to_none_if_done=True):
-    if port_name in ports.ins:
-        d = await update_config_from_port({}, ports[port_name], config_type=config_type)
+async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
+    d = {}
+    if port:
+        try:
+            msg = await port.read()
+            if msg.which() == "done":
+                return None
+            ip = msg.value.as_struct(fbp_capnp.IP)
+            try:  # first try to read as structured text
+                st = ip.content.as_struct(common_capnp.StructuredText)
+                if st.type == "toml":
+                    d = tomllib.loads(st.value)
+                elif st.type == "json":
+                    d = json.loads(st.value)
+            except (KjException, TypeError, ValueError):
+                try:  # if structured text fails, try as plain text and use config_type parameter
+                    text_value = ip.content.as_text()
+                    if text_type == "toml":
+                        d = tomllib.loads(text_value)
+                    elif text_type == "json":
+                        d = json.loads(text_value)
+                except (KjException, TypeError, ValueError):
+                    pass
+        except Exception:
+            logger.exception("%s read_dict_from_port.", Path(__file__).name)
+    return d
+
+
+async def read_dict_from_port_done(
+    in_ports: dict[str, ReaderClient | None], port_name: str, text_type="json", set_port_to_none_if_done: bool = True
+):
+    if (port := in_ports.get(port_name, None)) is not None:
+        d = await read_dict_from_port(port, text_type=text_type)
         if d is None and set_port_to_none_if_done:
-            ports[port_name] = None
+            in_ports[port_name] = None
         return d
     return None
 
 
 class PortConnector:
-    def __init__(self, ins=None, outs=None, connection_manager=None):
-        self.in_ports = {n: None for n in ins} if ins else {}
-        self.out_ports = {n: None for n in outs} if outs else {}
-        self.con_man = connection_manager if connection_manager else common.ConnectionManager()
-        self.port_infos_reader = None
-
-    # make in_ports a property
-    @property
-    def ins(self):
-        return self.in_ports
-
-    # make out_ports a property
-    @property
-    def outs(self):
-        return self.out_ports
+    def __init__(
+        self,
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
+    ):
+        self.in_ports: dict[str, ReaderClient | None] = dict.fromkeys(ins) if ins else {}
+        self.out_ports: dict[str, WriterClient | None] = dict.fromkeys(outs) if outs else {}
+        self.array_out_ports: dict[str, ArrayWriterPorts] = {n: [] for n in array_outs} if array_outs else {}
+        self.con_man: common.ConnectionManager = connection_manager or common.ConnectionManager()
+        self.port_infos_reader: ReaderClient | None = None
 
     @property
     def connection_manager(self):
         return self.con_man
 
-    def __getitem__(self, key):
-        if key in self.in_ports and key in self.out_ports:
-            return {"in": self.in_ports[key], "out": self.out_ports[key]}
-        if key in self.in_ports:
-            return self.in_ports[key]
-        if key in self.out_ports:
-            return self.out_ports[key]
-        return None
+    def _set_in_port(self, name: str, port: ReaderClient | None) -> None:
+        self.in_ports[name] = port
 
-    def __setitem__(self, key, value):
-        if (
-            key in self.in_ports
-            and key in self.out_ports
-            and isinstance(value, dict)
-            and "in" in value
-            and "out" in value
-        ):
-            self.in_ports[key] = value["in"]
-            self.out_ports[key] = value["out"]
-        if key in self.in_ports:
-            self.in_ports[key] = value
-        if key in self.out_ports:
-            self.out_ports[key] = value
+    def _set_out_port(self, name: str, port: WriterClient | None) -> None:
+        if name in self.array_out_ports:
+            self.array_out_ports[name].append(port)
+        else:
+            self.out_ports[name] = port
+
+    def _set_array_out_ports(self, name: str, array_ports: ArrayWriterPorts) -> None:
+        if name in self.out_ports:
+            self.out_ports.pop(name, None)
+        self.array_out_ports[name] = array_ports
 
     async def close_out_ports(
         self,
-        print_info=False,
-        print_exception=True,
-        wait_for_port_infos_reader_done=True,
+        print_info: bool = False,
+        print_exception: bool = True,
+        wait_for_port_infos_reader_done: bool = True,
     ):
-        for name, ps in self.out_ports.items():
-            # is an array out port
-            if isinstance(ps, list):
-                for i, p in enumerate(ps):
-                    if p is not None:
-                        try:
-                            await p.close()
-                            if print_info:
-                                print(
-                                    f"{os.path.basename(__file__)}: closed array out port '{name}[{i}]'"
-                                )
-                        except Exception as e:
-                            if print_exception:
-                                print(
-                                    f"{os.path.basename(__file__)}: Exception closing array out port '{name}[{i}]': {e}"
-                                )
-            # is a single out port
-            elif ps is not None:
+        for name, port in self.out_ports.items():
+            if port is not None:
                 try:
-                    await ps.close()
+                    await port.close()
                     if print_info:
-                        print(f"{os.path.basename(__file__)}: closed out port '{name}'")
-                except Exception as e:
+                        logger.info("%s: closed out port '%s'", Path(__file__).name, name)
+                except (KjException, RuntimeError):
                     if print_exception:
-                        print(
-                            f"{os.path.basename(__file__)}: Exception closing out port '{name}': {e}"
-                        )
+                        logger.exception("%s: Exception closing out port '%s'", Path(__file__).name, name)
+        for name, array_ports in self.array_out_ports.items():
+            for i, port in enumerate(array_ports):
+                if port is not None:
+                    try:
+                        await port.close()
+                        if print_info:
+                            logger.info("%s: closed array out port '%s[%s]'", Path(__file__).name, name, i)
+                    except (KjException, RuntimeError):
+                        if print_exception:
+                            logger.exception(
+                                "%s: Exception closing array out port '%s[%s]'",
+                                Path(__file__).name,
+                                name,
+                                i,
+                            )
 
         if wait_for_port_infos_reader_done:
             if self.port_infos_reader:
-                msg = await self.port_infos_reader.read()
+                await self.port_infos_reader.read()
             # if msg.which() == "done":
             #  pass
 
     @staticmethod
-    async def create_from_cmd_config(config: dict, ins=None, outs=None, connection_manager=None):
-        pc = PortConnector(ins, outs, connection_manager)
+    async def create_from_cmd_config(
+        config: dict[str, str | None],
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
+    ):
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_cmd_config(config)
         return pc
 
-    async def connect_from_cmd_config(self, config: dict):
+    async def connect_from_cmd_config(self, config: dict[str, str | None]):
         try:
             for k, v in config.items():
                 if k.endswith("in_sr"):
@@ -206,10 +235,15 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.in_ports[port_name] = None
+                        self._set_in_port(port_name, None)
                     else:
-                        self.in_ports[port_name] = await self.con_man.try_connect(
-                            v, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
+                        reader = await self.con_man.try_connect(
+                            v,
+                            retry_secs=1,
+                        )
+                        self._set_in_port(
+                            port_name,
+                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None,
                         )
                 elif k.endswith("out_sr"):
                     port_name = k[:-7]
@@ -218,12 +252,16 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.out_ports[port_name] = None
+                        self._set_out_port(port_name, None)
                     else:
-                        self.in_ports[port_name] = await self.con_man.try_connect(
-                            v, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
+                        writer = await self.con_man.try_connect(
+                            v,
+                            retry_secs=1,
                         )
-                        self.out_ports[port_name] = self.in_ports[port_name]
+                        self._set_out_port(
+                            port_name,
+                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None,
+                        )
                 elif k.endswith("out_srs"):
                     port_name = k[:-8]
                     if len(port_name) == 0:
@@ -231,154 +269,207 @@ class PortConnector:
                     elif port_name[:-1] == "_":
                         port_name = port_name[:-1]
                     if v is None:
-                        self.out_ports[port_name] = None
+                        self._set_array_out_ports(port_name, [])
                     else:
-                        self.out_ports[port_name] = []
+                        writers: list[WriterClient | None] = []
                         for out_sr in v.split("|"):
-                            self.out_ports[port_name].append(
-                                await self.con_man.try_connect(
-                                    out_sr,
-                                    cast_as=fbp_capnp.Channel.Writer,
-                                    retry_secs=1,
-                                )
+                            writer = await self.con_man.try_connect(
+                                out_sr,
+                                retry_secs=1,
                             )
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via CMD config:\n{config}\n Exception: {e}"
+                            writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
+                        self._set_array_out_ports(port_name, writers)
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via CMD config:\n%s",
+                Path(__file__).name,
+                config,
             )
 
-    async def read_or_connect(self, in_port_id, cast_as):
+    async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
+        in_port = self.in_ports[in_port_id]
+        if in_port is None:
+            return None
+
         try:
-            msg = await self.ins[in_port_id].read()
+            msg = await in_port.read()
             if msg.which() == "done":
-                self.ins[in_port_id] = None
+                self.in_ports[in_port_id] = None
                 return None
         except KjException:
             return None
 
         ip = msg.value.as_struct(fbp_capnp.IP)
-        service = None
         try:
-            service = ip.content.as_interface(cast_as)
+            return ip.content.as_interface(_InterfaceSchema())
         except KjException:
             try:
-                service = await self.connection_manager.try_connect(
+                return await self.connection_manager.try_connect(
                     ip.content.as_text(),
-                    cast_as=cast_as,
                     retry_secs=1,
                 )
-            except Exception as e:
-                print("Error: Couldn't connect to dataset. Exception:", e)
-        return service
+            except (KjException, RuntimeError, OSError, TypeError):
+                logger.exception(
+                    "%s: Error: Couldn't connect to capability from port '%s'",
+                    Path(__file__).name,
+                    in_port_id,
+                )
+                return None
 
     @staticmethod
     async def create_from_port_infos_reader(
-        port_infos_reader_sr: str, ins=None, outs=None, connection_manager=None
+        port_infos_reader_sr: str,
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_port_infos_reader(port_infos_reader_sr)
         return pc
 
     async def connect_from_port_infos_reader(self, port_infos_reader_sr: str):
         try:
-            self.port_infos_reader = await self.con_man.try_connect(
-                port_infos_reader_sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
+            port_infos_reader = await self.con_man.try_connect(
+                port_infos_reader_sr,
+                retry_secs=1,
             )
+            self.port_infos_reader = (
+                port_infos_reader.cast_as(fbp_capnp.Channel.Reader) if port_infos_reader is not None else None
+            )
+            if self.port_infos_reader is None:
+                return
+
             pis = (await self.port_infos_reader.read()).value.as_struct(fbp_capnp.PortInfos)
             for n2sr in pis.inPorts:
                 if len(n2sr.name) > 0:
                     port_name = n2sr.name
                     if n2sr.which() == "sr" and n2sr.sr is not None:
-                        self.in_ports[port_name] = await self.con_man.try_connect(
-                            n2sr.sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
+                        reader = await self.con_man.try_connect(
+                            n2sr.sr,
+                            retry_secs=1,
+                        )
+                        self._set_in_port(
+                            port_name,
+                            reader.cast_as(fbp_capnp.Channel.Reader) if reader is not None else None,
                         )
 
             for n2sr in pis.outPorts:
                 if len(n2sr.name) > 0:
                     port_name = n2sr.name
                     if n2sr.which() == "sr" and n2sr.sr is not None:
-                        self.out_ports[port_name] = await self.con_man.try_connect(
-                            n2sr.sr, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
+                        writer = await self.con_man.try_connect(
+                            n2sr.sr,
+                            retry_secs=1,
+                        )
+                        self._set_out_port(
+                            port_name,
+                            writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None,
                         )
                     elif len(n2sr.srs) > 0:
-                        self.out_ports[port_name] = []
+                        writers: list[WriterClient | None] = []
                         for sr in n2sr.srs:
                             if sr is not None:
-                                self.out_ports[port_name].append(
-                                    await self.con_man.try_connect(
-                                        sr,
-                                        cast_as=fbp_capnp.Channel.Writer,
-                                        retry_secs=1,
-                                    )
+                                writer = await self.con_man.try_connect(
+                                    sr,
+                                    retry_secs=1,
                                 )
+                                writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
+                        self._set_array_out_ports(port_name, writers)
 
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via port infos reader SR:\n{port_infos_reader_sr}\n Exception: {e}"
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via port infos reader SR:\n%s",
+                Path(__file__).name,
+                port_infos_reader_sr,
             )
 
     @staticmethod
     async def create_from_toml_str(
-        config_toml_str: str, ins=None, outs=None, connection_manager=None
+        config_toml_str: str,
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_str(config_toml_str)
         return pc
 
     async def connect_from_toml_str(self, config_toml_str: str):
-        toml_config = tomli.loads(config_toml_str)
+        toml_config = tomllib.loads(config_toml_str)
 
         try:
             for port_name, data in toml_config["ports"]["in"].items():
                 sr = data.get("sr", None)
                 sr = None if sr == "" else sr
-                self.in_ports[port_name] = sr
-                if sr:
-                    self.in_ports[port_name] = await self.con_man.try_connect(
-                        sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
-                    )
+                self._set_in_port(
+                    port_name,
+                    reader_cap.cast_as(fbp_capnp.Channel.Reader)
+                    if sr and (reader_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
+                    else None,
+                )
 
             for port_name, data in toml_config["ports"]["out"].items():
                 if isinstance(data, list):
-                    self.out_ports[port_name] = []
+                    writers: list[WriterClient | None] = []
                     for d in data:
                         sr = d.get("sr", None)
                         sr = None if sr == "" else sr
-                        self.out_ports[port_name].append(sr)
-                        if sr:
-                            self.out_ports[port_name][-1] = await self.con_man.try_connect(
-                                sr, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
-                            )
+                        writers.append(
+                            writer_cap.cast_as(fbp_capnp.Channel.Writer)
+                            if sr and (writer_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
+                            else None,
+                        )
+                    self._set_array_out_ports(port_name, writers)
                 else:
                     sr = data.get("sr", None)
                     sr = None if sr == "" else sr
-                    self.out_ports[port_name] = sr
-                    if sr:
-                        self.out_ports[port_name] = await self.con_man.try_connect(
-                            sr, cast_as=fbp_capnp.Channel.Writer, retry_secs=1
-                        )
+                    self._set_out_port(
+                        port_name,
+                        writer_cap.cast_as(fbp_capnp.Channel.Writer)
+                        if sr and (writer_cap := await self.con_man.try_connect(sr, retry_secs=1)) is not None
+                        else None,
+                    )
 
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to ports via toml:\n{toml_config}\n Exception: {e}"
+        except Exception:
+            logger.exception(
+                "%s: Exception connecting to ports via toml:\n%s",
+                Path(__file__).name,
+                toml_config,
             )
 
     @staticmethod
     async def create_from_toml_reader_sr(
-        config_reader_sr: str, ins=None, outs=None, connection_manager=None
+        config_reader_sr: str,
+        ins: Sequence[str] | None = None,
+        outs: Sequence[str] | None = None,
+        connection_manager: common.ConnectionManager | None = None,
+        *,
+        array_outs: Sequence[str] | None = None,
     ):
-        pc = PortConnector(ins, outs, connection_manager)
+        pc = PortConnector(ins, outs, connection_manager, array_outs=array_outs)
         await pc.connect_from_toml_reader_sr(config_reader_sr)
         return pc
 
     async def connect_from_toml_reader_sr(self, config_reader_sr: str):
         try:
-            config_reader = await self.con_man.try_connect(
-                config_reader_sr, cast_as=fbp_capnp.Channel.Reader, retry_secs=1
+            config_reader_cap = await self.con_man.try_connect(
+                config_reader_sr,
+                retry_secs=1,
             )
+            config_reader = (
+                config_reader_cap.cast_as(fbp_capnp.Channel.Reader) if config_reader_cap is not None else None
+            )
+            if config_reader is None:
+                return
             config_msg = await config_reader.read()
             await self.connect_from_toml_str(config_msg.value.as_text())
-        except Exception as e:
-            print(
-                f"{os.path.basename(__file__)}: Exception connecting to config reader via sr ({config_reader_sr}): {e}"
+        except (KjException, RuntimeError, OSError, TypeError, ValueError, KeyError):
+            logger.exception(
+                "%s: Exception connecting to config reader via sr (%s)",
+                Path(__file__).name,
+                config_reader_sr,
             )

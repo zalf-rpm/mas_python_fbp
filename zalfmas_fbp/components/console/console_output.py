@@ -13,53 +13,68 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+import sys
+from pathlib import Path
+from typing import Any
 
 import capnp
-from zalfmas_capnp_schemas_with_stubs import fbp_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="console",
+        name="Console",
+    ),
+    info=meta.Info(
+        id="2de9c491-d8a6-4b36-84de-db7f4a312731",
+        name="output to console",
+        description="Output input to console.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="in",
+        ),
+    ],
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["in"]
-    )
-    print(f"{os.path.basename(__file__)}: connected port(s)")
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["in"])
+    logger.info("%s: connected port(s)", Path(__file__).name)
 
-    while ports["in"]:
+    while pc.in_ports["in"]:
         try:
-            in_msg = await ports["in"].read()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
-                ports["in"] = None
+                pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             try:
-                print(in_ip.content.as_text())
-            except Exception:
-                print(in_ip.content)
+                sys.stdout.write(f"{in_ip.content.as_text()}\n")
+            except (capnp.KjException, TypeError):
+                sys.stdout.write(f"{in_ip.content}\n")
+            sys.stdout.flush()
 
         except capnp.KjException as e:
-            print(
-                f"{os.path.basename(__file__)}: RPC Exception:",
-                e.description,
-            )
+            logger.exception("%s: RPC Exception: %s", Path(__file__).name, e.description)
             if e.type in ["DISCONNECTED"]:
                 break
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Output text on console FBP component"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(parser)
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

@@ -13,25 +13,64 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
-import os
+import logging
+from pathlib import Path
+from typing import Any
 
-import capnp
-from zalfmas_capnp_schemas_with_stubs import climate_capnp, fbp_capnp
+from mas.schema.climate import climate_capnp
+from mas.schema.fbp import fbp_capnp
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="climate",
+        name="Climate",
+    ),
+    info=meta.Info(
+        id="79723094-0972-48ec-b219-030dae730063",
+        name="climate service -> dataset",
+        description="Send capabilities to the datasets available at climate service downstream.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="cs",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="ds",
+        ),
+    ],
+    defaultConfig={
+        "to_attr": meta.ConfigEntry(
+            value=None,
+            type="string",
+            desc="send content instead in 'to_attr'",
+        ),
+        "create_substream": meta.ConfigEntry(
+            value=False,
+        ),
+    },
+)
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"]
-    )
-    await p.update_config_from_port(config, ports["conf"])
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "cs"], outs=["ds"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
-    while ports["cs"] and ports["ds"]:
+    while pc.in_ports["cs"] and pc.out_ports["ds"]:
         try:
-            service = ports.read_or_connect("cs", cast_as=climate_capnp.Service)
+            service = (
+                service_cap.cast_as(climate_capnp.Service)
+                if (service_cap := await pc.read_or_connect("cs")) is not None
+                else None
+            )
             if service is None:
                 continue
 
@@ -42,29 +81,23 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
             info = await info_prom
             if config["create_substream"]:
-                ports["ds"].write(
-                    value=fbp_capnp.IP.new_message(type="openBracket", content=info.id)
-                )
-            for meta_plus_data in datasets if datasets else []:
+                pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
+            for meta_plus_data in datasets or []:
                 attrs = []
                 if config["to_attr"]:
-                    attrs.append(
-                        {"key": config["to_attr"], "value": meta_plus_data.data}
-                    )
+                    attrs.append({"key": config["to_attr"], "value": meta_plus_data.data})
                 out_ip = fbp_capnp.IP.new_message(attributes=attrs)
                 if not config["to_attr"]:
                     out_ip.content = meta_plus_data.data
-                await ports["ds"].write(value=out_ip)
+                await pc.out_ports["ds"].write(value=out_ip)
             if config["create_substream"]:
-                ports["ds"].write(
-                    value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id)
-                )
+                pc.out_ports["ds"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
 
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -82,13 +115,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "Get (all) timeseries from dataset at 'ds' input port"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":

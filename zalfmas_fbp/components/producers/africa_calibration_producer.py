@@ -13,23 +13,61 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
-import asyncio
 import json
-import os
+import logging
 import time
 from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-import capnp
-import numpy as np
-from netCDF4 import Dataset
-from zalfmas_capnp_schemas_with_stubs import common_capnp, fbp_capnp, model_capnp
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+from mas.schema.model import model_capnp
 from zalfmas_common import csv
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.run import metadata as meta
 
 from ..geo import get_lat_lon_grid_value as shared
+
+if TYPE_CHECKING:
+    pass
+
+logger = logging.getLogger(__name__)
+
+METADATA = meta.Component(
+    category=meta.Category(
+        id="producers",
+        name="Producers",
+    ),
+    info=meta.Info(
+        id="4b324ff3-a91d-434b-a2bf-8363bc4828ec",
+        name="africa calibration producer",
+        description="Producer to work in an Africa calibration flow.",
+    ),
+    type="standard",
+    inPorts=[
+        meta.Port(
+            name="conf",
+        ),
+        meta.Port(
+            name="coords",
+        ),
+        meta.Port(
+            name="region",
+        ),
+        meta.Port(
+            name="params",
+        ),
+    ],
+    outPorts=[
+        meta.Port(
+            name="env",
+        ),
+    ],
+)
 
 
 def check_for_nill_dates(mgmt):
@@ -73,11 +111,16 @@ def mgmt_date_to_rel_date(mgmt_date):
     return f"0000-{month_str}-{int(day_str):02}"
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ports = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr, ins=["conf", "coords", "region", "params"], outs=["env"]
+async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
+    import numpy as np
+    from netCDF4 import Dataset
+
+    pc = await p.PortConnector.create_from_port_infos_reader(
+        port_infos_reader_sr,
+        ins=["conf", "coords", "region", "params"],
+        outs=["env"],
     )
-    await p.update_config_from_port(config, ports["conf"])
+    await p.update_config_from_port(config, pc.in_ports["conf"])
 
     PATHS = {
         # adjust the local path to your environment
@@ -88,8 +131,8 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             "path-to-soil-dir": "/home/berg/Desktop/soil/",
             "monica-path-to-climate-dir": "/run/user/1000/gvfs/sftp:host=login01.cluster.zalf.de,user=rpm/beegfs/common/data/climate/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": os.path.join(
-                config["path_to_repo"], "data/"
+            "path-to-data-dir": str(
+                Path(config["path_to_repo"]) / "data"
             ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
@@ -109,28 +152,24 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             "path-to-soil-dir": "/beegfs/common/data/soil/global_soil_dataset_for_earth_system_modeling/",
             "monica-path-to-climate-dir": "/monica_data/climate-data/",
             # mounted path to archive accessable by monica executable
-            "path-to-data-dir": os.path.join(
-                config["path_to_repo"], "data/"
+            "path-to-data-dir": str(
+                Path(config["path_to_repo"]) / "data"
             ),  # mounted path to archive or hard drive with data
             "path-debug-write-folder": "./debug-out/",
         },
     }
 
-    path_to_out_file = config["path_to_out"] + "/producer.out"
-    if not os.path.exists(config["path_to_out"]):
+    path_to_out_dir = Path(config["path_to_out"])
+    path_to_out_file = path_to_out_dir / "producer.out"
+    if not path_to_out_dir.exists():
         try:
-            os.makedirs(config["path_to_out"])
+            path_to_out_dir.mkdir(parents=True)
         except OSError:
-            print(
-                "run-calibration-producer.py: Couldn't create dir:",
-                config["path_to_out"],
-                "!",
-            )
-    with open(path_to_out_file, "a") as _:
+            logger.exception("run-calibration-producer.py: Couldn't create dir: %s !", config["path_to_out"])
+    with path_to_out_file.open("a") as _:
         _.write(f"config: {config}\n")
 
     s_resolution = {"5min": 5 / 60.0, "30sec": 30 / 3600.0}[config["resolution"]]
-    s_res_scale_factor = {"5min": 60.0, "30sec": 3600.0}[config["resolution"]]
 
     region_to_lat_lon_bounds = {
         "nigeria": {"tl": {"lat": 14.0, "lon": 2.7}, "br": {"lat": 4.25, "lon": 14.7}},
@@ -156,7 +195,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
     # read setup from csv file
     setups = csv.read_csv(config["setups-file"], key="run-id")
     run_setups = json.loads(config["run-setups"])
-    print("read sim setups: ", config["setups-file"])
+    logger.info("read sim setups: %s", config["setups-file"])
 
     # open netcdfs
     path_to_soil_netcdfs = paths["path-to-soil-dir"] + "/" + config["resolution"] + "/"
@@ -201,8 +240,7 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         for elem2 in soil_data.keys():
             for i in range(8):
                 if np.ma.is_masked(soil_vars[elem2][i, row, col]):
-                    if i < layer_depth:
-                        layer_depth = i
+                    layer_depth = min(layer_depth, i)
                     break
         layer_depth -= 1
 
@@ -224,32 +262,28 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     {
                         "Thickness": [monica_depth_m, "m"],
                         "SoilOrganicCarbon": [
-                            soil_vars["corg"][i, row, col]
-                            * soil_data["corg"]["conv_factor"],
+                            soil_vars["corg"][i, row, col] * soil_data["corg"]["conv_factor"],
                             "%",
                         ],
                         "SoilBulkDensity": [
-                            soil_vars["bd"][i, row, col]
-                            * soil_data["bd"]["conv_factor"],
+                            soil_vars["bd"][i, row, col] * soil_data["bd"]["conv_factor"],
                             "kg m-3",
                         ],
                         "Sand": [
-                            soil_vars["sand"][i, row, col]
-                            * soil_data["sand"]["conv_factor"],
+                            soil_vars["sand"][i, row, col] * soil_data["sand"]["conv_factor"],
                             "fraction",
                         ],
                         "Clay": [
-                            soil_vars["clay"][i, row, col]
-                            * soil_data["clay"]["conv_factor"],
+                            soil_vars["clay"][i, row, col] * soil_data["clay"]["conv_factor"],
                             "fraction",
                         ],
-                    }
+                    },
                 )
         return layers
 
     setup = None
     if len(run_setups) > 1 and run_setups[0] not in setups:
-        print("More than one setup given or given setup not in list of setups.")
+        logger.error("More than one setup given or given setup not in list of setups.")
         exit(1)
     else:
         setup_id = run_setups[0]
@@ -262,37 +296,36 @@ async def run_component(port_infos_reader_sr: str, config: dict):
 
     start_component_time = time.perf_counter()
     # as long as we get parameters, we create the envs
-    while ports["env"] and ports["params"] and (ports["coords"] or ports["region"]):
+    while pc.out_ports["env"] and pc.in_ports["params"] and (pc.in_ports["coords"] or pc.in_ports["region"]):
         sent_env_count = 0
         try:
-            if ports["region"]:
-                msg = ports["region"].read().wait()
+            if pc.in_ports["region"]:
+                msg = pc.in_ports["region"].read().wait()
                 if msg.which() == "done":
-                    ports["region"] = None
+                    pc.in_ports["region"] = None
                 else:
                     region_ip = msg.value.as_struct(fbp_capnp.IP)
                     region = region_ip.content.as_text()
 
             # read the coordinates
-            if ports["coords"]:
-                msg = ports["coords"].read().wait()
+            if pc.in_ports["coords"]:
+                msg = pc.in_ports["coords"].read().wait()
                 if msg.which() == "done":
-                    ports["coords"] = None
+                    pc.in_ports["coords"] = None
                 else:
                     coords_ip = msg.value.as_struct(fbp_capnp.IP)
                     coords = json.loads(coords_ip.content.as_text())
 
             # read the parameters to be calibrated
-            if ports["params"]:
-                msg = ports["params"].read().wait()
+            if pc.in_ports["params"]:
+                msg = pc.in_ports["params"].read().wait()
                 if msg.which() == "done":
-                    ports["params"] = None
+                    pc.in_ports["params"] = None
                     continue
-                else:
-                    params_ip = msg.value.as_struct(fbp_capnp.IP)
-                    params = json.loads(params_ip.content.as_text())
-        except Exception as e:
-            print(f"{os.path.basename(__file__)} Exception:", e)
+                params_ip = msg.value.as_struct(fbp_capnp.IP)
+                params = json.loads(params_ip.content.as_text())
+        except Exception:
+            logger.exception("%s Exception", Path(__file__).name)
             continue
 
         start_setup_time = time.perf_counter()
@@ -302,17 +335,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
         ensmem = setup["ensmem"]
         crop = setup["crop"]
 
-        lat_lon_bounds = region_to_lat_lon_bounds.get(region)
-
         if setup["region"] == "nigeria":
             planting = setup["planting"].lower()
             nitrogen = setup["nitrogen"].lower()
             management_file = f"{planting}_planting_{nitrogen}_nitrogen.csv"
             # load management data
             management = csv.read_csv(
-                paths["path-to-data-dir"]
-                + "/agro_ecological_regions_nigeria/"
-                + management_file,
+                paths["path-to-data-dir"] + "/agro_ecological_regions_nigeria/" + management_file,
                 key="id",
             )
         else:
@@ -324,61 +353,42 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             int,
         )
         crop_mask_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-mask_0.083deg_4326_wgs84_africa.asc.gz",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-mask_0.083deg_4326_wgs84_africa.asc.gz",
             int,
         )
         planting_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-planting-doy_0.5deg_4326_wgs84_africa.asc",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-planting-doy_0.5deg_4326_wgs84_africa.asc",
             int,
         )
         harvest_data = shared.load_grid_cached(
-            paths["path-to-data-dir"]
-            + f"/{setup['crop']}-harvest-doy_0.5deg_4326_wgs84_africa.asc",
+            paths["path-to-data-dir"] + f"/{setup['crop']}-harvest-doy_0.5deg_4326_wgs84_africa.asc",
             int,
         )
-        height_data = shared.load_grid_cached(
-            paths["path-to-data-dir"] + "/../" + setup["path_to_dem_asc_grid"], float
-        )
+        height_data = shared.load_grid_cached(paths["path-to-data-dir"] + "/../" + setup["path_to_dem_asc_grid"], float)
         slope_data = shared.load_grid_cached(
-            paths["path-to-data-dir"] + "/../" + setup["path_to_slope_asc_grid"], float
+            paths["path-to-data-dir"] + "/../" + setup["path_to_slope_asc_grid"],
+            float,
         )
 
         # read template sim.json
-        with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("sim.json", config["sim.json"])
-            )
-        ) as _:
+        with (Path(config["path_to_repo"]) / setup.get("sim.json", config["sim.json"])).open() as _:
             sim_json = json.load(_)
         # change start and end date according to setup
         if setup["start_date"]:
             sim_json["climate.csv-options"]["start-date"] = str(setup["start_date"])
         if setup["end_date"]:
-            end_year = int(setup["end_date"].split("-")[0])
             sim_json["climate.csv-options"]["end-date"] = str(setup["end_date"])
-        sim_json["include-file-base-path"] = os.path.join(
-            config["path_to_repo"], sim_json["include-file-base-path"]
-        )
+        sim_json["include-file-base-path"] = str(Path(config["path_to_repo"]) / sim_json["include-file-base-path"])
 
         # read template site.json
-        with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("site.json", config["site.json"])
-            )
-        ) as _:
+        with (Path(config["path_to_repo"]) / setup.get("site.json", config["site.json"])).open() as _:
             site_json = json.load(_)
 
         if len(scenario) > 0 and scenario[:3].lower() == "ssp":
             site_json["EnvironmentParameters"]["rcp"] = f"rcp{scenario[-2:]}"
 
         # read template crop.json
-        with open(
-            os.path.join(
-                config["path_to_repo"], setup.get("crop.json", config["crop.json"])
-            )
-        ) as _:
+        with (Path(config["path_to_repo"]) / setup.get("crop.json", config["crop.json"])).open() as _:
             crop_json = json.load(_)
             # set current crop
             for ws in crop_json["cropRotation"][0]["worksteps"]:
@@ -393,14 +403,12 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     ps["cultivar"][pname] = pval
 
         crop_json["CropParameters"]["__enable_vernalisation_factor_fix__"] = (
-            setup["use_vernalisation_fix"]
-            if "use_vernalisation_fix" in setup
-            else False
+            setup["use_vernalisation_fix"] if "use_vernalisation_fix" in setup else False
         )
 
         # create environment template from json templates
         env_template = monica_io.create_env_json_from_json_config(
-            {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""}
+            {"crop": crop_json, "site": site_json, "sim": sim_json, "climate": ""},
         )
 
         c_lon_0 = -179.75
@@ -449,21 +457,13 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                     elif ws["type"] == "Harvest" and "Harvest date" in mgmt:
                         ws["date"] = shared.mgmt_date_to_rel_date(mgmt["Harvest date"])
                     elif ws["type"] == "AutomaticHarvest" and "Harvest date" in mgmt:
-                        ws["latest-date"] = shared.mgmt_date_to_rel_date(
-                            mgmt["Harvest date"]
-                        )
+                        ws["latest-date"] = shared.mgmt_date_to_rel_date(mgmt["Harvest date"])
                     elif ws["type"] == "Tillage" and "Tillage date" in mgmt:
                         ws["date"] = shared.mgmt_date_to_rel_date(mgmt["Tillage date"])
-                    elif (
-                        ws["type"] == "MineralFertilization"
-                        and mgmt[:2] == "N "
-                        and mgmt[-5:] == " date"
-                    ):
+                    elif ws["type"] == "MineralFertilization" and mgmt[:2] == "N " and mgmt[-5:] == " date":
                         app_no = int(ws["application"])
                         app_str = str(app_no) + ["st", "nd", "rd", "th"][app_no - 1]
-                        ws["date"] = shared.mgmt_date_to_rel_date(
-                            mgmt[f"N {app_str} date"]
-                        )
+                        ws["date"] = shared.mgmt_date_to_rel_date(mgmt[f"N {app_str} date"])
                         ws["amount"] = [
                             float(mgmt[f"N {app_str} application (kg/ha)"]),
                             "kg",
@@ -489,13 +489,11 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             if not soil_profile or len(soil_profile) == 0:
                 continue
 
-            env_template["params"]["userCropParameters"][
-                "__enable_T_response_leaf_expansion__"
-            ] = setup["LeafExtensionModifier"]
+            env_template["params"]["userCropParameters"]["__enable_T_response_leaf_expansion__"] = setup[
+                "LeafExtensionModifier"
+            ]
 
-            env_template["params"]["siteParameters"]["SoilProfileParameters"] = (
-                soil_profile
-            )
+            env_template["params"]["siteParameters"]["SoilProfileParameters"] = soil_profile
 
             if setup["elevation"]:
                 env_template["params"]["siteParameters"]["heightNN"] = height_nn
@@ -517,32 +515,22 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                             fcms = setup["FieldConditionModifier"].split("|")
                             fcm = float(fcms[aer - 1])
                             if fcm > 0:
-                                ws["crop"]["cropParams"]["species"][
-                                    "FieldConditionModifier"
-                                ] = fcm
+                                ws["crop"]["cropParams"]["species"]["FieldConditionModifier"] = fcm
                         else:
-                            ws["crop"]["cropParams"]["species"][
+                            ws["crop"]["cropParams"]["species"]["FieldConditionModifier"] = setup[
                                 "FieldConditionModifier"
-                            ] = setup["FieldConditionModifier"]
+                            ]
 
-            env_template["params"]["simulationParameters"][
-                "UseNMinMineralFertilisingMethod"
-            ] = setup["fertilization"]
-            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = (
-                setup["irrigation"]
-            )
-            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = (
-                setup["NitrogenResponseOn"]
-            )
-            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = (
-                setup["WaterDeficitResponseOn"]
-            )
-            env_template["params"]["simulationParameters"][
+            env_template["params"]["simulationParameters"]["UseNMinMineralFertilisingMethod"] = setup["fertilization"]
+            env_template["params"]["simulationParameters"]["UseAutomaticIrrigation"] = setup["irrigation"]
+            env_template["params"]["simulationParameters"]["NitrogenResponseOn"] = setup["NitrogenResponseOn"]
+            env_template["params"]["simulationParameters"]["WaterDeficitResponseOn"] = setup["WaterDeficitResponseOn"]
+            env_template["params"]["simulationParameters"]["EmergenceMoistureControlOn"] = setup[
                 "EmergenceMoistureControlOn"
-            ] = setup["EmergenceMoistureControlOn"]
-            env_template["params"]["simulationParameters"][
+            ]
+            env_template["params"]["simulationParameters"]["EmergenceFloodingControlOn"] = setup[
                 "EmergenceFloodingControlOn"
-            ] = setup["EmergenceFloodingControlOn"]
+            ]
 
             env_template["csvViaHeaderOptions"] = sim_json["climate.csv-options"]
             hist_sub_path = f"isimip/3b_v1.1_CMIP6/csvs/{gcm}/historical/{ensmem}/row-{c_row}/col-{c_col}.csv.gz"
@@ -566,17 +554,18 @@ async def run_component(port_infos_reader_sr: str, config: dict):
             }
 
             try:
-                await ports["env"].write(
+                await pc.out_ports["env"].write(
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
-                                value=json.dumps(env_template), structure={"json": None}
-                            )
-                        )
-                    )
+                                value=json.dumps(env_template),
+                                structure={"json": None},
+                            ),
+                        ),
+                    ),
                 )
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+            except Exception:
+                logger.exception("%s Exception", Path(__file__).name)
                 continue
 
             sent_env_count += 1
@@ -589,33 +578,34 @@ async def run_component(port_infos_reader_sr: str, config: dict):
                 "nodata": True,
             }
             try:
-                await ports["env"].write(
+                await pc.out_ports["env"].write(
                     value=fbp_capnp.IP.new_message(
                         content=model_capnp.Env.new_message(
                             rest=common_capnp.StructuredText.new_message(
-                                value=json.dumps(env_template), structure={"json": None}
-                            )
-                        )
-                    )
+                                value=json.dumps(env_template),
+                                structure={"json": None},
+                            ),
+                        ),
+                    ),
                 )
-            except Exception as e:
-                print(f"{os.path.basename(__file__)} Exception:", e)
+            except Exception:
+                logger.exception("%s Exception", Path(__file__).name)
                 continue
 
         stop_setup_time = time.perf_counter()
-        print_str = f"{os.path.basename(__file__)}: {datetime.now()} Sending {sent_env_count} envs took {stop_setup_time - start_setup_time} seconds\n"
-        print(print_str)
-        with open(path_to_out_file, "a") as _:
+        print_str = f"{Path(__file__).name}: {datetime.now()} Sending {sent_env_count} envs took {stop_setup_time - start_setup_time} seconds\n"
+        logger.info("%s", print_str.rstrip())
+        with path_to_out_file.open("a") as _:
             _.write(print_str)
 
     stop_component_time = time.perf_counter()
-    print_str = f"{os.path.basename(__file__)}: {datetime.now()} Running component took {stop_component_time - start_component_time} seconds\n"
-    print(print_str)
-    with open(path_to_out_file, "a") as _:
+    print_str = f"{Path(__file__).name}: {datetime.now()} Running component took {stop_component_time - start_component_time} seconds\n"
+    logger.info("%s", print_str.rstrip())
+    with path_to_out_file.open("a") as _:
         _.write(print_str)
 
-    await ports.close_out_ports()
-    print(f"{os.path.basename(__file__)}: process finished")
+    await pc.close_out_ports()
+    logger.info("%s: process finished", Path(__file__).name)
 
 
 default_config = {
@@ -639,13 +629,7 @@ default_config = {
 
 
 def main():
-    parser = c.create_default_fbp_component_args_parser(
-        "calibration producer for africa"
-    )
-    port_infos_reader_sr, config, args = c.handle_default_fpb_component_args(
-        parser, default_config
-    )
-    asyncio.run(capnp.run(run_component(port_infos_reader_sr, config)))
+    c.run_component_from_metadata(run_component, METADATA)
 
 
 if __name__ == "__main__":
