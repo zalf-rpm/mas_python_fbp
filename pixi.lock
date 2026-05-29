@@ -127,6 +127,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/02/54/f2edf1b015e0eae7ee27ca8acba4b179c3418a2554fe6fb0e192d2f75284/types_boto3_ec2-1.43.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/02/e6/b6a6db283d035606cbc6d988432a7b82f09005c6c468c619c0c415da5fa7/types_boto3_personalize-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/32/4b7b243d81fd9ebeadbce80f21047705663f4e505106dab934df34c913b9/types_boto3_kinesis_video_webrtc_storage-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/03/8d/6d7ec22771bb23d534797cdb446eb644bccfe7a62b729bb99e7235a02fc3/ty-0.0.40-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/03/ae/9d3e95f9dbe7d777b7ec9e26fc236d8e29029b6cb5131e7ae0dbc5299915/types_boto3_wellarchitected-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/eb/8ec9fb4e5ae0169c4f0127ea078c115a6578092bebc3bafa286528439944/types_boto3_controltower-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/ff/c3918d90efa927e4a53abac291b8e0823a54e0d67661c5b71929a9cc75d3/types_boto3_customer_profiles-1.43.17-py3-none-any.whl
@@ -549,7 +550,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e2/43/732303133a724c8c81f503756e2aa643fe6415ba68fdf194991f2cf32587/types_boto3_kinesis-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/53/4adeab1ae332347049441863de87d0c26687f60bc94e8c2c05a49a1b368d/types_boto3_observabilityadmin-1.43.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/c1/b8505c339d5dca46a08be4a411cc80f38a3d5eb27c99ab04e9a5046ec6da/types_boto3_polly-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/e2/c5/4688652870e350a76a8157f7ffb59ad54f37d5d10725aa7076f66ac94ec8/ty-0.0.39-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e3/8f/6162ecc9c0c2aa155a0a8a9f47e9d48e9bf8ebe229b9302f1bf7f69e948b/types_boto3_sagemaker_geospatial-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/f7/a5ecadb999d4c71a8124717fcb5c91b342e00f25a8736669441eb778a11d/types_boto3_workspaces_instances-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/18/03fac621ab89475b32795225ea0bf6810f20f8a7e0b6ca4cd979d899c6c2/types_boto3_sagemaker_runtime-1.43.0-py3-none-any.whl
@@ -928,6 +928,11 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/03/8d/6d7ec22771bb23d534797cdb446eb644bccfe7a62b729bb99e7235a02fc3/ty-0.0.40-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  name: ty
+  version: 0.0.40
+  sha256: 1274ce0212ecbfed01bda7c3659c46e8bd0068e32d00c46c790466a95274c3df
+  requires_python: '>=3.8'
 - pypi: https://files.pythonhosted.org/packages/03/ae/9d3e95f9dbe7d777b7ec9e26fc236d8e29029b6cb5131e7ae0dbc5299915/types_boto3_wellarchitected-1.43.0-py3-none-any.whl
   name: types-boto3-wellarchitected
   version: 1.43.0
@@ -5040,11 +5045,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/e2/c5/4688652870e350a76a8157f7ffb59ad54f37d5d10725aa7076f66ac94ec8/ty-0.0.39-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  name: ty
-  version: 0.0.39
-  sha256: 40b7840ff46764b6a6757f4ade1cd0530fc3e8a0b435ca93e7602360e4cb90b6
-  requires_python: '>=3.8'
 - pypi: https://files.pythonhosted.org/packages/e3/8f/6162ecc9c0c2aa155a0a8a9f47e9d48e9bf8ebe229b9302f1bf7f69e948b/types_boto3_sagemaker_geospatial-1.43.0-py3-none-any.whl
   name: types-boto3-sagemaker-geospatial
   version: 1.43.0
