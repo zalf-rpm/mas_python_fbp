@@ -3,8 +3,34 @@
   <component name="PyrightConfiguration">
     <option name="enabled" value="true" />
   </component>
+  <component name="PyrightModuleSettingsStorage">
+    <option name="moduleSettings">
+      <map>
+        <entry key="zalfmas-fbp">
+          <value>
+            <PyrightModuleSettingsData>
+              <option name="enabled" value="true" />
+            </PyrightModuleSettingsData>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="RuffConfiguration">
     <option name="enabled" value="true" />
+  </component>
+  <component name="RuffModuleSettingsStorage">
+    <option name="moduleSettings">
+      <map>
+        <entry key="zalfmas-fbp">
+          <value>
+            <RuffModuleSettingsData>
+              <option name="enabled" value="true" />
+            </RuffModuleSettingsData>
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="TyConfiguration">
     <option name="enabled" value="true" />
