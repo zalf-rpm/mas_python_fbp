@@ -90,9 +90,9 @@ METADATA = meta.Component(
 
 class Component(process.Process[CompConfig]):
     def __init__(
-        self,
-        metadata: meta.Component = METADATA,
-        con_man: common.ConnectionManager | None = None,
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
@@ -112,15 +112,11 @@ class Component(process.Process[CompConfig]):
                 j_content = json.loads(in_ip.content.as_text())
 
                 def as_type(
-                    attr_val, capnp_type_string: str
-                ) -> tuple[Any | None, capnp.lib.capnp._Schema | capnp.lib.capnp._SchemaType]:
+                        attr_val, capnp_type_string: str
+                ) -> tuple[
+                    Any, capnp.lib.capnp._StructSchema | capnp.lib.capnp._InterfaceSchema | capnp.lib.capnp._EnumSchema | capnp.lib.capnp._SchemaType]:
                     schema = common.schema_from_content_type_string(capnp_type_string)
-                    is_builtin = isinstance(schema, capnp.lib.capnp._SchemaType)
-                    if is_builtin and schema == capnp.types.Text:
-                        return attr_val.as_text(), schema
-                    elif not is_builtin:
-                        return attr_val.as_struct(schema), schema
-                    return None, schema
+                    return common.cast_to_schema(attr_val, schema), schema
 
                 # allowed_operation = update | replace | add
                 # update = structures of j and spec have to match exactly
@@ -183,12 +179,13 @@ class Component(process.Process[CompConfig]):
                                         # out of a JSON dict, but only if the user didn't want to access the value directly
                                         # (next subaccess would have been value)
                                         if (
-                                            "schema" in attr_dir
-                                            and attr_val.schema
-                                            == common_capnp.StructuredText.schema  # 17108059578820121684
-                                            and attr_val.type == "json"
-                                            and sub_access_len > (1 + i)
-                                            and v[1 + i + 1] != "value"
+                                                "schema" in attr_dir
+                                                and attr_val.schema
+                                                == common_capnp.StructuredText.schema  # 17108059578820121684
+                                                and attr_val.type == "json"
+                                                and ((sub_access_len > (1 + i)
+                                                      and v[1 + i + 1] != "value")
+                                                     or sub_access_len > i)
                                         ):
                                             is_json = True
                                             attr_val = json.loads(attr_val.value)
