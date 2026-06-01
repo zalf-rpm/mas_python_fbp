@@ -86,8 +86,14 @@ def _schema_from_content_type_string(content_type: str | None) -> Any | None:
 
 
 def _content_to_str(c: Any, schema_or_type: Any) -> str:
-    if hasattr(schema_or_type, "as_struct"):
-        c = c.as_struct(schema_or_type.as_struct())
+    if hasattr(schema_or_type, "node"):
+        s_type = schema_or_type.node.which()
+        if s_type == "struct":
+            c = c.as_struct(schema_or_type)
+        elif s_type == "interface":
+            c = c.as_interface(schema_or_type)
+        elif s_type == "enum":
+            c = c.as_enum(schema_or_type)
     elif schema_or_type is capnp_types.Text:
         return c.as_text()
     elif schema_or_type is capnp_types.Void:
@@ -100,9 +106,9 @@ def _content_to_str(c: Any, schema_or_type: Any) -> str:
 
 class ToString(process.Process[ToStringConfig]):
     def __init__(
-        self,
-        metadata: meta.Component = METADATA,
-        con_man: common.ConnectionManager | None = None,
+            self,
+            metadata: meta.Component = METADATA,
+            con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
@@ -126,9 +132,11 @@ class ToString(process.Process[ToStringConfig]):
             if resolved is None or resolved is capnp_types.AnyPointer:
                 c_str = str(c)
             else:
-                c_str = _content_to_str(c, resolved)
-
-            logger.info("%s received: %s", self.name, c_str)
+                try:
+                    c_str = _content_to_str(c, resolved)
+                except capnp.KjException:
+                    logger.info("%s couldn't convert %s to string via schema %s", self.name, c, resolved)
+                    c_str = str(c)
 
             out_ip = fbp_capnp.IP.new_message(content=c_str)
             if not await self.write_out("out", out_ip):
