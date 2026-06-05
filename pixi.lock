@@ -49,6 +49,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/3c/78/6a04792ace63a93e162f1305392d500ae8ddcb620e7eb88a22fd622b35bb/geopandas-1.1.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/42/3d/ef4dcfffd22d27a61805d8ed9f7fb888495bc6aa88648fa07c1eaa5586b6/lxml-6.1.1-cp314-cp314-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/47/5c/032c2d5a07fe4d4855fea851209cca2b6f03ebeb6d4e3afdb3358386a684/charset_normalizer-3.4.7-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/48/55/267a50d36cfcb80ea87e5f4d4d8bf1c8502ed21bea9a14ee34c465845804/zalfmas_common-0.1.47-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/50/36/e0703d73bc9f89b95014173c9c7754816630a3282f2727637de5b076e5e4/poetry_core-2.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/56/8f/65fc623b51448f2bfba1a9ec6ab3debb4664c0876c0113a5e782600b53ac/duckdb-1.5.3-cp314-cp314-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/58/3b/1cdec6772bdbaf7b25dab360c59f03cadf05492dd724c6540af905389b07/pandas-3.0.3-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
@@ -59,12 +60,12 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/68/71/c64b65fba54bda45948aec187b5199ccee01c538214e51aff1fc795b5cc0/owslib-0.36.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/6a/43/8bd850ee71a191bf072e31302c73a66be413fecdd98fdcd111ecbcce13ca/tomlkit-0.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/73/86/43fa9f15c5b9fb6e82620428827cd3c284aa933431405d1bcf5231ae3d3e/cligj-0.7.2-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/78/21/26a7fd6c621beb9b1846fe1dec30942a07a32dd016f4f359f86e18ad16f0/zalfmas_capnp_schemas-0.1.66-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/89/648397f9936e0b330999c4e776ebf296ec3c6a65f9901687dbca4ab820da/cftime-1.6.5-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/88/f9/16491d7ed2a919954993e48aa941b200f38040928474c9e85ea9e64222c3/pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/89/1d/8eff589b45bb8190a9d12c49cfad0f176a5cbd1534908a6b5125e2886239/pydantic_core-2.46.4-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/89/4c/450d85e956435d6903a66e4f1ff330e102de6cf7a52b74ba98346afa39d7/zalfmas_capnp_schemas-0.1.67-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/cb/4948be52ee1da6927831ab59e10d4c29baa2a714f599f1f0d1bc747f5777/shapely-2.1.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/8e/3a/28ba9c1c1ebdbb5f1b94dfebb46f207e52e6a554b7fe4132540fde29a3a0/pyarrow-24.0.0-cp314-cp314-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/90/06/5d96d9b09e40470e05d79871a8a8a5f5b270bd2709364c45f85538306a85/pymep-1.0.7-py3-none-any.whl
@@ -73,7 +74,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c6/be/6e9ba9209e52dec6cd9ae15bafd72d079fcb84770497bca8ca2f3aa6c020/zalfmas_common-0.1.46-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/72/5fbe5f67ae75d7e89ffb718c500d5fecbaa84f6ba354db306de689faf961/rasterio-1.5.0-cp314-cp314-manylinux_2_28_x86_64.whl
@@ -247,6 +247,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/47/15/c08a9b6a7a37b9a9b207c893247abb72529b024281c7cc20457da8b2f876/types_boto3_ec2_instance_connect-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/47/5c/032c2d5a07fe4d4855fea851209cca2b6f03ebeb6d4e3afdb3358386a684/charset_normalizer-3.4.7-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/47/e4/fc5a414aaacfc45e2b9184c7feab842a1c08834634404a2fa9e7f3d12468/types_boto3_machinelearning-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/48/55/267a50d36cfcb80ea87e5f4d4d8bf1c8502ed21bea9a14ee34c465845804/zalfmas_common-0.1.47-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/62/17a66996c0b5565a6f4b3e84cf79fc23a06d02450a2394d46cdbd4269474/types_boto3_personalize_events-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/6b/6d26aba8a5010c72c24d78a91d1ed46e2d5952c28904836d1d31054ef7ec/types_boto3_simpledbv2-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/48/95/06f6c2f9bfd9370e94cf11bd6696fb0d180d4971837b30dea1d6dd48c0dd/types_boto3_cloudfront-1.43.8-py3-none-any.whl
@@ -356,7 +357,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/76/fb/e65c284faac313e2aac84ed537092d0fccd245ccde3e58ba06cabc68899a/types_boto3_comprehendmedical-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/a1/2f7d85969c911b8beb8e027348f16dcc3c6ec08586ab2ce901612d5db715/types_boto3_s3control-1.43.17-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/77/bd/2a801aa9e7da521b08c594b965a7aaea564019b9a81695d35b7b37469a6f/types_boto3_autoscaling_plans-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/78/21/26a7fd6c621beb9b1846fe1dec30942a07a32dd016f4f359f86e18ad16f0/zalfmas_capnp_schemas-0.1.66-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/90/d9e56ab6b655f81a11fdcccf5efb22342c176a0862aeb808558ea4b3c0d0/types_boto3_sagemaker_a2i_runtime-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7a/38/019ed98d5979c043bb7f41e4ad3a6a5b1fba33f5b546b138e9e345b29091/types_boto3_s3files-1.43.0-py3-none-any.whl
@@ -378,6 +378,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/88/23/35f046eccbdc68a0769bb9ebf93fa6e8ac793c1af48e9fe6eef40953ce23/types_boto3_notificationscontacts-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/f9/16491d7ed2a919954993e48aa941b200f38040928474c9e85ea9e64222c3/pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/89/1d/8eff589b45bb8190a9d12c49cfad0f176a5cbd1534908a6b5125e2886239/pydantic_core-2.46.4-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/89/4c/450d85e956435d6903a66e4f1ff330e102de6cf7a52b74ba98346afa39d7/zalfmas_capnp_schemas-0.1.67-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/89/ca/f017727b11895908c5dedc829cf2ec35e0c4b2a26ba875db325fef2cefdf/botocore_stubs-1.43.14-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/13/d584e29477a2df1d6f6142bf8dfe050667c000169865b11e3e55b5225c2b/types_boto3_wisdom-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/66/cff27f947bc8e234b739325674ab5ddee8ba769451743e71f82bec475272/types_boto3_kafka-1.43.1-py3-none-any.whl
@@ -497,7 +498,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c5/a9/f4a377113f1636603c7740ef1799d9acdb16f0ebd5310af49ad558823dbb/types_boto3_ivschat-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c5/de/84383531d5d5f6fbcb717218d02b1eb9419661cb2b3fe2e1a937c07745d2/types_boto3_mwaa_serverless-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c6/95/f5a02416a89844c5b05cc235041391d1d127d5b1af96bf3b676ee14feae9/types_boto3_marketplace_entitlement-1.43.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c6/be/6e9ba9209e52dec6cd9ae15bafd72d079fcb84770497bca8ca2f3aa6c020/zalfmas_common-0.1.46-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/93/903f5a42e95d3f4056db9b0272812cf8fa0e11aa6b51d53aaac0b7224c0e/types_boto3_notifications-1.43.0-py3-none-any.whl
@@ -1952,6 +1952,20 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/48/55/267a50d36cfcb80ea87e5f4d4d8bf1c8502ed21bea9a14ee34c465845804/zalfmas_common-0.1.47-py3-none-any.whl
+  name: zalfmas-common
+  version: 0.1.47
+  sha256: 031447ca66e058888661dc3d11c41a95649aedf5ed50a87430eb51199c51d940
+  requires_dist:
+  - pandas>=3.0.3,<4
+  - psutil>=7.2.2,<8
+  - pycapnp>=2.2.3,<3
+  - pyproj>=3.7.2,<4
+  - pysodium>=0.7.18,<0.8
+  - scipy>=1.17.1,<2
+  - tomlkit>=0.15.0,<0.16
+  - zalfmas-capnp-schemas>=0.1.67,<0.2
+  requires_python: '>=3.12,<3.15'
 - pypi: https://files.pythonhosted.org/packages/48/62/17a66996c0b5565a6f4b3e84cf79fc23a06d02450a2394d46cdbd4269474/types_boto3_personalize_events-1.43.0-py3-none-any.whl
   name: types-boto3-personalize-events
   version: 1.43.0
@@ -3702,13 +3716,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/78/21/26a7fd6c621beb9b1846fe1dec30942a07a32dd016f4f359f86e18ad16f0/zalfmas_capnp_schemas-0.1.66-py3-none-any.whl
-  name: zalfmas-capnp-schemas
-  version: 0.1.66
-  sha256: e547bf924ad6a37c93e03ae6da263e064031f3b7baa9014623f65bde322006be
-  requires_dist:
-  - pycapnp>=2.2.1,<3.0.0
-  requires_python: '>=3.12,<3.14'
 - pypi: https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl
   name: annotated-types
   version: 0.7.0
@@ -3858,6 +3865,13 @@ packages:
   requires_dist:
   - typing-extensions>=4.14.1
   requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/89/4c/450d85e956435d6903a66e4f1ff330e102de6cf7a52b74ba98346afa39d7/zalfmas_capnp_schemas-0.1.67-py3-none-any.whl
+  name: zalfmas-capnp-schemas
+  version: 0.1.67
+  sha256: 33098bbcae69524a2c76024456eabd78453cbcd655c8da3df154fe6ed53071ed
+  requires_dist:
+  - pycapnp>=2.2.3,<3
+  requires_python: '>=3.12,<3.15'
 - pypi: https://files.pythonhosted.org/packages/89/ca/f017727b11895908c5dedc829cf2ec35e0c4b2a26ba875db325fef2cefdf/botocore_stubs-1.43.14-py3-none-any.whl
   name: botocore-stubs
   version: 1.43.14
@@ -4731,20 +4745,6 @@ packages:
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
   requires_python: '>=3.9'
-- pypi: https://files.pythonhosted.org/packages/c6/be/6e9ba9209e52dec6cd9ae15bafd72d079fcb84770497bca8ca2f3aa6c020/zalfmas_common-0.1.46-py3-none-any.whl
-  name: zalfmas-common
-  version: 0.1.46
-  sha256: a064ae1cd4f9409528852651df9068cd4fd300aa4e6da7f8bd7a4e72bb0f1a0d
-  requires_dist:
-  - pandas>=3.0.3,<4
-  - psutil>=7.2.2,<8
-  - pycapnp>=2.2.2,<3
-  - pyproj>=3.7.2,<4
-  - pysodium>=0.7.18,<0.8
-  - scipy>=1.17.1,<2
-  - tomlkit>=0.15.0,<0.16
-  - zalfmas-capnp-schemas>=0.1.66,<0.2
-  requires_python: '>=3.12,<3.14'
 - pypi: https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl
   name: click
   version: 8.4.1
