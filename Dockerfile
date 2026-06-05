@@ -1,8 +1,8 @@
-FROM ghcr.io/prefix-dev/pixi:0.68.0 AS build-base
+FROM ghcr.io/prefix-dev/pixi:0.70.1 AS build-base
 
 WORKDIR /app
 
-COPY pyproject.toml pixi.lock poetry.lock README.md ./
+COPY pyproject.toml pixi.lock README.md ./
 COPY zalfmas_fbp ./zalfmas_fbp
 
 RUN pixi global install git
