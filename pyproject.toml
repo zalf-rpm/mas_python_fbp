@@ -37,8 +37,10 @@ dev = [
 [tool.pixi.dependencies]
 libsodium = ">=1.0.22,<2"
 
+[tool.pixi.pypi-dependencies]
+zalfmas-fbp = { path = ".", editable = true }
+
 # Referencing local packages in editable mode for pixi
-# [tool.pixi.pypi-dependencies]
 # zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
