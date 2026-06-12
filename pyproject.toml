@@ -4,7 +4,10 @@ version = "0.2.33"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
-authors = [{ name = "Michael Berg-Mohnicke", email = "michael.berg@zalf.de" }]
+authors = [
+    { name = "Michael Berg-Mohnicke", email = "michael.berg@zalf.de" },
+    { name = "Vincent Dlugosch", email = "vincent.dlugosch@zalf.de" }
+]
 dependencies = [
     "tomli-w>=1.2.0,<2",
     "netcdf4>=1.7.4,<2",
@@ -57,7 +60,8 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 # Referencing local packages in editable mode for pixi
-#[tool.pixi.pypi-dependencies]
+[tool.pixi.pypi-dependencies]
+zalfmas-fbp = { path = ".", editable = true }
 #zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
