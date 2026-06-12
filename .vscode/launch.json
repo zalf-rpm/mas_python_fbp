@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Component Service",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "zalfmas_fbp.run.local_components_service",
+      "cwd": "${workspaceFolder}",
+      "pythonArgs": ["-Xfrozen_modules=off"],
+      "args": ["configs/local_components_service.toml"]
+    },
+    {
+      "name": "Debug Channel Service",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "zalfmas_fbp.run.channel_starter_service",
+      "cwd": "${workspaceFolder}",
+      "pythonArgs": ["-Xfrozen_modules=off"],
+      "args": ["configs/channel_starter_service.toml"]
+    }
+  ]
+}
