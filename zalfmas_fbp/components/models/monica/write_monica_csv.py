@@ -27,6 +27,7 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.json.update_json import read_attr_value
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ METADATA = meta.Component(
             desc="Use path_to_out_dir if no out_path_attr is available in metadata of IP.",
         ),
         "out_path_attr": meta.ConfigEntry(
-            value="out_path",
+            value=None,
             type="string",
             desc="If out_path_attr is available, don't use path_to_out_dir.",
         ),
@@ -95,15 +96,16 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     count = 0
     while pc.in_ports["in"]:
         try:
-            in_msg = pc.in_ports["in"].read().wait()
+            in_msg = await pc.in_ports["in"].read()
             if in_msg.which() == "done":
                 pc.in_ports["in"] = None
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            id_attr = common.get_fbp_attr(in_ip, config["id_attr"])
+            attrs = {kv.key: kv.value for kv in in_ip.attributes}
+            # id_attr = common.get_fbp_attr(in_ip, config["id_attr"])
             count += 1
-            id_ = id_attr.as_text() if id_attr else str(count)
+            # id_ = id_attr.as_text() if id_attr else str(count)
             out_path_attr = common.get_fbp_attr(in_ip, config["out_path_attr"])
             out_path = out_path_attr.as_text() if out_path_attr else config["path_to_out_dir"]
 
@@ -117,7 +119,23 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                     logger.exception("c: Couldn't create dir: %s ! Exiting.", dir_)
                     exit(1)
 
-            filepath = dir_ / config["file_pattern"].format(id=id_)
+            file_pattern = config["file_pattern"]
+            file_name = ""
+            while (i := file_pattern.find("{")) != -1 and (k := file_pattern.find("}", i + 1)) != -1 and k > i + 1:
+                file_name += file_pattern[:i]
+                expr = file_pattern[i + 1 : k]
+                parts = expr.split("/")
+                for j in range(len(parts)):
+                    if parts[j].isdigit():
+                        parts[j] = int(parts[j])
+                attr_val, success = read_attr_value({}, attrs, parts)
+                if success:
+                    file_name += str(attr_val)
+                else:
+                    file_name += str(count)
+                file_pattern = file_pattern[k + 1 :]
+
+            filepath = dir_ / file_name  # config["file_pattern"].format(id=id_)
             with filepath.open("w") as _:
                 writer = csv.writer(_, delimiter=config["delimiter"])
 
