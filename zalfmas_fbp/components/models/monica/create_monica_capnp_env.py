@@ -109,9 +109,9 @@ METADATA = meta.Component(
 
 class Component(process.Process[Config]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
