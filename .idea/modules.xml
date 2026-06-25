@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/zalfmas-fbp.iml" filepath="$PROJECT_DIR$/.idea/zalfmas-fbp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/mas_python_fbp.iml" filepath="$PROJECT_DIR$/.idea/mas_python_fbp.iml" />
     </modules>
   </component>
 </project>
