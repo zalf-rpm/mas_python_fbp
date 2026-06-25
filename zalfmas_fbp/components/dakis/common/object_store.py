@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Any, cast
+from typing import Any, cast, TYPE_CHECKING
 
 from boto3.session import Session
 from botocore.response import StreamingBody
-from types_boto3_s3.client import S3Client
+
+if TYPE_CHECKING:
+    from types_boto3_s3.client import S3Client
 
 
 def object_store_bucket_and_key(*, bucket: str, path: str, filename: str) -> tuple[str, str]:
@@ -35,12 +37,12 @@ def object_key(path: str, filename: str) -> str:
 
 
 def get_object_body(
-    *,
-    endpoint_url: str,
-    access_key: str,
-    secret_key: str,
-    bucket: str,
-    key: str,
+        *,
+        endpoint_url: str,
+        access_key: str,
+        secret_key: str,
+        bucket: str,
+        key: str,
 ) -> StreamingBody:
     s3_client = _object_store_client(
         endpoint_url=endpoint_url,
@@ -52,14 +54,14 @@ def get_object_body(
 
 
 def put_object(
-    *,
-    endpoint_url: str,
-    access_key: str,
-    secret_key: str,
-    bucket: str,
-    key: str,
-    body: Any,
-    content_type: str,
+        *,
+        endpoint_url: str,
+        access_key: str,
+        secret_key: str,
+        bucket: str,
+        key: str,
+        body: Any,
+        content_type: str,
 ) -> None:
     s3_client = _object_store_client(
         endpoint_url=endpoint_url,
@@ -70,10 +72,10 @@ def put_object(
 
 
 def _object_store_client(
-    *,
-    endpoint_url: str,
-    access_key: str,
-    secret_key: str,
+        *,
+        endpoint_url: str,
+        access_key: str,
+        secret_key: str,
 ) -> S3Client:
     session = Session(
         aws_access_key_id=access_key or None,
