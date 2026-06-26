@@ -434,6 +434,7 @@ def load_component_metadata(
                     name=info.get("name", c_id),
                 ),
             )
+            logger.info("loaded %s: %s", cat_name, info.get("name", c_id))
 
         except (capnp.KjException, KeyError, TypeError, ValueError) as e:
             logger.warning(
