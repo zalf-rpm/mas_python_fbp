@@ -137,6 +137,11 @@ class CompConfig(process.ProcessConfig):
         {},
         description="Mapping of addition operations to perform on the JSON structure.",
     )
+    name_for_attrs_port: str = Field(
+        "attrs",
+        description="""The content of a message received on the 'attrs' port will be made available under that name for the updates as an attribute.
+        By default this will be the ports name, thus '@attrs'.""",
+    )
 
 
 METADATA = meta.Component(
@@ -159,6 +164,13 @@ METADATA = meta.Component(
             name="in",
             contentType="Text (JSON)",
             desc="JSON text which is supposed to be updated and changed.",
+        ),
+        meta.Port(
+            name="attrs",
+            contentType="AnyPointer",
+            desc="""If connected, then for each message received on 'attrs', the attributes and the content of that message will be made available
+            to the component as '@attrs' for the content of the message and each attribute as '@attrs_{attr_name}', if any. By default the used name will be
+            the ports name ('attrs'), unless it has been renamed via the config option 'name_for_attrs_port'.""",
         ),
     ],
     outPorts=[
@@ -194,6 +206,16 @@ class Component(process.Process[CompConfig]):
 
                 attrs = {kv.key: kv.value for kv in in_ip.attributes}
                 j_content = json.loads(in_ip.content.as_text())
+
+                if self.in_ports["attrs"]:
+                    if attrs_ip := await self.read_in("attrs"):
+                        if attrs_ip._has("content"):
+                            attrs[self.config.name_for_attrs_port] = attrs_ip.content
+                        for kv in attrs_ip.attributes:
+                            attrs[f"{self.config.name_for_attrs_port}_{kv.key}"] = kv.value
+                    else:
+                        self.in_ports["attrs"] = None
+                        continue
 
                 # allowed_operation = update | replace | add
                 # update = structures of j and spec have to match exactly
@@ -303,7 +325,7 @@ class Component(process.Process[CompConfig]):
 
                 out_ip = fbp_capnp.IP.new_message(
                     content=json.dumps(j_content),
-                    attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
+                    attributes=in_ip.attributes,  # list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
                 )
                 await self.write_out("out", out_ip)
 
