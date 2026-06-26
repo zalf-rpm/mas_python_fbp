@@ -1,6 +1,7 @@
 {
   "id": "4a49688e-bb12-4f14-8da1-305ff0e198ed",
   "name": "local debuggable python execution",
+  "66f86dbb-efb1-4b16-8837-3a2aa1eca30e": "/home/berg/GitHub/monica/_cmake_debug/monica-capnp-fbp-component --verbose",
   "79723094-0972-48ec-b219-030dae730063": "python -m zalfmas_fbp.components.climate.climate_service_to_datasets",
   "ce4749cc-abab-4830-9eb3-1c44c9d451ce": "python -m zalfmas_fbp.components.climate.datasets_to_timeseries",
   "b510d603-8f2a-4fbd-ac24-634362b4b0f4": "python -m zalfmas_fbp.components.climate.timeseries_cap_to_data",
@@ -31,6 +32,7 @@
   "1d442f41-dee4-4973-ad99-09855af1d7ad": "python -m zalfmas_fbp.components.ip.add_attribute",
   "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0": "python -m zalfmas_fbp.components.ip.add_content",
   "b1e875af-4ee7-4937-8824-17d185216ec4": "python -m zalfmas_fbp.components.ip.copy_ip",
+  "f3db87d1-7a50-491c-95aa-a2b6f17fb4f5": "python -m zalfmas_fbp.components.ip.copy_ip_on_trigger",
   "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d": "python -m zalfmas_fbp.components.ip.load_balancer",
   "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
   "67b31990-452a-4058-8a99-6785be345216": "python -m zalfmas_fbp.components.json.update_json",
