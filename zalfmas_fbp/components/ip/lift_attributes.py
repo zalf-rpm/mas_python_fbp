@@ -32,7 +32,7 @@ class Config(process.ProcessConfig):
         "attribute_name",
         description="Attribute to read from IP.",
     )
-    lift_from_type: str = Field(
+    lift_from_type: str | None = Field(
         None,
         description="@0x123.... = some/path/some_fil._capnp:Type -> Capnp struct type to read from attribute. Not needed if the attributes valueType field is set.",
     )
@@ -77,9 +77,9 @@ METADATA = meta.Component(
 
 class Component(process.Process[Config]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
