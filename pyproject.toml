@@ -39,6 +39,7 @@ dev = [
 
 [tool.pixi.dependencies]
 libsodium = ">=1.0.22,<2"
+openpyxl = ">=3.1.5,<4"
 
 [tool.pixi.pypi-dependencies]
 zalfmas-fbp = { path = ".", editable = true }
