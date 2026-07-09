@@ -43,14 +43,15 @@ METADATA = meta.Component(
     info=meta.Info(
         id="f3db87d1-7a50-491c-95aa-a2b6f17fb4f5",
         name="Copy IP on trigger",
-        description="Copy IP to multiple outputs when triggered.",
+        description="""Copy IP(s) to multiple outputs when triggered. Is substream sensitive.
+       If a single level substream is detected, then the copy operation will apply to the whole substream.""",
     ),
     type="process",
     inPorts=[
         meta.Port(
             name="in",
             contentType="AnyPointer",
-            desc="The IP to copy to all attached outports.",
+            desc="The IP (or whole substream) to copy to all attached outports. ",
         ),
         meta.Port(
             name="trigger",
@@ -63,7 +64,7 @@ METADATA = meta.Component(
             name="out",
             type="array",
             contentType="AnyPointer",
-            desc="Copied IP for each attached outport",
+            desc="Copied IP (substream) for each attached outport",
         ),
         meta.Port(
             name="trigger",
@@ -87,23 +88,39 @@ class CopyOnTrigger(process.Process[Config]):
     async def run(self):
         logger.info("%s process running", self.name)
 
+        in_ips = []
         if self.in_ports["trigger"] and self.in_ports["in"]:
             in_ip = await self.read_in("in")
             if in_ip is None:
                 logger.info("%s: done received on 'in' port, therefore nothing to copy. Process finished", self.name)
                 return
+            in_ips.append(in_ip)
+            # if IP signified a substream, collect the whole substream first
+            if in_ip.type == "openBracket":
+                while in_ip.type != "closeBracket":
+                    in_ip = await self.read_in("in")
+                    if in_ip is None:
+                        logger.info(
+                            "%s: done received on 'in' port. Copy everything in substream received so far.", self.name
+                        )
+                        self.in_ports["in"] = None
+                        break
+                    in_ips.append(in_ip)
 
         while self.in_ports["trigger"] and any(self.array_out_ports["out"]):
             trigger_ip = await self.read_in("trigger")
             if trigger_ip is None:
-                break
-
-            # out_ip = copy_ip(in_ip)
-            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):  # out_ip):
+                logger.info("%s: done received on 'trigger' port. Process finished", self.name)
                 break
 
             if self.out_ports["trigger"]:
                 await self.write_out("trigger", trigger_ip)
+
+            # out_ip = copy_ip(in_ip)
+            # copy IP/substream
+            for in_ip in in_ips:
+                if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):  # out_ip):
+                    break
 
         logger.info("%s: process finished", self.name)
 
