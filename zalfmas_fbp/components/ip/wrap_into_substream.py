@@ -85,6 +85,13 @@ class WrapIntoSubstream(process.Process[Config]):
     async def run(self):
         logger.info("%s process running", self.name)
 
+        async def open_substream():
+            open_ip = fbp_capnp.IP.new_message(type="openBracket")
+            if not (error := await self.write_out("out", open_ip)):
+                self.out_ports["out"] = None
+                logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+            return error
+
         async def close_substream():
             close_ip = fbp_capnp.IP.new_message(type="closeBracket")
             if not (error := await self.write_out("out", close_ip)):
@@ -101,36 +108,57 @@ class WrapIntoSubstream(process.Process[Config]):
         ip_count = self.config.no_of_ips
         collect_all = self.config.no_of_ips == 0
         while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                # upstream closed, so send an close bracket
+                if not await close_substream():
+                    break
+                self.in_ports["in"] = None
+                logger.info("%s: done received on 'in' port. Process finished", self.name)
+                break
+
+            # open substream after first IP received
+            if ip_count == 0:
+                if not await open_substream():
+                    break
+
+            # forward any received IP downstream
+            if not await send_ip(in_ip):
+                break
+
+            ip_count += 1
+
+            # count whole substream as one IP
+            if in_ip.type == "openBracket":
+                # keep track of nested substreams
+                nesting_level = 1
+                while True:
+                    # receive next substream IP
+                    in_ip = await self.read_in("in")
+                    if in_ip is None:
+                        logger.info("%s: done received on 'in' port. Closing substream(s).", self.name)
+                        # try to close unbalanced substreams if 'in' port suddenly failed
+                        for i in range(nesting_level):
+                            await close_substream()
+                        break
+
+                    # forward any received substream IPs
+                    if not await send_ip(in_ip):
+                        break
+
+                    # count nesting levels
+                    if in_ip.type == "openBracket":
+                        nesting_level += 1
+                    elif in_ip.type == "closeBracket":
+                        nesting_level -= 1
+                        # break if toplevel substream closed
+                        if nesting_level == 0:
+                            break
+
             if not collect_all and ip_count == self.config.no_of_ips:
                 if not await close_substream():
                     break
                 ip_count = 0
-
-            in_ip = await self.read_in("in")
-            if in_ip is None:
-                logger.info("%s: done received on 'in' port. Process finished", self.name)
-                if not await close_substream():
-                    break
-            # count whole substream as one IP
-            elif in_ip.type == "openBracket":
-                if not await send_ip(in_ip):
-                    break
-                while in_ip.type != "closeBracket":
-                    in_ip = await self.read_in("in")
-                    if in_ip is None:
-                        logger.info("%s: done received on 'in' port. Substream is not closed.", self.name)
-                        await close_substream()
-                        break
-                    if not await send_ip(in_ip):
-                        break
-                if not collect_all:
-                    ip_count += 1
-            # send single IP
-            else:
-                if not await send_ip(in_ip):
-                    break
-                if not collect_all:
-                    ip_count += 1
 
         logger.info("%s: process finished", self.name)
 
