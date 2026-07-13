@@ -89,7 +89,7 @@ class Component(process.Process[Config]):
                     for row in reader:
                         p = {"name": row[0]}
                         if len(row[1]) > 0:
-                            p["array"] = int(row[1])
+                            p["array_index"] = int(row[1])
                         for n, i in [
                             ("low", 2),
                             ("high", 3),

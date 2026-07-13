@@ -15,37 +15,214 @@
 
 import asyncio
 import io
+import json
 import logging
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import override
+from typing import Literal, override
 
 import matplotlib.pyplot as plt
 import spotpy
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
-from numpy import floating, ndarray
+from numpy import ndarray
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
-from zalfmas_fbp.run.process.config.config_codec import config_from_ip
 
 logger = logging.getLogger(__name__)
 
+type SpotpyAlgorithm = Literal[
+    "ABC",  # Artificial Bee Colony
+    "DDS",  # Dynamically Dimensioned Search algorithm
+    "DE-MC_Z",  # Differential Evolution Markov Chain
+    "DREAM",  # DiffeRential Evolution Adaptive Metropolis
+    "eFAST",  # extended Fourier Amplitude Sensitivity Test (algorithm adapted from FAST R package)
+    "FAST",  # Fourier Amplitude Sensitivity Test
+    "FSCABC",  # Fitness Scaling Artificial Bee Colony
+    "LHS",  # Latin Hypercube Sampling
+    "MC",  # Monte Carlo
+    "MCMC",  # Metropolis Markov Chain Monte Carlo
+    "MLE",  # Maximum Likelihood Estimation
+    # "NSGA-II",  # A Fast and Elitist Multiobjective Genetic Algorithm: NSGA-II
+    "PADDS",  # Pareto Archived - Dynamicallly Dimensioned Search algorithm
+    "ROPE",  # RObust Parameter Estimation
+    "SA",  # Simulated annealing
+    "SCE-UA",  # Shuffled Complex Evolution
+    "MORRIS",  # Morris Screening Sensitivity Test
+]
+
 
 class Config(process.ProcessConfig):
-    repetitions: int = Field(
-        10,
-        description="number of repetitions",
-    )
     path_to_out_folder: str = Field(
         "out/",
         description="path to output folder",
     )
+    param_set_id: str = Field(
+        "no-param-set-id",
+        description="""id for the parameterset to calibrate against.
+        Might be set as attribute 'param_set_id' on observed values IP received on 'obs_values' port.""",
+    )
+    path_to_db_dir: str | None = Field(
+        None,
+        description="""If set path to directory where the calibration database will be created.
+        If None, then a temporary directory will be created.""",
+    )
+    algorithm: SpotpyAlgorithm = Field("SCE-UA", description="""SPOTPY algorithm to use""")
+    repetitions: int | None = Field(
+        10,
+        description="""
+        Maximum number of function evaluations allowed during optimization.
+        ROPE: (default: None) Number of runs overall, is only used if the user does
+        not specify the other arguments, otherwise its overwritten.""",
+    )
+
+    # SCE-UA
+    ngs: int | None = Field(
+        None,
+        description="""SCE-UA: (default: 20) Number of complexes (sub-populations), take more than the number of analysed parameters.
+        If None, then will be calculated as the 2*'the number of parameters'.""",
+    )
+    peps: dict[str, float] = Field(
+        {"SCE-UA": 0.001, "ABC": 0.0001, "FSCABC": 0.0001},
+        description="""
+        SCE-UA: (default: 0.0000001) Value of the normalized geometric range of the parameters in the population below which convergence is deemed achieved.
+        ABC: (default: 0.0001) mutation factor.
+        FSCABC: (default: 0.0001) convergence criterion
+        """,
+    )
+    pcento: float = Field(
+        0.001,
+        description="""SCE-UA: (default: 0.0000001) The percentage change allowed in the past kstop loops below which convergence is assumed to be achieved.""",
+    )
+    kstop: int = Field(
+        100,
+        description="""SCE-UA: (default: 100) The number of past evolution loops and their respective objective value to assess whether the marginal improvement at the current loop (in percentage) is less than pcento.""",
+    )
+    max_loop_inc: int | None = Field(
+        None, description="""SCE-UA: (default: None) Number of loops executed at max in this function call."""
+    )
+
+    # ABC
+    eb: dict[str, int] = Field(
+        {"ABC": 48, "FSCABC": 48},
+        description="""
+        ABC: (default: 48) number of employed bees (half of population size)
+        FSCABC: (default: 48) number of employed bees (half of population size)""",
+    )
+    a: dict[str, float] = Field(
+        {"ABC": 1 / 10, "FSCABC": 1 / 10},
+        description="""
+        ABC: (default: 1/10) mutation factor
+        FSCABC: (default: 1/10) mutation factor""",
+    )
+    ownlimit: bool = Field(
+        False, description="""ABC: (default: false) determines if an userdefined limit is set or not."""
+    )
+
+    # DDS
+    limit: dict[str, int | None] = Field(
+        {"DDS": 24, "FSCABC": None},
+        description="""
+        DDS: (default: 24) sets the limit
+        FSCABC: (default: None) sets the limit for scout bee phase""",
+    )
+    trials: dict[str, int] = Field(
+        {"DDS": 1, "PADDS": 1},
+        description="""
+        DDS: (default: 1) amount of runs DDS algorithm will be performed.
+        PADDS (default: 1)""",
+    )
+    x_initial: list[float] = Field(
+        [],
+        description="""DDS: (default: []) set an initial trial set as a first parameter configuration. If the set is empty the algorithm select an own initial parameter configuration.""",
+    )
+
+    # DE-MC_Z
+    nChains: dict[str, int] = Field(
+        {"DE-MC_Z": 3, "DREAM": 7, "MCMC": 1},
+        description="""
+        DE-MC_Z: (default: 3) number of different chains to employ.
+        DREAM: (default: 7)
+        MCMC: (default: 1)""",
+    )
+    burnIn: int = Field(
+        100,
+        description="""DE-MC_Z: (default: 100) number of iterations (meaning draws / nChains) to do before doing actual sampling.""",
+    )
+    thin: int = Field(1, description="""DE-MC_Z: (default: 1)""")
+    convergenceCriteria: float = Field(0.8, description="""DE-MC_Z: (default: 0.8) """)
+    variables_of_interest: list | None = Field(None, description="""DE-MC_Z: (default: None)""")
+    DEpairs: int = Field(2, description="""DE-MC_Z: (default: 1) number of pairs of chains to base movements off of.""")
+    adaptationRate: str = Field("auto", description="""DE-MC_Z: (default: auto)""")
+    eps: dict[str, float] = Field(
+        {"DE-MC_Z": 5e-2, "DREAM": 10e-6},
+        description="""
+        DE-MC_Z: (default: 5e-2) used in jittering the chains.
+        DREAM: (default: 10e-6)""",
+    )
+    mConvergence: bool = Field(True, description="""DE-MC_Z: """)
+    mAccept: bool = Field(True, description="""DE-MC_Z: """)
+
+    # DREAM
+    nCr: int = Field(3, description="""DREAM: (default: 3)""")
+    delta: int = Field(3, description="""DREAM: (default: 3)""")
+    c: float = Field(0.1, description="""DREAM: (default: 0.1)""")
+    convergence_limit: float = Field(1.2, description="""DREAM: (default: 1.2)""")
+    runs_after_convergence: int = Field(100, description="""DREAM: (default: 100)""")
+    acceptance_test_option: int = Field(6, description="""DREAM: (default: 6)""")
+
+    # eFAST
+    freq: str = Field(
+        "cukier",
+        description="""eFAST: (default: cukier) indicates weather to use the frequencies after 'cukier' or McRae 'mcrae'.""",
+    )
+    logscale: bool | list[bool] | None = Field(
+        None,
+        description="""eFAST: (default: None (= np.nan)) array containing bool values indicating weather a parameter is varied
+    on a logarithmic scale. In that case minimum and maximum are exponents.""",
+    )
+
+    # FAST
+    M: int = Field(4, description="""FAST: (default: 4)""")
+
+    # FSCABC
+    kpow: float = Field(4, description="""FSCABC: (default: 4) exponent for power scaling method.""")
+
+    # PADDS
+    initial_objs: list = Field([], description="""PADDS: (default: [])""")
+    initial_params: list = Field([], description="""PADDS: (default: [])""")
+    metric: str = Field("ones", description="""PADDS: (default: ones)""")
+
+    # ROPE
+    repetitions_first_run: int | None = Field(
+        None, description="""ROPE: (default: None) Number of runs in the first rune."""
+    )
+    subsets: int = Field(
+        5,
+        description="""ROPE: (default: 5) number of time the rope algorithm creates a smaller search windows for parameters.""",
+    )
+    percentage_first_run: float = Field(
+        0.10,
+        description="""ROPE: (default: 0.1) amount of runs that will be used for the next step after the first subset""",
+    )
+    percentage_following_runs: float = Field(
+        0.10,
+        description="""ROPE: (default: 0.1) amount of runs that will be used for the next step after in all following subsets.""",
+    )
+    NDIR: int | None = Field(None, description="""ROPE: (default: None) The number of samples to draw.""")
+
+    # SA
+    Tini: int = Field(80, description="""SA: (default: 80)""")
+    Ntemp: int = Field(50, description="""SA: (default: 50)""")
+    alpha: float = Field(0.99, description="""SA: (default: 0.99)""")
+
+    # MORRIS
+    num_levels: int = Field(4, description="""MORRIS: (default: 4)""")
 
 
 METADATA = meta.Component(
@@ -66,8 +243,8 @@ METADATA = meta.Component(
         ),
         meta.Port(
             name="init_params",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-            desc="key/value pair description of the parameters to calibrate",
+            contentType="Text (JSON list)",
+            desc="list of JSON objects describing the parameters to calibrate",
         ),
         meta.Port(
             name="obs_values",
@@ -200,6 +377,86 @@ def print_status_final(sampler_status, stream):
     stream.write("******************************\n\n")
 
 
+def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="csv"):
+    if algo == "ABC":
+        return spotpy.algorithms.abc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "DDS":
+        return spotpy.algorithms.dds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "DE-MC_Z":
+        return spotpy.algorithms.demcz(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "DREAM":
+        return spotpy.algorithms.dream(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "eFAST":
+        return spotpy.algorithms.efast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "FAST":
+        return spotpy.algorithms.fast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "FSCABC":
+        return spotpy.algorithms.fscabc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "LHS":
+        return spotpy.algorithms.lhs(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MC":
+        return spotpy.algorithms.mc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MCMC":
+        return spotpy.algorithms.mcmc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MLE":
+        return spotpy.algorithms.mle(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    # elif algo == "NSGA-II":
+    # return spotpy.algorithms.nsgaii(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "PADDS":
+        return spotpy.algorithms.padds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "ROPE":
+        return spotpy.algorithms.rope(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "SA":
+        return spotpy.algorithms.sa(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "SCE-UA":
+        return spotpy.algorithms.sceua(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MORRIS":
+        return spotpy.algorithms.morris(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    return None
+
+def sample_params_for_algorithm(algo: str, config: Config):
+    def extract(conf: Config, keys: list[str]):
+        return {k: v[k] if isinstance(v, dict) else v for k, v in conf.model_fields if k in keys}
+
+    
+    if algo == "ABC":
+        return {"ngs": config.ngs, "peps": config.peps}
+    elif algo == "DDS":
+        return spotpy.algorithms.dds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "DE-MC_Z":
+        return spotpy.algorithms.demcz(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "DREAM":
+        return spotpy.algorithms.dream(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "eFAST":
+        return spotpy.algorithms.efast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "FAST":
+        return spotpy.algorithms.fast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "FSCABC":
+        return spotpy.algorithms.fscabc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "LHS":
+        return spotpy.algorithms.lhs(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MC":
+        return spotpy.algorithms.mc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MCMC":
+        return spotpy.algorithms.mcmc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MLE":
+        return spotpy.algorithms.mle(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    # elif algo == "NSGA-II":
+    # return spotpy.algorithms.nsgaii(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "PADDS":
+        return spotpy.algorithms.padds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "ROPE":
+        return spotpy.algorithms.rope(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "SA":
+        return spotpy.algorithms.sa(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "SCE-UA":
+        return spotpy.algorithms.sceua(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    elif algo == "MORRIS":
+        return spotpy.algorithms.morris(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    return None
+
+
+
 class Component(process.Process[Config]):
     def __init__(
         self,
@@ -221,9 +478,10 @@ class Component(process.Process[Config]):
             and self.in_ports["sim_values"]
             and (self.in_ports["init_params"] or self.in_ports["obs_values"])
         ):
-            db_dir = None
+            path_to_db_dir = self.config.path_to_db_dir
+            temp_dir = None
             try:
-                spotpy_params: list[spotpy.parameter.Uniform] | None = None
+                spotpy_params: list[spotpy.parameter.Uniform] = []
                 if self.in_ports["init_params"]:
                     try:
                         init_params_ip = await self.read_in("init_params")
@@ -231,17 +489,24 @@ class Component(process.Process[Config]):
                             self.in_ports["init_params"] = None
                             continue
 
-                        init_params = config_from_ip(init_params_ip)
-                        if not init_params:
-                            self.in_ports["init_params"] = None
+                        init_params = []
+                        if init_params_ip._has("content"):
+                            try:
+                                init_params = json.loads(params_text := init_params_ip.content.as_text())
+                            except Exception as e:
+                                logger.warning(
+                                    "%s: Couldn't read JSON parameters to calibrate! params: %s",
+                                    Path(__file__).name,
+                                    params_text,
+                                )
+                        if len(init_params) == 0:
                             continue
 
-                        spotpy_params = []
-                        for name, par in init_params.items():
-                            par_name = name
+                        for par in init_params:
+                            par_name = par["name"]
                             if "array_index" in par:
                                 # spotpy does not allow two parameters to have the same name
-                                par_name += f"_{par['array']}"
+                                par_name += f"_{par['array_index']}"
                             spotpy_params.append(spotpy.parameter.Uniform(**par))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
@@ -252,7 +517,7 @@ class Component(process.Process[Config]):
                         continue
 
                 obs_values = None
-                param_set_id = None
+                param_set_id = self.config.param_set_id
                 if self.in_ports["obs_values"]:
                     try:
                         obs_values_ip = await self.read_in("obs_values")
@@ -280,19 +545,27 @@ class Component(process.Process[Config]):
                 )
 
                 rep = self.config.repetitions
-                db_dir = tempfile.TemporaryDirectory()
-                path_to_spotpy_db = f"{db_dir.name}/SCEUA_results"
+                if path_to_db_dir is None:
+                    temp_dir = tempfile.TemporaryDirectory()
+                    path_to_spotpy_db = f"{temp_dir.name}/SCEUA_results"
+                else:
+                    path_to_spotpy_db = f"{path_to_db_dir}/SCEUA_results"
                 # Set up the sampler with the model above
-                sampler = spotpy.algorithms.sceua(spot_setup, dbname=path_to_spotpy_db, dbformat="csv")
+                sampler = instantiate_algorithm(
+                    self.config.algorithm, spot_setup, path_to_spotpy_db=path_to_spotpy_db, db_format="csv"
+                )
 
                 # Run the sampler in a thread so the event loop stays free to handle
                 # the async port calls made by SpotPySetup.simulation() via
                 # asyncio.run_coroutine_threadsafe().
-                # ngs = number of complexes
-                # kstop = max number of evolution loops before convergence
-                # peps = convergence criterion
-                # pcento = percent change allowed in kstop loops before convergence
-                await asyncio.to_thread(sampler.sample, rep, ngs=len(spotpy_params) * 2, peps=0.001, pcento=0.001)
+                await asyncio.to_thread(
+                    sampler.sample,
+                    rep,
+                    ngs=len(spotpy_params) * 2,
+                    kstop=self.config.kstop,
+                    peps=self.config.peps,
+                    pcento=self.config.pcento,
+                )
 
                 if self.out_ports["best"]:
                     best_out_stream = io.StringIO()
@@ -315,8 +588,8 @@ class Component(process.Process[Config]):
             except Exception:
                 logger.exception("%s Exception", Path(__file__).name)
 
-            if db_dir:
-                db_dir.cleanup()
+            if temp_dir:
+                temp_dir.cleanup()
 
         logger.info("%s: process finished", self.name)
 
