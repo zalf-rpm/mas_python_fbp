@@ -21,7 +21,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, override
+from typing import Any, Literal, Protocol, override
 
 import matplotlib.pyplot as plt
 import spotpy
@@ -165,8 +165,8 @@ class Config(process.ProcessConfig):
         DE-MC_Z: (default: 5e-2) used in jittering the chains.
         DREAM: (default: 10e-6)""",
     )
-    mConvergence: bool = Field(True, description="""DE-MC_Z: """)
-    mAccept: bool = Field(True, description="""DE-MC_Z: """)
+    mConvergence: bool = Field(True, description="""DE-MC_Z: (default: true) """)
+    mAccept: bool = Field(True, description="""DE-MC_Z: (default: true)""")
 
     # DREAM
     nCr: int = Field(3, description="""DREAM: (default: 3)""")
@@ -248,20 +248,20 @@ METADATA = meta.Component(
         ),
         meta.Port(
             name="obs_values",
-            contentType="List[common/common_capnp:Value.lf64]",
+            contentType="@0xe17592335373b246 = common/common_capnp:Value.lf64",
             desc="list of observations",
         ),
         meta.Port(
             name="sim_values",
-            contentType="List[common/common_capnp:Value.lf64]",
+            contentType="@0xe17592335373b246 = common/common_capnp:Value.lf64",
             desc="list of simulated values",
         ),
     ],
     outPorts=[
         meta.Port(
             name="sampled_params",
-            contentType="List[common/common.capnp:Value.lpair(Text, common/common_capnp:Value.f64)]",
-            desc="[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs",
+            contentType="@0xe17592335373b246 = common/common.capnp:Value.lpair[Text, common/common_capnp:Value.f64]",
+            desc="[Value.pair(name1, value1), Value.pair(name2, value2), ...] list of param_name -> sampled value pairs",
         ),
         meta.Port(
             name="best",
@@ -377,7 +377,13 @@ def print_status_final(sampler_status, stream):
     stream.write("******************************\n\n")
 
 
-def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="csv"):
+class SpotpyAlgo(Protocol):
+    status: Any
+
+    def sample(self, *args, **kwargs) -> Any | None: ...
+
+
+def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="csv") -> SpotpyAlgo | None:
     if algo == "ABC":
         return spotpy.algorithms.abc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
     elif algo == "DDS":
@@ -414,47 +420,82 @@ def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="c
         return spotpy.algorithms.morris(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
     return None
 
-def sample_params_for_algorithm(algo: str, config: Config):
-    def extract(conf: Config, keys: list[str]):
-        return {k: v[k] if isinstance(v, dict) else v for k, v in conf.model_fields if k in keys}
 
-    
+def extract_keys_into_dict(config: Config, keys: list[str]) -> dict[str, Any]:
+    return {
+        k: v[k] if isinstance(v := config.__getattribute__(k), dict) else v for k, _ in Config.model_fields if k in keys
+    }
+
+
+def sample_params_for_algorithm(algo: str, config: Config) -> dict[str, Any]:
     if algo == "ABC":
-        return {"ngs": config.ngs, "peps": config.peps}
+        return extract_keys_into_dict(config, ["peps", "eb", "a", "ownlimit", "max_loop_inc"])
     elif algo == "DDS":
-        return spotpy.algorithms.dds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["limit", "trials", "x_initial"])
     elif algo == "DE-MC_Z":
-        return spotpy.algorithms.demcz(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(
+            config,
+            [
+                "nChains",
+                "burnIn",
+                "thin",
+                "convergenceCriteria",
+                "variables_of_interest",
+                "DEpairs",
+                "adaptationRate",
+                "eps",
+                "mConvergence",
+                "mAccept",
+            ],
+        )
     elif algo == "DREAM":
-        return spotpy.algorithms.dream(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(
+            config,
+            [
+                "nChains",
+                "eps",
+                "nCr",
+                "delta",
+                "c",
+                "convergence_limit",
+                "runs_after_convergence, acceptance_test_option",
+            ],
+        )
     elif algo == "eFAST":
-        return spotpy.algorithms.efast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["freq", "logscale"])
     elif algo == "FAST":
-        return spotpy.algorithms.fast(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["M"])
     elif algo == "FSCABC":
-        return spotpy.algorithms.fscabc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["peps", "eb", "a", "limit", "kpow"])
     elif algo == "LHS":
-        return spotpy.algorithms.lhs(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return {}
     elif algo == "MC":
-        return spotpy.algorithms.mc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return {}
     elif algo == "MCMC":
-        return spotpy.algorithms.mcmc(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["nChains"])
     elif algo == "MLE":
-        return spotpy.algorithms.mle(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return {}
     # elif algo == "NSGA-II":
-    # return spotpy.algorithms.nsgaii(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+    # return {}
     elif algo == "PADDS":
-        return spotpy.algorithms.padds(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["trials", "initial_objs", "initial_params", "metric"])
     elif algo == "ROPE":
-        return spotpy.algorithms.rope(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(
+            config, ["repetitions_first_run", "subsets", "percentage_first_run", "percentage_following_runs", "NDIR"]
+        )
     elif algo == "SA":
-        return spotpy.algorithms.sa(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["Tini", "Ntemp", "alpha"])
     elif algo == "SCE-UA":
-        return spotpy.algorithms.sceua(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
+        return extract_keys_into_dict(config, ["ngs", "peps", "pcento", "max_loop_inc"])
     elif algo == "MORRIS":
-        return spotpy.algorithms.morris(spot_setup, dbname=path_to_spotpy_db, dbformat=db_format)
-    return None
+        return extract_keys_into_dict(config, ["num_levels"])
+    return {}
 
+
+def custom_update_sample_params(algo: str, sample_params: dict[str, Any], spotpy_params: list):
+    if algo == "SCE-UA":
+        if sample_params.get("ngs", None) is None:
+            sample_params["ngs"] = len(spotpy_params) * 2
 
 
 class Component(process.Process[Config]):
@@ -551,21 +592,20 @@ class Component(process.Process[Config]):
                 else:
                     path_to_spotpy_db = f"{path_to_db_dir}/SCEUA_results"
                 # Set up the sampler with the model above
-                sampler = instantiate_algorithm(
-                    self.config.algorithm, spot_setup, path_to_spotpy_db=path_to_spotpy_db, db_format="csv"
-                )
+                if (
+                    sampler := instantiate_algorithm(
+                        self.config.algorithm, spot_setup, path_to_spotpy_db=path_to_spotpy_db, db_format="csv"
+                    )
+                    is None
+                ):
+                    continue
 
                 # Run the sampler in a thread so the event loop stays free to handle
                 # the async port calls made by SpotPySetup.simulation() via
                 # asyncio.run_coroutine_threadsafe().
-                await asyncio.to_thread(
-                    sampler.sample,
-                    rep,
-                    ngs=len(spotpy_params) * 2,
-                    kstop=self.config.kstop,
-                    peps=self.config.peps,
-                    pcento=self.config.pcento,
-                )
+                sample_params = sample_params_for_algorithm(self.config.algorithm, self.config)
+                custom_update_sample_params(self.config.algorithm, sample_params, spotpy_params)
+                await asyncio.to_thread(sampler.sample, rep, **sample_params)
 
                 if self.out_ports["best"]:
                     best_out_stream = io.StringIO()
