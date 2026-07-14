@@ -23,6 +23,7 @@
   "28c6182f-0a3a-4afd-b3e1-856c796f1b2a": "python -u -m zalfmas_fbp.components.dakis.write_file_to_object_store",
   "0e7507f8-97ae-4479-a608-4c1ebf37c4ba": "python -m zalfmas_fbp.components.file.read_csv",
   "7ba769ca-eba1-437c-b61a-bef27e24b1dc": "python -m zalfmas_fbp.components.file.read_file",
+  "361d2bb9-504e-4173-9d58-26c71d50d6b3": "python -m zalfmas_fbp.components.file.read_excel",
   "b3867019-5f42-4c59-9438-a49fe9452e6f": "python -m zalfmas_fbp.components.file.write_file",
   "1229ed4f-9fef-4b76-9061-a117d52e9bc2": "python -m zalfmas_fbp.components.geo.create_lat_lon_coords",
   "d8e349d6-e0e0-49cb-a24f-0b42358791a5": "python -m zalfmas_fbp.components.geo.get_lat_lon_grid_value",
