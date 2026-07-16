@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol, override
 
 import matplotlib.pyplot as plt
+import numpy as np
 import spotpy
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
@@ -423,7 +424,9 @@ def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="c
 
 def extract_keys_into_dict(config: Config, keys: list[str]) -> dict[str, Any]:
     return {
-        k: v[k] if isinstance(v := config.__getattribute__(k), dict) else v for k, _ in Config.model_fields if k in keys
+        k: v[k] if isinstance(v := config.__getattribute__(k), dict) else v
+        for k, _ in Config.model_fields.items()
+        if k in keys
     }
 
 
@@ -496,6 +499,10 @@ def custom_update_sample_params(algo: str, sample_params: dict[str, Any], spotpy
     if algo == "SCE-UA":
         if sample_params.get("ngs", None) is None:
             sample_params["ngs"] = len(spotpy_params) * 2
+
+
+def capnp_value_lf64_to_numpy_array(lf64: common_capnp.types.readers.Float64ListReader):
+    return np.array(lf64, np.float64)
 
 
 class Component(process.Process[Config]):
