@@ -199,6 +199,12 @@ def _coerce_scalar_for_field(value: Any, field: str) -> Any:
     if field == "b":
         if isinstance(value, bool):
             return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in ("true", "1"):
+                return True
+            if lowered in ("false", "0"):
+                return False
         msg = f"Cannot coerce {value!r} to bool"
         raise TypeError(msg)
 
@@ -225,6 +231,25 @@ def _coerce_scalar_for_field(value: Any, field: str) -> Any:
                 return ivalue
             msg = f"Integer {ivalue} does not fit in {field}"
             raise ValueError(msg)
+        if isinstance(value, str):
+            text = value.strip()
+            try:
+                ivalue = int(text, 10)
+            except ValueError:
+                try:
+                    fvalue = float(text)
+                except ValueError as exc:
+                    msg = f"Cannot coerce {value!r} to integer type {field}"
+                    raise TypeError(msg) from exc
+                if not fvalue.is_integer():
+                    msg = f"Cannot coerce {value!r} to integer type {field}"
+                    raise TypeError(msg)
+                ivalue = int(fvalue)
+            min_val, max_val = _INT_RANGES[field]
+            if min_val <= ivalue <= max_val:
+                return ivalue
+            msg = f"Integer {ivalue} does not fit in {field}"
+            raise ValueError(msg)
         msg = f"Cannot coerce {value!r} to integer type {field}"
         raise TypeError(msg)
 
@@ -234,6 +259,16 @@ def _coerce_scalar_for_field(value: Any, field: str) -> Any:
             raise TypeError(msg)
         if isinstance(value, (int, float)):
             fvalue = float(value)
+            if _float_fits(field, fvalue):
+                return fvalue
+            msg = f"Float {fvalue} does not fit in {field}"
+            raise ValueError(msg)
+        if isinstance(value, str):
+            try:
+                fvalue = float(value.strip())
+            except ValueError as exc:
+                msg = f"Cannot coerce {value!r} to float type {field}"
+                raise TypeError(msg) from exc
             if _float_fits(field, fvalue):
                 return fvalue
             msg = f"Float {fvalue} does not fit in {field}"
@@ -319,13 +354,28 @@ def _determine_list_field(values: list[Any], fields: set[str], smallest: bool) -
         return "lb" if "lb" in fields else "li64"
     if kinds == {"str"}:
         return "lt" if "lt" in fields else "lt"
-    if kinds <= {"int"}:
-        scalar_field = _find_numeric_field("int", values, fields, smallest)
-        return _list_field_for_scalar(scalar_field)
-    if kinds <= {"int", "float"} or kinds == {"float"}:
-        numeric_values = [float(v) for v in values]
-        scalar_field = _find_numeric_field("float", numeric_values, fields, smallest)
-        return _list_field_for_scalar(scalar_field)
+
+    int_candidates = (["i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64"] if smallest else [
+        "ui64",
+        "i64",
+        "ui32",
+        "i32",
+        "ui16",
+        "i16",
+        "ui8",
+        "i8",
+    ])
+    float_candidates = ["f32", "f64"] if smallest else ["f64", "f32"]
+    list_candidates: list[str] = []
+    list_candidates.extend([_list_field_for_scalar(c) for c in int_candidates if _list_field_for_scalar(c) in fields])
+    list_candidates.extend([_list_field_for_scalar(c) for c in float_candidates if _list_field_for_scalar(c) in fields])
+
+    for candidate in list_candidates:
+        try:
+            _ = _coerce_list_for_field(values, candidate)
+            return candidate
+        except (TypeError, ValueError):
+            continue
 
     msg = f"List contains mixed incompatible types: {kinds}"
     raise TypeError(msg)
