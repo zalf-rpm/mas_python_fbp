@@ -70,7 +70,8 @@ class MapJsonValuesConfig(process.ProcessConfig):
     operations: list[TransformOperation] = Field(
         default_factory=list,
         description=(
-            "Ordered transformation operations applied to each list item, object value, or the top-level atomic input."
+            """Ordered transformation operations applied to each list item, object value, or the top-level atomic input.
+            Defined like: {"path": "key/key", "op": "round", "ndigits": 2}"""
         ),
     )
     max_abs_exponent: int = Field(
