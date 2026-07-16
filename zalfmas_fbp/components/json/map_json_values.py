@@ -231,6 +231,9 @@ def _require_operand(op_name: str, value: int | float | str | None) -> float:
 
 
 def _apply_scalar_op(value: Any, operation: TransformOperation, max_abs_exponent: int) -> Any:
+    if value is None:
+        return None
+
     op = operation.op
     if op == "round":
         number = _to_number(value)
