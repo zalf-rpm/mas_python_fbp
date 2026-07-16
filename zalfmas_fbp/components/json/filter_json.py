@@ -59,6 +59,13 @@ class FilterJsonConfig(process.ProcessConfig):
             "For a list leaf this results in a list of lists."
         ),
     )
+    flatten_values_only_lists: bool = Field(
+        False,
+        description=(
+            "If true and values_only is true, flatten one list nesting level for list outputs. "
+            "This turns list-of-lists into a single list."
+        ),
+    )
 
 
 METADATA = meta.Component(
@@ -163,16 +170,33 @@ def _should_apply_to_object_values(value: dict[str, Any]) -> bool:
     return any(isinstance(v, (dict, list)) for v in value.values())
 
 
-def _apply_filter(value: Any, filters: list[tuple[str, list[str | int]]], values_only: bool) -> Any:
+def _apply_filter(
+    value: Any,
+    filters: list[tuple[str, list[str | int]]],
+    values_only: bool,
+    flatten_values_only_lists: bool,
+) -> Any:
     if len(filters) == 0:
         return value
 
     if isinstance(value, list):
-        return [_project_item(item, filters, values_only) for item in value]
+        mapped = [_project_item(item, filters, values_only) for item in value]
+        if values_only and flatten_values_only_lists:
+            flattened: list[Any] = []
+            for entry in mapped:
+                if isinstance(entry, list):
+                    flattened.extend(entry)
+                else:
+                    flattened.append(entry)
+            return flattened
+        return mapped
 
     if isinstance(value, dict):
         if _should_apply_to_object_values(value):
-            return {k: _apply_filter(v, filters, values_only) for k, v in value.items()}
+            return {
+                k: _apply_filter(v, filters, values_only, flatten_values_only_lists)
+                for k, v in value.items()
+            }
         return _project_item(value, filters, values_only)
 
     return value
@@ -224,7 +248,12 @@ class FilterJson(process.Process[FilterJsonConfig]):
                     )
                     filtered_json = None
                 else:
-                    filtered_json = _apply_filter(leaf, parsed_filters, self.config.values_only)
+                    filtered_json = _apply_filter(
+                        leaf,
+                        parsed_filters,
+                        self.config.values_only,
+                        self.config.flatten_values_only_lists,
+                    )
             except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
                 logger.warning("%s failed to filter input JSON: %s", self.name, exc)
                 filtered_json = None
