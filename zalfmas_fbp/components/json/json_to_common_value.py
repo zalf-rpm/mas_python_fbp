@@ -62,7 +62,7 @@ class JsonToCommonValueConfig(process.ProcessConfig):
     requested_type: str | None = Field(
         None,
         description=(
-            "Optional Value union field to force, e.g. lf64, li64, lt, lb, f64, i64, t, b. "
+            "Optional Value union field to force, e.g. lpair, lf64, li64, lt, lb, f64, i64, t, b. "
             "Set to null for automatic type selection."
         ),
     )
@@ -343,7 +343,7 @@ def _coerce_list_for_field(values: list[Any], list_field: str) -> list[Any]:
     return [_coerce_scalar_for_field(v, scalar_field) for v in values]
 
 
-def _normalize_with_sentinels(
+def _replace_sentinels_recursive(
     value: Any,
     null_sentinel: Any,
     nan_sentinel: Any,
@@ -353,6 +353,10 @@ def _normalize_with_sentinels(
 
     def replace(v: Any) -> Any:
         nonlocal null_used, nan_used
+        if isinstance(v, dict):
+            return {str(k): replace(item) for k, item in v.items()}
+        if isinstance(v, list):
+            return [replace(item) for item in v]
         if v is None:
             if null_sentinel is None:
                 msg = "JSON null encountered but null_sentinel is not configured"
@@ -367,8 +371,6 @@ def _normalize_with_sentinels(
             return v
         return v
 
-    if isinstance(value, list):
-        return [replace(v) for v in value], null_used, nan_used
     return replace(value), null_used, nan_used
 
 
@@ -376,20 +378,35 @@ def _create_value_message(field: str, value: Any) -> common_capnp.types.builders
     return common_capnp.Value.new_message(**{field: value})
 
 
-def _build_value(
+def _build_value_auto(
     value: Any,
     cfg: JsonToCommonValueConfig,
     fields: set[str],
-) -> tuple[common_capnp.types.builders.ValueBuilder, str, dict[str, Any]]:
+    *,
+    use_requested_type: bool,
+) -> tuple[common_capnp.types.builders.ValueBuilder, str]:
+    requested = cfg.requested_type if use_requested_type and cfg.requested_type != "auto" else None
+
     if isinstance(value, dict):
-        msg = "Object values are not supported directly (d/p disabled). Use traversal_path to select primitive or list."
-        raise TypeError(msg)
+        if requested is not None and requested != "lpair":
+            if not cfg.allow_fallback_if_requested_type_fails:
+                msg = f"Requested type '{requested}' cannot hold object input (requires lpair)."
+                raise ValueError(msg)
+            logger.warning(
+                "Requested type '%s' cannot hold object input; falling back to lpair.",
+                requested,
+            )
+        if "lpair" not in fields:
+            msg = "common_capnp.Value has no 'lpair' field in current schema."
+            raise ValueError(msg)
+        pairs = []
+        for key, item in value.items():
+            child_value, _ = _build_value_auto(item, cfg, fields, use_requested_type=False)
+            pairs.append(common_capnp.Pair.new_message(fst=str(key), snd=child_value))
+        return _create_value_message("lpair", pairs), "lpair"
 
-    normalized, null_used, nan_used = _normalize_with_sentinels(value, cfg.null_sentinel, cfg.nan_sentinel)
-    is_list = isinstance(normalized, list)
-
-    if cfg.requested_type and cfg.requested_type != "auto":
-        requested = cfg.requested_type
+    is_list = isinstance(value, list)
+    if requested:
         if requested not in fields:
             if not cfg.allow_fallback_if_requested_type_fails:
                 msg = f"Requested type '{requested}' is not available in common_capnp.Value schema."
@@ -398,23 +415,22 @@ def _build_value(
         else:
             try:
                 if is_list:
-                    if not requested.startswith("l"):
+                    if requested == "lv":
+                        lv_items = [_build_value_auto(item, cfg, fields, use_requested_type=False)[0] for item in value]
+                        msg = _create_value_message("lv", lv_items)
+                    elif not requested.startswith("l"):
                         msg = f"Requested scalar type '{requested}' cannot hold list input."
                         raise ValueError(msg)
-                    coerced_list = _coerce_list_for_field(normalized, requested)
-                    msg = _create_value_message(requested, coerced_list)
+                    else:
+                        coerced_list = _coerce_list_for_field(value, requested)
+                        msg = _create_value_message(requested, coerced_list)
                 else:
                     if requested.startswith("l"):
                         err = f"Requested list type '{requested}' cannot hold scalar input."
                         raise ValueError(err)
-                    coerced_scalar = _coerce_scalar_for_field(normalized, requested)
+                    coerced_scalar = _coerce_scalar_for_field(value, requested)
                     msg = _create_value_message(requested, coerced_scalar)
-                sentinel_attrs: dict[str, Any] = {}
-                if null_used:
-                    sentinel_attrs[cfg.null_sentinel_attr] = cfg.null_sentinel
-                if nan_used:
-                    sentinel_attrs[cfg.nan_sentinel_attr] = cfg.nan_sentinel
-                return msg, requested, sentinel_attrs
+                return msg, requested
             except (TypeError, ValueError):
                 if not cfg.allow_fallback_if_requested_type_fails:
                     raise
@@ -427,23 +443,36 @@ def _build_value(
         msg = "No usable requested_type and auto_select_type is disabled."
         raise ValueError(msg)
 
-    selected_field: str
     if is_list:
-        selected_field = _determine_list_field(normalized, fields, cfg.optimize_smallest_type)
-        if selected_field not in fields:
-            msg = f"Selected list field '{selected_field}' not available in schema."
-            raise ValueError(msg)
-        coerced_list = _coerce_list_for_field(normalized, selected_field)
-        value_msg = _create_value_message(selected_field, coerced_list)
-    else:
-        selected_field = _determine_scalar_field(normalized, fields, cfg.optimize_smallest_type)
-        if selected_field not in fields:
-            msg = f"Selected scalar field '{selected_field}' not available in schema."
-            raise ValueError(msg)
-        coerced_scalar = _coerce_scalar_for_field(normalized, selected_field)
-        value_msg = _create_value_message(selected_field, coerced_scalar)
+        try:
+            selected_field = _determine_list_field(value, fields, cfg.optimize_smallest_type)
+            if selected_field not in fields:
+                msg = f"Selected list field '{selected_field}' not available in schema."
+                raise ValueError(msg)
+            coerced_list = _coerce_list_for_field(value, selected_field)
+            return _create_value_message(selected_field, coerced_list), selected_field
+        except TypeError:
+            if "lv" not in fields:
+                raise
+            lv_items = [_build_value_auto(item, cfg, fields, use_requested_type=False)[0] for item in value]
+            return _create_value_message("lv", lv_items), "lv"
 
-    sentinel_attrs = {}
+    selected_field = _determine_scalar_field(value, fields, cfg.optimize_smallest_type)
+    if selected_field not in fields:
+        msg = f"Selected scalar field '{selected_field}' not available in schema."
+        raise ValueError(msg)
+    coerced_scalar = _coerce_scalar_for_field(value, selected_field)
+    return _create_value_message(selected_field, coerced_scalar), selected_field
+
+
+def _build_value(
+    value: Any,
+    cfg: JsonToCommonValueConfig,
+    fields: set[str],
+) -> tuple[common_capnp.types.builders.ValueBuilder, str, dict[str, Any]]:
+    normalized, null_used, nan_used = _replace_sentinels_recursive(value, cfg.null_sentinel, cfg.nan_sentinel)
+    value_msg, selected_field = _build_value_auto(normalized, cfg, fields, use_requested_type=True)
+    sentinel_attrs: dict[str, Any] = {}
     if null_used:
         sentinel_attrs[cfg.null_sentinel_attr] = cfg.null_sentinel
     if nan_used:
