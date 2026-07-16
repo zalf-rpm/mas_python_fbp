@@ -39,6 +39,7 @@
   "1ccc2798-23b2-4148-a40f-6b70a69be2fb": "python -m zalfmas_fbp.components.ip.lift_attributes",
   "67b31990-452a-4058-8a99-6785be345216": "python -m zalfmas_fbp.components.json.update_json",
   "161c9d39-a3c5-4885-beb2-9d85a7c777bf": "python -m zalfmas_fbp.components.json.filter_json",
+  "308d0b88-18f5-4d40-8b3f-bab35fdad44e": "python -m zalfmas_fbp.components.json.map_json_values",
   "bc9f8bfd-db77-49ed-a347-a26bb37084d1": "python -m zalfmas_fbp.components.management.ilr_sowing_harvest_dates",
   "e58b7ff4-3c76-4ea2-9873-09d6923e5c75": "python -m zalfmas_fbp.components.models.monica.create_monica_capnp_env",
   "___921bcda7-d83f-4190-8593-fce793dc9519": "python -m zalfmas_fbp.components.models.monica.create_monica_env",
