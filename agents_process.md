@@ -98,6 +98,11 @@ out_ip.attributes = list([{"key": k, "value": v} for k, v in attrs.items()])
 
 Use helper where possible; manual mapping when dynamic mutation is needed.
 
+Important AnyPointer rule for attributes:
+- `IP.attributes[].value` is `AnyPointer`. Do **not** assign raw Python primitives like `int`/`float`/`bool` directly.
+- Use `common_capnp.Value` for primitive attribute values (or other explicit Cap'n Proto structs/caps as appropriate).
+- Plain Python `str` can be auto-wrapped by pycapnp; for new components, clarify with the user whether to keep raw string assignment or also wrap strings into `common_capnp.Value.t`.
+
 ### 4.4 Content typing / schema detection
 
 For dynamic AnyPointer inputs, existing code uses:
