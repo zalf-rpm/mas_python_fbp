@@ -27,13 +27,12 @@ from zalfmas_common import common
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
+from zalfmas_fbp.run.process.config.config_codec import config_value_from_python
 
 logger = logging.getLogger(__name__)
 configure_logging()
 
 _MISSING = object()
-_USED_NULL_SENTINEL_ATTR = "used_null_sentinel"
-_USED_NAN_SENTINEL_ATTR = "used_nan_sentinel"
 
 _INT_RANGES: dict[str, tuple[int, int]] = {
     "i8": (-128, 127),
@@ -100,10 +99,9 @@ class JsonToCommonValueConfig(process.ProcessConfig):
         description="Attribute name for applied null sentinel value.",
     )
     nan_sentinel_attr: str = Field(
-        "NaN_sentinel",
+        "nan_sentinel",
         description="Attribute name for applied NaN sentinel value.",
     )
-
     skip_on_error: bool = Field(
         True,
         description="Skip message on conversion errors.",
@@ -435,6 +433,16 @@ def _create_value_message(field: str, value: Any) -> common_capnp.types.builders
     return common_capnp.Value.new_message(**{field: value})
 
 
+def _sentinel_value_for_selected_type(
+    selected_type: str, sentinel_value: Any
+) -> common_capnp.types.builders.ValueBuilder:
+    scalar_type = selected_type[1:] if selected_type.startswith("l") else selected_type
+    if scalar_type in {"v", "pair"}:
+        return config_value_from_python(sentinel_value)
+    coerced = _coerce_scalar_for_field(sentinel_value, scalar_type)
+    return _create_value_message(scalar_type, coerced)
+
+
 def _build_value_auto(
     value: Any,
     cfg: JsonToCommonValueConfig,
@@ -526,14 +534,14 @@ def _build_value(
     value: Any,
     cfg: JsonToCommonValueConfig,
     fields: set[str],
-) -> tuple[common_capnp.types.builders.ValueBuilder, str, dict[str, Any]]:
+) -> tuple[common_capnp.types.builders.ValueBuilder, str, dict[str, common_capnp.types.builders.ValueBuilder]]:
     normalized, null_used, nan_used = _replace_sentinels_recursive(value, cfg.null_sentinel, cfg.nan_sentinel)
     value_msg, selected_field = _build_value_auto(normalized, cfg, fields, use_requested_type=True)
-    sentinel_attrs: dict[str, Any] = {}
+    sentinel_attrs: dict[str, common_capnp.types.builders.ValueBuilder] = {}
     if null_used:
-        sentinel_attrs[cfg.null_sentinel_attr] = cfg.null_sentinel  # common_capnp.Value.new_message(cfg.null_sentinel
+        sentinel_attrs[cfg.null_sentinel_attr] = _sentinel_value_for_selected_type(selected_field, cfg.null_sentinel)
     if nan_used:
-        sentinel_attrs[cfg.nan_sentinel_attr] = cfg.nan_sentinel
+        sentinel_attrs[cfg.nan_sentinel_attr] = _sentinel_value_for_selected_type(selected_field, cfg.nan_sentinel)
     return value_msg, selected_field, sentinel_attrs
 
 
