@@ -64,7 +64,7 @@ class Config(process.ProcessConfig):
         description="path to output folder",
     )
     param_set_id: str = Field(
-        "no-param-set-id",
+        "no-param-set-id-given",
         description="""id for the parameterset to calibrate against.
         Might be set as attribute 'param_set_id' on observed values IP received on 'obs_values' port.""",
     )
@@ -250,12 +250,14 @@ METADATA = meta.Component(
         meta.Port(
             name="obs_values",
             contentType="@0xe17592335373b246 = common/common_capnp:Value.lf64",
-            desc="list of observations",
+            desc="""List of observations. If the list contains null or NaN sentinel values, these will be replaced with NaN.
+            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes.""",
         ),
         meta.Port(
             name="sim_values",
             contentType="@0xe17592335373b246 = common/common_capnp:Value.lf64",
-            desc="list of simulated values",
+            desc="""List of simulated values. If the list contains null or NaN sentinel values, these will be replaced with NaN.
+            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes.""",
         ),
     ],
     outPorts=[
@@ -505,6 +507,22 @@ def capnp_value_lf64_to_numpy_array(lf64: common_capnp.types.readers.Float64List
     return np.array(lf64, np.float64)
 
 
+def capnp_value_lf64_to_numpy_array_with_nan(lf64: common_capnp.types.readers.Float64ListReader, sentinel_values={}):
+    return np.array([sentinel_values.get(v, v) if sentinel_values else v for v in lf64])
+
+
+def check_and_possibly_add_sentinel_value(sentinel_values: dict, attr, sentinel_attr_name):
+    if attr.key == sentinel_attr_name:
+        try:
+            if (val := attr.value.as_struct(common_capnp.Value)).which() == "f64":
+                sentinel_values[val] = np.nan
+        except Exception as e:
+            logger.warning(
+                "%s: null_sentinel attribute's type was no common.capnp:Value.f64! Skipping.",
+                Path(__file__).name,
+            )
+
+
 class Component(process.Process[Config]):
     def __init__(
         self,
@@ -573,10 +591,16 @@ class Component(process.Process[Config]):
                             self.in_ports["obs_values"] = None
                             continue
 
+                        sentinel_values = {}
                         for attr in obs_values_ip.attributes:
                             if attr.key == "param_set_id":
                                 param_set_id = attr.value.as_text()
-                        obs_values = obs_values_ip.content.as_struct(common_capnp.Value).lf64
+                            check_and_possibly_add_sentinel_value(sentinel_values, attr, "null_sentinel")
+                            check_and_possibly_add_sentinel_value(sentinel_values, attr, "nan_sentinel")
+
+                        obs_values = capnp_value_lf64_to_numpy_array_with_nan(
+                            obs_values_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
+                        )
                         if not obs_values or len(obs_values) == 0:
                             logger.warning("%s: no observed values to calibrate!", Path(__file__).name)
                             continue
