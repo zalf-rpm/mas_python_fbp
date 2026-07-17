@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 configure_logging()
 
 _MISSING = object()
+_USED_NULL_SENTINEL_ATTR = "used_null_sentinel"
+_USED_NAN_SENTINEL_ATTR = "used_nan_sentinel"
 
 _INT_RANGES: dict[str, tuple[int, int]] = {
     "i8": (-128, 127),
@@ -94,17 +96,14 @@ class JsonToCommonValueConfig(process.ProcessConfig):
         description="Attach attributes describing sentinel values applied to outgoing messages.",
     )
     null_sentinel_attr: str = Field(
-        "jsonNullSentinel",
+        "null_sentinel",
         description="Attribute name for applied null sentinel value.",
     )
     nan_sentinel_attr: str = Field(
-        "jsonNaNSentinel",
+        "NaN_sentinel",
         description="Attribute name for applied NaN sentinel value.",
     )
-    selected_type_attr: str = Field(
-        "valueType",
-        description="Attribute name for selected Value union field.",
-    )
+
     skip_on_error: bool = Field(
         True,
         description="Skip message on conversion errors.",
@@ -307,16 +306,20 @@ def _find_numeric_field(kind: Literal["int", "float"], values: list[Any], fields
         if has_negative:
             candidates = ["i8", "i16", "i32", "i64"] if smallest else ["i64", "i32", "i16", "i8"]
         else:
-            candidates = ["ui8", "ui16", "ui32", "ui64", "i8", "i16", "i32", "i64"] if smallest else [
-                "ui64",
-                "i64",
-                "ui32",
-                "i32",
-                "ui16",
-                "i16",
-                "ui8",
-                "i8",
-            ]
+            candidates = (
+                ["ui8", "ui16", "ui32", "ui64", "i8", "i16", "i32", "i64"]
+                if smallest
+                else [
+                    "ui64",
+                    "i64",
+                    "ui32",
+                    "i32",
+                    "ui16",
+                    "i16",
+                    "ui8",
+                    "i8",
+                ]
+            )
     else:
         candidates = ["f32", "f64"] if smallest else ["f64", "f32"]
 
@@ -355,16 +358,20 @@ def _determine_list_field(values: list[Any], fields: set[str], smallest: bool) -
     if kinds == {"str"}:
         return "lt" if "lt" in fields else "lt"
 
-    int_candidates = (["i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64"] if smallest else [
-        "ui64",
-        "i64",
-        "ui32",
-        "i32",
-        "ui16",
-        "i16",
-        "ui8",
-        "i8",
-    ])
+    int_candidates = (
+        ["i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64"]
+        if smallest
+        else [
+            "ui64",
+            "i64",
+            "ui32",
+            "i32",
+            "ui16",
+            "i16",
+            "ui8",
+            "i8",
+        ]
+    )
     float_candidates = ["f32", "f64"] if smallest else ["f64", "f32"]
     list_candidates: list[str] = []
     list_candidates.extend([_list_field_for_scalar(c) for c in int_candidates if _list_field_for_scalar(c) in fields])
@@ -524,7 +531,7 @@ def _build_value(
     value_msg, selected_field = _build_value_auto(normalized, cfg, fields, use_requested_type=True)
     sentinel_attrs: dict[str, Any] = {}
     if null_used:
-        sentinel_attrs[cfg.null_sentinel_attr] = cfg.null_sentinel
+        sentinel_attrs[cfg.null_sentinel_attr] = cfg.null_sentinel  # common_capnp.Value.new_message(cfg.null_sentinel
     if nan_used:
         sentinel_attrs[cfg.nan_sentinel_attr] = cfg.nan_sentinel
     return value_msg, selected_field, sentinel_attrs
@@ -559,22 +566,23 @@ class JsonToCommonValue(process.Process[JsonToCommonValueConfig]):
             try:
                 payload = json.loads(in_msg.content.as_text())
                 if self.config.traversal_path:
-                    payload = _resolve_path(payload, _split_path(self.config.traversal_path, self.config.path_separator))
+                    payload = _resolve_path(
+                        payload, _split_path(self.config.traversal_path, self.config.path_separator)
+                    )
                     if payload is _MISSING:
                         msg = f"Could not resolve traversal_path '{self.config.traversal_path}'."
                         raise KeyError(msg)
 
-                value_msg, selected_type, sentinel_attrs = _build_value(payload, self.config, fields)
+                value_msg, _selected_type, sentinel_attrs = _build_value(payload, self.config, fields)
             except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
                 logger.warning("%s could not convert JSON to common_capnp.Value: %s", self.name, exc)
                 if self.config.skip_on_error:
                     continue
                 value_msg = common_capnp.Value.new_message(t="")
-                selected_type = "t"
                 sentinel_attrs = {}
 
             out_ip = fbp_capnp.IP.new_message(content=value_msg)
-            extra_attrs: dict[str, Any] = {self.config.selected_type_attr: selected_type}
+            extra_attrs: dict[str, Any] = {}
             if self.config.attach_sentinel_attributes:
                 extra_attrs.update(sentinel_attrs)
             common.copy_and_set_fbp_attrs(in_msg, out_ip, **extra_attrs)
