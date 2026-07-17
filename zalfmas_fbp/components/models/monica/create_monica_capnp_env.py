@@ -93,7 +93,7 @@ METADATA = meta.Component(
         meta.Port(
             name="in",
             contentType="Text (JSON)",
-            desc="MONICA env json.",
+            desc="MONICA env json. Supports substreams on 'in' and will simply forward bracket IPs downstream.",
         ),
     ],
     outPorts=[
@@ -129,7 +129,17 @@ class Component(process.Process[Config]):
             try:
                 in_ip = await self.read_in("in")
                 if in_ip is None:
-                    self.in_ports["in"] = None
+                    break
+                # simply forward substream open and close brackets
+                elif in_ip.type == "openBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
+                    continue
+                elif in_ip.type == "closeBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
                     continue
 
                 in_attrs = {kv.key: kv.value for kv in in_ip.attributes}
@@ -243,6 +253,7 @@ class Component(process.Process[Config]):
                 out_ip.attributes = list([{"key": k, "value": v} for k, v in in_attrs.items()])  # pyright: ignore
                 if not await self.write_out("out", out_ip):
                     logger.info("%s: Could not send IP.", self.name)
+                    break
 
             except Exception:
                 logger.exception("%s Exception", Path(__file__).name)
