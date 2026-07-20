@@ -293,6 +293,19 @@ class SpotPySetup:
         self.loop = loop
         self.log_out_p = log_out_p
 
+    def _run_on_loop(self, coro):
+        return asyncio.run_coroutine_threadsafe(coro, self.loop).result()
+
+    async def _write_sampled_params(self, out_ip):
+        await self.sampled_params_out_p.write(value=out_ip)
+
+    async def _write_log(self, text: str):
+        if self.log_out_p:
+            await self.log_out_p.write(value={"content": text})
+
+    async def _read_sim_values(self):
+        return await self.sim_values_in_p.read()
+
     def parameters(self):
         return spotpy.parameter.generate(self.params)
 
@@ -305,17 +318,14 @@ class SpotPySetup:
             n2p_list = out_msg_value.init("lpair", len(name_to_param))
             for i, (k, v) in enumerate(name_to_param.items()):
                 n2p_list[i].fst = k
-                n2p_list[i].snd = common_capnp.Value.new_message(f64=v)
+                n2p_list[i].snd = common_capnp.Value.new_message(f64=float(v))
             out_ip = fbp_capnp.IP.new_message(content=n2p_list)
-            asyncio.run_coroutine_threadsafe(self.sampled_params_out_p.write(value=out_ip), self.loop).result()
+            self._run_on_loop(self._write_sampled_params(out_ip))
             logger.info("%s %s sent params to monica setup: %s", Path(__file__).name, datetime.now(), vector)
             if self.log_out_p:
-                asyncio.run_coroutine_threadsafe(
-                    self.log_out_p.write(value={"content": f"{datetime.now()} sent params to monica setup: {vector}"}),
-                    self.loop,
-                ).result()
+                self._run_on_loop(self._write_log(f"{datetime.now()} sent params to monica setup: {vector}"))
 
-            in_msg = asyncio.run_coroutine_threadsafe(self.sim_values_in_p.read(), self.loop).result()
+            in_msg = self._run_on_loop(self._read_sim_values())
             # check for end of data from in port
             if in_msg.which() == "done":
                 return None
@@ -323,15 +333,11 @@ class SpotPySetup:
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             sim_values = list(in_ip.content.as_struct(common_capnp.Value).lf64)
             if self.log_out_p:
-                asyncio.run_coroutine_threadsafe(
-                    self.log_out_p.write(
-                        value={
-                            "content": f"len(sim_values): {len(sim_values)} == len(self.observations): "
-                            f"{len(self.observations)}",
-                        },
+                self._run_on_loop(
+                    self._write_log(
+                        f"len(sim_values): {len(sim_values)} == len(self.observations): {len(self.observations)}",
                     ),
-                    self.loop,
-                ).result()
+                )
             assert len(sim_values) == len(self.observations)
         except Exception:
             logger.exception("%s %s exception", Path(__file__).name, datetime.now())
@@ -424,21 +430,22 @@ def instantiate_algorithm(algo: str, spot_setup, path_to_spotpy_db, db_format="c
     return None
 
 
-def extract_keys_into_dict(config: Config, keys: list[str]) -> dict[str, Any]:
+def extract_keys_into_dict(algo: str, config: Config, keys: list[str]) -> dict[str, Any]:
     return {
-        k: v[k] if isinstance(v := config.__getattribute__(k), dict) else v
-        for k, _ in Config.model_fields.items()
+        k: v[algo] if isinstance(v := config.__getattribute__(k), dict) else v
+        for k in Config.model_fields.keys()
         if k in keys
     }
 
 
 def sample_params_for_algorithm(algo: str, config: Config) -> dict[str, Any]:
     if algo == "ABC":
-        return extract_keys_into_dict(config, ["peps", "eb", "a", "ownlimit", "max_loop_inc"])
+        return extract_keys_into_dict(algo, config, ["peps", "eb", "a", "ownlimit", "max_loop_inc"])
     elif algo == "DDS":
-        return extract_keys_into_dict(config, ["limit", "trials", "x_initial"])
+        return extract_keys_into_dict(algo, config, ["limit", "trials", "x_initial"])
     elif algo == "DE-MC_Z":
         return extract_keys_into_dict(
+            algo,
             config,
             [
                 "nChains",
@@ -455,6 +462,7 @@ def sample_params_for_algorithm(algo: str, config: Config) -> dict[str, Any]:
         )
     elif algo == "DREAM":
         return extract_keys_into_dict(
+            algo,
             config,
             [
                 "nChains",
@@ -467,33 +475,35 @@ def sample_params_for_algorithm(algo: str, config: Config) -> dict[str, Any]:
             ],
         )
     elif algo == "eFAST":
-        return extract_keys_into_dict(config, ["freq", "logscale"])
+        return extract_keys_into_dict(algo, config, ["freq", "logscale"])
     elif algo == "FAST":
-        return extract_keys_into_dict(config, ["M"])
+        return extract_keys_into_dict(algo, config, ["M"])
     elif algo == "FSCABC":
-        return extract_keys_into_dict(config, ["peps", "eb", "a", "limit", "kpow"])
+        return extract_keys_into_dict(algo, config, ["peps", "eb", "a", "limit", "kpow"])
     elif algo == "LHS":
         return {}
     elif algo == "MC":
         return {}
     elif algo == "MCMC":
-        return extract_keys_into_dict(config, ["nChains"])
+        return extract_keys_into_dict(algo, config, ["nChains"])
     elif algo == "MLE":
         return {}
     # elif algo == "NSGA-II":
     # return {}
     elif algo == "PADDS":
-        return extract_keys_into_dict(config, ["trials", "initial_objs", "initial_params", "metric"])
+        return extract_keys_into_dict(algo, config, ["trials", "initial_objs", "initial_params", "metric"])
     elif algo == "ROPE":
         return extract_keys_into_dict(
-            config, ["repetitions_first_run", "subsets", "percentage_first_run", "percentage_following_runs", "NDIR"]
+            algo,
+            config,
+            ["repetitions_first_run", "subsets", "percentage_first_run", "percentage_following_runs", "NDIR"],
         )
     elif algo == "SA":
-        return extract_keys_into_dict(config, ["Tini", "Ntemp", "alpha"])
+        return extract_keys_into_dict(algo, config, ["Tini", "Ntemp", "alpha"])
     elif algo == "SCE-UA":
-        return extract_keys_into_dict(config, ["ngs", "peps", "pcento", "max_loop_inc"])
+        return extract_keys_into_dict(algo, config, ["ngs", "peps", "pcento", "max_loop_inc"])
     elif algo == "MORRIS":
-        return extract_keys_into_dict(config, ["num_levels"])
+        return extract_keys_into_dict(algo, config, ["num_levels"])
     return {}
 
 
@@ -515,7 +525,7 @@ def check_and_possibly_add_sentinel_value(sentinel_values: dict, attr, sentinel_
     if attr.key == sentinel_attr_name:
         try:
             if (val := attr.value.as_struct(common_capnp.Value)).which() == "f64":
-                sentinel_values[val] = np.nan
+                sentinel_values[val.f64] = np.nan
         except Exception as e:
             logger.warning(
                 "%s: null_sentinel attribute's type was no common.capnp:Value.f64! Skipping.",
@@ -601,7 +611,7 @@ class Component(process.Process[Config]):
                         obs_values = capnp_value_lf64_to_numpy_array_with_nan(
                             obs_values_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
                         )
-                        if not obs_values or len(obs_values) == 0:
+                        if len(obs_values) == 0:
                             logger.warning("%s: no observed values to calibrate!", Path(__file__).name)
                             continue
                     except Exception:
@@ -627,8 +637,7 @@ class Component(process.Process[Config]):
                     sampler := instantiate_algorithm(
                         self.config.algorithm, spot_setup, path_to_spotpy_db=path_to_spotpy_db, db_format="csv"
                     )
-                    is None
-                ):
+                ) is None:
                     continue
 
                 # Run the sampler in a thread so the event loop stays free to handle
