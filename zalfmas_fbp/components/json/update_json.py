@@ -294,6 +294,7 @@ class UpdateJson(process.Process[Config]):
 
         read_new_attrs = True
         in_substream = False
+        attrs_attrs = {}
         while self.in_ports["in"] and self.out_ports["out"]:
             try:
                 if not (in_ip := await self.read_in("in")):
@@ -312,6 +313,7 @@ class UpdateJson(process.Process[Config]):
                         break
                     in_substream = False
                     read_new_attrs = True
+                    attrs_attrs = {}
                     continue
 
                 # read the 'in' message attrs
@@ -323,13 +325,16 @@ class UpdateJson(process.Process[Config]):
                 if self.in_ports["attrs"] and read_new_attrs:
                     if attrs_ip := await self.read_in("attrs"):
                         if attrs_ip._has("content"):
-                            attrs[self.config.name_for_attrs_port] = attrs_ip.content
+                            attrs_attrs[self.config.name_for_attrs_port] = attrs_ip.content
                         for kv in attrs_ip.attributes:
-                            attrs[f"{self.config.name_for_attrs_port}_{kv.key}"] = kv.value
+                            attrs_attrs[f"{self.config.name_for_attrs_port}_{kv.key}"] = kv.value
                     else:
                         self.in_ports["attrs"] = None
                         continue
                     read_new_attrs = not in_substream
+
+                # merge attributes from attrs port into currently received attributes
+                attrs.update(attrs_attrs)
 
                 # upate/replace/add data in 'in' JSON message
                 for op in ["update", "replace", "add"]:
