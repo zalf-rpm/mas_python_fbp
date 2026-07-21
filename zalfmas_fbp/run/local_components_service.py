@@ -278,7 +278,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         proc = process.start_local_process_component(
             self.path_to_executable,
             writer_sr_str,
-            self.id,
+            name=self.name,
             log_level=self.log_level,
         )
         self.procs.append(proc)
