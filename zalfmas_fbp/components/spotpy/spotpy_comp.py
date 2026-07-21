@@ -314,12 +314,12 @@ class SpotPySetup:
         sim_values = None
         try:
             name_to_param = dict(zip(vector.name, vector))
-            out_msg_value = common_capnp.Value.new_message()
-            n2p_list = out_msg_value.init("lpair", len(name_to_param))
+            out_value = common_capnp.Value.new_message()
+            n2p_list = out_value.init("lpair", len(name_to_param))
             for i, (k, v) in enumerate(name_to_param.items()):
                 n2p_list[i].fst = k
                 n2p_list[i].snd = common_capnp.Value.new_message(f64=float(v))
-            out_ip = fbp_capnp.IP.new_message(content=n2p_list)
+            out_ip = fbp_capnp.IP.new_message(content=out_value)
             self._run_on_loop(self._write_sampled_params(out_ip))
             logger.info("%s %s sent params to monica setup: %s", Path(__file__).name, datetime.now(), vector)
             if self.log_out_p:
@@ -331,7 +331,11 @@ class SpotPySetup:
                 return None
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            sim_values = list(in_ip.content.as_struct(common_capnp.Value).lf64)
+            sentinel_values = {}
+            check_and_possibly_add_sentinel_value(sentinel_values, in_ip.attributes, "nan_sentinel")
+            sim_values = capnp_value_lf64_to_numpy_array_with_nan(
+                in_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
+            )
             if self.log_out_p:
                 self._run_on_loop(
                     self._write_log(
