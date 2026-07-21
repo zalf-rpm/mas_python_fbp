@@ -78,6 +78,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b0/f4/d5d633dd7c5138d8f7c434e6ac2553c831b7fb658494efa8d0bc73df8623/duckdb-1.5.4-cp314-cp314-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/c2/b1/43b3e325518ce0969b5fde2280839b06d07c717a3f60070e0f8afdc2c437/gjson-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/72/5fbe5f67ae75d7e89ffb718c500d5fecbaa84f6ba354db306de689faf961/rasterio-1.5.0-cp314-cp314-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d7/3b/2abcc7f47e955a8cb45a6378ec69cd8ed2dcb3d14ceb67717dea020a794a/boto3-1.43.40-py3-none-any.whl
@@ -507,6 +508,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c1/74/0d7f3b3d4d9be8f6a3756e39651b068e8627d6f3e6f00eae3ebb6affdc51/types_boto3_config-1.43.40-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c1/91/8c2d2a5e54d416d40715999ccde80317059d5f16ab34a363446df3a8b0c3/types_boto3_geo_maps-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c2/4d/db4ea3f442aa59b3141470d3b258bd200df2fb054bf1be79f89a761de767/types_boto3_arc_zonal_shift-1.43.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/c2/b1/43b3e325518ce0969b5fde2280839b06d07c717a3f60070e0f8afdc2c437/gjson-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c2/e7/3596e5280729ac3f6734d5a34cb828cae0bb5fc1b6aea9a7b72a681a2218/types_boto3_route53_recovery_readiness-1.43.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c3/7c/306a7ed395afd019e9dc2836e6b5853d72bb5851bafa641456eafdac0a75/types_boto3_mediaconnect-1.43.35-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c5/a9/f4a377113f1636603c7740ef1799d9acdb16f0ebd5310af49ad558823dbb/types_boto3_ivschat-1.43.0-py3-none-any.whl
@@ -1002,6 +1004,7 @@ packages:
   - duckdb>=1.5.3,<2
   - owslib>=0.36.0,<0.37
   - boto3>=1.43.23,<2
+  - gjson>=1.2.0,<2
   requires_python: '>=3.12,<3.15'
 - pypi: https://files.pythonhosted.org/packages/01/8b/540ef2799eaaafe5d79ad980d980511107e724b2b1d6fe02e614d2d3787a/types_boto3_gamelift-1.43.33-py3-none-any.whl
   name: types-boto3-gamelift
@@ -4014,6 +4017,27 @@ packages:
   sha256: 3eda005499c7fdb7309a1de587ae35f9398a6ee96d706816b23b161b81e9b6db
   requires_dist:
   - typing-extensions ; python_full_version < '3.12'
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/c2/b1/43b3e325518ce0969b5fde2280839b06d07c717a3f60070e0f8afdc2c437/gjson-1.2.0-py3-none-any.whl
+  name: gjson
+  version: 1.2.0
+  sha256: c85bf59da57f2b992dc62dc15ca2c128fb4f58523763a8644df863a6d3d5f0c6
+  requires_dist:
+  - bandit ; extra == 'tests'
+  - flake8 ; extra == 'tests'
+  - flake8-import-order ; extra == 'tests'
+  - mypy ; extra == 'tests'
+  - pytest-cov ; extra == 'tests'
+  - pytest-xdist ; extra == 'tests'
+  - pytest ; extra == 'tests'
+  - ruff ; extra == 'tests'
+  - sphinx-rtd-theme>=1.0 ; extra == 'tests'
+  - sphinx-argparse ; extra == 'tests'
+  - sphinx-autodoc-typehints ; extra == 'tests'
+  - sphinx ; extra == 'tests'
+  - types-setuptools ; extra == 'tests'
+  - prospector[with-vulture] ; extra == 'prospector'
+  - pytest ; extra == 'prospector'
   requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/c2/e7/3596e5280729ac3f6734d5a34cb828cae0bb5fc1b6aea9a7b72a681a2218/types_boto3_route53_recovery_readiness-1.43.0-py3-none-any.whl
   name: types-boto3-route53-recovery-readiness

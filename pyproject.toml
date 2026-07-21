@@ -25,7 +25,7 @@ dependencies = [
   "pyarrow>=24.0.0,<25",
   "duckdb>=1.5.3,<2",
   "owslib>=0.36.0,<0.37",
-  "boto3>=1.43.23,<2",
+  "boto3>=1.43.23,<2", "gjson>=1.2.0,<2",
 ]
 
 [dependency-groups]
