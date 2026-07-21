@@ -82,8 +82,8 @@ class Copy(process.Process[CopyConfig]):
             if in_ip is None:
                 break
 
-            out_ip = copy_ip(in_ip)
-            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, out_ip):
+            # out_ip = copy_ip(in_ip)
+            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):
                 break
 
         logger.info("%s process finished", self.name)
