@@ -135,7 +135,18 @@ def read_attr_value(
             attr_val, _ = as_type(attr_val, types[v[0]])
             is_json = False
             sub_access_len = len(v[1:])
-            for i, field_name in enumerate(v[1:]):
+            for i, field_name_and_opt_type_ref in enumerate(v[1:]):
+                # field name might contain an attached type (ref to types dict)
+                fnaotr = (
+                    field_name_and_opt_type_ref.split(":")
+                    if isinstance(field_name_and_opt_type_ref, str)
+                    else [field_name_and_opt_type_ref]
+                )
+                # first part will be in any case the field name
+                field_name = fnaotr[0]
+                # but if an array index had a type attached it would have been treated as string, so in this case we get the index out of the field name again
+                if isinstance(field_name, str) and field_name.isdigit():
+                    field_name = int(field_name)
                 attr_dir = attr_val.__dir__()
                 # check if this is common.capnp/StructuredText[JSON], in that case get values
                 # out of a JSON dict, but only if the user didn't want to access the value directly
@@ -159,6 +170,10 @@ def read_attr_value(
                 # is struct access
                 elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
                     attr_val = attr_val.__getattribute__(field_name)
+
+                # cast to specified type if it was an AnyPointer and the user specified the type
+                if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
+                    attr_val, _ = as_type(attr_val, val_type)
         return attr_val, True
 
     return None, False
@@ -198,9 +213,25 @@ class UpdateJson(process.Process[Config]):
     # update = structures of j and spec have to match exactly
     # replace = if j doesn't match, sub-parts will be replaced according to spec
     # add = if keys are missing, the will be added and set to according sub-spec
-    def change(self, json_obj, spec: dict, attrs, allowed_operation="update"):
+    def change(self, json_obj: dict | list, spec: dict, attrs, allowed_operation="update"):
         for spec_key, spec_value in spec.items():
-            spec_index = int(spec_key) if spec_key.isdigit() else None
+            spec_index = None
+            # if the spec_key is a query search for that key in list of objects
+            if (
+                isinstance(spec_key, str)
+                and len(spec_key) > 1
+                and spec_key[0] == "["
+                and spec_key[-1] == "]"
+                and isinstance(json_obj, list)
+            ):
+                search_key, search_val = search.split("=") if "=" in (search := spec_key[1:-1]) else [search, None]
+                if search_val is not None:
+                    for j, obj in enumerate(json_obj):
+                        if isinstance(obj, dict) and obj.get(search_key, None) == search_val:
+                            spec_index = j
+                            break
+            else:
+                spec_index = int(spec_key) if spec_key.isdigit() else None
             # check the key against j to be changed
             # the key is an index and points outside the array j
             if spec_index is not None and type(json_obj) is list:
@@ -224,13 +255,13 @@ class UpdateJson(process.Process[Config]):
                 # access a list
                 if spec_index is not None and type(json_obj) is list:
                     # j[i] is a pointer, so we recurse
-                    if type(json_obj[spec_index]) in [list, dict]:
+                    if isinstance(json_obj[spec_index], (list, dict)):
                         self.change(json_obj[spec_index], spec_value, attrs, allowed_operation)
                     elif allowed_operation == "replace":
                         json_obj[spec_index] = spec_value
                 # access a dict
                 # j[k] is a pointer, so we can recurse
-                elif type(json_obj[spec_key]) in [list, dict]:
+                elif isinstance(json_obj[spec_key], (list, dict)):
                     self.change(json_obj[spec_key], spec_value, attrs, allowed_operation)
                 elif allowed_operation == "replace":
                     json_obj[spec_key] = spec_value
