@@ -32,6 +32,7 @@ from numpy import ndarray
 from pydantic import Field
 from zalfmas_common import common
 
+from zalfmas_fbp.run.ports import get_attr_val
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
@@ -332,7 +333,10 @@ class SpotPySetup:
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
             sentinel_values = {}
-            check_and_possibly_add_sentinel_value(sentinel_values, in_ip.attributes, "nan_sentinel")
+            nan_sentinel, success = get_attr_val("nan_sentinel", in_ip.attributes)
+            if success:
+                sentinel_values[nan_sentinel] = np.nan
+            #check_and_possibly_add_sentinel_value(sentinel_values, in_ip.attributes, "nan_sentinel")
             sim_values = capnp_value_lf64_to_numpy_array_with_nan(
                 in_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
             )
