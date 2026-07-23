@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.2.34](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.33...v0.2.34) (2026-07-23)
+
+
+### Features
+
+* add aditional activity state and refactor port disconnect callback ([6b4c3f0](https://github.com/zalf-rpm/mas_python_fbp/commit/6b4c3f0a69730c8c060165f3e4be44524880e1ae))
+* add component templates ([c727526](https://github.com/zalf-rpm/mas_python_fbp/commit/c72752677c40458fe63fd09c797cf6a714ea41c0))
+* add loadbalancing component ([1eb5a3c](https://github.com/zalf-rpm/mas_python_fbp/commit/1eb5a3c23fe59e1b62854a5871840c897e37ce83))
+* add more dakis components ([4dd2e63](https://github.com/zalf-rpm/mas_python_fbp/commit/4dd2e6335bebac85c286acb0bcc8355a19c4b4a0))
+* add next available distribution strategy and make load balancer configurable in that regard ([9ea9de4](https://github.com/zalf-rpm/mas_python_fbp/commit/9ea9de48a83944cc9351a170c66cfa3d0464d949))
+* add option to type and validate the config ([c75893c](https://github.com/zalf-rpm/mas_python_fbp/commit/c75893c276f0813e1de407e1fe908ea46677e7c1))
+* add per channel instantiation gateway registration ([c421796](https://github.com/zalf-rpm/mas_python_fbp/commit/c421796ab7a37edb9de9c095c0a664fee107068e))
+* add process info instead of error to gain more information ([2f457c0](https://github.com/zalf-rpm/mas_python_fbp/commit/2f457c0b3971f38448daabd03bbf8a590c4956ff))
+* add rbs download component for dakis ([00e1580](https://github.com/zalf-rpm/mas_python_fbp/commit/00e1580cbd15f2e4728f3d40720b75e7ef8ade7e))
+* allow also json when passing unstructured text ([18c87d1](https://github.com/zalf-rpm/mas_python_fbp/commit/18c87d123ed7b2e538340d4f714bf0bbca232574))
+* **channel-startup:** add config option to reususe registry for channel sturdyrefs for globally accessible channels ([ec219af](https://github.com/zalf-rpm/mas_python_fbp/commit/ec219afae4ff2268ba7baa74135ac9f2b5e25cd3))
+* **components:** apply startup conf handling ([af5dab9](https://github.com/zalf-rpm/mas_python_fbp/commit/af5dab9063e05b6754f0a078fa8e7b00d0960e91))
+* extract input and output code ([1520f6d](https://github.com/zalf-rpm/mas_python_fbp/commit/1520f6d9fdac63fb64f74754422b8f0bac4fa784))
+* further refactor process class ([d976284](https://github.com/zalf-rpm/mas_python_fbp/commit/d9762849a578c58e26d52e082f1162cf7e2c1505))
+* have docker dev and prod stage for easier hot reloading  also use pixi locked install for reproducability ([e91d48b](https://github.com/zalf-rpm/mas_python_fbp/commit/e91d48b94de8d24dd896788adcaf7cf8c2b91300))
+* improve type safety by having a metadata pydantic model and validating it also for command line args ([f5d8d0c](https://github.com/zalf-rpm/mas_python_fbp/commit/f5d8d0ca0128503ad422a4fb803d5caffa8ea41e))
+* make exception handling more clear and inline with linting rules ([ed1d2c9](https://github.com/zalf-rpm/mas_python_fbp/commit/ed1d2c96beef485b08429362b17d84ce9a3a0469))
+* migrate to typed metadata shape ([f8b09b7](https://github.com/zalf-rpm/mas_python_fbp/commit/f8b09b76fb43c113e93b7bfb1c22b4ac91db92c8))
+* moved a few components to Process pattern ([96cb8a3](https://github.com/zalf-rpm/mas_python_fbp/commit/96cb8a3568fe3bf2dc7ffde94ce926d6ae549d1e))
+* moved local config to Python datastructures instead of common_capnp:Value's ([5e8986a](https://github.com/zalf-rpm/mas_python_fbp/commit/5e8986a1fac3bd99405234771dd65917be3140b0))
+* **process:** add startup config support ([b7fe35e](https://github.com/zalf-rpm/mas_python_fbp/commit/b7fe35e0d2ddc385e904212b2bdf037d681d1250))
+* refactor process and add new mimetyped blop ip ([dbb45aa](https://github.com/zalf-rpm/mas_python_fbp/commit/dbb45aa140a57d295c4f03619f26e1f819dcca1e))
+* resolve type through the new helper in to string and use sys attribute on ip as principal type description ([704dbca](https://github.com/zalf-rpm/mas_python_fbp/commit/704dbcae73f3448e5a50a8794fa339522989f438))
+* reuse the component config to generate the metadata format to have a single source of truth ([60ecbc9](https://github.com/zalf-rpm/mas_python_fbp/commit/60ecbc99ce6656a16f7729c7e5f1e660bdc44095))
+* save last error and return it on demand incase of crash to report feedback  to the ui or consumer ([461dacd](https://github.com/zalf-rpm/mas_python_fbp/commit/461dacdb7da0e952d48eb4ff9eb5429af8dd0ce1))
+
+
+### Bug Fixes
+
+* activity state for automatic bracketet ports ([b8ee423](https://github.com/zalf-rpm/mas_python_fbp/commit/b8ee42357fde6336b4774aa0c442d28e9e73a710))
+* add environment to basedpyright config so pycharm can use it without the plugin ([f7c864f](https://github.com/zalf-rpm/mas_python_fbp/commit/f7c864f24a051a9d0ae3ddbeafcfd60a74f659c9))
+* **array port:** broadcast strategy sending one by one instead of all at once ([4330ba8](https://github.com/zalf-rpm/mas_python_fbp/commit/4330ba84d770461ec2deb519d893457cbdab32d1))
+* check name for port ([87bfb7a](https://github.com/zalf-rpm/mas_python_fbp/commit/87bfb7afe6f42eed646859c0fd4834b9cac749cd))
+* copy op is unnecessary and doesn't take open/close brackets etc ([2c3c482](https://github.com/zalf-rpm/mas_python_fbp/commit/2c3c482cb925ed7eccd6808abcce187744a393c8))
+* finl correction of project description and save enablement of ruff and pyright ([ea1d979](https://github.com/zalf-rpm/mas_python_fbp/commit/ea1d979bfc057e5a91f24350279c7e44323903f5))
+* fixed casting ([32ee55d](https://github.com/zalf-rpm/mas_python_fbp/commit/32ee55dd5b9eb69b4f159e0a45092721b94e4aea))
+* fixed port access ([4e0337c](https://github.com/zalf-rpm/mas_python_fbp/commit/4e0337c99f255b0d1fc70c4166ca7e10bb8dd2b0))
+* fixed some issues due to new method of casting ([30d872a](https://github.com/zalf-rpm/mas_python_fbp/commit/30d872a5ea613e882c3287976ccbed2eb9dd3ce4))
+* now sending/receiving msgs works from worker thread (via main ([5fff016](https://github.com/zalf-rpm/mas_python_fbp/commit/5fff016f81b744940d3003ac92964fedbbf6fa19))
+* pyproject.toml to use correct pixi environments and put dev deps in the correct environment ([a24f47d](https://github.com/zalf-rpm/mas_python_fbp/commit/a24f47d59babb8f766b744287fdd19fa3ede3acb))
+* remove .t accessor from distribution strategy in load balancer ([f50c10d](https://github.com/zalf-rpm/mas_python_fbp/commit/f50c10db8176612b97c35059c3325b7a45a2812a))
+* remove last usage of .t accessor ([0ebeb13](https://github.com/zalf-rpm/mas_python_fbp/commit/0ebeb13835ffce080ab633b3f848ea8505acf7ac))
+* remove poetry.lock copy in dockerfile that doesnt exist anymore also update deps ([09ab059](https://github.com/zalf-rpm/mas_python_fbp/commit/09ab059498adf4453ce8e7a14b1b256eafde617e))
+* rename to automatic chunking to respect other bracketed applications ([fcd7f46](https://github.com/zalf-rpm/mas_python_fbp/commit/fcd7f461205b3307e0d3c5b477475cbe2ea8968c))
+* selectively turned off pyright errors ([730d0a7](https://github.com/zalf-rpm/mas_python_fbp/commit/730d0a795732796738144307587af86eb2ea6b58))
+* sent not the value, but the inside list ([bb409a6](https://github.com/zalf-rpm/mas_python_fbp/commit/bb409a62a25a74c8deba8d310b57f23a25ca6f86))
+* set correct env for pycharm (maybe exclude it from git) ([8b19439](https://github.com/zalf-rpm/mas_python_fbp/commit/8b19439f799d1ebf2214e01201820fde3b6ecf80))
+* use correct type for config_type ([d6e3777](https://github.com/zalf-rpm/mas_python_fbp/commit/d6e377794c9cb3919882f8616b5b7338d6b6c3a3))
+* user correct type for value and lb instead of for boolean lists ([cf300fe](https://github.com/zalf-rpm/mas_python_fbp/commit/cf300fee75f26197461caed380e68352f20aa0c6))
+
 ## [0.2.33](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.32...v0.2.33) (2026-05-05)
 
 
