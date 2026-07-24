@@ -103,15 +103,15 @@ def python_value_from_capnp_value(value: ValueReader) -> ConfigValue:
     if value_type == "lpair":
         pairs = list(value.lpair)
         for pair in pairs:
-            if not pair._has("fst") or not pair._has("snd"):
-                msg = "Pair entries must have both 'fst' and 'snd'"
+            if not pair._has("fst"):# or not pair._has("snd"):
+                msg = "Pair entries must have at least 'fst'" #both 'fst' and 'snd'"
                 raise TypeError(msg)
         try:
             d: dict[str, ConfigValue] = {}
             for pair in pairs:
                 d[pair.fst.as_text()] = python_value_from_capnp_value(
                     pair.snd.as_struct(common_capnp.Value),
-                )
+                ) if pair._has("snd") else None
         except (AttributeError, capnp.KjException, TypeError) as error:
             msg = f"Error unpacking dict (list of pairs): {error}"
             raise TypeError(msg) from error

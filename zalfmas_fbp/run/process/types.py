@@ -13,7 +13,7 @@ type ArrayReaderPorts = list["ReaderClient | None"]
 type ArrayWriterPorts = list["WriterClient | None"]
 type ArrayOutWriteTasks = list["asyncio.Task[bool] | None"]
 type ConfigScalar = str | int | float | bool
-type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue]
+type ConfigValue = ConfigScalar | list[ConfigValue] | dict[str, ConfigValue] | None
 type RawConfig = dict[str, ConfigValue]
 
 
