@@ -538,9 +538,9 @@ def _build_value(
     normalized, null_used, nan_used = _replace_sentinels_recursive(value, cfg.null_sentinel, cfg.nan_sentinel)
     value_msg, selected_field = _build_value_auto(normalized, cfg, fields, use_requested_type=True)
     sentinel_attrs: dict[str, common_capnp.types.builders.ValueBuilder] = {}
-    if null_used:
+    if null_used or cfg.null_sentinel is not None:
         sentinel_attrs[cfg.null_sentinel_attr] = _sentinel_value_for_selected_type(selected_field, cfg.null_sentinel)
-    if nan_used:
+    if nan_used or cfg.nan_sentinel is not None:
         sentinel_attrs[cfg.nan_sentinel_attr] = _sentinel_value_for_selected_type(selected_field, cfg.nan_sentinel)
     return value_msg, selected_field, sentinel_attrs
 
