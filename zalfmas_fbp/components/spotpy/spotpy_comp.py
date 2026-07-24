@@ -332,11 +332,11 @@ class SpotPySetup:
                 return None
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+            in_attrs = {kv.key: kv.value for kv in in_ip.attributes}
             sentinel_values = {}
-            nan_sentinel, success = get_attr_val("nan_sentinel", in_ip.attributes)
+            nan_sentinel, success = get_attr_val("nan_sentinel", in_attrs, as_struct=common_capnp.Value)
             if success:
-                sentinel_values[nan_sentinel] = np.nan
-            #check_and_possibly_add_sentinel_value(sentinel_values, in_ip.attributes, "nan_sentinel")
+                sentinel_values[nan_sentinel.f64] = np.nan
             sim_values = capnp_value_lf64_to_numpy_array_with_nan(
                 in_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
             )

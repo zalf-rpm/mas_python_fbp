@@ -1,4 +1,51 @@
 {
+    "66f86dbb-efb1-4b16-8837-3a2aa1eca30e": {
+        "category": {
+            "id": "models/monica",
+            "name": "Models/MONICA"
+        },
+        "info": {
+            "id": "66f86dbb-efb1-4b16-8837-3a2aa1eca30e",
+            "name": "MONICA",
+            "description": "MONICA FBP component"
+        },
+        "type": "standard",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "env",
+                "contentType": "@0xb7fc866ef1127f7c = model/model.capnp:Env[@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON]]",
+                "desc": "Env IP content will be used as MONICA input. Forwards open/close brackets downstream."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "result",
+                "contentType": "Text (JSON object)",
+                "desc": "MONICA output."
+            }
+        ],
+        "defaultConfig": {
+            "from_attr": {
+                "value": null,
+                "type": "string",
+                "desc": "Get Env from this attribute instead of content of env IP."
+            },
+            "to_attr": {
+                "value": null,
+                "type": "string",
+                "desc": "Send content instead in 'to_attr'"
+            },
+            "monica_sr": {
+                "value": null,
+                "type": "string",
+                "desc": "Use this sturdy ref to connect to an external MONICA, else a MONICA instance will be created."
+            }
+        }
+    },
     "79723094-0972-48ec-b219-030dae730063": {
         "category": {
             "id": "climate",
@@ -260,7 +307,7 @@
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "Compressed GeoTIFF bytes."
             }
         ],
@@ -277,12 +324,6 @@
             },
             "compression": {
                 "value": "zstd",
-                "type": [
-                    "zstd",
-                    "deflate",
-                    "lzw",
-                    "none"
-                ],
                 "desc": "GeoTIFF compression algorithm."
             }
         }
@@ -301,19 +342,19 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "Compressed raster bytes."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "Filtered GeoParquet bytes."
             },
             {
                 "name": "raster",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "Original raster bytes."
             }
         ],
@@ -408,8 +449,8 @@
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with path, filename, and content_type attributes."
+                "contentType": "common.capnp:Blob",
+                "desc": "Prepared file Blob with path, filename, and content type metadata."
             }
         ],
         "defaultConfig": {
@@ -456,8 +497,8 @@
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with path, filename, and content_type attributes."
+                "contentType": "common.capnp:Blob",
+                "desc": "Prepared file Blob with path, filename, and content type metadata."
             }
         ],
         "defaultConfig": {
@@ -517,19 +558,19 @@
         "inPorts": [
             {
                 "name": "raster",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "Compressed raster bytes."
             },
             {
                 "name": "geometries",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "GeoParquet bytes with lucode, priority, and geometry columns."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "Burned raster bytes."
             }
         ],
@@ -551,13 +592,6 @@
             },
             "compression": {
                 "value": "preserve",
-                "type": [
-                    "preserve",
-                    "zstd",
-                    "deflate",
-                    "lzw",
-                    "none"
-                ],
                 "desc": "Output raster compression algorithm. Use 'preserve' to keep the incoming raster compression."
             }
         }
@@ -577,14 +611,14 @@
             {
                 "name": "in",
                 "type": "array",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "Array of relabeled GeoParquet bytes."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "Merged GeoParquet bytes."
             }
         ],
@@ -615,19 +649,19 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "GeoParquet bytes."
             },
             {
                 "name": "translation",
-                "contentType": "Text | common.capnp:Value[Data]",
+                "contentType": "Text | common.capnp:Blob[text/csv]",
                 "desc": "Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "Relabeled GeoParquet bytes."
             }
         ],
@@ -673,14 +707,14 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "GeoParquet bytes."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
                 "desc": "Prepared GeoParquet file payload."
             }
         ],
@@ -697,13 +731,6 @@
             },
             "compression": {
                 "value": "zstd",
-                "type": [
-                    "preserve",
-                    "zstd",
-                    "gzip",
-                    "snappy",
-                    "none"
-                ],
                 "desc": "GeoParquet compression algorithm. Use 'preserve' to write bytes unchanged."
             }
         }
@@ -716,21 +743,21 @@
         "info": {
             "id": "f706a283-6d07-4aae-828f-6cf8e4bf62c2",
             "name": "write raster",
-            "description": "Prepare received raster bytes as a GeoTIFF file payload."
+            "description": "Prepare received raster bytes as a GeoTIFF or Cloud Optimized GeoTIFF file payload."
         },
         "type": "process",
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
                 "desc": "GeoTIFF raster bytes."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared GeoTIFF file payload."
+                "contentType": "common.capnp:Blob[image/tiff; application=geotiff] | common.capnp:Blob[image/tiff; application=geotiff; profile=cloud-optimized]",
+                "desc": "Prepared GeoTIFF or COG file payload."
             }
         ],
         "defaultConfig": {
@@ -746,14 +773,12 @@
             },
             "compression": {
                 "value": "preserve",
-                "type": [
-                    "preserve",
-                    "zstd",
-                    "deflate",
-                    "lzw",
-                    "none"
-                ],
-                "desc": "GeoTIFF compression algorithm. Use 'preserve' to write bytes unchanged."
+                "desc": "GeoTIFF/COG compression algorithm. Use 'preserve' to keep the source compression."
+            },
+            "write_as_cog": {
+                "value": false,
+                "type": "bool",
+                "desc": "If true, rewrite the output as a Cloud Optimized GeoTIFF (COG)."
             }
         }
     },
@@ -771,8 +796,8 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with optional path and filename attributes."
+                "contentType": "common.capnp:Blob",
+                "desc": "Prepared file Blob with optional path and filename metadata."
             }
         ],
         "outPorts": [],
@@ -803,8 +828,8 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "common.capnp:Value[Data]",
-                "desc": "Prepared file payload bytes with optional path and filename attributes."
+                "contentType": "common.capnp:Blob",
+                "desc": "Prepared file Blob with optional path and filename metadata."
             }
         ],
         "outPorts": [],
@@ -907,7 +932,7 @@
             "name": "read file",
             "description": "Read a file and send full string or lines downstream."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
@@ -927,7 +952,6 @@
                 "desc": "store read file content into 'to_attr'"
             },
             "file": {
-                "value": "",
                 "type": "string",
                 "desc": "Path to file to read."
             },
@@ -940,6 +964,73 @@
                 "value": 0,
                 "type": "int",
                 "desc": "If lines mode is true, skip that many lines at the beginning of the file."
+            }
+        }
+    },
+    "361d2bb9-504e-4173-9d58-26c71d50d6b3": {
+        "category": {
+            "id": "file",
+            "name": "File"
+        },
+        "info": {
+            "id": "361d2bb9-504e-4173-9d58-26c71d50d6b3",
+            "name": "Read Excel file",
+            "description": "Turn selected excel tables into JSON datastructures"
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "The selected Excel tables as (possibly nested) JSON datastructures."
+            }
+        ],
+        "defaultConfig": {
+            "file": {
+                "value": "/path/to/excel/file.xls(x)",
+                "type": "string",
+                "desc": "Path to Excel file (xls(x))"
+            },
+            "sheets_to_load": {
+                "value": [],
+                "type": "list[string]",
+                "desc": "Names of sheets to read dynamically. Their columns are read generically and the resulting sub-object is attached based on the key columns present in the sheet: PLTID(+TREAT_ID+EID) -> plot, TREAT_ID(+EID) -> treatment, EID -> experiment. The sub-object key is the lower-cased sheet name. If the key columns are unique per row a single object is stored, otherwise a list of rows is stored."
+            },
+            "load_all": {
+                "value": false,
+                "type": "bool",
+                "desc": "If True, automatically reads every sheet."
+            },
+            "index_of_header_row": {
+                "value": 0,
+                "type": "int",
+                "desc": "The row number (starting at 0), which should be used for the header names."
+            },
+            "nesting_by_key_cols": {
+                "value": {},
+                "type": "object",
+                "desc": "When set, specifies which nesting levels to create according to these keys in the header columns.\n        E.g. {\n            \"experiments\": [\"EID\"],\n            \"treatments\": [\"EID\", \"TREAT_ID\"],\n            \"plots\": [\"EID\", \"TREAT_ID\", \"PLTID\"],\n        }\n        This will create nested dictionaries if columns with these keys exist."
+            },
+            "send_nesting_level": {
+                "value": [],
+                "type": "list[string]",
+                "desc": "Send messages at this nesting level, e.g. ['EID', 'TREAT_ID']."
+            },
+            "include_branch_level_data": {
+                "value": false,
+                "type": "bool",
+                "desc": "If send nesting is not empty, then if set to true sends the data at the branch level, before\n        traversing down the nesting level as extra message.\n        If there is no nested sending requested, just one message with all data will be send."
+            },
+            "include_brackets_when_sending_nested": {
+                "value": true,
+                "type": "bool",
+                "desc": "Add a bracket IP pair around each nesting level."
             }
         }
     },
@@ -1280,7 +1371,7 @@
             "name": "add attribute",
             "description": "Add attribute to incoming IP."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
@@ -1307,7 +1398,7 @@
         "defaultConfig": {
             "to_attr": {
                 "value": "attr",
-                "type": "Text",
+                "type": "string",
                 "desc": "The attribute's name to add to the outgoing message."
             }
         }
@@ -1322,11 +1413,11 @@
             "name": "Add content",
             "description": "Add content to incoming IP, optionally moving the old to an attribute."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "in",
@@ -1342,14 +1433,14 @@
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text",
+                "contentType": "AnyPointer",
                 "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'."
             }
         ],
         "defaultConfig": {
             "to_attr": {
                 "value": "attr",
-                "type": "Text",
+                "type": "string",
                 "desc": "The attribute's name to add to the outgoing message."
             }
         }
@@ -1361,7 +1452,7 @@
         },
         "info": {
             "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
-            "name": "copy",
+            "name": "Copy IP",
             "description": "Copy IP to multiple outputs."
         },
         "type": "process",
@@ -1381,6 +1472,81 @@
             }
         ],
         "defaultConfig": {}
+    },
+    "f3db87d1-7a50-491c-95aa-a2b6f17fb4f5": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "f3db87d1-7a50-491c-95aa-a2b6f17fb4f5",
+            "name": "Copy IP on trigger",
+            "description": "Copy IP(s) to multiple outputs when triggered. Is substream sensitive.\n       If a single level substream is detected, then the copy operation will apply to the whole substream."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "The IP (or whole substream) to copy to all attached outports. "
+            },
+            {
+                "name": "trigger",
+                "contentType": "AnyPointer",
+                "desc": "If connected, then a copy will only be triggered if an IP arrives on this port."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "type": "array",
+                "contentType": "AnyPointer",
+                "desc": "Copied IP (substream) for each attached outport"
+            },
+            {
+                "name": "trigger",
+                "contentType": "AnyPointer",
+                "desc": "If connected just forwards the IP which triggered the copies."
+            }
+        ],
+        "defaultConfig": {}
+    },
+    "e8206aa9-2254-40f0-b2c0-06d31fb25629": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "e8206aa9-2254-40f0-b2c0-06d31fb25629",
+            "name": "Wrap IPs into substream",
+            "description": "Wrap a set of incoming IPs into a substream."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "The IPs to wrap int substream."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "Substream wrapped IPs received on 'in' port."
+            }
+        ],
+        "defaultConfig": {
+            "no_of_ips": {
+                "value": 0,
+                "type": "int",
+                "desc": "Number of IPs to wrap into substream. 0 means wrap all IPs and wait for upstream port to close.\n        An incoming substream counts as one IP!"
+            }
+        }
     },
     "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d": {
         "category": {
@@ -1433,11 +1599,11 @@
             "name": "lift attributes",
             "description": "Lift attributes."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "in",
@@ -1454,14 +1620,13 @@
         ],
         "defaultConfig": {
             "lift_from_attr": {
-                "value": "name",
+                "value": "attribute_name",
                 "type": "string",
                 "desc": "Attribute to read from IP."
             },
             "lift_from_type": {
-                "value": "schema.capnp:Type",
                 "type": "string",
-                "desc": "Capnp struct type to read from attribute."
+                "desc": "@0x123.... = some/path/some_fil._capnp:Type -> Capnp struct type to read from attribute. Not needed if the attributes valueType field is set."
             },
             "lifted_attrs": {
                 "value": [
@@ -1469,8 +1634,45 @@
                     "attr2",
                     "attr3"
                 ],
-                "type": "List",
-                "desc": "Attributes to lift from struct into metadata."
+                "type": "list[string]",
+                "desc": "[\"attr1\", \"attr2\", \"attr3\"] -> Attributes to lift from struct into metadata."
+            }
+        }
+    },
+    "f07fa00e-dd80-45da-bc49-397d5e25fe0f": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "f07fa00e-dd80-45da-bc49-397d5e25fe0f",
+            "name": "remove attributes",
+            "description": "Remove the configured attributes from incoming IPs and forward them otherwise unchanged."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Input message with any content and attributes."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same message as on 'in', but with the configured attributes removed."
+            }
+        ],
+        "defaultConfig": {
+            "remove_attrs": {
+                "value": [],
+                "type": "list[string]",
+                "desc": "[\"attr1\", \"attr2\"] -> Names of the attributes to remove from incoming IPs."
             }
         }
     },
@@ -1484,16 +1686,21 @@
             "name": "Update JSON",
             "description": "Update JSON datastructures."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "JSON text which is supposed to be updated and changed."
+                "desc": "JSON text which is supposed to be updated and changed. Is substream sensitive, meaning if the\n            'attrs' port is connected one IP from 'attrs' will be applied to all the IPs in the substream."
+            },
+            {
+                "name": "attrs",
+                "contentType": "AnyPointer",
+                "desc": "If connected, then for each message received on 'attrs', the attributes and the content of that message\n            will be made available to the component as '@attrs' for the content of the message and\n            each attribute as '@attrs_{attr_name}', if any. By default the used name will be\n            the ports name ('attrs'), unless it has been renamed via the config option 'name_for_attrs_port'."
             }
         ],
         "outPorts": [
@@ -1506,58 +1713,358 @@
         "defaultConfig": {
             "types": {
                 "value": {
-                    "@setup": "mas.schema.model.monica.sim_setup_capnp:Setup"
+                    "@setup": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"
                 },
                 "type": "object",
                 "desc": "Define the loadable type the attribute being referenced has."
             },
+            "attr_sub_access_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "The token to be used to separate path names for accessing sub-objects, e.g. @attr_object/sub1/sub2."
+            },
             "update": {
-                "value": [
-                    [
-                        "climate",
-                        "csv-options",
-                        "start-date",
-                        "<-",
-                        [
-                            "@setup",
-                            "startDate"
-                        ]
-                    ],
-                    [
-                        "climate",
-                        "csv-options",
-                        "end-date",
-                        "<-",
-                        "1999-01-09"
-                    ],
-                    [
-                        "customId_ex",
-                        "<-",
-                        1
-                    ],
-                    [
-                        "cropRotationTemplate_ex",
-                        "WW",
-                        0,
-                        "worksteps",
-                        0,
-                        "date",
-                        "<-",
-                        "2020-01-03"
-                    ]
-                ],
-                "type": "array",
-                "desc": "List of update operations to perform on the JSON structure. Structure and description have to match."
+                "value": {
+                    "climate/csv-options/start-date": "@setup/startDate",
+                    "climate/csv-options/end-date": "1999-01-09",
+                    "customId_ex": 1,
+                    "cropRotationTemplate_ex/WW/0/worksteps/0/date": "2020-01-03"
+                },
+                "type": "object",
+                "desc": "Mapping of update operations to perform on the JSON structure. Structure and description have to match."
             },
             "replace": {
-                "value": [],
-                "type": "array",
-                "desc": "List of replacement operations to perform on the JSON structure."
+                "value": {},
+                "type": "object",
+                "desc": "Mapping of replacement operations to perform on the JSON structure."
             },
             "add": {
+                "value": {},
+                "type": "object",
+                "desc": "Mapping of addition operations to perform on the JSON structure."
+            },
+            "name_for_attrs_port": {
+                "value": "attrs",
+                "type": "string",
+                "desc": "The content of a message received on the 'attrs' port will be made available under that name\n        for the updates as an attribute. By default this will be the ports name, thus '@attrs'."
+            }
+        }
+    },
+    "161c9d39-a3c5-4885-beb2-9d85a7c777bf": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "161c9d39-a3c5-4885-beb2-9d85a7c777bf",
+            "name": "Filter JSON",
+            "description": "Traverse JSON to a leaf and filter it by selected paths."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "Input JSON text to traverse and filter."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "Filtered JSON text."
+            }
+        ],
+        "defaultConfig": {
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path (e.g. 'obs_crop_daily_means' or 'root/items/0') from the input JSON root to the leaf structure that should be filtered."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used for traversal_path and filter_paths."
+            },
+            "filter_paths": {
                 "value": [],
-                "type": "array",
-                "desc": "List of addition operations to perform on the JSON structure."
+                "type": "list[string]",
+                "desc": "List of paths to keep from each filtered item. Supports nested paths and list indices (e.g. ['DATE', 'stats/CWAD', '0/value']). Optional aliases can be provided as 'alias=path' (e.g. 'date=DATE')."
+            },
+            "values_only": {
+                "value": false,
+                "type": "bool",
+                "desc": "If true, return only values in the order of filter_paths instead of key/value objects. For a list leaf this results in a list of lists."
+            },
+            "flatten_values_only_lists": {
+                "value": false,
+                "type": "bool",
+                "desc": "If true and values_only is true, flatten one list nesting level for list outputs. This turns list-of-lists into a single list."
+            }
+        }
+    },
+    "308d0b88-18f5-4d40-8b3f-bab35fdad44e": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "308d0b88-18f5-4d40-8b3f-bab35fdad44e",
+            "name": "Map JSON values",
+            "description": "Map over JSON list items or object values and apply configured transformation operations."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "Input JSON as list, object, or atomic value."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "Transformed JSON."
+            }
+        ],
+        "defaultConfig": {
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used in operation paths."
+            },
+            "operations": {
+                "value": [],
+                "type": "list",
+                "desc": "Ordered transformation operations applied to each list item, object value, or the top-level atomic input.\n            Defined like: {\"path\": \"key/key\", \"op\": \"round\", \"ndigits\": 2}"
+            },
+            "max_abs_exponent": {
+                "value": 100,
+                "type": "int",
+                "desc": "Absolute exponent limit for pow operation."
+            },
+            "on_error": {
+                "value": "keep_original",
+                "type": [
+                    "keep_original",
+                    "null",
+                    "drop_message"
+                ],
+                "desc": "Error behavior for a message: keep_original forwards unmodified input, null forwards JSON null, drop_message skips output."
+            }
+        }
+    },
+    "e1018222-9029-4fbe-935d-cef5ab1c8011": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "e1018222-9029-4fbe-935d-cef5ab1c8011",
+            "name": "Interpolate JSON by key",
+            "description": "Group JSON objects and interpolate y=f(x) at configured x positions."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "Input JSON containing or being a list of objects."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "Output list of grouped interpolated points as JSON text."
+            }
+        ],
+        "defaultConfig": {
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path from input root to list leaf that should be processed."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator for traversal_path."
+            },
+            "group_key": {
+                "type": "string",
+                "desc": "Optional key used to split list items into groups (e.g. TREAT_ID)."
+            },
+            "x_key": {
+                "value": "x",
+                "type": "string",
+                "desc": "Key in each list item used as x-axis value."
+            },
+            "y_key": {
+                "value": "y",
+                "type": "string",
+                "desc": "Key in each list item used as y-axis value."
+            },
+            "inter_x": {
+                "value": [],
+                "type": "list",
+                "desc": "Query x values at which interpolated y values are calculated."
+            },
+            "extrapolation": {
+                "value": "null",
+                "type": [
+                    "null",
+                    "clamp",
+                    "linear"
+                ],
+                "desc": "How to handle inter_x outside the observed x-range: null -> y is null, clamp -> boundary y, linear -> linearly extrapolate."
+            },
+            "on_error": {
+                "value": "null",
+                "type": [
+                    "keep_original",
+                    "null",
+                    "drop_message"
+                ],
+                "desc": "Error handling per incoming message."
+            }
+        }
+    },
+    "48701153-3743-4f42-a30d-e133065cbf4d": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "48701153-3743-4f42-a30d-e133065cbf4d",
+            "name": "JSON to common Value",
+            "description": "Convert JSON text into a common.capnp:Value with optional automatic type optimization."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "JSON text to convert to common.capnp:Value."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "@0xe17592335373b246 = common/common.capnp:Value",
+                "desc": "Converted Value."
+            }
+        ],
+        "defaultConfig": {
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path from input root to the JSON value to convert."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator for traversal_path."
+            },
+            "requested_type": {
+                "type": "string",
+                "desc": "Optional Value union field to force, e.g. lpair, lf64, li64, lt, lb, f64, i64, t, b. Set to null for automatic type selection."
+            },
+            "auto_select_type": {
+                "value": true,
+                "type": "bool",
+                "desc": "Automatically pick a fitting Value type from the JSON input."
+            },
+            "optimize_smallest_type": {
+                "value": true,
+                "type": "bool",
+                "desc": "When auto selecting, choose the smallest fitting numeric type if possible."
+            },
+            "allow_fallback_if_requested_type_fails": {
+                "value": true,
+                "type": "bool",
+                "desc": "If requested_type is set but values do not fit, fallback to a fitting type (if possible). If false, skip the message."
+            },
+            "null_sentinel": {
+                "desc": "Replacement value for JSON null in scalar/list conversions."
+            },
+            "nan_sentinel": {
+                "desc": "Replacement value for NaN entries in float scalar/list conversions."
+            },
+            "attach_sentinel_attributes": {
+                "value": true,
+                "type": "bool",
+                "desc": "Attach attributes describing sentinel values applied to outgoing messages."
+            },
+            "null_sentinel_attr": {
+                "value": "null_sentinel",
+                "type": "string",
+                "desc": "Attribute name for applied null sentinel value."
+            },
+            "nan_sentinel_attr": {
+                "value": "nan_sentinel",
+                "type": "string",
+                "desc": "Attribute name for applied NaN sentinel value."
+            },
+            "skip_on_error": {
+                "value": true,
+                "type": "bool",
+                "desc": "Skip message on conversion errors."
+            }
+        }
+    },
+    "b649bc12-4473-44bb-89b5-1de1201bf545": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "b649bc12-4473-44bb-89b5-1de1201bf545",
+            "name": "Apply GJSON queries",
+            "description": "Apply sequential GJSON queries on JSON input and optionally merge first-level substream results."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "Input JSON text."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "Result JSON after applying all configured queries."
+            }
+        ],
+        "defaultConfig": {
+            "queries": {
+                "value": [],
+                "type": "list[string]",
+                "desc": "GJSON queries applied sequentially. Query i+1 runs on the result of query i."
+            },
+            "merge_substream_results": {
+                "value": false,
+                "type": "bool",
+                "desc": "If true, flatten first-level substreams by merging object results or concatenating array results, and emit one result message for each completed substream."
             }
         }
     },
@@ -1600,57 +2107,67 @@
             "name": "Create model.capnp:Env with MONICA payload",
             "description": "Create model.capnp:Env with MONICA JSON env payload."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
-                "name": "climate",
-                "contentType": "climate.capnp:TimeSeries | Text",
-                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability or a path to a CSV file."
+                "name": "timeseries",
+                "contentType": "@0xa7769f40fe6e6de8 = climate/climate.capnp:TimeSeries | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | CSV]",
+                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability, a sturdy ref to a TimeSeries or a path to a CSV file."
             },
             {
                 "name": "soil",
-                "contentType": "soil.capnp:Profile | Text (JSON array)",
-                "desc": "Soil profile data for MONICA simulation, either as a Profile capability or a path to a JSON file containing an array of soil layers."
+                "contentType": "@0xff67c2a593419c29 = soil/soil.capnp:Profile | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | JSON]",
+                "desc": "Soil profile data for MONICA simulation, either as a Profile capability, a sturdy ref to a Profile or an JSON array of soil layers."
             },
             {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "MONICA env json."
+                "desc": "MONICA env json. Supports substreams on 'in' and will simply forward bracket IPs downstream."
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "model.capnp:Env",
+                "contentType": "@0xb7fc866ef1127f7c = model/model.capnp:Env",
                 "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component."
             }
         ],
         "defaultConfig": {
             "from_attr": {
-                "type": "Text",
+                "type": "string",
                 "desc": "Instead of the message content, read the MONICA JSON env from this attribute."
             },
             "to_attr": {
-                "type": "Text",
+                "type": "string",
                 "desc": "Instead of sending the ready prepared MONICA Cap'n Proto env via the message content, send it via this attribute."
             },
-            "climate_attr": {
-                "value": "@climate",
-                "type": "climate.capnp:TimeSeries | Text",
+            "timeseries_attr": {
+                "value": "@timeseries",
+                "type": "string",
                 "desc": "Either a capability to a time series (via @ out of attribute) or the path to a MONICA compatible climate CSV file from config value."
+            },
+            "remove_timeseries_attr": {
+                "value": true,
+                "type": "bool",
+                "desc": "Remove climate attribute from message after use."
             },
             "soil_attr": {
                 "value": "@soil",
-                "type": "soil.capnp:Profile | Text (JSON array)",
+                "type": "string",
                 "desc": "Either a capability to a soil profile (via @ out of attribute) or a string (JSON array) containing a MONICA soil profile description from config value."
+            },
+            "remove_soil_attr": {
+                "value": true,
+                "type": "bool",
+                "desc": "Remove soil attribute from message after use."
             },
             "id_attr": {
                 "value": "@id",
-                "type": "Text",
+                "type": "string",
                 "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated."
             }
         }
@@ -1665,7 +2182,7 @@
             "name": "Create MONICA JSON env",
             "description": "Create MONICA JSON environment."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
@@ -1692,7 +2209,7 @@
         ],
         "defaultConfig": {
             "to_attr": {
-                "type": "Text (JSON)",
+                "type": "string",
                 "desc": "Set output into this attribute."
             }
         }
@@ -1707,43 +2224,44 @@
             "name": "Write MONICA CSV",
             "description": "Write a MONICA CSV file."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "in",
-                "contentType": "string (MONICA JSON result)",
+                "contentType": "Text (JSON)",
                 "desc": "Receive MONICA JSON result."
             }
         ],
         "outPorts": [],
         "defaultConfig": {
+            "types": {
+                "value": {
+                    "@object": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"
+                },
+                "type": "object",
+                "desc": "Define the loadable type the attribute being referenced has."
+            },
             "path_to_out_dir": {
                 "value": "out/",
                 "type": "string",
                 "desc": "Use path_to_out_dir if no out_path_attr is available in metadata of IP."
             },
             "out_path_attr": {
-                "value": "out_path",
                 "type": "string",
                 "desc": "If out_path_attr is available, don't use path_to_out_dir."
-            },
-            "id_attr": {
-                "value": "id",
-                "type": "string",
-                "desc": "Name of attribute which contains id to use for file name pattern."
             },
             "from_attr": {
                 "type": "string",
                 "desc": "Get file content from attribute 'from_attr'."
             },
             "filepath_pattern": {
-                "value": "csv_{id}.csv",
+                "value": "csv_{@object/id}.csv",
                 "type": "string",
-                "desc": "Pattern with 'id' field (csv_{id}.csv)]. Write files name where id is replaced."
+                "desc": "Replace {@id} to create the filename. @some_attr_name refers to an attribute.\n        It's type has to be defined in the 'types' attribute. If no @ is in front of the name, it will be\n        interpreted to be either the results \"customId\" stringified itself {customId} or if not 'customId' to be\n        a subpath access in the 'customId' JSON object. If the {name} contains '/' it will be treated as\n        a path in an object, where names will be keys in objects and numbers will be indizes in a list."
             },
             "csv_delimiter": {
                 "value": ",",
@@ -1891,11 +2409,11 @@
             "name": "create SpotPy calibration params",
             "description": "Creates/sets up parameters for Spotpy calibration."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             }
         ],
         "outPorts": [
@@ -1923,11 +2441,11 @@
             "name": "read observed values",
             "description": "Read the observed values for the calibration."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "country_ids",
@@ -1970,7 +2488,7 @@
             },
             "default_country_ids": {
                 "value": [],
-                "type": "list",
+                "type": "list[int]",
                 "desc": "string of serialized json array containing country ids"
             }
         }
@@ -1985,50 +2503,291 @@
             "name": "Spotpy calibration component",
             "description": "The actual component in the center of the calibration flow."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             },
             {
                 "name": "init_params",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "desc": "key/value pair description of the parameters to calibrate"
+                "contentType": "Text (JSON list)",
+                "desc": "list of JSON objects describing the parameters to calibrate"
             },
             {
                 "name": "obs_values",
-                "contentType": "List[common_capnp.Value.lf64]",
-                "desc": "list of observations"
+                "contentType": "@0xe17592335373b246 = common/common_capnp:Value.lf64",
+                "desc": "List of observations. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes."
             },
             {
                 "name": "sim_values",
-                "contentType": "List[common_capnp.Value.lf64]",
-                "desc": "list of simulated values"
+                "contentType": "@0xe17592335373b246 = common/common_capnp:Value.lf64",
+                "desc": "List of simulated values. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes."
             }
         ],
         "outPorts": [
             {
                 "name": "sampled_params",
-                "contentType": "List[common.capnp:Value.lpair(Text, common_capnp.Value.f64)]",
-                "desc": "[name1: value1, name2: value2, ...] list of param_name -> sampled value pairs"
+                "contentType": "@0xe17592335373b246 = common/common.capnp:Value.lpair[Text, common/common_capnp:Value.f64]",
+                "desc": "[Value.pair(name1, value1), Value.pair(name2, value2), ...] list of param_name -> sampled value pairs"
             },
             {
                 "name": "best",
-                "contentType": "string",
+                "contentType": "Text",
                 "desc": "best optimized result"
             }
         ],
         "defaultConfig": {
-            "repetitions": {
-                "value": 10,
-                "type": "int",
-                "desc": "number of repetitions"
-            },
             "path_to_out_folder": {
                 "value": "out/",
                 "type": "string",
                 "desc": "path to output folder"
+            },
+            "param_set_id": {
+                "value": "no-param-set-id-given",
+                "type": "string",
+                "desc": "id for the parameterset to calibrate against.\n        Might be set as attribute 'param_set_id' on observed values IP received on 'obs_values' port."
+            },
+            "path_to_db_dir": {
+                "type": "string",
+                "desc": "If set path to directory where the calibration database will be created.\n        If None, then a temporary directory will be created."
+            },
+            "algorithm": {
+                "value": "SCE-UA",
+                "desc": "SPOTPY algorithm to use"
+            },
+            "repetitions": {
+                "value": 10,
+                "type": "int",
+                "desc": "\n        Maximum number of function evaluations allowed during optimization.\n        ROPE: (default: None) Number of runs overall, is only used if the user does\n        not specify the other arguments, otherwise its overwritten."
+            },
+            "ngs": {
+                "type": "int",
+                "desc": "SCE-UA: (default: 20) Number of complexes (sub-populations), take more than the number of analysed parameters.\n        If None, then will be calculated as the 2*'the number of parameters'."
+            },
+            "peps": {
+                "value": {
+                    "SCE-UA": 0.001,
+                    "ABC": 0.0001,
+                    "FSCABC": 0.0001
+                },
+                "type": "object",
+                "desc": "\n        SCE-UA: (default: 0.0000001) Value of the normalized geometric range of the parameters in the population below which convergence is deemed achieved.\n        ABC: (default: 0.0001) mutation factor.\n        FSCABC: (default: 0.0001) convergence criterion\n        "
+            },
+            "pcento": {
+                "value": 0.001,
+                "type": "float",
+                "desc": "SCE-UA: (default: 0.0000001) The percentage change allowed in the past kstop loops below which convergence is assumed to be achieved."
+            },
+            "kstop": {
+                "value": 100,
+                "type": "int",
+                "desc": "SCE-UA: (default: 100) The number of past evolution loops and their respective objective value to assess whether the marginal improvement at the current loop (in percentage) is less than pcento."
+            },
+            "max_loop_inc": {
+                "type": "int",
+                "desc": "SCE-UA: (default: None) Number of loops executed at max in this function call."
+            },
+            "eb": {
+                "value": {
+                    "ABC": 48,
+                    "FSCABC": 48
+                },
+                "type": "object",
+                "desc": "\n        ABC: (default: 48) number of employed bees (half of population size)\n        FSCABC: (default: 48) number of employed bees (half of population size)"
+            },
+            "a": {
+                "value": {
+                    "ABC": 0.1,
+                    "FSCABC": 0.1
+                },
+                "type": "object",
+                "desc": "\n        ABC: (default: 1/10) mutation factor\n        FSCABC: (default: 1/10) mutation factor"
+            },
+            "ownlimit": {
+                "value": false,
+                "type": "bool",
+                "desc": "ABC: (default: false) determines if an userdefined limit is set or not."
+            },
+            "limit": {
+                "value": {
+                    "DDS": 24,
+                    "FSCABC": null
+                },
+                "type": "object",
+                "desc": "\n        DDS: (default: 24) sets the limit\n        FSCABC: (default: None) sets the limit for scout bee phase"
+            },
+            "trials": {
+                "value": {
+                    "DDS": 1,
+                    "PADDS": 1
+                },
+                "type": "object",
+                "desc": "\n        DDS: (default: 1) amount of runs DDS algorithm will be performed.\n        PADDS (default: 1)"
+            },
+            "x_initial": {
+                "value": [],
+                "type": "list[float]",
+                "desc": "DDS: (default: []) set an initial trial set as a first parameter configuration. If the set is empty the algorithm select an own initial parameter configuration."
+            },
+            "nChains": {
+                "value": {
+                    "DE-MC_Z": 3,
+                    "DREAM": 7,
+                    "MCMC": 1
+                },
+                "type": "object",
+                "desc": "\n        DE-MC_Z: (default: 3) number of different chains to employ.\n        DREAM: (default: 7)\n        MCMC: (default: 1)"
+            },
+            "burnIn": {
+                "value": 100,
+                "type": "int",
+                "desc": "DE-MC_Z: (default: 100) number of iterations (meaning draws / nChains) to do before doing actual sampling."
+            },
+            "thin": {
+                "value": 1,
+                "type": "int",
+                "desc": "DE-MC_Z: (default: 1)"
+            },
+            "convergenceCriteria": {
+                "value": 0.8,
+                "type": "float",
+                "desc": "DE-MC_Z: (default: 0.8) "
+            },
+            "variables_of_interest": {
+                "desc": "DE-MC_Z: (default: None)"
+            },
+            "DEpairs": {
+                "value": 2,
+                "type": "int",
+                "desc": "DE-MC_Z: (default: 1) number of pairs of chains to base movements off of."
+            },
+            "adaptationRate": {
+                "value": "auto",
+                "type": "string",
+                "desc": "DE-MC_Z: (default: auto)"
+            },
+            "eps": {
+                "value": {
+                    "DE-MC_Z": 0.05,
+                    "DREAM": 1e-05
+                },
+                "type": "object",
+                "desc": "\n        DE-MC_Z: (default: 5e-2) used in jittering the chains.\n        DREAM: (default: 10e-6)"
+            },
+            "mConvergence": {
+                "value": true,
+                "type": "bool",
+                "desc": "DE-MC_Z: (default: true) "
+            },
+            "mAccept": {
+                "value": true,
+                "type": "bool",
+                "desc": "DE-MC_Z: (default: true)"
+            },
+            "nCr": {
+                "value": 3,
+                "type": "int",
+                "desc": "DREAM: (default: 3)"
+            },
+            "delta": {
+                "value": 3,
+                "type": "int",
+                "desc": "DREAM: (default: 3)"
+            },
+            "c": {
+                "value": 0.1,
+                "type": "float",
+                "desc": "DREAM: (default: 0.1)"
+            },
+            "convergence_limit": {
+                "value": 1.2,
+                "type": "float",
+                "desc": "DREAM: (default: 1.2)"
+            },
+            "runs_after_convergence": {
+                "value": 100,
+                "type": "int",
+                "desc": "DREAM: (default: 100)"
+            },
+            "acceptance_test_option": {
+                "value": 6,
+                "type": "int",
+                "desc": "DREAM: (default: 6)"
+            },
+            "freq": {
+                "value": "cukier",
+                "type": "string",
+                "desc": "eFAST: (default: cukier) indicates weather to use the frequencies after 'cukier' or McRae 'mcrae'."
+            },
+            "logscale": {
+                "desc": "eFAST: (default: None (= np.nan)) array containing bool values indicating weather a parameter is varied\n    on a logarithmic scale. In that case minimum and maximum are exponents."
+            },
+            "M": {
+                "value": 4,
+                "type": "int",
+                "desc": "FAST: (default: 4)"
+            },
+            "kpow": {
+                "value": 4,
+                "type": "float",
+                "desc": "FSCABC: (default: 4) exponent for power scaling method."
+            },
+            "initial_objs": {
+                "value": [],
+                "desc": "PADDS: (default: [])"
+            },
+            "initial_params": {
+                "value": [],
+                "desc": "PADDS: (default: [])"
+            },
+            "metric": {
+                "value": "ones",
+                "type": "string",
+                "desc": "PADDS: (default: ones)"
+            },
+            "repetitions_first_run": {
+                "type": "int",
+                "desc": "ROPE: (default: None) Number of runs in the first rune."
+            },
+            "subsets": {
+                "value": 5,
+                "type": "int",
+                "desc": "ROPE: (default: 5) number of time the rope algorithm creates a smaller search windows for parameters."
+            },
+            "percentage_first_run": {
+                "value": 0.1,
+                "type": "float",
+                "desc": "ROPE: (default: 0.1) amount of runs that will be used for the next step after the first subset"
+            },
+            "percentage_following_runs": {
+                "value": 0.1,
+                "type": "float",
+                "desc": "ROPE: (default: 0.1) amount of runs that will be used for the next step after in all following subsets."
+            },
+            "NDIR": {
+                "type": "int",
+                "desc": "ROPE: (default: None) The number of samples to draw."
+            },
+            "Tini": {
+                "value": 80,
+                "type": "int",
+                "desc": "SA: (default: 80)"
+            },
+            "Ntemp": {
+                "value": 50,
+                "type": "int",
+                "desc": "SA: (default: 50)"
+            },
+            "alpha": {
+                "value": 0.99,
+                "type": "float",
+                "desc": "SA: (default: 0.99)"
+            },
+            "num_levels": {
+                "value": 4,
+                "type": "int",
+                "desc": "MORRIS: (default: 4)"
             }
         }
     },
@@ -2164,7 +2923,7 @@
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
             }
         ],
         "outPorts": [
@@ -2175,8 +2934,9 @@
         ],
         "defaultConfig": {
             "struct_type": {
+                "value": "@0xed6c098b67cad454 = common/common.capnp:StructuredText",
                 "type": "string",
-                "desc": "A loadable Cap'n Proto schema and the contained struct to parse the 'in' content to."
+                "desc": "A Cap'n Proto content type string with a struct schema id (e.g. '@0xed6c098b67cad454 = common/common.capnp:StructuredText') or 'Text' for plain text content. If the incoming IP has a parseable sysAttributes.contentType, that schema takes precedence over this configured value."
             }
         }
     }
