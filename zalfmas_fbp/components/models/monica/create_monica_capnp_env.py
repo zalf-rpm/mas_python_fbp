@@ -78,28 +78,28 @@ METADATA = meta.Component(
     inPorts=[
         meta.Port(
             name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
         ),
         meta.Port(
             name="timeseries",
-            contentType="climate.capnp:TimeSeries | common.capnp::StructuredText[SturdyRef | CSV]",
+            contentType="@0xa7769f40fe6e6de8 = climate/climate.capnp:TimeSeries | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | CSV]",
             desc="Climate data for MONICA simulation, either as a TimeSeries capability, a sturdy ref to a TimeSeries or a path to a CSV file.",
         ),
         meta.Port(
             name="soil",
-            contentType="soil.capnp:Profile | common.capnp::StructuredText[SturdyRef | JSON]",
+            contentType="@0xff67c2a593419c29 = soil/soil.capnp:Profile | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | JSON]",
             desc="Soil profile data for MONICA simulation, either as a Profile capability, a sturdy ref to a Profile or an JSON array of soil layers.",
         ),
         meta.Port(
             name="in",
             contentType="Text (JSON)",
-            desc="MONICA env json.",
+            desc="MONICA env json. Supports substreams on 'in' and will simply forward bracket IPs downstream.",
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="model.capnp:Env",
+            contentType="@0xb7fc866ef1127f7c = model/model.capnp:Env",
             desc="An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component.",
         ),
     ],
@@ -129,7 +129,17 @@ class Component(process.Process[Config]):
             try:
                 in_ip = await self.read_in("in")
                 if in_ip is None:
-                    self.in_ports["in"] = None
+                    break
+                # simply forward substream open and close brackets
+                elif in_ip.type == "openBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
+                    continue
+                elif in_ip.type == "closeBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
                     continue
 
                 in_attrs = {kv.key: kv.value for kv in in_ip.attributes}
@@ -243,6 +253,7 @@ class Component(process.Process[Config]):
                 out_ip.attributes = list([{"key": k, "value": v} for k, v in in_attrs.items()])  # pyright: ignore
                 if not await self.write_out("out", out_ip):
                     logger.info("%s: Could not send IP.", self.name)
+                    break
 
             except Exception:
                 logger.exception("%s Exception", Path(__file__).name)

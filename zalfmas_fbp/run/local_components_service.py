@@ -66,6 +66,25 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
         self.log_level: str | None = log_level
         self.proc: sp.Popen[str] | sp.Popen[bytes] | None = None
         self.stopped_callbacks: list[Any] = []
+        self._monitor_task: asyncio.Task | None = None
+
+    async def _monitor_process(self):
+        """Periodically check whether the subprocess is still alive. If it has
+        exited unexpectedly, invoke all registered stopped callbacks."""
+        try:
+            while True:
+                await asyncio.sleep(1)
+                if self.proc is not None and self.proc.poll() is not None:
+                    logger.info("Process %s exited unexpectedly, invoking stopped callbacks.", self.proc.pid)
+                    self.proc = None
+                    for scb in self.stopped_callbacks:
+                        with suppress(Exception):
+                            await scb.stopped()
+                    break
+                if self.proc is None:
+                    break
+        except asyncio.CancelledError:
+            pass
 
     @override
     async def start_context(
@@ -84,9 +103,16 @@ class Runnable(fbp_capnp.Runnable.Server, common.Identifiable):
             log_level=self.log_level,
         )
         context.results.success = self.proc.poll() is None
+        if context.results.success:
+            if self._monitor_task is not None:
+                self._monitor_task.cancel()
+            self._monitor_task = asyncio.ensure_future(self._monitor_process())
 
     @override
     async def stop_context(self, context):  # stop @0 () -> (success :Bool);
+        if self._monitor_task is not None:
+            self._monitor_task.cancel()
+            self._monitor_task = None
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
             rt = self.proc.returncode == 0
@@ -252,7 +278,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         proc = process.start_local_process_component(
             self.path_to_executable,
             writer_sr_str,
-            self.id,
+            name=self.name,
             log_level=self.log_level,
         )
         self.procs.append(proc)
@@ -408,6 +434,7 @@ def load_component_metadata(
                     name=info.get("name", c_id),
                 ),
             )
+            logger.info("loaded %s: %s", cat_name, info.get("name", c_id))
 
         except (capnp.KjException, KeyError, TypeError, ValueError) as e:
             logger.warning(

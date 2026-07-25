@@ -42,7 +42,7 @@ METADATA = meta.Component(
     ),
     info=meta.Info(
         id="b1e875af-4ee7-4937-8824-17d185216ec4",
-        name="copy",
+        name="Copy IP",
         description="Copy IP to multiple outputs.",
     ),
     type="process",
@@ -77,13 +77,13 @@ class Copy(process.Process[CopyConfig]):
     async def run(self):
         logger.info("%s process running", self.name)
 
-        while any(self.array_out_ports["out"]):
+        while self.in_ports["in"] and any(self.array_out_ports["out"]):
             in_ip = await self.read_in("in")
             if in_ip is None:
                 break
 
-            out_ip = copy_ip(in_ip)
-            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, out_ip):
+            # out_ip = copy_ip(in_ip)
+            if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):
                 break
 
         logger.info("%s process finished", self.name)

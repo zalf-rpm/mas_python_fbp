@@ -95,12 +95,12 @@ class InputRuntime:
         if in_ip is None:
             return None
 
-        if in_ip.type == "openBracket":
-            msg = f"{self._identity.name} received a chunked payload on input port '{name}'; use read_in_chunked* instead."
+        if in_ip.type == "openBracket" and in_ip.sysAttributes.bracketType.which() in ("chunkedContent", "chunkedIp"):
+            msg = f"{self._identity.name} received a chunked payload openBracket on input port '{name}'; use read_in_chunked* instead."
             raise InputPortReadError(self._identity.name, name, msg)
 
-        if in_ip.type == "closeBracket":
-            msg = f"{self._identity.name} received an unexpected closeBracket on input port '{name}'."
+        if in_ip.type == "closeBracket" and in_ip.sysAttributes.bracketType.which() in ("chunkedContent", "chunkedIp"):
+            msg = f"{self._identity.name} received an unexpected chunked payload closeBracket on input port '{name}'; use read_in_chunked* instead."
             raise InputPortReadError(self._identity.name, name, msg)
 
         return in_ip
@@ -208,13 +208,19 @@ class InputRuntime:
 
             port_index, in_ip = next_result
             await self._activity.transition_to_activity("processing")
-            if in_ip.type == "openBracket":
+            if in_ip.type == "openBracket" and in_ip.sysAttributes.bracketType.which() in (
+                "chunkedContent",
+                "chunkedIp",
+            ):
                 msg = (
                     f"{self._identity.name} received a chunked payload on array input port '{name}[{port_index}]'; "
                     "use read_array_in_chunked instead."
                 )
                 raise InputPortReadError(self._identity.name, f"{name}[{port_index}]", msg)
-            if in_ip.type == "closeBracket":
+            if in_ip.type == "closeBracket" and in_ip.sysAttributes.bracketType.which() in (
+                "chunkedContent",
+                "chunkedIp",
+            ):
                 msg = f"{self._identity.name} received an unexpected closeBracket on array input port '{name}[{port_index}]'."
                 raise InputPortReadError(self._identity.name, f"{name}[{port_index}]", msg)
             return in_ip

@@ -31,27 +31,36 @@ from zalfmas_fbp.run import metadata as meta
 logger = logging.getLogger(__name__)
 
 
-class CompConfig(process.ProcessConfig):
+class Config(process.ProcessConfig):
     types: dict[str, str] = Field(
         {"@setup": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"},
         description="Define the loadable type the attribute being referenced has.",
     )
-    update: list[list[str | int | list[str | int]]] = Field(
-        [
-            ["climate", "csv-options", "start-date", "<-", ["@setup", "startDate"]],
-            ["climate", "csv-options", "end-date", "<-", "1999-01-09"],
-            ["customId_ex", "<-", 1],
-            ["cropRotationTemplate_ex", "WW", 0, "worksteps", 0, "date", "<-", "2020-01-03"],
-        ],
-        description="List of update operations to perform on the JSON structure. Structure and description have to match.",
+    attr_sub_access_separator: str = Field(
+        "/",
+        description="The token to be used to separate path names for accessing sub-objects, e.g. @attr_object/sub1/sub2.",
     )
-    replace: list[list[str | int | list[str | int]]] = Field(
-        [],
-        description="List of replacement operations to perform on the JSON structure.",
+    update: dict[str, str | int | float | bool | None] = Field(
+        {
+            "climate/csv-options/start-date": "@setup/startDate",
+            "climate/csv-options/end-date": "1999-01-09",
+            "customId_ex": 1,
+            "cropRotationTemplate_ex/WW/0/worksteps/0/date": "2020-01-03",
+        },
+        description="Mapping of update operations to perform on the JSON structure. Structure and description have to match.",
     )
-    add: list[list[str | int | list[str | int]]] = Field(
-        [],
-        description="List of addition operations to perform on the JSON structure.",
+    replace: dict[str, str | int | float | bool | None] = Field(
+        {},
+        description="Mapping of replacement operations to perform on the JSON structure.",
+    )
+    add: dict[str, str | int | float | bool | None] = Field(
+        {},
+        description="Mapping of addition operations to perform on the JSON structure.",
+    )
+    name_for_attrs_port: str = Field(
+        "attrs",
+        description="""The content of a message received on the 'attrs' port will be made available under that name
+        for the updates as an attribute. By default this will be the ports name, thus '@attrs'.""",
     )
 
 
@@ -74,7 +83,16 @@ METADATA = meta.Component(
         meta.Port(
             name="in",
             contentType="Text (JSON)",
-            desc="JSON text which is supposed to be updated and changed.",
+            desc="""JSON text which is supposed to be updated and changed. Is substream sensitive, meaning if the
+            'attrs' port is connected one IP from 'attrs' will be applied to all the IPs in the substream.""",
+        ),
+        meta.Port(
+            name="attrs",
+            contentType="AnyPointer",
+            desc="""If connected, then for each message received on 'attrs', the attributes and the content of that message
+            will be made available to the component as '@attrs' for the content of the message and
+            each attribute as '@attrs_{attr_name}', if any. By default the used name will be
+            the ports name ('attrs'), unless it has been renamed via the config option 'name_for_attrs_port'.""",
         ),
     ],
     outPorts=[
@@ -84,11 +102,106 @@ METADATA = meta.Component(
             desc="The updated JSON text.",
         ),
     ],
-    config=CompConfig,
+    config=Config,
 )
 
 
-class Component(process.Process[CompConfig]):
+def as_type(
+    attr_val, capnp_type_string: str
+) -> tuple[
+    Any,
+    capnp.lib.capnp._StructSchema
+    | capnp.lib.capnp._InterfaceSchema
+    | capnp.lib.capnp._EnumSchema
+    | capnp.lib.capnp._SchemaType,
+]:
+    schema = common.schema_from_content_type_string(capnp_type_string)
+    return common.cast_to_schema(attr_val, schema), schema
+
+
+def read_attr_value(
+    types: dict[str, str], attrs: dict[str, capnp.lib.capnp._DynamicObjectReader], v: list
+) -> tuple[Any, bool]:
+    # attribute access, where the attribute referenced via @ has to be found in the IPs attributes
+    # and this attribute necessarily has to be a capnp struct
+    if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
+        attr_val, is_capnp = p.get_attr_val(
+            v[0],
+            attrs,
+            remove=False,
+        )
+        # attribute sub access
+        if is_capnp and len(v) > 1 and v[0] in types:
+            attr_val, _ = as_type(attr_val, types[v[0]])
+            is_json = False
+            sub_access_len = len(v[1:])
+            for i, field_name_and_opt_type_ref in enumerate(v[1:]):
+                # field name might contain an attached type (ref to types dict)
+                fnaotr = (
+                    field_name_and_opt_type_ref.split(":")
+                    if isinstance(field_name_and_opt_type_ref, str)
+                    else [field_name_and_opt_type_ref]
+                )
+                # first part will be in any case the field name
+                field_name = fnaotr[0]
+                # but if an array index had a type attached it would have been treated as string, so in this case we get the index out of the field name again
+                if isinstance(field_name, str) and field_name.isdigit():
+                    field_name = int(field_name)
+                attr_dir = attr_val.__dir__()
+                # check if this is common.capnp/StructuredText[JSON], in that case get values
+                # out of a JSON dict, but only if the user didn't want to access the value directly
+                # (next subaccess would have been value)
+                if (
+                    "schema" in attr_dir
+                    and attr_val.schema == common_capnp.StructuredText.schema  # 17108059578820121684
+                    and attr_val.type == "json"
+                    and ((sub_access_len > (1 + i) and v[1 + i + 1] != "value") or sub_access_len > i)
+                ):
+                    is_json = True
+                    attr_val = json.loads(attr_val.value)
+
+                # is array index
+                if isinstance(field_name, int):
+                    if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
+                        attr_val = attr_val[field_name]
+                # is json access
+                elif is_json and field_name in attr_val:
+                    attr_val = attr_val[field_name]
+                # is struct access
+                elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
+                    attr_val = attr_val.__getattribute__(field_name)
+
+                # cast to specified type if it was an AnyPointer and the user specified the type
+                if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
+                    attr_val, _ = as_type(attr_val, val_type)
+        return attr_val, True
+
+    return None, False
+
+
+def read_dict_value(py_dict: dict[str, Any], v: list) -> tuple[Any, bool]:
+    if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0] in py_dict:
+        attr_val = py_dict[v[0]]
+        for field_name in v[1:]:
+            if isinstance(field_name, int):
+                if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
+                    attr_val = attr_val[field_name]
+            elif field_name in attr_val:
+                attr_val = attr_val[field_name]
+        return attr_val, True
+    return None, False
+
+
+def split_into_parts(str_value: str, split_token: str = "/", create_int_indizes=False):
+    parts = str_value.split(split_token)
+    if create_int_indizes:
+        for k in range(len(parts)):
+            if parts[k].isdigit():
+                parts[k] = int(parts[k])
+    return parts
+
+
+class UpdateJson(process.Process[Config]):
     def __init__(
         self,
         metadata: meta.Component = METADATA,
@@ -96,174 +209,182 @@ class Component(process.Process[CompConfig]):
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
+    # allowed_operation = update | replace | add
+    # update = structures of j and spec have to match exactly
+    # replace = if j doesn't match, sub-parts will be replaced according to spec
+    # add = if keys are missing, the will be added and set to according sub-spec
+    def change(self, json_obj: dict | list, spec: dict, attrs, allowed_operation="update"):
+        for spec_key, spec_value in spec.items():
+            spec_index = None
+            # if the spec_key is a query search for that key in list of objects
+            if (
+                isinstance(spec_key, str)
+                and len(spec_key) > 1
+                and spec_key[0] == "["
+                and spec_key[-1] == "]"
+                and isinstance(json_obj, list)
+            ):
+                search_key, search_val = search.split("=") if "=" in (search := spec_key[1:-1]) else [search, None]
+                if search_val is not None:
+                    for j, obj in enumerate(json_obj):
+                        if isinstance(obj, dict) and obj.get(search_key, None) == search_val:
+                            spec_index = j
+                            break
+            else:
+                spec_index = int(spec_key) if spec_key.isdigit() else None
+            # check the key against j to be changed
+            # the key is an index and points outside the array j
+            if spec_index is not None and type(json_obj) is list:
+                if spec_index >= len(json_obj):
+                    if allowed_operation == "add":
+                        json_obj.extend([None] * (spec_index + 1 - len(json_obj)))
+                        json_obj[spec_index] = spec_value
+                    else:
+                        continue
+            # the key is not in the dict j
+            elif type(json_obj) is dict:
+                if spec_key not in json_obj:
+                    if allowed_operation == "add":
+                        json_obj[spec_key] = spec_value
+                    else:
+                        continue
+
+            # change according to the type of v
+            # v is a sub-spec (dict), which means recurse into substructure
+            if type(spec_value) is dict:
+                # access a list
+                if spec_index is not None and type(json_obj) is list:
+                    # j[i] is a pointer, so we recurse
+                    if isinstance(json_obj[spec_index], (list, dict)):
+                        self.change(json_obj[spec_index], spec_value, attrs, allowed_operation)
+                    elif allowed_operation == "replace":
+                        json_obj[spec_index] = spec_value
+                # access a dict
+                # j[k] is a pointer, so we can recurse
+                elif isinstance(json_obj[spec_key], (list, dict)):
+                    self.change(json_obj[spec_key], spec_value, attrs, allowed_operation)
+                elif allowed_operation == "replace":
+                    json_obj[spec_key] = spec_value
+            # a list as value is treated as sub object access if the first element is an attribute (@) access
+            elif type(spec_value) is list:
+                attr_val, read_successful = read_attr_value(self.config.types, attrs, spec_value)
+                if read_successful:
+                    spec_value = attr_val
+                # access a list
+                if spec_index is not None and type(json_obj) is list:
+                    json_obj[spec_index] = spec_value
+                # access a dict
+                else:
+                    json_obj[spec_key] = spec_value
+            elif type(spec_value) is str:
+                # use existing function to resolve values from attributes
+                attr_val, is_attr_val = p.get_attr_val(
+                    spec[spec_key],
+                    attrs,
+                    remove=False,
+                )
+                if is_attr_val and spec[spec_key] in self.config.types:
+                    attr_val, _ = as_type(attr_val, self.config.types[spec[spec_key]])
+                if spec_index is not None and type(json_obj) is list:
+                    json_obj[spec_index] = attr_val
+                else:
+                    json_obj[spec_key] = attr_val
+            elif spec_index is not None and type(json_obj) is list:
+                json_obj[spec_index] = spec_value
+            else:
+                json_obj[spec_key] = spec_value
+
+    def create_nested_dict(self, kvs: dict[str, str]) -> dict:
+        res_dict = {}
+        for key, val in kvs.items():
+            d = res_dict
+            key_parts = split_into_parts(key, self.config.attr_sub_access_separator)
+            for i, key_part in enumerate(key_parts):
+                # unless it's the last part, created nested dicts
+                if i < len(key_parts) - 1:
+                    if key_part not in d:
+                        d[key_part] = {}
+                    d = d[key_part]
+                else:
+                    # if the value for the last part is an actual attribute (with potential sub-access)
+                    if isinstance(val, str) and len(val) > 0 and val[0] == "@":
+                        val_parts = split_into_parts(
+                            val, self.config.attr_sub_access_separator, create_int_indizes=True
+                        )
+                        d[key_part] = val_parts
+                    else:
+                        # just assign the value to the correct sub dict entry
+                        d[key_part] = val
+        return res_dict
+
     @override
     async def run(self):
         logger.info("%s process running", self.name)
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
+        read_new_attrs = True
+        in_substream = False
+        attrs_attrs = {}
         while self.in_ports["in"] and self.out_ports["out"]:
             try:
                 if not (in_ip := await self.read_in("in")):
                     self.in_ports["in"] = None
                     continue
+                elif in_ip.type == "openBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
+                    in_substream = True
+                    read_new_attrs = True
+                    continue
+                elif in_ip.type == "closeBracket":
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
+                        break
+                    in_substream = False
+                    read_new_attrs = True
+                    attrs_attrs = {}
+                    continue
 
+                # read the 'in' message attrs
                 attrs = {kv.key: kv.value for kv in in_ip.attributes}
                 j_content = json.loads(in_ip.content.as_text())
 
-                def as_type(
-                    attr_val, capnp_type_string: str
-                ) -> tuple[Any | None, capnp.lib.capnp._Schema | capnp.lib.capnp._SchemaType]:
-                    schema = common.schema_from_content_type_string(capnp_type_string)
-                    is_builtin = isinstance(schema, capnp.lib.capnp._SchemaType)
-                    if is_builtin and schema == capnp.types.Text:
-                        return attr_val.as_text(), schema
-                    elif not is_builtin:
-                        return attr_val.as_struct(schema), schema
-                    return None, schema
+                # update attrs potially with ones from 'attrs' port
+                # but only once per substream
+                if self.in_ports["attrs"] and read_new_attrs:
+                    if attrs_ip := await self.read_in("attrs"):
+                        if attrs_ip._has("content"):
+                            attrs_attrs[self.config.name_for_attrs_port] = attrs_ip.content
+                        for kv in attrs_ip.attributes:
+                            attrs_attrs[f"{self.config.name_for_attrs_port}_{kv.key}"] = kv.value
+                    else:
+                        self.in_ports["attrs"] = None
+                        continue
+                    read_new_attrs = not in_substream
 
-                # allowed_operation = update | replace | add
-                # update = structures of j and spec have to match exactly
-                # replace = if j doesn't match, sub-parts will be replaced according to spec
-                # add = if keys are missing, the will be added and set to according sub-spec
-                def change(j, spec: dict, allowed_operation="update"):
-                    for k, v in spec.items():
-                        i = int(k) if k.isdigit() else None
-                        # check the key against j to be changed
-                        # the key is an index and points outside the array j
-                        if i and type(j) is list:
-                            if i >= len(j):
-                                if allowed_operation == "add":
-                                    j.extend([None] * (i + 1 - len(j)))
-                                    j[i] = v
-                                else:
-                                    continue
-                        # the key is not in the dict j
-                        elif type(j) is dict:
-                            if k not in j:
-                                if allowed_operation == "add":
-                                    j[k] = v
-                                else:
-                                    continue
+                # merge attributes from attrs port into currently received attributes
+                attrs.update(attrs_attrs)
 
-                        # change according to the type of v
-                        # v is a sub-spec (dict), which means recurse into substructure
-                        if type(v) is dict:
-                            # access a list
-                            if i and type(j) is list:
-                                # j[i] is a pointer, so we recurse
-                                if type(j[i]) in [list, dict]:
-                                    change(j[i], v, allowed_operation)
-                                elif allowed_operation == "replace":
-                                    j[i] = v
-                            # access a dict
-                            # j[k] is a pointer, so we can recurse
-                            elif type(j[k]) in [list, dict]:
-                                change(j[k], v, allowed_operation)
-                            elif allowed_operation == "replace":
-                                j[k] = v
-                        # a list as value is treated as sub object access if the first element is an attribute (@) access
-                        elif type(v) is list:
-                            # attribute access, where the attribute referenced via @ has to be found in the IPs attributes
-                            # and this attribute necessarily has to be a capnp struct
-                            if len(v) >= 1 and type(v[0]) is str and len(v[0]) > 0 and v[0][0] == "@":
-                                attr_val, is_capnp = p.get_attr_val(
-                                    v[0],
-                                    attrs,
-                                    remove=False,
-                                )
-                                # attribute sub access
-                                if is_capnp and len(v) > 1 and v[0] in self.config.types:
-                                    attr_val, _ = as_type(attr_val, self.config.types[v[0]])
-                                    is_json = False
-                                    sub_access_len = len(v[1:])
-                                    for i, field_name in enumerate(v[1:]):
-                                        attr_dir = attr_val.__dir__()
-                                        # check if this is common.capnp/StructuredText[JSON], in that case get values
-                                        # out of a JSON dict, but only if the user didn't want to access the value directly
-                                        # (next subaccess would have been value)
-                                        if (
-                                            "schema" in attr_dir
-                                            and attr_val.schema
-                                            == common_capnp.StructuredText.schema  # 17108059578820121684
-                                            and attr_val.type == "json"
-                                            and sub_access_len > (1 + i)
-                                            and v[1 + i + 1] != "value"
-                                        ):
-                                            is_json = True
-                                            attr_val = json.loads(attr_val.value)
-
-                                        # is array index
-                                        if isinstance(field_name, int):
-                                            if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
-                                                attr_val = attr_val[field_name]
-                                        # is json access
-                                        elif is_json and field_name in attr_val:
-                                            attr_val = attr_val[field_name]
-                                        # is struct access
-                                        elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
-                                            attr_val = attr_val.__getattribute__(field_name)
-                                v = attr_val
-                            # access a list
-                            if i and type(j) is list:
-                                j[i] = v
-                            # access a dict
-                            else:
-                                j[k] = v
-                        elif type(v) is str:
-                            # use existing function to resolve values from attributes
-                            attr_val, is_attr_val = p.get_attr_val(
-                                spec[k],
-                                attrs,
-                                remove=False,
-                            )
-                            if is_attr_val and spec[k] in self.config.types:
-                                attr_val, _ = as_type(attr_val, self.config.types[spec[k]])
-                            if i and type(j) is list:
-                                j[i] = attr_val
-                            else:
-                                j[k] = attr_val
-                        elif i and type(j) is list:
-                            j[i] = v
-                        else:
-                            j[k] = v
-
-                def create_nested_dict(path_parts: list) -> dict:
-                    res_dict = {}
-                    d = res_dict
-                    prev_d = d
-                    prev_key = None
-                    assign_result = False
-                    for val in path_parts:
-                        if assign_result:
-                            prev_d[prev_key] = val
-                            continue
-                        if val == "<-":
-                            assign_result = True
-                            continue
-                        d[str(val)] = {}
-                        prev_d = d
-                        prev_key = str(val)
-                        d = d[str(val)]
-                    return res_dict
-
+                # upate/replace/add data in 'in' JSON message
                 for op in ["update", "replace", "add"]:
-                    for co in self.config.__getattribute__(op):
-                        try:
-                            nested_dict = create_nested_dict(co)
-                            change(j_content, nested_dict, allowed_operation=op)
-                        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
-                            logger.warning(
-                                "%s: couldn't apply %s operation %s: %s",
-                                Path(__file__).name,
-                                op,
-                                co,
-                                e,
-                            )
+                    changes = self.config.__getattribute__(op)
+                    try:
+                        nested_dict = self.create_nested_dict(changes)
+                        self.change(j_content, nested_dict, attrs, allowed_operation=op)
+                    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
+                        logger.warning(
+                            "%s: couldn't apply %s operation %s: %s",
+                            Path(__file__).name,
+                            op,
+                            changes,
+                            e,
+                        )
 
                 out_ip = fbp_capnp.IP.new_message(
                     content=json.dumps(j_content),
-                    attributes=list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
+                    attributes=in_ip.attributes,  # list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
                 )
                 await self.write_out("out", out_ip)
 
@@ -274,7 +395,7 @@ class Component(process.Process[CompConfig]):
 
 
 def main():
-    process.run_process_from_metadata_and_cmd_args(Component(METADATA), METADATA)
+    process.run_process_from_metadata_and_cmd_args(UpdateJson(METADATA), METADATA)
 
 
 if __name__ == "__main__":
