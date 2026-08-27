@@ -576,7 +576,7 @@ class Component(process.Process[Config]):
                         init_params = []
                         if init_params_ip._has("content"):
                             try:
-                                init_params = json.loads(params_text := init_params_ip.content.as_text())
+                                init_params: list[dict] = json.loads(params_text := init_params_ip.content.as_text())
                             except Exception as e:
                                 logger.warning(
                                     "%s: Couldn't read JSON parameters to calibrate! params: %s",
@@ -590,7 +590,7 @@ class Component(process.Process[Config]):
                             par_name = par["name"]
                             if "array_index" in par:
                                 # spotpy does not allow two parameters to have the same name
-                                par_name += f"_{par['array_index']}"
+                                par_name += f"_{par.pop('array_index')}"
                             spotpy_params.append(spotpy.parameter.Uniform(**par))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
