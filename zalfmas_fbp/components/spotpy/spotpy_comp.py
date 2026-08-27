@@ -32,9 +32,9 @@ from numpy import ndarray
 from pydantic import Field
 from zalfmas_common import common
 
-from zalfmas_fbp.run.ports import get_attr_val
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run.ports import get_attr_val
 
 logger = logging.getLogger(__name__)
 
