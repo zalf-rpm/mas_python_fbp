@@ -94,3 +94,7 @@ ignore = ["tests"]
 typeCheckingMode = "basic"
 venvPath = ".pixi/envs"
 venv = "dev"
+
+[tool.pixi.tasks]
+components-service = { cmd = "python -m zalfmas_fbp.run.local_components_service configs/local_components_service.toml" }
+channel-service = { cmd = "python -m zalfmas_fbp.run.channel_starter_service configs/channel_starter_service.toml" }
