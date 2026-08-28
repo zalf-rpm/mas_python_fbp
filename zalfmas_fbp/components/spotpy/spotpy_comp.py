@@ -32,9 +32,9 @@ from numpy import ndarray
 from pydantic import Field
 from zalfmas_common import common
 
-from zalfmas_fbp.run.ports import get_attr_val
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run.ports import get_attr_val
 
 logger = logging.getLogger(__name__)
 
@@ -332,11 +332,11 @@ class SpotPySetup:
                 return None
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+            in_attrs = {kv.key: kv.value for kv in in_ip.attributes}
             sentinel_values = {}
-            nan_sentinel, success = get_attr_val("nan_sentinel", in_ip.attributes)
+            nan_sentinel, success = get_attr_val("nan_sentinel", in_attrs, as_struct=common_capnp.Value)
             if success:
-                sentinel_values[nan_sentinel] = np.nan
-            #check_and_possibly_add_sentinel_value(sentinel_values, in_ip.attributes, "nan_sentinel")
+                sentinel_values[nan_sentinel.f64] = np.nan
             sim_values = capnp_value_lf64_to_numpy_array_with_nan(
                 in_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
             )
@@ -576,7 +576,7 @@ class Component(process.Process[Config]):
                         init_params = []
                         if init_params_ip._has("content"):
                             try:
-                                init_params = json.loads(params_text := init_params_ip.content.as_text())
+                                init_params: list[dict] = json.loads(params_text := init_params_ip.content.as_text())
                             except Exception as e:
                                 logger.warning(
                                     "%s: Couldn't read JSON parameters to calibrate! params: %s",
@@ -587,10 +587,9 @@ class Component(process.Process[Config]):
                             continue
 
                         for par in init_params:
-                            par_name = par["name"]
                             if "array_index" in par:
                                 # spotpy does not allow two parameters to have the same name
-                                par_name += f"_{par['array_index']}"
+                                par["name"] += f"_{par.pop('array_index')}"
                             spotpy_params.append(spotpy.parameter.Uniform(**par))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)

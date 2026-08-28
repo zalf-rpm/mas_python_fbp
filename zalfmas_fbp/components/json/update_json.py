@@ -135,45 +135,51 @@ def read_attr_value(
             attr_val, _ = as_type(attr_val, types[v[0]])
             is_json = False
             sub_access_len = len(v[1:])
-            for i, field_name_and_opt_type_ref in enumerate(v[1:]):
-                # field name might contain an attached type (ref to types dict)
-                fnaotr = (
-                    field_name_and_opt_type_ref.split(":")
-                    if isinstance(field_name_and_opt_type_ref, str)
-                    else [field_name_and_opt_type_ref]
-                )
-                # first part will be in any case the field name
-                field_name = fnaotr[0]
-                # but if an array index had a type attached it would have been treated as string, so in this case we get the index out of the field name again
-                if isinstance(field_name, str) and field_name.isdigit():
-                    field_name = int(field_name)
-                attr_dir = attr_val.__dir__()
-                # check if this is common.capnp/StructuredText[JSON], in that case get values
-                # out of a JSON dict, but only if the user didn't want to access the value directly
-                # (next subaccess would have been value)
-                if (
-                    "schema" in attr_dir
-                    and attr_val.schema == common_capnp.StructuredText.schema  # 17108059578820121684
-                    and attr_val.type == "json"
-                    and ((sub_access_len > (1 + i) and v[1 + i + 1] != "value") or sub_access_len > i)
-                ):
-                    is_json = True
-                    attr_val = json.loads(attr_val.value)
+            try:
+                for i, field_name_and_opt_type_ref in enumerate(v[1:]):
+                    # field name might contain an attached type (ref to types dict)
+                    fnaotr = (
+                        field_name_and_opt_type_ref.split(":")
+                        if isinstance(field_name_and_opt_type_ref, str)
+                        else [field_name_and_opt_type_ref]
+                    )
+                    # first part will be in any case the field name
+                    field_name = fnaotr[0]
+                    # but if an array index had a type attached it would have been treated as string, so in this case we get the index out of the field name again
+                    if isinstance(field_name, str) and field_name.isdigit():
+                        field_name = int(field_name)
+                    attr_dir = attr_val.__dir__()
+                    # check if this is common.capnp/StructuredText[JSON], in that case get values
+                    # out of a JSON dict, but only if the user didn't want to access the value directly
+                    # (next subaccess would have been value)
+                    if (
+                        "schema" in attr_dir
+                        and attr_val.schema == common_capnp.StructuredText.schema  # 17108059578820121684
+                        and attr_val.type == "json"
+                        and ((sub_access_len > (1 + i) and v[1 + i + 1] != "value") or sub_access_len > i)
+                    ):
+                        is_json = True
+                        attr_val = json.loads(attr_val.value)
 
-                # is array index
-                if isinstance(field_name, int):
-                    if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
+                    # is array index
+                    if isinstance(field_name, int):
+                        if hasattr(attr_val, "__getitem__") and len(attr_val) > field_name:
+                            attr_val = attr_val[field_name]
+                        else:
+                            # attr_val isn't really a list or the list has not enough elements
+                            return attr_val, False
+                    # is json access
+                    elif is_json and field_name in attr_val:
                         attr_val = attr_val[field_name]
-                # is json access
-                elif is_json and field_name in attr_val:
-                    attr_val = attr_val[field_name]
-                # is struct access
-                elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
-                    attr_val = attr_val.__getattribute__(field_name)
+                    # is struct access
+                    elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
+                        attr_val = attr_val.__getattribute__(field_name)
 
-                # cast to specified type if it was an AnyPointer and the user specified the type
-                if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
-                    attr_val, _ = as_type(attr_val, val_type)
+                    # cast to specified type if it was an AnyPointer and the user specified the type
+                    if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
+                        attr_val, _ = as_type(attr_val, val_type)
+            except Exception:
+                return attr_val, False
         return attr_val, True
 
     return None, False

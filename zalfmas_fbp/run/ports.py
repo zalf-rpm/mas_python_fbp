@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pickletools import string4
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_attr_val(
-    name: Any,
+    name: str,
     attrs: dict,
     as_struct: Any | None = None,
     as_interface: Any | None = None,
@@ -52,7 +53,7 @@ def get_attr_val(
     supports optional type conversion to various forms such as struct, interface, or text.
 
     :param name: The name of the attribute to retrieve. It can be of any type. If it is a string
-        and starts with '@', the corresponding attribute in the dictionary is processed.
+        (and optionally starts with '@'), the corresponding attribute in the dictionary is processed.
     :param attrs: A dictionary containing the attributes.
     :param as_struct: Specifies the type to which the attribute value should be converted using
         the `as_struct` method, if applicable. Default is None.
@@ -66,19 +67,23 @@ def get_attr_val(
         the retrieval operation was successful.
     :rtype: tuple[Any, bool]
     """
-    if type(name) is str and len(name) > 0 and name[0] == "@" and name[1:] in attrs:
-        if remove:
-            attr_val = attrs.pop(name[1:])
-        else:
-            attr_val = attrs[name[1:]]
-        if as_struct:
-            return attr_val.as_struct(as_struct), True
-        if as_interface:
-            return attr_val.as_interface(as_interface), True
-        if as_text:
-            return attr_val.as_text(), True
-        return attr_val, True
-    return name, False
+    # make sure the name is alright
+    if isinstance(name, str) and len(name) > 0:
+        name = name[1:] if len(name) > 1 and name[0] == "@" else name
+    else:
+        return name, False
+
+    if remove:
+        attr_val = attrs.pop(name)
+    else:
+        attr_val = attrs[name]
+    if as_struct:
+        return attr_val.as_struct(as_struct), True
+    if as_interface:
+        return attr_val.as_interface(as_interface), True
+    if as_text:
+        return attr_val.as_text(), True
+    return attr_val, True
 
 
 def get_config_val(config, key, attrs, as_struct=None, as_interface=None, as_text=False, remove=True):

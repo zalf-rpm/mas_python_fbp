@@ -12,8 +12,8 @@ dependencies = [
   "tomli-w>=1.2.0,<2",
   "netcdf4>=1.7.4,<2",
   "spotpy>=1.6.7,<2",
-  "matplotlib>=3.10.9,<4",
-  "pycapnp>=2.2.3,<3",
+  "matplotlib>=3.11.0,<4",
+  "pycapnp>=2.2.4,<3",
   "zalfmas-common>=0.1.47,<0.2",
   "zalfmas-capnp-schemas>=0.1.67,<0.2",
   "zalfmas-services>=0.1.16,<0.2",
@@ -21,20 +21,24 @@ dependencies = [
   "pydantic>=2.13.4,<3",
   "geojson-pydantic>=2.1.1,<3",
   "rasterio>=1.5.0,<2",
-  "geopandas>=1.1.3,<2",
-  "pyarrow>=24.0.0,<25",
-  "duckdb>=1.5.3,<2",
+  "geopandas>=1.1.4,<2",
+  "pyarrow>=25.0.0,<26",
+  "duckdb>=1.5.4,<2",
   "owslib>=0.36.0,<0.37",
   "boto3>=1.43.23,<2", "gjson>=1.2.0,<2",
 ]
 
+[project.scripts]
+zalfmas-component-service = "zalfmas_fbp.run.local_components_service:cli"
+zalfmas-channel-service = "zalfmas_fbp.run.channel_starter_service:cli"
+
 [dependency-groups]
 dev = [
-  "pytest>=9.0.3,<10",
-  "ruff>=0.15.16,<0.16",
-  "ty>=0.0.44,<0.0.45",
-  "types-boto3[all,s3]>=1.43.23,<2",
-  "basedpyright>=1.39.6,<2",
+  "pytest>=9.1.1,<10",
+  "ruff>=0.15.21,<0.16",
+  "ty>=0.0.59,<0.0.60",
+  "types-boto3[all,s3]>=1.43.48,<2",
+  "basedpyright>=1.39.9,<2",
 ]
 
 [tool.pixi.dependencies]
@@ -49,7 +53,7 @@ zalfmas-fbp = { path = ".", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
 [tool.pixi.feature.dev.dependencies]
-pixi-pycharm = ">=0.0.11,<0.0.12"
+pixi-pycharm = ">=0.0.12,<0.0.13"
 
 [tool.pixi.environments]
 dev = ["dev"]
@@ -90,3 +94,7 @@ ignore = ["tests"]
 typeCheckingMode = "basic"
 venvPath = ".pixi/envs"
 venv = "dev"
+
+[tool.pixi.tasks]
+components-service = { cmd = "python -m zalfmas_fbp.run.local_components_service configs/local_components_service.toml" }
+channel-service = { cmd = "python -m zalfmas_fbp.run.channel_starter_service configs/channel_starter_service.toml" }
