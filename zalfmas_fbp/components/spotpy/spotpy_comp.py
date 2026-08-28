@@ -587,10 +587,9 @@ class Component(process.Process[Config]):
                             continue
 
                         for par in init_params:
-                            par_name = par["name"]
                             if "array_index" in par:
                                 # spotpy does not allow two parameters to have the same name
-                                par_name += f"_{par.pop('array_index')}"
+                                par["name"] += f"_{par.pop('array_index')}"
                             spotpy_params.append(spotpy.parameter.Uniform(**par))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
