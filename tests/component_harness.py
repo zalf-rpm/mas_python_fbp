@@ -153,6 +153,20 @@ def text_outputs(writer: InMemoryWriter) -> list[str]:
     return [value.content.as_text() for value in writer.values]
 
 
+def open_bracket_message() -> PortMessage:
+    return PortMessage(PortValue(fbp_capnp.IP.new_message(type="openBracket")))
+
+
+def close_bracket_message(**attrs: Any) -> PortMessage:
+    ip = fbp_capnp.IP.new_message(type="closeBracket")
+    if attrs:
+        entries = ip.init("attributes", len(attrs))
+        for i, (key, value) in enumerate(attrs.items()):
+            entries[i].key = key
+            entries[i].value = value
+    return PortMessage(PortValue(ip))
+
+
 def _make_ports(
     inputs: Mapping[str, Sequence[PortMessage]],
     outputs: Sequence[str],
