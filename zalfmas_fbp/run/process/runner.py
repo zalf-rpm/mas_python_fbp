@@ -48,7 +48,7 @@ def start_local_process_component(
     return sp.Popen(
         pte_split
         + [process_cap_writer_sr]
-        + ([f'--name="{name}"'] if name else [])
+        + ([f"--name={name}"] if name else [])
         + ([f"--log_level={log_level}"] if log_level else []),
         text=True,
     )

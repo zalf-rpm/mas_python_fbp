@@ -1,0 +1,54 @@
+{
+  "version": "0.3",
+  "name": "split string (process) -> to string (process) -> console output (standard)",
+  "cmds": "./configs/local_cmds.json",
+  "nodes": [
+    {
+      "nodeId": "iip-in",
+      "componentId": "iip",
+      "location": { "x": 60.0, "y": 500.0 },
+      "content": "aaaa;bbbb;ccccc;dddd"
+    },
+    {
+      "nodeId": "split-1",
+      "processName": "split string 1",
+      "location": { "x": 440.0, "y": 500.0 },
+      "parallelProcesses": 1,
+      "config": {
+        "split_at": ";"
+      },
+      "componentId": "d44040ab-7d5a-44d1-94e8-3f79969edbd4"
+    },
+    {
+      "nodeId": "to-string-1",
+      "processName": "to string 1",
+      "location": { "x": 760.0, "y": 500.0 },
+      "parallelProcesses": 1,
+      "config": {
+        "struct_type": "Text"
+      },
+      "componentId": "250488d8-7519-49a8-820e-0e981ffb2a71"
+    },
+    {
+      "nodeId": "console-1",
+      "processName": "console output 1",
+      "location": { "x": 1080.0, "y": 500.0 },
+      "parallelProcesses": 1,
+      "componentId": "2de9c491-d8a6-4b36-84de-db7f4a312731"
+    }
+  ],
+  "links": [
+    {
+      "source": { "nodeId": "iip-in", "port": "Right" },
+      "target": { "nodeId": "split-1", "port": "in" }
+    },
+    {
+      "source": { "nodeId": "split-1", "port": "out" },
+      "target": { "nodeId": "to-string-1", "port": "in" }
+    },
+    {
+      "source": { "nodeId": "to-string-1", "port": "out" },
+      "target": { "nodeId": "console-1", "port": "in" }
+    }
+  ]
+}

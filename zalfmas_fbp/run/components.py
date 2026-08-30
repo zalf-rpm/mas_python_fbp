@@ -137,7 +137,7 @@ def start_local_component(
     proc = sp.Popen(
         pte_split
         + [port_infos_reader_sr]
-        + ([f'--name="{name}"'] if name else [])
+        + ([f"--name={name}"] if name else [])
         + ([f"--log_level={log_level}"] if log_level else []),
         # stdout=sp.PIPE, stderr=sp.STDOUT,
         text=True,
