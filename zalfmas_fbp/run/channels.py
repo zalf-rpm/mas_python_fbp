@@ -14,13 +14,20 @@ import subprocess as sp
 import uuid
 
 
-def start_first_channel(path_to_channel: str, name: str | None = None, log_level: str | None = None):
+def start_first_channel(
+    path_to_channel: str,
+    name: str | None = None,
+    host: str | None = None,
+    log_level: str | None = None,
+):
     chan = sp.Popen(
         [
             path_to_channel,
             f"--name=chan_{sanitize_channel_name(name) if name and len(name) > 0 else str(uuid.uuid4())}",
             "--output_srs",
         ]
+        + ([f"--host={host}"] if host else [])
+        + ([f"--local_host={host}"] if host else [])
         + ([f"--log_level={log_level}"] if log_level else []),
         stdout=sp.PIPE,
         text=True,

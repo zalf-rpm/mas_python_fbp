@@ -38,6 +38,7 @@ import socket
 import subprocess as sp
 import sys
 import tomllib
+import urllib.parse as urlp
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -68,6 +69,7 @@ configure_logging(default_level="INFO")
 
 IIP_COMPONENT_ID = "iip"
 DEFAULT_PATH_TO_CHANNEL = "./binaries/channel"
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 PROCESS_CAP_TIMEOUT_SECONDS = 60.0
 PROCESS_STOP_TIMEOUT_SECONDS = 10.0
 PROCESS_EXIT_POLL_SECONDS = 0.2
@@ -376,9 +378,51 @@ def listening_port(server: Any) -> int:
     return (ipv4_sockets or sockets)[0].getsockname()[1]
 
 
-def own_copy(sturdy_ref: SturdyRefReader) -> SturdyRefBuilder:
-    """Copy a sturdy ref out of the (short lived) message it was read from."""
-    return sturdy_ref.as_builder()
+def as_localhost_sturdy_ref(
+    sturdy_ref: str | SturdyRefBuilder | SturdyRefReader,
+) -> str | SturdyRefBuilder | None:
+    """Copy of sturdy_ref with its host forced to 127.0.0.1, or None if it already points there.
+
+    The channel binary advertises an auto-detected local network address in its sturdy refs,
+    overriding any explicit --local_host, and that address can be unreachable on machines which
+    restrict listening on non-loopback interfaces. Since every sturdy ref this starter connects
+    to belongs to a channel or component it just started as a local subprocess, retrying via
+    127.0.0.1 is always a valid fallback here.
+    """
+    if isinstance(sturdy_ref, str):
+        parsed = urlp.urlparse(sturdy_ref)
+        if parsed.hostname in LOOPBACK_HOSTS:
+            return None
+        userinfo = f"{parsed.username}@" if parsed.username else ""
+        port = f":{parsed.port}" if parsed.port else ""
+        return parsed._replace(netloc=f"{userinfo}127.0.0.1{port}").geturl()
+
+    if str(sturdy_ref.vat.address.host) in LOOPBACK_HOSTS:
+        return None
+    # readers expose as_builder() directly; builders don't (they already are one), so round-trip
+    # through as_reader() first to get an independent copy and leave the original untouched.
+    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    local_ref.vat.address.host = "127.0.0.1"
+    return local_ref
+
+
+def local_sr(sturdy_ref: str | SturdyRefBuilder | SturdyRefReader) -> str | SturdyRefBuilder:
+    """Owned copy of sturdy_ref with its host forced to 127.0.0.1.
+
+    Unlike as_localhost_sturdy_ref, this is meant to be applied proactively to every sturdy ref
+    produced by a locally started channel - not just as a reconnect fallback - because most of
+    these sturdy refs are handed off unmodified to other locally started subprocesses (other
+    channels' --startup_info_writer_sr, standard/process components' port sturdy refs), which
+    connect to them on their own and never go through this starter's connect_or_raise. It always
+    returns an independent copy (even if already loopback), since struct inputs are typically
+    readers into a short lived message that shouldn't be held onto directly.
+    """
+    if isinstance(sturdy_ref, str):
+        return as_localhost_sturdy_ref(sturdy_ref) or sturdy_ref
+    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    if str(local_ref.vat.address.host) not in LOOPBACK_HOSTS:
+        local_ref.vat.address.host = "127.0.0.1"
+    return local_ref
 
 
 def structured_text_ip(config: dict[str, Any]):
@@ -554,11 +598,16 @@ class FlowRunner:
         first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(
             self.args.path_to_channel,
             name="startup_info",
+            host=self.args.channel_host,
         )
         self.channels.append(first_chan)
         if not first_reader_sr or not first_writer_sr:
             msg = "Couldn't get the sturdy refs of the startup info channel."
             raise RuntimeError(msg)
+        # first_writer_sr in particular is handed to every other locally started channel via
+        # --startup_info_writer_sr, so it must already be reachable, not just retried on failure.
+        first_reader_sr = local_sr(first_reader_sr)
+        first_writer_sr = local_sr(first_writer_sr)
 
         first_reader_cap = await self.connect_or_raise(first_reader_sr, "startup info reader")
         first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
@@ -611,8 +660,8 @@ class FlowRunner:
                 config_chans.append(
                     ConfigChannel(
                         # the reader sr goes on the component's command line, so it has to be a string
-                        reader_sr=common.sturdy_ref_str_from_sr(info.readerSRs[0]),
-                        writer_sr=own_copy(info.writerSRs[0]),
+                        reader_sr=local_sr(common.sturdy_ref_str_from_sr(info.readerSRs[0])),
+                        writer_sr=local_sr(info.writerSRs[0]),
                     ),
                 )
                 continue
@@ -620,14 +669,14 @@ class FlowRunner:
             link = decode_chan_id(chan_id)
             src_node = self.nodes.get(link.src.node_id)
             if src_node is not None and src_node.is_iip:
-                await self.send_iip(src_node, info.writerSRs[0])
+                await self.send_iip(src_node, local_sr(info.writerSRs[0]))
             else:
-                self.out_srs[link.src.node_id][link.src.port].append(own_copy(info.writerSRs[0]))
-            self.in_srs[link.tgt.node_id][link.tgt.port].append(own_copy(info.readerSRs[0]))
+                self.out_srs[link.src.node_id][link.src.port].append(local_sr(info.writerSRs[0]))
+            self.in_srs[link.tgt.node_id][link.tgt.port].append(local_sr(info.readerSRs[0]))
 
         return config_chans
 
-    async def send_iip(self, node: FlowNode, writer_sr: SturdyRefReader) -> None:
+    async def send_iip(self, node: FlowNode, writer_sr: SturdyRefBuilder | SturdyRefReader) -> None:
         writer_cap = await self.connect_or_raise(writer_sr, f"IIP writer of '{node.name}'")
         writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
         content = node.content
@@ -840,6 +889,14 @@ class FlowRunner:
 
     async def connect_or_raise(self, sturdy_ref: str | SturdyRefBuilder | SturdyRefReader, target: str):
         cap = await self.con_man.try_connect(sturdy_ref)
+        if cap is None and (local_ref := as_localhost_sturdy_ref(sturdy_ref)) is not None:
+            logger.warning(
+                "Couldn't connect to %s at %s, retrying via 127.0.0.1 "
+                "(channels/components started by this flow runner are always local)",
+                target,
+                sturdy_ref,
+            )
+            cap = await self.con_man.try_connect(local_ref)
         if cap is None:
             msg = f"Couldn't connect to {target} at {sturdy_ref}."
             raise RuntimeError(msg)

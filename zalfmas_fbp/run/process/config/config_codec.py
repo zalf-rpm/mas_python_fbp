@@ -68,13 +68,18 @@ def config_value_from_python(value: object) -> ValueBuilder:
             raise TypeError(msg)
         pairs: list[PairBuilder] = []
         for key, item in value.items():
-            pairs.append(
-                common_capnp.Pair.new_message(
-                    fst=key,
-                    snd=config_value_from_python(item),
-                ),
-            )
+            pair = common_capnp.Pair.new_message(fst=key)
+            # a dict value of None round-trips as a Pair with 'snd' left unset (see
+            # python_value_from_capnp_value's lpair handling) - Value itself has no "null"
+            # variant, so this is the only place None can be represented.
+            if item is not None:
+                pair.snd = config_value_from_python(item)
+            pairs.append(pair)
         return common_capnp.Value.new_message(lpair=pairs)
+
+    if value is None:
+        msg = "None is only supported as a dict value, not as a top level or list config value (Value has no 'null' variant)"
+        raise TypeError(msg)
 
     msg = f"Unsupported config value type: {type(value).__name__}"
     raise TypeError(msg)
