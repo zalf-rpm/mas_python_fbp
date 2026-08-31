@@ -1531,6 +1531,11 @@
                 "name": "in",
                 "contentType": "AnyPointer",
                 "desc": "The IPs to wrap int substream."
+            },
+            {
+                "name": "brackets",
+                "contentType": "AnyPointer",
+                "desc": "Optional side-channel of open-/close-bracket IPs (e.g. from a 'Split bracketed stream' component) dictating substream boundaries. If unconnected, 'no_of_ips' controls wrapping as usual. If connected, an open-bracket received here is forwarded to 'out', 'in' IPs are then forwarded until a matching close-bracket is received here; its 'substream_length' (common.capnp:Value(ui64)) attribute determines how many 'in' IPs belong to the substream."
             }
         ],
         "outPorts": [
@@ -1675,6 +1680,38 @@
                 "desc": "[\"attr1\", \"attr2\"] -> Names of the attributes to remove from incoming IPs."
             }
         }
+    },
+    "9552eb98-90ae-4c4e-88aa-b91a2bc7dee9": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "9552eb98-90ae-4c4e-88aa-b91a2bc7dee9",
+            "name": "Split bracketed stream",
+            "description": "Split a bracketed stream into its non-bracket IPs and its bracket IPs. Assumes a single level of bracket nesting."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Input stream, potentially containing open-/close-bracket IPs wrapping non-bracket IPs."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The non-bracket IPs received on 'in', forwarded unchanged."
+            },
+            {
+                "name": "brackets",
+                "contentType": "AnyPointer",
+                "desc": "The open-/close-bracket IPs received on 'in'. The close-bracket IP carries an additional 'substream_length' attribute (common.capnp:Value(ui64)) counting the non-bracket IPs forwarded on 'out' for that substream."
+            }
+        ],
+        "defaultConfig": {}
     },
     "67b31990-452a-4058-8a99-6785be345216": {
         "category": {
