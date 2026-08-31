@@ -191,27 +191,6 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
     logger.info("%s: process finished", Path(__file__).name)
 
 
-default_config = {
-    "to_attr": None,
-    "from_attr": None,
-    "subrange_start": None,
-    "subrange_end": None,
-    "subheader": None,
-    "transposed": "false",
-    "maintain_substreams": False,
-    "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
-    "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
-    "opt:subrange_start": "[None | iso-date string] -> start timeseries at that day",
-    "opt:subrange_end": "[None | iso-date string] -> end timeseries at that day",
-    "opt:subheader": "[None | list[string] (precip,globrad,tavg,...)] -> select all (None) or just listed climate elements in dataset",
-    "opt:transposed": "[true | false] -> get data transposed (timeseries of each climate element instead of timeseries of all climate elements each day",
-    "opt:maintain_substreams": "[true | false] -> if false, ignore bracket IPs and thus flatten substreams",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[string (sturdy ref) to climate.capnp:TimeSeries | climate.capnp:TimeSeries] -> ",
-    "port:out": "[climate.capnp:TimeSeriesData] -> send a timeseries as TimeSeriesData struct",
-}
-
-
 def main():
     c.run_component_from_metadata(run_component, METADATA)
 
