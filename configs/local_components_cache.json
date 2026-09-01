@@ -1058,19 +1058,14 @@
         ],
         "outPorts": [],
         "defaultConfig": {
-            "id_attr": {
-                "value": "id",
-                "type": "string",
-                "desc": "The attribute to get id for the filepattern from"
-            },
             "from_attr": {
                 "type": "string",
                 "desc": "Instead of the IP content, get the content from that 'attr'."
             },
-            "filepath_pattern": {
-                "value": "csv_{id}.csv",
+            "filename_pattern": {
+                "value": "csv_{count}.csv",
                 "type": "string",
-                "desc": "The pattern to use for the filename. Can contain {id} as placeholder for the id attribute."
+                "desc": "The pattern to use for the filename. Can contain multiple placeholders. Use\n        '{@attr_name}' to insert the value of the IP attribute 'attr_name' (the '@' is only a marker and is\n        stripped before the attribute lookup). Use '{count}' to insert the running count of received messages\n        (starting at 0)."
             },
             "path_to_out_dir": {
                 "value": "path to output dir",
@@ -1718,6 +1713,48 @@
         ],
         "defaultConfig": {}
     },
+    "0897bcb5-a611-4490-95d4-fbff21ee0ed8": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "0897bcb5-a611-4490-95d4-fbff21ee0ed8",
+            "name": "Sort IPs",
+            "description": "Sort IPs by an attribute holding a common.capnp:Value. Is substream sensitive."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "The IPs to sort. Substream sensitive, see 'sort_substreams'."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The (leaf-level) sorted IPs, see 'sort_substreams' and 'sort_attr'."
+            }
+        ],
+        "defaultConfig": {
+            "sort_substreams": {
+                "value": true,
+                "type": "bool",
+                "desc": "If True, the 'in' stream is expected to be organized into open-/close-bracket delimited\n        substreams. Each leaf-level substream (one without further nested substreams) is buffered and sorted by\n        'sort_attr' before being forwarded; brackets of non-leaf substreams are just forwarded, only their nested\n        leaf substreams get sorted. If False, the 'in' stream must not contain bracket IPs - if one is received\n        anyway, it is dropped (and a warning logged); no sorting takes place and content IPs are forwarded as-is."
+            },
+            "sort_attr": {
+                "value": "",
+                "type": "string",
+                "desc": "Name of the attribute (on each IP to sort) holding a common.capnp:Value to sort by. Its\n        value has to be one of the number types (i8-i64, ui8-ui64, f32, f64), sorted numerically, or a string (t),\n        sorted lexically. May optionally be prefixed with '@' (e.g. '@my_attr') for consistency with other\n        components, though here it always refers to an attribute name either way. If empty, no sorting is\n        performed and IPs are forwarded in the order received."
+            }
+        }
+    },
     "67b31990-452a-4058-8a99-6785be345216": {
         "category": {
             "id": "json",
@@ -2348,6 +2385,39 @@
             }
         ],
         "defaultConfig": {}
+    },
+    "b96e9b2a-f5c6-44d2-a6a9-aec767f1bda9": {
+        "category": {
+            "id": "simple",
+            "name": "Simple"
+        },
+        "info": {
+            "id": "b96e9b2a-f5c6-44d2-a6a9-aec767f1bda9",
+            "name": "counter",
+            "description": "Counts up and sends the count on 'count'. 'reset' triggers a reset to 'start_at'."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "reset",
+                "contentType": "AnyPointer",
+                "desc": "Received IPs are discarded, they only trigger a reset of the counter to 'start_at'."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "count",
+                "contentType": "@0xe17592335373b246 = common/common.capnp:Value.i64",
+                "desc": "The current count."
+            }
+        ],
+        "defaultConfig": {
+            "start_at": {
+                "value": 0,
+                "type": "int",
+                "desc": "The value the counter starts (and resets) at."
+            }
+        }
     },
     "89da0cb9-2079-4245-aecc-068194bc1637": {
         "category": {
