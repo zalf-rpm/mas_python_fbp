@@ -193,10 +193,7 @@ def _apply_filter(
 
     if isinstance(value, dict):
         if _should_apply_to_object_values(value):
-            return {
-                k: _apply_filter(v, filters, values_only, flatten_values_only_lists)
-                for k, v in value.items()
-            }
+            return {k: _apply_filter(v, filters, values_only, flatten_values_only_lists) for k, v in value.items()}
         return _project_item(value, filters, values_only)
 
     return value

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
 from typing import Any, Literal, override
 
 import capnp
@@ -24,15 +23,9 @@ import numpy as np
 import pandas
 from pydantic import Field
 from zalfmas_capnp_schemas_with_stubs import (
-    climate_capnp,
-    common_capnp,
     fbp_capnp,
-    field_exp_data_capnp,
-    soil_capnp,
 )
 from zalfmas_common import common
-from zalfmas_common.climate import csv_file_based
-from zalfmas_services.soil import sqlite_soil_data_service as sds
 
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import logging
-from pickletools import string4
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path

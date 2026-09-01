@@ -85,8 +85,7 @@ The local component service depends on `-O`, so a component without the helper-b
 The classic component style in this repository is a plain async function:
 
 ```python
-async def run_component(port_infos_reader_sr: str, config: dict):
-    ...
+async def run_component(port_infos_reader_sr: str, config: dict): ...
 ```
 
 This is the pattern used by `string/split_string.py`, `file/read_file.py`, `console/console_output.py`, `ip/add_content.py`, and most other modules in this folder.

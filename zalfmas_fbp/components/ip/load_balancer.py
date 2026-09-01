@@ -21,7 +21,6 @@ from typing import Literal, override
 from pydantic import Field
 from zalfmas_common import common
 
-from zalfmas_fbp.components.ip.copy_ip import copy_ip
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 

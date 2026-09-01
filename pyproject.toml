@@ -12,20 +12,20 @@ dependencies = [
   "tomli-w>=1.2.0,<2",
   "netcdf4>=1.7.4,<2",
   "spotpy>=1.6.7,<2",
-  "matplotlib>=3.11.0,<4",
+  "matplotlib>=3.11.1,<4",
   "pycapnp>=2.2.4,<3",
   "zalfmas-common>=0.1.47,<0.2",
-  "zalfmas-capnp-schemas>=0.1.67,<0.2",
+  "zalfmas-capnp-schemas>=0.1.68,<0.2",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
-  "pydantic>=2.13.4,<3",
-  "geojson-pydantic>=2.1.1,<3",
-  "rasterio>=1.5.0,<2",
+  "pydantic>=2.13.5,<3",
+  "geojson-pydantic>=2.1.2,<3",
+  "rasterio>=1.5.1,<2",
   "geopandas>=1.1.4,<2",
-  "pyarrow>=25.0.0,<26",
-  "duckdb>=1.5.4,<2",
+  "pyarrow>=25.0.1,<26",
+  "duckdb>=1.5.5,<2",
   "owslib>=0.36.0,<0.37",
-  "boto3>=1.43.23,<2", "gjson>=1.2.0,<2",
+  "boto3>=1.43.85,<2", "gjson>=1.2.0,<2",
 ]
 
 [project.scripts]
@@ -35,10 +35,10 @@ zalfmas-channel-service = "zalfmas_fbp.run.channel_starter_service:cli"
 [dependency-groups]
 dev = [
   "pytest>=9.1.1,<10",
-  "ruff>=0.15.21,<0.16",
-  "ty>=0.0.59,<0.0.60",
-  "types-boto3[all,s3]>=1.43.48,<2",
-  "basedpyright>=1.39.9,<2",
+  "ruff>=0.16.5,<0.17",
+  "ty>=0.0.77,<0.0.78",
+  "types-boto3[all,s3]>=1.43.85,<2",
+  "basedpyright>=1.39.10,<2",
 ]
 
 [tool.pixi.dependencies]

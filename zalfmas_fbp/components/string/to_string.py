@@ -106,9 +106,9 @@ def _content_to_str(c: Any, schema_or_type: Any) -> str:
 
 class ToString(process.Process[ToStringConfig]):
     def __init__(
-            self,
-            metadata: meta.Component = METADATA,
-            con_man: common.ConnectionManager | None = None,
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 

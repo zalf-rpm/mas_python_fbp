@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Any, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from boto3.session import Session
 from botocore.response import StreamingBody
@@ -37,12 +37,12 @@ def object_key(path: str, filename: str) -> str:
 
 
 def get_object_body(
-        *,
-        endpoint_url: str,
-        access_key: str,
-        secret_key: str,
-        bucket: str,
-        key: str,
+    *,
+    endpoint_url: str,
+    access_key: str,
+    secret_key: str,
+    bucket: str,
+    key: str,
 ) -> StreamingBody:
     s3_client = _object_store_client(
         endpoint_url=endpoint_url,
@@ -54,14 +54,14 @@ def get_object_body(
 
 
 def put_object(
-        *,
-        endpoint_url: str,
-        access_key: str,
-        secret_key: str,
-        bucket: str,
-        key: str,
-        body: Any,
-        content_type: str,
+    *,
+    endpoint_url: str,
+    access_key: str,
+    secret_key: str,
+    bucket: str,
+    key: str,
+    body: Any,
+    content_type: str,
 ) -> None:
     s3_client = _object_store_client(
         endpoint_url=endpoint_url,
@@ -72,10 +72,10 @@ def put_object(
 
 
 def _object_store_client(
-        *,
-        endpoint_url: str,
-        access_key: str,
-        secret_key: str,
+    *,
+    endpoint_url: str,
+    access_key: str,
+    secret_key: str,
 ) -> S3Client:
     session = Session(
         aws_access_key_id=access_key or None,

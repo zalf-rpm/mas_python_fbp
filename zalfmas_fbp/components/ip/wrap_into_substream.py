@@ -29,8 +29,7 @@ from zalfmas_fbp.run import process
 from zalfmas_fbp.run.process.task_utils import wait_for_tasks_or_stop
 
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
-    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
+    pass
 
 logger = logging.getLogger(__name__)
 

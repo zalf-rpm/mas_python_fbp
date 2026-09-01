@@ -534,7 +534,7 @@ def check_and_possibly_add_sentinel_value(sentinel_values: dict, attr, sentinel_
         try:
             if (val := attr.value.as_struct(common_capnp.Value)).which() == "f64":
                 sentinel_values[val.f64] = np.nan
-        except Exception as e:
+        except Exception:
             logger.warning(
                 "%s: null_sentinel attribute's type was no common.capnp:Value.f64! Skipping.",
                 Path(__file__).name,
@@ -577,7 +577,7 @@ class Component(process.Process[Config]):
                         if init_params_ip._has("content"):
                             try:
                                 init_params: list[dict] = json.loads(params_text := init_params_ip.content.as_text())
-                            except Exception as e:
+                            except Exception:
                                 logger.warning(
                                     "%s: Couldn't read JSON parameters to calibrate! params: %s",
                                     Path(__file__).name,
