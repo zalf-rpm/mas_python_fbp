@@ -15,30 +15,37 @@
 from __future__ import annotations
 
 import logging
+import string
 from pathlib import Path
-from typing import override
+from typing import TYPE_CHECKING, override
 
+import capnp
+from mas.schema.common import common_capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.run import metadata as meta
 
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
+
 logger = logging.getLogger(__name__)
+
+_NUMERIC_VALUE_VARIANTS = frozenset({"i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64", "f32", "f64"})
 
 
 class WriteFileConfig(process.ProcessConfig):
-    id_attr: str = Field(
-        "id",
-        description="The attribute to get id for the filepattern from",
-    )
     from_attr: str | None = Field(
         None,
         description="Instead of the IP content, get the content from that 'attr'.",
     )
-    filepath_pattern: str = Field(
-        "csv_{id}.csv",
-        description="The pattern to use for the filename. Can contain {id} as placeholder for the id attribute.",
+    filename_pattern: str = Field(
+        "csv_{count}.csv",
+        description="""The pattern to use for the filename. Can contain multiple placeholders. Use
+        '{@attr_name}' to insert the value of the IP attribute 'attr_name' (the '@' is only a marker and is
+        stripped before the attribute lookup). Use '{count}' to insert the running count of received messages
+        (starting at 0).""",
     )
     path_to_out_dir: str = Field(
         "path to output dir",
@@ -105,26 +112,70 @@ class WriteFile(process.Process[WriteFileConfig]):
                 break
 
             try:
-                id_attr = common.get_fbp_attr(in_ip, self.config.id_attr)
-                id_ = id_attr.as_text() if id_attr else str(count)
                 content_attr = common.get_fbp_attr(in_ip, self.config.from_attr)
                 content = content_attr.as_text() if content_attr else in_ip.content.as_text()
 
-                filepath = Path(self.config.path_to_out_dir) / self.config.filepath_pattern.format(id=id_)
+                filename = self._render_filename(in_ip, count)
+                filepath = Path(self.config.path_to_out_dir) / filename
                 if self.config.create_missing_dirs:
                     filepath.parent.mkdir(parents=True, exist_ok=True)
 
                 with filepath.open("at" if self.config.append else "wt") as _:
                     _.write(content)
-                    count += 1
 
                 if self.config.debug:
                     logger.info("%s: wrote %s", self.name, filepath)
 
             except Exception:
                 logger.exception("%s Exception", self.name)
+            finally:
+                count += 1
 
         logger.info("%s: process finished", self.name)
+
+    def _render_filename(self, ip: IPReader, count: int) -> str:
+        pattern = self.config.filename_pattern
+        values: dict[str, object] = {}
+        for _literal_text, field_name, _format_spec, _conversion in string.Formatter().parse(pattern):
+            if field_name is None:
+                continue
+            base_name = field_name.split(".")[0].split("[")[0]
+            if base_name in values:
+                continue
+
+            if base_name == "count":
+                values[base_name] = count
+            elif base_name.startswith("@"):
+                values[base_name] = self._attr_as_str(ip, base_name.removeprefix("@"))
+            else:
+                msg = (
+                    f"{self.name}: filename_pattern references unknown placeholder "
+                    f"'{{{base_name}}}'; use '{{@attr_name}}' or '{{count}}'"
+                )
+                raise ValueError(msg)
+
+        return pattern.format(**values)
+
+    def _attr_as_str(self, ip: IPReader, attr_name: str) -> str:
+        value = common.get_fbp_attr(ip, attr_name)
+        if value is None:
+            msg = f"{self.name}: IP is missing attribute '{attr_name}' referenced in filename_pattern"
+            raise ValueError(msg)
+
+        try:
+            return value.as_text()
+        except (capnp.KjException, TypeError, AttributeError):
+            pass
+
+        try:
+            common_value = value.as_struct(common_capnp.Value)
+            which = common_value.which()
+            if which in _NUMERIC_VALUE_VARIANTS or which == "t":
+                return str(getattr(common_value, which))
+        except (capnp.KjException, TypeError, AttributeError):
+            pass
+
+        return str(value)
 
 
 def main():
