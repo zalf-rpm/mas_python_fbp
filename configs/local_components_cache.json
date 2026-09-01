@@ -1044,7 +1044,7 @@
             "name": "write file",
             "description": "Write input into a file."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "in",
@@ -1081,6 +1081,11 @@
                 "value": false,
                 "type": "bool",
                 "desc": "If True, append to existing files instead of overwriting them."
+            },
+            "create_missing_dirs": {
+                "value": false,
+                "type": "bool",
+                "desc": "If True, create missing directories in the output path."
             },
             "debug": {
                 "value": false,
