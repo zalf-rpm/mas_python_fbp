@@ -51,6 +51,7 @@
   "128af0c8-2614-4398-9043-ff3581958bd4": "python -m zalfmas_fbp.components.models.monica.create_monica_json_env",
   "92e48886-2728-4a78-b53e-5cb0d4ac415a": "python -m zalfmas_fbp.components.models.monica.write_monica_csv",
   "4b324ff3-a91d-434b-a2bf-8363bc4828ec": "python -m zalfmas_fbp.components.producers.africa_calibration_producer",
+  "b96e9b2a-f5c6-44d2-a6a9-aec767f1bda9": "python -m zalfmas_fbp.components.simple.counter",
   "89da0cb9-2079-4245-aecc-068194bc1637": "python -m zalfmas_fbp.components.soil.use_soil_service",
   "028290bb-a38c-4599-9948-fc73723e9654": "python -m zalfmas_fbp.components.spotpy.load_calibration_params",
   "993e5cdf-1c55-4a75-9538-e7906676fedb": "python -m zalfmas_fbp.components.spotpy.read_observed_values",
