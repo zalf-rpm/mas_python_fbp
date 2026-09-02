@@ -315,9 +315,15 @@ class WrapIntoSubstream(process.Process[Config]):
             attrs = out_close_ip.init("attributes", len(stripped_attrs))
             for i, attr in enumerate(stripped_attrs):
                 attrs[i].key = attr.key
-                attrs[i].desc = attr.desc
+                # only copy optional Text fields if actually set - reading an unset Text field
+                # returns "", and writing that back would turn "unset" into an explicit empty
+                # string, which downstream code (e.g. get_fbp_attr's valueType check) treats as
+                # present, not absent.
+                if attr._has("desc"):
+                    attrs[i].desc = attr.desc
                 attrs[i].value = attr.value
-                attrs[i].valueType = attr.valueType
+                if attr._has("valueType"):
+                    attrs[i].valueType = attr.valueType
 
             if not await send_ip(out_close_ip):
                 return

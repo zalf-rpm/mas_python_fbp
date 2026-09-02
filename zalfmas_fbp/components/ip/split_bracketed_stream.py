@@ -98,15 +98,22 @@ class Component(process.Process[Config]):
                     if not await self.write_out("brackets", in_ip):
                         logger.info("%s process finished", self.name)
                         return
+                    logger.info("%s openBracket received", self.name)
 
                 elif in_ip.type == "closeBracket":
                     out_ip = fbp_capnp.IP.new_message(type="closeBracket")
                     attrs = out_ip.init("attributes", len(in_ip.attributes) + 1)
                     for i, attr in enumerate(in_ip.attributes):
                         attrs[i].key = attr.key
-                        attrs[i].desc = attr.desc
+                        # only copy optional Text fields if actually set - reading an unset Text
+                        # field returns "", and writing that back would turn "unset" into an
+                        # explicit empty string, which downstream code (e.g. get_fbp_attr's
+                        # valueType check) treats as present, not absent.
+                        if attr._has("desc"):
+                            attrs[i].desc = attr.desc
                         attrs[i].value = attr.value
-                        attrs[i].valueType = attr.valueType
+                        if attr._has("valueType"):
+                            attrs[i].valueType = attr.valueType
                     attrs[len(in_ip.attributes)].key = SUBSTREAM_LENGTH_ATTR
                     attrs[len(in_ip.attributes)].value = common_capnp.Value.new_message(ui64=count)
                     attrs[len(in_ip.attributes)].valueType = SUBSTREAM_LENGTH_VALUE_TYPE
@@ -115,6 +122,7 @@ class Component(process.Process[Config]):
                     if not await self.write_out("brackets", out_ip):
                         logger.info("%s process finished", self.name)
                         return
+                    logger.info("%s closeBracket received", self.name)
 
                 else:
                     if not await self.write_out("out", in_ip):
