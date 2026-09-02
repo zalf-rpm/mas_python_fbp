@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import geopandas as gpd
@@ -48,7 +49,11 @@ def _require_columns(frame: gpd.GeoDataFrame, columns: list[str]) -> None:
 
 
 def _read_geoparquet_bytes(data: bytes) -> gpd.GeoDataFrame:
-    with NamedTemporaryFile(suffix=".parquet") as file:
+    # the file has to be closed before geopandas/pyarrow can reopen it by path on Windows
+    with NamedTemporaryFile(suffix=".parquet", delete=False) as file:
         file.write(data)
-        file.flush()
-        return gpd.read_parquet(file.name)
+        path = Path(file.name)
+    try:
+        return gpd.read_parquet(path)
+    finally:
+        path.unlink(missing_ok=True)

@@ -161,7 +161,7 @@ class _StopAwareProcess(process.Process):
 
 class _FailOnceProcess(process.Process):
     def __init__(self):
-        super().__init__()
+        super().__init__(metadata=_standard_port_meta())
         self.runs = 0
 
     async def run(self) -> None:
@@ -175,7 +175,7 @@ class _FailOnceProcess(process.Process):
 
 class _CancellationSuppressingProcess(process.Process):
     def __init__(self):
-        super().__init__()
+        super().__init__(metadata=_standard_port_meta())
         self.release = asyncio.Event()
         self.cancel_count = 0
 
@@ -239,16 +239,15 @@ def test_process_metadata_initializes_array_in_and_out_ports() -> None:
 
 
 def test_process_metadata_updates_identifiable_name_and_description() -> None:
-    component = process.Process(
-        metadata=_standard_port_meta(),
-        id="custom-process-id",
-        name="custom-process-name",
-        description="custom process description",
-    )
+    # id is derived from metadata and immutable; name/description can still be
+    # overridden after construction (this is how e.g. the --name CLI arg works)
+    component = process.Process(metadata=_standard_port_meta())
+    component.name = "custom-process-name"
+    component.description = "custom process description"
 
-    assert component.id == "custom-process-id"
-    assert component.name == "standard-port-test"
-    assert component.description == "standard port test process"
+    assert component.id == "standard-port-test"
+    assert component.name == "custom-process-name"
+    assert component.description == "custom process description"
 
 
 def test_port_messages_use_initial_metadata_content_types() -> None:
@@ -282,7 +281,7 @@ def test_port_messages_do_not_follow_reassigned_context_metadata() -> None:
 
 def test_process_soft_stop_returns_to_idle_and_clears_stopping_flag() -> None:
     async def run_test() -> None:
-        component = _StopAwareProcess()
+        component = _StopAwareProcess(metadata=_standard_port_meta())
 
         assert component.context.status.process_state == "idle"
         assert await component.start(RPC_CONTEXT) is True
@@ -718,7 +717,10 @@ def test_read_array_in_next_available_chunked_coalesces_chunks() -> None:
 
 def test_read_in_rejects_chunked_payloads_without_explicit_api() -> None:
     component = process.Process(metadata=_standard_port_meta())
-    open_ip = fbp_capnp.IP.new_message(type="openBracket")
+    open_ip = fbp_capnp.IP.new_message(
+        type="openBracket",
+        sysAttributes={"bracketType": {"chunkedContent": {"chunkCount": 1}}},
+    )
     component.in_ports["in"] = cast("Any", InMemoryReader([PortMessage(PortValue(open_ip)), done_message()]))
 
     try:

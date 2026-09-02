@@ -48,14 +48,26 @@ def test_config_value_rejects_non_string_dict_keys() -> None:
         config_value_from_python({1: "value"})
 
 
-def test_python_value_from_capnp_rejects_malformed_pair_entries() -> None:
-    malformed = common_capnp.Value.new_message(
+def test_python_value_from_capnp_pair_without_snd_decodes_to_none_value() -> None:
+    # a dict value of None round-trips as a Pair with 'snd' left unset, since Value has
+    # no "null" variant (see config_value_from_python's dict handling)
+    value = common_capnp.Value.new_message(
         lpair=[
             common_capnp.Pair.new_message(fst="missing-snd"),
         ],
     )
 
-    with pytest.raises(TypeError, match="both 'fst' and 'snd'"):
+    assert python_value_from_capnp_value(value.as_reader()) == {"missing-snd": None}
+
+
+def test_python_value_from_capnp_rejects_malformed_pair_entries() -> None:
+    malformed = common_capnp.Value.new_message(
+        lpair=[
+            common_capnp.Pair.new_message(snd=common_capnp.Value.new_message(t="missing-fst")),
+        ],
+    )
+
+    with pytest.raises(TypeError, match="at least 'fst'"):
         python_value_from_capnp_value(malformed.as_reader())
 
 

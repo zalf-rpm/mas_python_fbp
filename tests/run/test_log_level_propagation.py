@@ -79,7 +79,7 @@ def test_start_local_component_appends_log_level(monkeypatch: Any) -> None:
         sys.executable,
         "component.py",
         "reader-sr",
-        '--name="demo"',
+        "--name=demo",
         "--log_level=ERROR",
     ]
     assert captured["kwargs"]["text"] is True
@@ -101,7 +101,7 @@ def test_start_local_process_component_appends_log_level(monkeypatch: Any) -> No
         sys.executable,
         "process.py",
         "writer-sr",
-        '--name="demo"',
+        "--name=demo",
         "--log_level=DEBUG",
     ]
     assert captured["kwargs"]["text"] is True
