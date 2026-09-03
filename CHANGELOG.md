@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.35](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.34...v0.2.35) (2026-09-03)
+
+
+### Features
+
+* example file for run_fbp_flow.py ([e24f315](https://github.com/zalf-rpm/mas_python_fbp/commit/e24f3151b2fb1aa30f3d7f83b723218d2f7e9d2a))
+* spotpy component config has display_best option now ([4a45dcd](https://github.com/zalf-rpm/mas_python_fbp/commit/4a45dcdb0fcb427d2519226ba2f6a2eb352f75ae))
+
 ## [0.2.34](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.33...v0.2.34) (2026-09-01)
 
 
