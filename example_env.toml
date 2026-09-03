@@ -1,0 +1,25 @@
+# env.toml - example environment file for run_fbp_flow.py's --config/-e option
+# Run with: python -m zalfmas_fbp.run.run_fbp_flow my_flow.json -e env.toml
+
+# Optional: lets you omit the flow path on the command line entirely.
+path_to_flow = "flows/my_flow.json"
+
+# Repeated --cmds/-c files: just a TOML array of strings.
+# Later entries win on duplicate component ids (same rule as passing
+# multiple --cmds flags on the command line).
+cmds = [
+    "configs/local_cmds.json",
+    "configs/local_cmds_win.json",
+]
+
+# Repeated --components/-m files work the same way.
+components = [
+    "configs/local_components_cache.json",
+]
+
+path_to_channel = "C:/Users/berg/GitHub/monica/build/common/channel.exe"
+host = "127.0.0.1"
+channel_host = "127.0.0.1"
+log_level = "INFO"
+component_log_level = "INFO"
+verbose_channels = false
