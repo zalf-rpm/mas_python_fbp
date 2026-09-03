@@ -11,11 +11,25 @@ from zalfmas_fbp.run.run_fbp_flow import (
     FlowLink,
     FlowRunner,
     PortRef,
+    _find_config_file,
+    apply_toml_defaults,
+    create_args_parser,
     decode_chan_id,
     load_cmds,
+    load_toml_defaults,
     parse_config,
     parse_flow,
 )
+
+
+def _parse_with_toml_defaults(defaults: dict[str, Any], argv: list[str]) -> FlowArgs:
+    namespace = FlowArgs()
+    apply_toml_defaults(namespace, defaults)
+    toml_flow = defaults.get("path_to_flow")
+    parser = create_args_parser(path_to_flow_default=str(toml_flow) if toml_flow is not None else None)
+    parser.parse_args(argv, namespace=namespace)
+    return namespace
+
 
 SPLIT_STRING2_ID = "d44040ab-7d5a-44d1-94e8-3f79969edbd4"
 CONSOLE_OUTPUT_ID = "2de9c491-d8a6-4b36-84de-db7f4a312731"
@@ -112,6 +126,92 @@ def test_load_cmds_last_file_wins_and_meta_keys_skipped(tmp_path: Path):
     cmds = load_cmds([str(first), str(second)])
 
     assert cmds == {"c1": "cmd b", "c2": "cmd 2"}
+
+
+def test_find_config_file_extracts_config_flag_before_full_parse():
+    assert _find_config_file(["flow.json", "--config", "env.toml"]) == "env.toml"
+    assert _find_config_file(["flow.json", "-e", "env.toml"]) == "env.toml"
+    assert _find_config_file(["flow.json"]) is None
+
+
+def test_load_toml_defaults_reads_flat_table(tmp_path: Path):
+    config_path = tmp_path / "env.toml"
+    _ = config_path.write_text(
+        'path_to_flow = "flows/default.json"\n'
+        'cmds = ["a.json", "b.json"]\n'
+        'path_to_channel = "/path/to/channel"\n'
+        'host = "127.0.0.1"\n'
+        "verbose_channels = true\n",
+    )
+
+    defaults = load_toml_defaults(str(config_path))
+
+    assert defaults == {
+        "path_to_flow": "flows/default.json",
+        "cmds": ["a.json", "b.json"],
+        "path_to_channel": "/path/to/channel",
+        "host": "127.0.0.1",
+        "verbose_channels": True,
+    }
+
+
+def test_load_toml_defaults_raises_clear_error_for_missing_file():
+    with pytest.raises(RuntimeError, match="Couldn't read --config TOML file"):
+        load_toml_defaults("does/not/exist.toml")
+
+
+def test_config_toml_defaults_are_used_when_no_matching_cli_flag_given(tmp_path: Path):
+    config_path = tmp_path / "env.toml"
+    _ = config_path.write_text(
+        'path_to_flow = "flows/default.json"\n'
+        'cmds = ["base.json"]\n'
+        'path_to_channel = "/env/channel"\n'
+        'host = "10.0.0.1"\n'
+        'log_level = "DEBUG"\n'
+        "verbose_channels = true\n",
+    )
+
+    defaults = load_toml_defaults(str(config_path))
+    args = _parse_with_toml_defaults(defaults, [])
+
+    assert args.path_to_flow == "flows/default.json"
+    assert args.cmds == ["base.json"]
+    assert args.path_to_channel == "/env/channel"
+    assert args.host == "10.0.0.1"
+    assert args.log_level == "DEBUG"
+    assert args.verbose_channels is True
+
+
+def test_explicit_cli_flags_override_config_toml_defaults(tmp_path: Path):
+    config_path = tmp_path / "env.toml"
+    _ = config_path.write_text(
+        'path_to_flow = "flows/default.json"\npath_to_channel = "/env/channel"\nhost = "10.0.0.1"\n'
+    )
+
+    defaults = load_toml_defaults(str(config_path))
+    args = _parse_with_toml_defaults(defaults, ["flows/explicit.json", "--path_to_channel", "/explicit/channel"])
+
+    assert args.path_to_flow == "flows/explicit.json"
+    assert args.path_to_channel == "/explicit/channel"
+    # untouched by the explicit flags, still comes from the TOML file
+    assert args.host == "10.0.0.1"
+
+
+def test_cli_cmds_extend_the_config_toml_defaults(tmp_path: Path):
+    config_path = tmp_path / "env.toml"
+    _ = config_path.write_text('path_to_flow = "flows/default.json"\ncmds = ["base.json"]\n')
+
+    defaults = load_toml_defaults(str(config_path))
+    args = _parse_with_toml_defaults(defaults, ["flows/default.json", "--cmds", "extra.json"])
+
+    assert args.cmds == ["base.json", "extra.json"]
+
+
+def test_path_to_flow_positional_stays_required_without_a_toml_default():
+    parser = create_args_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args([])
 
 
 def test_parse_flow_accepts_snake_case_keys():

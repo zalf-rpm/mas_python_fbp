@@ -23,6 +23,12 @@ which mix old ``standard`` (Runnable) components and new ``process`` components:
 The component ids are mapped to commands via one or more ``local_cmds.json`` files given
 on the command line (``--cmds a.json b.json``). If the same component id appears in several
 files, the entry of the last file wins.
+
+Instead of repeating ``--`` flags, an environment can also be captured in one TOML file
+passed via ``--config``/``-e`` (a flat table using the same option names, e.g. ``cmds``,
+``path_to_channel``, ``host``, ...). Explicit ``--`` flags on the command line still take
+precedence over the TOML file's values, so e.g. ``run_fbp_flow.py my_flow.json -e env.toml``
+only needs the flow and the environment file, while occasional overrides still work.
 """
 
 from __future__ import annotations
@@ -54,7 +60,6 @@ from zalfmas_common import common
 import zalfmas_fbp.run.components as comp
 from zalfmas_fbp.run import channels as chans
 from zalfmas_fbp.run import process as proc
-from zalfmas_fbp.run.argparse_utils import parse_args_typed
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 from zalfmas_fbp.run.metadata import ComponentMetadata
 from zalfmas_fbp.run.process.config.config_codec import config_value_from_python
@@ -86,6 +91,7 @@ type PopenT = sp.Popen[str] | sp.Popen[bytes]
 @dataclass
 class FlowArgs(argparse.Namespace):
     path_to_flow: str = ""
+    config_file: str | None = None
     cmds: list[str] = field(default_factory=list)
     components: list[str] = field(default_factory=list)
     path_to_channel: str = DEFAULT_PATH_TO_CHANNEL
@@ -96,14 +102,82 @@ class FlowArgs(argparse.Namespace):
     verbose_channels: bool = False
 
 
-def create_args_parser() -> argparse.ArgumentParser:
+def _as_str_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(v) for v in value]
+
+
+def load_toml_defaults(path: str) -> dict[str, Any]:
+    """Load a --config TOML file, a flat table of the same options as the '--' flags below."""
+    try:
+        with Path(path).open("rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        msg = f"Couldn't read --config TOML file {path}: {e}"
+        raise RuntimeError(msg) from e
+
+
+def apply_toml_defaults(namespace: FlowArgs, defaults: dict[str, Any]) -> None:
+    """Seed namespace's fields from a --config TOML file before argparse runs on it.
+
+    argparse only fills in an option's own `default=` when the namespace doesn't already have
+    that attribute, and namespace here is a FlowArgs instance whose dataclass field defaults
+    already give every field a value, so a plain `add_argument(default=...)` would never
+    actually apply. Setting the field directly beforehand and only having argparse overwrite it
+    when the option is *actually given* on the command line is what makes '--' flags override
+    the TOML file rather than the other way around.
+
+    path_to_flow is the one exception: as a positional with nargs="?", argparse *does* apply
+    its own default even onto a pre-seeded namespace, so it's passed straight into
+    create_args_parser(path_to_flow_default=...) instead of being handled here.
+    """
+    if "cmds" in defaults:
+        namespace.cmds = _as_str_list(defaults["cmds"])
+    if "components" in defaults:
+        namespace.components = _as_str_list(defaults["components"])
+    if "path_to_channel" in defaults:
+        namespace.path_to_channel = str(defaults["path_to_channel"])
+    if "host" in defaults:
+        namespace.host = str(defaults["host"])
+    if "channel_host" in defaults:
+        namespace.channel_host = str(defaults["channel_host"])
+    if "log_level" in defaults:
+        namespace.log_level = str(defaults["log_level"])
+    if "component_log_level" in defaults:
+        namespace.component_log_level = str(defaults["component_log_level"])
+    if "verbose_channels" in defaults:
+        namespace.verbose_channels = bool(defaults["verbose_channels"])
+
+
+def create_args_parser(*, path_to_flow_default: str | None = None) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run an FBP flow (JSON) of standard and/or process style components.",
     )
     _ = parser.add_argument(
         "path_to_flow",
         type=str,
-        help="Path to the flow JSON file to be run.",
+        # unlike the '--' options below, a positional's nargs="?" default *is* applied by
+        # argparse even onto a pre-seeded namespace, so the TOML value has to be passed here
+        # directly rather than via apply_toml_defaults
+        nargs="?" if path_to_flow_default is not None else None,
+        default=path_to_flow_default,
+        help="Path to the flow JSON file to be run. May also be given as 'path_to_flow' in --config.",
+    )
+    _ = parser.add_argument(
+        "--config",
+        "-e",
+        dest="config_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to a TOML file with a flat table providing defaults for any of the other options here "
+            "(and optionally 'path_to_flow'), so a whole environment (which channel binary, which cmds/"
+            "components files, hosts, log levels, ...) can be captured in one file instead of repeating "
+            "'--' flags. Explicit '--' flags on the command line still override the TOML file's values."
+        ),
     )
     _ = parser.add_argument(
         "--cmds",
@@ -115,7 +189,7 @@ def create_args_parser() -> argparse.ArgumentParser:
         help=(
             "Path(s) to local_cmds.json file(s) mapping component ids to the command starting them. "
             "May be given multiple times; on duplicate component ids the last file wins. "
-            "If omitted, the 'cmds' entry of the flow file is used."
+            "If omitted (here and in --config), the 'cmds' entry of the flow file is used."
         ),
     )
     _ = parser.add_argument(
@@ -939,8 +1013,22 @@ class FlowRunner:
                 await self.shutdown()
 
 
+def _find_config_file(argv: list[str] | None) -> str | None:
+    """First pass: only look for --config/-e, so its values can seed the real parser's defaults."""
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    _ = pre_parser.add_argument("--config", "-e", dest="config_file", type=str, default=None)
+    pre_args, _unknown = pre_parser.parse_known_args(argv)
+    return pre_args.config_file
+
+
 async def start_flow(argv: list[str] | None = None) -> None:
-    args = parse_args_typed(create_args_parser(), FlowArgs, argv)
+    defaults = load_toml_defaults(config_file) if (config_file := _find_config_file(argv)) else {}
+    namespace = FlowArgs()
+    apply_toml_defaults(namespace, defaults)
+    toml_flow = defaults.get("path_to_flow")
+    parser = create_args_parser(path_to_flow_default=str(toml_flow) if toml_flow is not None else None)
+    parser.parse_args(argv, namespace=namespace)
+    args = namespace
     configure_logging(args.log_level)
     await FlowRunner(args).run()
 
