@@ -113,7 +113,10 @@ class WriteFile(process.Process[WriteFileConfig]):
 
             try:
                 content_attr = common.get_fbp_attr(in_ip, self.config.from_attr)
-                content = content_attr.as_text() if content_attr else in_ip.content.as_text()
+                try:
+                    content = content_attr.as_text() if content_attr else in_ip.content.as_text()
+                except Exception:
+                    content = str(content_attr) if content_attr else str(in_ip.content)
 
                 filename = self._render_filename(in_ip, count)
                 filepath = Path(self.config.path_to_out_dir) / filename
