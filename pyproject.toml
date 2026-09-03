@@ -14,7 +14,7 @@ dependencies = [
   "spotpy>=1.6.7,<2",
   "matplotlib>=3.11.1,<4",
   "pycapnp>=2.2.4,<3",
-  "zalfmas-common>=0.1.47,<0.2",
+  #"zalfmas-common>=0.1.47,<0.2",
   "zalfmas-capnp-schemas>=0.1.68,<0.2",
   "zalfmas-services>=0.1.16,<0.2",
   "pymep>=1.0.7,<2",
@@ -49,7 +49,7 @@ openpyxl = ">=3.1.5,<4"
 zalfmas-fbp = { path = ".", editable = true }
 
 # Referencing local packages in editable mode for pixi
-# zalfmas-common = { path = "../mas_python_common", editable = true }
+zalfmas-common = { path = "../mas_python_common", editable = true }
 # zalfmas-capnp-schemas = { path = "../mas_capnproto_schemas", editable = true }
 
 [tool.pixi.feature.dev.dependencies]
