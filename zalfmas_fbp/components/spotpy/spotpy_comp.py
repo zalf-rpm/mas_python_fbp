@@ -64,6 +64,7 @@ class Config(process.ProcessConfig):
         "out/",
         description="path to output folder",
     )
+    display_best: bool = Field(False, description="Additionally to writing the png, display it when finished.")
     param_set_id: str = Field(
         "no-param-set-id-given",
         description="""id for the parameterset to calibrate against.
@@ -663,11 +664,12 @@ class Component(process.Process[Config]):
                 results: ndarray = spotpy.analyser.load_csv_results(path_to_spotpy_db)
                 fig = plt.figure(1, figsize=(9, 6))
                 plt.plot(results["like1"], "r+")
-                plt.show()
+                if self.config.display_best:
+                    plt.show()
                 plt.ylabel("RMSE")
                 plt.xlabel("Iteration")
                 fig.savefig(
-                    f"{self.config.path_to_out_folder}/{param_set_id}_SCEUA_objectivefunctiontrace_MONICA.png",
+                    f"{self.config.path_to_out_folder}/{param_set_id}_{self.config.algorithm}.png",
                     dpi=150,
                 )
                 plt.close(fig)
