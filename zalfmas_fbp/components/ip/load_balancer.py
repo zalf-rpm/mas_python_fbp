@@ -96,7 +96,7 @@ class LoadBalancer(process.Process[LoadBalancerConfig]):
             if in_ip is None:
                 break
 
-            # out_ip = copy_ip(in_ip)
+            # out_ip = common.copy_ip(in_ip)
             if not await self.write_array_out("out", strategy, in_ip):
                 break
 

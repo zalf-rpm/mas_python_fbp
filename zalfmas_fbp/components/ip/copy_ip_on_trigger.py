@@ -116,19 +116,13 @@ class CopyOnTrigger(process.Process[Config]):
             if self.out_ports["trigger"]:
                 await self.write_out("trigger", trigger_ip)
 
-            # out_ip = copy_ip(in_ip)
+            # out_ip = common.copy_ip(in_ip)
             # copy IP/substream
             for in_ip in in_ips:
                 if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):  # out_ip):
                     break
 
         logger.info("%s: process finished", self.name)
-
-
-def copy_ip(in_ip: IPReader | IPBuilder) -> IPBuilder:
-    out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-    out_ip.attributes = list(in_ip.attributes)
-    return out_ip
 
 
 def main():

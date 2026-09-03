@@ -101,7 +101,7 @@ class Component(process.Process[Config]):
                     self.in_ports["in"] = None
                     continue
 
-                out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
+                out_ip = common.copy_ip(in_ip)
                 common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
                 if not await self.write_out("out", out_ip):
                     logger.info("%s: Could not send IP. Process finished.", self.name)

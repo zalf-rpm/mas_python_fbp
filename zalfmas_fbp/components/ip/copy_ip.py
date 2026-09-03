@@ -82,17 +82,11 @@ class Copy(process.Process[CopyConfig]):
             if in_ip is None:
                 break
 
-            # out_ip = copy_ip(in_ip)
+            # out_ip = common.copy_ip(in_ip)
             if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, in_ip):
                 break
 
         logger.info("%s process finished", self.name)
-
-
-def copy_ip(in_ip: IPReader | IPBuilder) -> IPBuilder:
-    out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
-    out_ip.attributes = list(in_ip.attributes)
-    return out_ip
 
 
 def main():
