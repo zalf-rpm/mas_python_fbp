@@ -110,14 +110,45 @@ def _as_str_list(value: Any) -> list[str]:
     return [str(v) for v in value]
 
 
+def _resolve_relative(value: str, base_dir: Path) -> str:
+    """Resolve value against base_dir unless it's already absolute.
+
+    Also treats a leading '/' as absolute even on Windows, where pathlib's own is_absolute()
+    considers a POSIX-style path like '/home/...' merely drive-relative (no drive letter) and
+    would otherwise have this silently (and wrongly) prefixed with base_dir's drive letter.
+    """
+    if value.startswith("/") or Path(value).is_absolute():
+        return value
+    return str((base_dir / value).resolve())
+
+
 def load_toml_defaults(path: str) -> dict[str, Any]:
-    """Load a --config TOML file, a flat table of the same options as the '--' flags below."""
+    """Load a --config TOML file, a flat table of the same options as the '--' flags below.
+
+    Path-valued entries (path_to_flow, cmds, components, path_to_channel) are resolved
+    relative to the TOML file's own directory when not already absolute, so the config - and
+    everything it points at - keeps working no matter what directory it's actually run from.
+    CLI-provided '--' flags are left untouched (they're resolved relative to the user's own
+    shell cwd, same as any other command line argument, and still take precedence per
+    apply_toml_defaults/create_args_parser).
+    """
     try:
         with Path(path).open("rb") as f:
-            return tomllib.load(f)
+            defaults = tomllib.load(f)
     except (OSError, tomllib.TOMLDecodeError) as e:
         msg = f"Couldn't read --config TOML file {path}: {e}"
         raise RuntimeError(msg) from e
+
+    base_dir = Path(path).resolve().parent
+    if "path_to_flow" in defaults:
+        defaults["path_to_flow"] = _resolve_relative(str(defaults["path_to_flow"]), base_dir)
+    if "cmds" in defaults:
+        defaults["cmds"] = [_resolve_relative(v, base_dir) for v in _as_str_list(defaults["cmds"])]
+    if "components" in defaults:
+        defaults["components"] = [_resolve_relative(v, base_dir) for v in _as_str_list(defaults["components"])]
+    if "path_to_channel" in defaults:
+        defaults["path_to_channel"] = _resolve_relative(str(defaults["path_to_channel"]), base_dir)
+    return defaults
 
 
 def apply_toml_defaults(namespace: FlowArgs, defaults: dict[str, Any]) -> None:
