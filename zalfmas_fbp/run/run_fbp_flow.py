@@ -343,6 +343,30 @@ def _port_ref(d: dict[str, Any]) -> PortRef:
     return PortRef(str(_first_of(d, "nodeId", "node_id", default="")), str(_first_of(d, "port", default="")))
 
 
+def substitute_flow_dir(value: Any, flow_dir: str) -> Any:
+    """Recursively replace '${FLOW_DIR}' in every string found in value with flow_dir.
+
+    The only path a flow file can meaningfully make an assumption about is its own location -
+    everything else (cwd, where dependent repos/binaries live, ...) varies by machine and by
+    who's running it and how (see e.g. --config TOML files, which have the analogous problem
+    and are resolved the same way, relative to themselves). '${FLOW_DIR}' lets node configs,
+    IIP content, per-node cmd overrides and the flow's own top-level 'cmds' entry all refer to
+    files next to the flow file without hardcoding an absolute path or relying on cwd.
+
+    '${...}' was chosen deliberately distinct from the plain '{...}' Python str.format()
+    placeholders some components (e.g. write_file's filename_pattern) already use for their own
+    purposes, so this substitution can safely apply to the entire flow file unconditionally
+    without risking collisions with those.
+    """
+    if isinstance(value, str):
+        return value.replace("${FLOW_DIR}", flow_dir)
+    if isinstance(value, dict):
+        return {k: substitute_flow_dir(v, flow_dir) for k, v in value.items()}
+    if isinstance(value, list):
+        return [substitute_flow_dir(v, flow_dir) for v in value]
+    return value
+
+
 def parse_config(raw_config: Any) -> dict[str, Any] | None:
     """Flow configs are either a JSON object or a TOML/JSON string."""
     if raw_config is None:
@@ -624,6 +648,9 @@ class FlowRunner:
         if not flow_json:
             msg = f"Couldn't read flow file {self.args.path_to_flow}."
             raise RuntimeError(msg)
+
+        flow_dir = str(Path(self.args.path_to_flow).resolve().parent)
+        flow_json = substitute_flow_dir(flow_json, flow_dir)
 
         self.nodes, self.links = parse_flow(flow_json)
 
