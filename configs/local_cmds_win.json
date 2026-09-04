@@ -1,7 +1,7 @@
 {
   "id": "4a49688e-bb12-4f14-8da1-305ff0e198ed",
   "name": "local debuggable python execution",
-  "66f86dbb-efb1-4b16-8837-3a2aa1eca30e": "C:/Users/berg/GitHub/monica/build/monica-capnp-fbp-component.exe --verbose",
+  "66f86dbb-efb1-4b16-8837-3a2aa1eca30e": "C:/Users/berg/GitHub/monica/build-release/monica-capnp-fbp-component.exe --verbose",
   "79723094-0972-48ec-b219-030dae730063": "python -m zalfmas_fbp.components.climate.climate_service_to_datasets",
   "ce4749cc-abab-4830-9eb3-1c44c9d451ce": "python -m zalfmas_fbp.components.climate.datasets_to_timeseries",
   "b510d603-8f2a-4fbd-ac24-634362b4b0f4": "python -m zalfmas_fbp.components.climate.timeseries_cap_to_data",
