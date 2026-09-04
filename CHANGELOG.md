@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.36](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.35...v0.2.36) (2026-09-04)
+
+
+### Features
+
+* support ${FLOW_DIR} placeholder substitution in flow files ([9fbf275](https://github.com/zalf-rpm/mas_python_fbp/commit/9fbf2757eb740a5881e545bbc9174a8c6aaae9ad))
+
+
+### Bug Fixes
+
+* literal (non attribute) values work again ([684827b](https://github.com/zalf-rpm/mas_python_fbp/commit/684827ba5befd639bdc35d37beb725bdf518ed18))
+
 ## [0.2.35](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.34...v0.2.35) (2026-09-03)
 
 
