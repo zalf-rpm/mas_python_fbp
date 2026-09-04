@@ -240,7 +240,7 @@ class UpdateJson(process.Process[Config]):
                 spec_index = int(spec_key) if spec_key.isdigit() else None
             # check the key against j to be changed
             # the key is an index and points outside the array j
-            if spec_index is not None and type(json_obj) is list:
+            if spec_index is not None and isinstance(json_obj, list):
                 if spec_index >= len(json_obj):
                     if allowed_operation == "add":
                         json_obj.extend([None] * (spec_index + 1 - len(json_obj)))
@@ -248,7 +248,7 @@ class UpdateJson(process.Process[Config]):
                     else:
                         continue
             # the key is not in the dict j
-            elif type(json_obj) is dict:
+            elif isinstance(json_obj, dict):
                 if spec_key not in json_obj:
                     if allowed_operation == "add":
                         json_obj[spec_key] = spec_value
@@ -257,9 +257,9 @@ class UpdateJson(process.Process[Config]):
 
             # change according to the type of v
             # v is a sub-spec (dict), which means recurse into substructure
-            if type(spec_value) is dict:
+            if isinstance(spec_value, dict):
                 # access a list
-                if spec_index is not None and type(json_obj) is list:
+                if spec_index is not None and isinstance(json_obj, list):
                     # j[i] is a pointer, so we recurse
                     if isinstance(json_obj[spec_index], (list, dict)):
                         self.change(json_obj[spec_index], spec_value, attrs, allowed_operation)
@@ -272,30 +272,30 @@ class UpdateJson(process.Process[Config]):
                 elif allowed_operation == "replace":
                     json_obj[spec_key] = spec_value
             # a list as value is treated as sub object access if the first element is an attribute (@) access
-            elif type(spec_value) is list:
+            elif isinstance(spec_value, list):
                 attr_val, read_successful = read_attr_value(self.config.types, attrs, spec_value)
                 if read_successful:
                     spec_value = attr_val
                 # access a list
-                if spec_index is not None and type(json_obj) is list:
+                if spec_index is not None and isinstance(json_obj, list):
                     json_obj[spec_index] = spec_value
                 # access a dict
                 else:
                     json_obj[spec_key] = spec_value
-            elif type(spec_value) is str:
+            elif isinstance(spec_value, str):
                 # use existing function to resolve values from attributes
                 attr_val, is_attr_val = p.get_attr_val(
-                    spec[spec_key],
+                    spec_value,
                     attrs,
                     remove=False,
                 )
-                if is_attr_val and spec[spec_key] in self.config.types:
-                    attr_val, _ = as_type(attr_val, self.config.types[spec[spec_key]])
-                if spec_index is not None and type(json_obj) is list:
+                if is_attr_val and spec_value in self.config.types:
+                    attr_val, _ = as_type(attr_val, self.config.types[spec_value])
+                if spec_index is not None and isinstance(json_obj, list):
                     json_obj[spec_index] = attr_val
                 else:
                     json_obj[spec_key] = attr_val
-            elif spec_index is not None and type(json_obj) is list:
+            elif spec_index is not None and isinstance(json_obj, list):
                 json_obj[spec_index] = spec_value
             else:
                 json_obj[spec_key] = spec_value
@@ -377,8 +377,9 @@ class UpdateJson(process.Process[Config]):
                 for op in ["update", "replace", "add"]:
                     changes = self.config.__getattribute__(op)
                     try:
-                        nested_dict = self.create_nested_dict(changes)
-                        self.change(j_content, nested_dict, attrs, allowed_operation=op)
+                        spec = self.create_nested_dict(changes)
+                        # logger.info(f"nested_dict: {spec}")
+                        self.change(j_content, spec, attrs, allowed_operation=op)
                     except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
                         logger.warning(
                             "%s: couldn't apply %s operation %s: %s",
