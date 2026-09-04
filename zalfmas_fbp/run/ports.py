@@ -72,10 +72,14 @@ def get_attr_val(
     else:
         return name, False
 
+    if name not in attrs:
+        return name, False
+
     if remove:
         attr_val = attrs.pop(name)
     else:
         attr_val = attrs[name]
+
     if as_struct:
         return attr_val.as_struct(as_struct), True
     if as_interface:
