@@ -172,6 +172,7 @@ class ApplyGJsonQueries(process.Process[ApplyGJsonQueriesConfig]):
             try:
                 parsed = json.loads(in_msg.content.as_text())
                 result = _apply_queries(parsed, self.config.queries)
+                # logger.info(f"result: {result}")
             except (json.JSONDecodeError, TypeError, ValueError) as exc:
                 logger.warning("%s failed to apply GJSON queries: %s", self.name, exc)
                 continue
