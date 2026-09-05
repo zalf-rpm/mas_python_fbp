@@ -37,6 +37,7 @@ import argparse
 import asyncio
 import base64
 import contextlib
+import importlib.util
 import json
 import logging
 import re
@@ -110,13 +111,41 @@ def _as_str_list(value: Any) -> list[str]:
     return [str(v) for v in value]
 
 
+_PKG_PLACEHOLDER_RE = re.compile(r"\$\{PKG:([A-Za-z0-9_.]+)\}")
+
+
+def _resolve_pkg_dir(package_name: str) -> str:
+    """Resolve an installed package's own directory via Python's import machinery.
+
+    Works the same way regardless of how the package was installed (PyPI wheel, editable
+    install, plain source checkout on sys.path, ...), so files shipped inside a package (e.g.
+    a local_cmds.json describing that package's own components) can be referenced without any
+    assumption about repo layout or a git clone existing on disk at all.
+    """
+    spec = importlib.util.find_spec(package_name)
+    if spec is None or not spec.submodule_search_locations:
+        msg = f"Couldn't resolve '${{PKG:{package_name}}}': package '{package_name}' not found or has no directory"
+        raise RuntimeError(msg)
+    return str(Path(next(iter(spec.submodule_search_locations))).resolve())
+
+
+def resolve_pkg_placeholders(value: str) -> str:
+    """Replace every '${PKG:<package>}' in value with that installed package's own directory."""
+    return _PKG_PLACEHOLDER_RE.sub(lambda m: _resolve_pkg_dir(m.group(1)), value)
+
+
 def _resolve_relative(value: str, base_dir: Path) -> str:
     """Resolve value against base_dir unless it's already absolute.
+
+    '${PKG:<package>}' is substituted first: the result is always an absolute path, so it's
+    then correctly left as-is by the absolute-path check below rather than being (wrongly)
+    joined onto base_dir.
 
     Also treats a leading '/' as absolute even on Windows, where pathlib's own is_absolute()
     considers a POSIX-style path like '/home/...' merely drive-relative (no drive letter) and
     would otherwise have this silently (and wrongly) prefixed with base_dir's drive letter.
     """
+    value = resolve_pkg_placeholders(value)
     if value.startswith("/") or Path(value).is_absolute():
         return value
     return str((base_dir / value).resolve())
@@ -343,8 +372,8 @@ def _port_ref(d: dict[str, Any]) -> PortRef:
     return PortRef(str(_first_of(d, "nodeId", "node_id", default="")), str(_first_of(d, "port", default="")))
 
 
-def substitute_flow_dir(value: Any, flow_dir: str) -> Any:
-    """Recursively replace '${FLOW_DIR}' in every string found in value with flow_dir.
+def substitute_placeholders(value: Any, flow_dir: str) -> Any:
+    """Recursively replace '${FLOW_DIR}' and '${PKG:<package>}' in every string found in value.
 
     The only path a flow file can meaningfully make an assumption about is its own location -
     everything else (cwd, where dependent repos/binaries live, ...) varies by machine and by
@@ -353,17 +382,22 @@ def substitute_flow_dir(value: Any, flow_dir: str) -> Any:
     IIP content, per-node cmd overrides and the flow's own top-level 'cmds' entry all refer to
     files next to the flow file without hardcoding an absolute path or relying on cwd.
 
+    '${PKG:<package>}' resolves to that installed package's own directory (see
+    resolve_pkg_placeholders), so e.g. a local_cmds.json shipped inside zalfmas_fbp itself can
+    be referenced as '${PKG:zalfmas_fbp}/configs/local_cmds.json' without needing that repo
+    cloned anywhere - it works whether zalfmas_fbp came from PyPI or an editable install.
+
     '${...}' was chosen deliberately distinct from the plain '{...}' Python str.format()
     placeholders some components (e.g. write_file's filename_pattern) already use for their own
     purposes, so this substitution can safely apply to the entire flow file unconditionally
     without risking collisions with those.
     """
     if isinstance(value, str):
-        return value.replace("${FLOW_DIR}", flow_dir)
+        return resolve_pkg_placeholders(value.replace("${FLOW_DIR}", flow_dir))
     if isinstance(value, dict):
-        return {k: substitute_flow_dir(v, flow_dir) for k, v in value.items()}
+        return {k: substitute_placeholders(v, flow_dir) for k, v in value.items()}
     if isinstance(value, list):
-        return [substitute_flow_dir(v, flow_dir) for v in value]
+        return [substitute_placeholders(v, flow_dir) for v in value]
     return value
 
 
@@ -650,7 +684,7 @@ class FlowRunner:
             raise RuntimeError(msg)
 
         flow_dir = str(Path(self.args.path_to_flow).resolve().parent)
-        flow_json = substitute_flow_dir(flow_json, flow_dir)
+        flow_json = substitute_placeholders(flow_json, flow_dir)
 
         self.nodes, self.links = parse_flow(flow_json)
 

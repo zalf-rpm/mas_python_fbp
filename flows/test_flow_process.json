@@ -1,7 +1,7 @@
 {
   "version": "0.3",
   "name": "split string (process) -> to string (process) -> console output (standard)",
-  "cmds": "./configs/local_cmds.json",
+  "cmds": "${PKG:zalfmas_fbp}/configs/local_cmds.json",
   "nodes": [
     {
       "nodeId": "iip-in",

@@ -7,14 +7,16 @@ path_to_flow = "flows/my_flow.json"
 # Repeated --cmds/-c files: just a TOML array of strings.
 # Later entries win on duplicate component ids (same rule as passing
 # multiple --cmds flags on the command line).
+#
+# '${PKG:zalfmas_fbp}' resolves to wherever the zalfmas_fbp package is actually installed
+# (PyPI, editable install, ...), so this works without zalfmas_fbp cloned anywhere on disk.
 cmds = [
-    "configs/local_cmds.json",
-    "configs/local_cmds_win.json",
+    "${PKG:zalfmas_fbp}/configs/local_cmds.json",
 ]
 
 # Repeated --components/-m files work the same way.
 components = [
-    "configs/local_components_cache.json",
+    "${PKG:zalfmas_fbp}/configs/local_components_cache.json",
 ]
 
 path_to_channel = "C:/Users/berg/GitHub/monica/build/common/channel.exe"
