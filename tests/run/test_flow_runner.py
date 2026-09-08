@@ -147,8 +147,8 @@ def test_load_toml_defaults_reads_flat_table(tmp_path: Path):
     defaults = load_toml_defaults(str(config_path))
 
     assert defaults == {
-        "path_to_flow": "flows/default.json",
-        "cmds": ["a.json", "b.json"],
+        "path_to_flow": str((tmp_path / "flows/default.json").resolve()),
+        "cmds": [str((tmp_path / "a.json").resolve()), str((tmp_path / "b.json").resolve())],
         "path_to_channel": "/path/to/channel",
         "host": "127.0.0.1",
         "verbose_channels": True,
@@ -174,8 +174,8 @@ def test_config_toml_defaults_are_used_when_no_matching_cli_flag_given(tmp_path:
     defaults = load_toml_defaults(str(config_path))
     args = _parse_with_toml_defaults(defaults, [])
 
-    assert args.path_to_flow == "flows/default.json"
-    assert args.cmds == ["base.json"]
+    assert args.path_to_flow == str((tmp_path / "flows/default.json").resolve())
+    assert args.cmds == [str((tmp_path / "base.json").resolve())]
     assert args.path_to_channel == "/env/channel"
     assert args.host == "10.0.0.1"
     assert args.log_level == "DEBUG"
@@ -204,7 +204,9 @@ def test_cli_cmds_extend_the_config_toml_defaults(tmp_path: Path):
     defaults = load_toml_defaults(str(config_path))
     args = _parse_with_toml_defaults(defaults, ["flows/default.json", "--cmds", "extra.json"])
 
-    assert args.cmds == ["base.json", "extra.json"]
+    # the TOML-provided entry was resolved against the config file's directory; the CLI-provided
+    # one is left untouched (resolved relative to the shell's own cwd, like any other CLI arg).
+    assert args.cmds == [str((tmp_path / "base.json").resolve()), "extra.json"]
 
 
 def test_path_to_flow_positional_stays_required_without_a_toml_default():

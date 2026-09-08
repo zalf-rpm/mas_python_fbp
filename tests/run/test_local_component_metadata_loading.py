@@ -110,7 +110,7 @@ def test_load_component_metadata_refreshes_legacy_cached_metadata(monkeypatch: p
 
 
 def test_checked_in_local_components_cache_uses_canonical_metadata() -> None:
-    cache_path = Path(__file__).resolve().parents[2] / "configs" / "local_components_cache.json"
+    cache_path = Path(__file__).resolve().parents[2] / "zalfmas_fbp" / "configs" / "local_components_cache.json"
     components_cache = json.loads(cache_path.read_text())
 
     assert components_cache

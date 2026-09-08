@@ -13,6 +13,8 @@
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
+from __future__ import annotations
+
 import asyncio
 import io
 import json
