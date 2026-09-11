@@ -97,3 +97,41 @@ def test_configure_logging_updates_existing_handlers_with_full_traceback_formatt
     finally:
         root_logger.handlers = original_handlers
         root_logger.setLevel(original_level)
+
+
+def test_component_subprocess_logs_use_canonical_module_names() -> None:
+    import subprocess
+    import sys
+
+    for module in (
+        "zalfmas_fbp.components.string.split_string2",
+        "zalfmas_fbp.components.console.console_output",
+    ):
+        script = """
+import logging
+import runpy
+import sys
+from zalfmas_fbp.run import components
+from zalfmas_fbp.run.process import runner
+
+def emit(*args, **kwargs):
+    args[0].close()
+    logging.getLogger("__main__").info("component message")
+    logging.getLogger("zalfmas_fbp.run.process.runtime.output_runtime").info("runtime message")
+
+components.capnp.run = lambda coroutine: coroutine
+components.asyncio.run = emit
+runner.asyncio.run = emit
+sys.argv = [sys.argv[1], "reader-sr", "--name=worker-2", "--log_level=INFO"]
+runpy.run_module(sys.argv[0], run_name="__main__", alter_sys=True)
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script, module],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert f"@ {module} - INFO     - component message" in result.stderr
+        assert "@ zalfmas_fbp.run.process.runtime.output_runtime - INFO     - runtime message" in result.stderr
+        assert "pid=" not in result.stderr
+        assert "@ __main__" not in result.stderr

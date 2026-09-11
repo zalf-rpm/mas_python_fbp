@@ -25,7 +25,7 @@ dependencies = [
   "pyarrow>=25.0.1,<26",
   "duckdb>=1.5.5,<2",
   "owslib>=0.36.0,<0.37",
-  "boto3>=1.43.85,<2", "gjson>=1.2.0,<2",
+  "boto3>=1.43.92,<2", "gjson>=1.2.0,<2",
 ]
 
 [project.scripts]
@@ -35,10 +35,10 @@ zalfmas-channel-service = "zalfmas_fbp.run.channel_starter_service:cli"
 [dependency-groups]
 dev = [
   "pytest>=9.1.1,<10",
-  "ruff>=0.16.5,<0.17",
-  "ty>=0.0.77,<0.0.78",
-  "types-boto3[all,s3]>=1.43.85,<2",
-  "basedpyright>=1.39.10,<2",
+  "ruff>=0.16.7,<0.17",
+  "ty>=0.0.80,<0.0.81",
+  "types-boto3[all,s3]>=1.43.92,<2",
+  "basedpyright>=1.40.1,<2",
 ]
 
 [tool.pixi.dependencies]
