@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import linecache
 import logging
+import sys
 import traceback
+from pathlib import Path
 
 LOG_FORMAT = "%(asctime)s @ %(name)s - %(levelname)-8s - %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -52,6 +55,22 @@ def format_exception_full(exc: BaseException) -> list[str]:
 
 
 class FullTracebackFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        if record.name == "__main__":
+            record = copy.copy(record)
+            main_spec = getattr(sys.modules.get("__main__"), "__spec__", None)
+            if main_spec is not None:
+                record.name = main_spec.name
+            else:
+                # Direct script execution has no module spec.
+                try:
+                    relative_path = Path(record.pathname).resolve().relative_to(Path(__file__).resolve().parents[2])
+                except ValueError:
+                    record.name = Path(record.pathname).stem
+                else:
+                    record.name = ".".join(relative_path.with_suffix("").parts)
+        return super().format(record)
+
     def formatException(self, ei) -> str:  # noqa: N802
         exc_type, exc_value, exc_traceback = ei
         if exc_value is None:
