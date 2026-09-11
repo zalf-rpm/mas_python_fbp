@@ -1,4 +1,4 @@
-FROM ghcr.io/prefix-dev/pixi:0.77.0 AS build-base
+FROM ghcr.io/prefix-dev/pixi:0.80.0 AS build-base
 
 WORKDIR /app
 
