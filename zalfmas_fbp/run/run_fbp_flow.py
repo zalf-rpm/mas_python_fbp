@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import contextlib
 import importlib.util
 import json
@@ -326,29 +325,6 @@ class FlowLink:
     src: PortRef
     tgt: PortRef
 
-    @property
-    def chan_id(self) -> str:
-        """Base64 encoded json identifying this link, used as channel startup info id."""
-        encoded = base64.urlsafe_b64encode(
-            json.dumps(
-                {
-                    "out": {"nodeId": self.src.node_id, "port": self.src.port},
-                    "in": {"nodeId": self.tgt.node_id, "port": self.tgt.port},
-                },
-            ).encode(),
-        )
-        return encoded.decode("ascii").rstrip("=")
-
-
-def decode_chan_id(chan_id: str) -> FlowLink:
-    missing_padding = len(chan_id) % 4
-    padded = chan_id + ("=" * (4 - missing_padding) if missing_padding else "")
-    decoded = json.loads(base64.urlsafe_b64decode(padded).decode())
-    return FlowLink(
-        src=PortRef(decoded["out"]["nodeId"], decoded["out"]["port"]),
-        tgt=PortRef(decoded["in"]["nodeId"], decoded["in"]["port"]),
-    )
-
 
 @dataclass
 class FlowNode:
@@ -630,9 +606,13 @@ class ProcessFinishedWatcher(fbp_capnp.Process.StateTransition.Server):
 
 @dataclass
 class ConfigChannel:
-    """Reader/writer of one of the config channels used to configure a standard component."""
+    """Reader(s)/writer of one of the config channels used to configure a standard component.
 
-    reader_sr: str
+    One reader sr per parallel instance of the node this config channel belongs to (see
+    start_channels(), which provisions enough readers for the most-parallel standard node).
+    """
+
+    reader_srs: list[str]
     writer_sr: SturdyRefBuilder
 
 
@@ -673,6 +653,11 @@ class FlowRunner:
         self.started_processes: list[StartedProcess] = []
         self.port_infos_writers: list[WriterClient] = []
         self.sink_node_ids: list[str] = []
+
+        # data channel startup_info_id -> the link it belongs to; a link gets more than one
+        # channel when its source is an array out port (one channel per target instance)
+        self._link_by_chan_id: dict[str, FlowLink] = {}
+        self._expected_data_channels: int = 0
 
     # -- setup ---------------------------------------------------------------------------
 
@@ -759,6 +744,78 @@ class FlowRunner:
 
     # -- channels ------------------------------------------------------------------------
 
+    @staticmethod
+    def _is_array_out_port(node: FlowNode, port: str) -> bool:
+        return node.metadata is not None and any(
+            p.name == port and p.type == "array" for p in node.metadata.outPorts
+        )
+
+    def _start_data_channels_for_link(self, link: FlowLink, first_writer_sr: str) -> None:
+        """Start the channel(s) backing one flow-JSON link.
+
+        A link whose source is an array out port gets one independently-provisioned
+        single-reader/single-writer channel per target instance - the component itself
+        (e.g. a load balancer) explicitly picks which one to write each message to. Any
+        other link whose source and/or target has parallel_count > 1 instead gets exactly
+        one channel, but with as many readers/writers as there are instances on that side;
+        Cap'n Proto's per-capability call ordering then distributes messages among them
+        without the component needing to know it's parallelized at all.
+        """
+        src_node = self.nodes[link.src.node_id]
+        tgt_node = self.nodes[link.tgt.node_id]
+        base_name = f"{link.src.node_id}.{link.src.port}-{link.tgt.node_id}.{link.tgt.port}"
+
+        if self._is_array_out_port(src_node, link.src.port):
+            if src_node.parallel_count > 1:
+                msg = (
+                    f"Array out port '{link.src.port}' on node '{src_node.name}' has "
+                    f"parallel_count={src_node.parallel_count} - fanning out an array out "
+                    "port from more than one source instance isn't supported yet."
+                )
+                raise RuntimeError(msg)
+            for i in range(max(1, tgt_node.parallel_count)):
+                chan_id = str(uuid.uuid4())
+                self._link_by_chan_id[chan_id] = link
+                self.channels.append(
+                    chans.start_channel(
+                        self.args.path_to_channel,
+                        chan_id,
+                        first_writer_sr,
+                        name=sanitize_name(f"{base_name}[{i}]"),
+                        verbose=self.args.verbose_channels,
+                        host=self.args.channel_host,
+                    ),
+                )
+                self._expected_data_channels += 1
+            return
+
+        # IIP sources (e.g. the auto-generated 'conf' link) are a broadcast-style constant
+        # rather than a data stream to load-balance, but they still need one dedicated reader
+        # per target instance for the same reason regular data links do - see send_iip(),
+        # which writes that same constant once per reader instead of once total. Those writes
+        # all happen eagerly, inside collect_channel_srs(), before any component (and thus any
+        # reader) has actually started - so with the default buffer_size=1 the second write
+        # would block forever waiting for a reader that can't exist yet. Size the buffer for
+        # all of them upfront instead.
+        buffer_size = max(1, tgt_node.parallel_count) if src_node.is_iip else 1
+
+        chan_id = str(uuid.uuid4())
+        self._link_by_chan_id[chan_id] = link
+        self.channels.append(
+            chans.start_channel(
+                self.args.path_to_channel,
+                chan_id,
+                first_writer_sr,
+                name=sanitize_name(base_name),
+                no_of_readers=max(1, tgt_node.parallel_count),
+                no_of_writers=max(1, src_node.parallel_count),
+                buffer_size=buffer_size,
+                verbose=self.args.verbose_channels,
+                host=self.args.channel_host,
+            ),
+        )
+        self._expected_data_channels += 1
+
     async def start_channels(self) -> tuple[ReaderClient, str, str | None]:
         """Start the startup info channel plus one channel per link and one config channel service."""
         first_chan, first_reader_sr, first_writer_sr = chans.start_first_channel(
@@ -779,27 +836,24 @@ class FlowRunner:
         first_reader = first_reader_cap.cast_as(fbp_capnp.Channel.Reader)
 
         for link in self.links:
-            self.channels.append(
-                chans.start_channel(
-                    self.args.path_to_channel,
-                    link.chan_id,
-                    first_writer_sr,
-                    name=sanitize_name(f"{link.src.node_id}.{link.src.port}-{link.tgt.node_id}.{link.tgt.port}"),
-                    verbose=self.args.verbose_channels,
-                    host=self.args.channel_host,
-                ),
-            )
+            self._start_data_channels_for_link(link, first_writer_sr)
 
         config_chan_id: str | None = None
         no_of_standard_components = len(self.standard_nodes)
         if no_of_standard_components > 0:
             config_chan_id = str(uuid.uuid4())
+            # no_of_readers applies uniformly to every one of the no_of_channels channels
+            # created here (one per distinct standard node type), so size it for whichever
+            # standard node has the most parallel instances - smaller nodes simply get a few
+            # unused extra reader SRs, which is harmless.
+            max_standard_parallel_count = max((n.parallel_count for n in self.standard_nodes), default=1)
             self.channels.append(
                 chans.start_channel(
                     self.args.path_to_channel,
                     config_chan_id,
                     first_writer_sr,
                     no_of_channels=no_of_standard_components,
+                    no_of_readers=max(1, max_standard_parallel_count),
                     name="port_infos",
                     verbose=self.args.verbose_channels,
                     host=self.args.channel_host,
@@ -815,7 +869,7 @@ class FlowRunner:
     ) -> list[ConfigChannel]:
         """Read all channel startup infos, send IIPs and remember the port sturdy refs."""
         config_chans: list[ConfigChannel] = []
-        expected = len(self.links) + len(self.standard_nodes)
+        expected = self._expected_data_channels + len(self.standard_nodes)
         while expected > 0:
             pair = (await first_reader.read()).value.as_struct(common_capnp.Pair)
             chan_id = pair.fst.as_text()
@@ -825,54 +879,110 @@ class FlowRunner:
             if config_chan_id is not None and chan_id == config_chan_id:
                 config_chans.append(
                     ConfigChannel(
-                        # the reader sr goes on the component's command line, so it has to be a string
-                        reader_sr=local_sr(common.sturdy_ref_str_from_sr(info.readerSRs[0])),
+                        # the reader srs go on the components' command lines, so they have to be strings
+                        reader_srs=[
+                            local_sr(common.sturdy_ref_str_from_sr(reader_sr)) for reader_sr in info.readerSRs
+                        ],
                         writer_sr=local_sr(info.writerSRs[0]),
                     ),
                 )
                 continue
 
-            link = decode_chan_id(chan_id)
+            link = self._link_by_chan_id[chan_id]
             src_node = self.nodes.get(link.src.node_id)
+            tgt_node = self.nodes[link.tgt.node_id]
             if src_node is not None and src_node.is_iip:
-                await self.send_iip(src_node, local_sr(info.writerSRs[0]))
+                await self.send_iip(src_node, local_sr(info.writerSRs[0]), repeat=max(1, tgt_node.parallel_count))
             else:
-                self.out_srs[link.src.node_id][link.src.port].append(local_sr(info.writerSRs[0]))
-            self.in_srs[link.tgt.node_id][link.tgt.port].append(local_sr(info.readerSRs[0]))
+                for writer_sr in info.writerSRs:
+                    self.out_srs[link.src.node_id][link.src.port].append(local_sr(writer_sr))
+            for reader_sr in info.readerSRs:
+                self.in_srs[link.tgt.node_id][link.tgt.port].append(local_sr(reader_sr))
 
         return config_chans
 
-    async def send_iip(self, node: FlowNode, writer_sr: SturdyRefBuilder | SturdyRefReader) -> None:
+    async def send_iip(
+        self,
+        node: FlowNode,
+        writer_sr: SturdyRefBuilder | SturdyRefReader,
+        repeat: int = 1,
+    ) -> None:
         writer_cap = await self.connect_or_raise(writer_sr, f"IIP writer of '{node.name}'")
         writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
         content = node.content
-        out_ip = structured_text_ip(content) if isinstance(content, dict) else fbp_capnp.IP.new_message(content=content)
-        await writer.write(value=out_ip)
+        # repeat > 1 when the target has several parallel instances all sharing this one IIP
+        # writer connected to several dedicated readers (see start_channels()). Write every
+        # value first, *then* a single 'done' - writing 'done' immediately removes this writer
+        # from the channel (Channel::closedWriter in the channel binary), so writing it after
+        # each value would make every write past the first one hang on an already-closed
+        # writer. Rebuild the IP message fresh each time rather than reusing one across writes.
+        for _ in range(repeat):
+            out_ip = (
+                structured_text_ip(content) if isinstance(content, dict) else fbp_capnp.IP.new_message(content=content)
+            )
+            await writer.write(value=out_ip)
         await writer.write(done=None)
         await writer.close()
         logger.info("%s: sent IIP", node.name)
 
     # -- starting components -------------------------------------------------------------
 
-    def port_infos(self, node: FlowNode) -> dict[str, list[dict[str, Any]]]:
+    @staticmethod
+    def _sr_for_instance(
+        srs: list[SturdyRefBuilder],
+        node: FlowNode,
+        instance_index: int,
+    ) -> SturdyRefBuilder:
+        """Pick the SR belonging to one parallel instance of node from a port's SR list.
+
+        A port ends up with exactly `node.parallel_count` SRs when that many dedicated
+        channels/readers/writers were provisioned for it (see _start_data_channels_for_link);
+        in that case each instance gets its own distinct SR. Otherwise (parallel_count == 1,
+        or a not-yet-scaled port) every instance shares the same, single SR - today's
+        behavior.
+        """
+        if node.parallel_count > 1 and len(srs) == node.parallel_count:
+            return srs[instance_index]
+        return srs[0]
+
+    @staticmethod
+    def _srs_for_instance(
+        srs: list[SturdyRefBuilder],
+        node: FlowNode,
+        instance_index: int,
+    ) -> list[SturdyRefBuilder]:
+        """Like _sr_for_instance, but for process components, which connect to every SR in
+        a port's list (that's what makes an array out port's multiple downstream targets
+        work) rather than just one. One instance's dedicated SR is wrapped back into a
+        single-element list so the same "connect every SR" loop still applies.
+        """
+        if node.parallel_count > 1 and len(srs) == node.parallel_count:
+            return [srs[instance_index]]
+        return srs
+
+    def port_infos(self, node: FlowNode, instance_index: int) -> dict[str, list[dict[str, Any]]]:
         """Collect the connected ports of a node the way old style components expect them."""
         array_out_ports = (
             {p.name for p in node.metadata.outPorts if p.type == "array"} if node.metadata is not None else set()
         )
-        in_ports = [{"name": name, "sr": srs[0]} for name, srs in self.in_srs[node.node_id].items() if srs]
+        in_ports = [
+            {"name": name, "sr": self._sr_for_instance(srs, node, instance_index)}
+            for name, srs in self.in_srs[node.node_id].items()
+            if srs
+        ]
         out_ports: list[dict[str, Any]] = []
         for name, srs in self.out_srs[node.node_id].items():
             if not srs:
                 continue
-            if name in array_out_ports or len(srs) > 1:
+            if name in array_out_ports or (len(srs) > 1 and len(srs) != node.parallel_count):
                 out_ports.append({"name": name, "srs": list(srs)})
             else:
-                out_ports.append({"name": name, "sr": srs[0]})
+                out_ports.append({"name": name, "sr": self._sr_for_instance(srs, node, instance_index)})
         return {"inPorts": in_ports, "outPorts": out_ports}
 
-    def port_infos_message(self, node: FlowNode):
+    def port_infos_message(self, node: FlowNode, instance_index: int):
         """Build the PortInfos message the old style standard components expect."""
-        ports = self.port_infos(node)
+        ports = self.port_infos(node, instance_index)
         port_infos = fbp_capnp.PortInfos.new_message()
         port_infos.inPorts = ports["inPorts"]
         port_infos.outPorts = ports["outPorts"]
@@ -882,15 +992,17 @@ class FlowRunner:
         for node in self.standard_nodes:
             if not self.out_srs[node.node_id]:
                 self.sink_node_ids.append(node.node_id)
-            port_infos = self.port_infos_message(node)
             config_srs = config_chans.pop()
             procs: list[PopenT] = []
             for i in range(node.parallel_count):
                 name = node.name if node.parallel_count == 1 else f"{node.name} {i + 1}"
+                # each instance gets its own dedicated reader sr (see start_channels()), so
+                # there's no shared-reader contention for delivering port infos at all
+                reader_sr = config_srs.reader_srs[i] if i < len(config_srs.reader_srs) else config_srs.reader_srs[0]
                 procs.append(
                     comp.start_local_component(
                         node.cmd or "",
-                        config_srs.reader_sr,
+                        reader_sr,
                         name=name,
                         log_level=self.component_log_level,
                     ),
@@ -898,15 +1010,18 @@ class FlowRunner:
                 logger.info("%s: started standard component", name)
             self.standard_procs[node.node_id] = procs
 
-            # send the port infos once per config channel; all parallel instances read from
-            # the same channel, so write as many messages as there are instances
+            # send one port infos message per parallel instance; each instance reads exactly
+            # one off the shared config channel, in whatever order it happens to read - which
+            # specific instance gets which message doesn't matter, since the instances are
+            # otherwise interchangeable and each message only differs in which of the node's
+            # parallel_count dedicated channel SRs it references (see port_infos() above)
             writer_cap = await self.connect_or_raise(
                 config_srs.writer_sr,
                 f"port infos writer of '{node.name}'",
             )
             writer = writer_cap.cast_as(fbp_capnp.Channel.Writer)
-            for _ in range(node.parallel_count):
-                await writer.write(value=port_infos)
+            for i in range(node.parallel_count):
+                await writer.write(value=self.port_infos_message(node, i))
             # don't close the writer, it has to stay alive to forward cap calls and is used
             # as the signal letting the component shut down
             self.port_infos_writers.append(writer)
@@ -915,9 +1030,9 @@ class FlowRunner:
         for node in self.process_nodes:
             for i in range(node.parallel_count):
                 name = node.name if node.parallel_count == 1 else f"{node.name} {i + 1}"
-                await self.start_process_component(node, name)
+                await self.start_process_component(node, name, i)
 
-    async def start_process_component(self, node: FlowNode, name: str) -> None:
+    async def start_process_component(self, node: FlowNode, name: str, instance_index: int = 0) -> None:
         writer = ProcessCapWriter(name)
         save_sr_token, _unsave_sr_token = await self.restorer.save_cap(writer)
         writer_sr = self.restorer.sturdy_ref_str(save_sr_token)
@@ -942,12 +1057,12 @@ class FlowRunner:
         _ = await process_cap.state(transitionCallback=watcher)
 
         for port_name, srs in self.in_srs[node.node_id].items():
-            for sr in srs:
+            for sr in self._srs_for_instance(srs, node, instance_index):
                 connected = (await process_cap.connectInPort(port_name, sr)).connected
                 if not connected:
                     logger.warning("%s: couldn't connect in port '%s'", name, port_name)
         for port_name, srs in self.out_srs[node.node_id].items():
-            for sr in srs:
+            for sr in self._srs_for_instance(srs, node, instance_index):
                 connected = (await process_cap.connectOutPort(port_name, sr)).connected
                 if not connected:
                     logger.warning("%s: couldn't connect out port '%s'", name, port_name)

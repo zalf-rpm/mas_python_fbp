@@ -14,7 +14,6 @@ from zalfmas_fbp.run.run_fbp_flow import (
     _find_config_file,
     apply_toml_defaults,
     create_args_parser,
-    decode_chan_id,
     load_cmds,
     load_toml_defaults,
     parse_config,
@@ -102,11 +101,6 @@ def _runner(flow_files: tuple[Path, Path, Path]) -> FlowRunner:
     )
     runner.load_flow()
     return runner
-
-
-def test_chan_id_round_trip():
-    link = FlowLink(src=PortRef("a node", "out"), tgt=PortRef("b node", "in"))
-    assert decode_chan_id(link.chan_id) == link
 
 
 def test_parse_config_accepts_dict_toml_and_json():
@@ -309,7 +303,7 @@ def test_port_infos_message_uses_srs_list_for_array_out_ports(flow_files: tuple[
     runner.in_srs["copy-1"]["in"].append("reader-sr")
     runner.out_srs["copy-1"]["out"].extend(["writer-sr-1", "writer-sr-2"])
 
-    port_infos = runner.port_infos(runner.nodes["copy-1"])
+    port_infos = runner.port_infos(runner.nodes["copy-1"], 0)
 
     assert port_infos["inPorts"] == [{"name": "in", "sr": "reader-sr"}]
     assert port_infos["outPorts"] == [{"name": "out", "srs": ["writer-sr-1", "writer-sr-2"]}]
@@ -320,6 +314,6 @@ def test_port_infos_message_uses_single_sr_for_standard_out_port(flow_files: tup
     runner.nodes["copy-1"].metadata.outPorts[0].type = None
     runner.out_srs["copy-1"]["out"].append("writer-sr-1")
 
-    port_infos = runner.port_infos(runner.nodes["copy-1"])
+    port_infos = runner.port_infos(runner.nodes["copy-1"], 0)
 
     assert port_infos["outPorts"] == [{"name": "out", "sr": "writer-sr-1"}]
