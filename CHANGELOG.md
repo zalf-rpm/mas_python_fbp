@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.38](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.37...v0.2.38) (2026-09-16)
+
+
+### Bug Fixes
+
+* channels not scaling for parallel_count&gt;1 nodes, and IPs resent by reference instead of copied ([5009357](https://github.com/zalf-rpm/mas_python_fbp/commit/5009357391fe691ffda82e60c715484586ec86db))
+* ref recent version of zalfmas-common ([76b69f6](https://github.com/zalf-rpm/mas_python_fbp/commit/76b69f68ceeabc08b4c8f325fe17b15b5e478b2a))
+
 ## [0.2.37](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.36...v0.2.37) (2026-09-05)
 
 
