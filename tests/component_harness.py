@@ -171,7 +171,11 @@ def _make_ports(
     inputs: Mapping[str, Sequence[PortMessage]],
     outputs: Sequence[str],
 ) -> tuple[dict[str, InMemoryReader], dict[str, InMemoryWriter]]:
-    readers = {name: InMemoryReader(messages) for name, messages in inputs.items()}
+    # an entry may already be a reader itself, to let a test control how reads resolve
+    readers = {
+        name: messages if hasattr(messages, "read") else InMemoryReader(messages)
+        for name, messages in inputs.items()
+    }
     writers = {name: InMemoryWriter() for name in outputs}
     return readers, writers
 

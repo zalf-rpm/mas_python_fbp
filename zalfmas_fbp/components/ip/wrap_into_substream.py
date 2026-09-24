@@ -190,9 +190,35 @@ class WrapIntoSubstream(process.Process[Config]):
                 logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
             return error
 
+        # A started read is a claim on a message: the channel hands the IP over to that read call
+        # and forgets about it, so dropping the task - canceling it, or simply not using its
+        # result - loses that IP for good, while the writer upstream was already told that its
+        # write succeeded. Pending reads are therefore kept here across substreams and are always
+        # consumed, never thrown away.
+        pending_reads: dict[str, asyncio.Future | None] = {"in": None, "brackets": None}
+
+        def start_read(name: str) -> asyncio.Future:
+            task = pending_reads[name]
+            if task is None:
+                task = asyncio.ensure_future(self.read_in(name))
+                pending_reads[name] = task
+            return task
+
+        def take_read(name: str, task: asyncio.Future):
+            # the task finished, so its result belongs to us now
+            pending_reads[name] = None
+            return task.result()
+
+        async def read_next(name: str):
+            task = start_read(name)
+            try:
+                return await task
+            finally:
+                pending_reads[name] = None
+
         async def read_next_open_bracket():
             while True:
-                b_ip = await self.read_in("brackets")
+                b_ip = await read_next("brackets")
                 if b_ip is None:
                     self.in_ports["brackets"] = None
                     return None
@@ -214,27 +240,24 @@ class WrapIntoSubstream(process.Process[Config]):
 
             count = 0
             close_ip = None
-            in_task: asyncio.Future | None = None
-            brackets_task: asyncio.Future | None = None
 
             # Race reading 'in' (forward + count each IP) against 'brackets' (watch for the close-bracket).
             while close_ip is None and self.in_ports["in"] and self.in_ports["brackets"]:
-                if in_task is None:
-                    in_task = asyncio.ensure_future(self.read_in("in"))
-                if brackets_task is None:
-                    brackets_task = asyncio.ensure_future(self.read_in("brackets"))
+                in_task = start_read("in")
+                brackets_task = start_read("brackets")
 
                 done, stopped = await wait_for_tasks_or_stop({in_task, brackets_task}, self.stop_event)
                 if stopped:
-                    for task in (in_task, brackets_task):
+                    # shutting down, so the pending reads are given up on here
+                    for name, task in (("in", in_task), ("brackets", brackets_task)):
+                        pending_reads[name] = None
                         if not task.done():
                             task.cancel()
                     await asyncio.gather(in_task, brackets_task, return_exceptions=True)
                     return
 
                 if in_task in done:
-                    in_ip = in_task.result()
-                    in_task = None
+                    in_ip = take_read("in", in_task)
                     if in_ip is None:
                         self.in_ports["in"] = None
                         logger.warning(
@@ -248,8 +271,7 @@ class WrapIntoSubstream(process.Process[Config]):
                         count += 1
 
                 if brackets_task in done:
-                    b_ip = brackets_task.result()
-                    brackets_task = None
+                    b_ip = take_read("brackets", brackets_task)
                     if b_ip is None:
                         self.in_ports["brackets"] = None
                         logger.warning("%s: 'brackets' port closed while assembling substream.", self.name)
@@ -262,12 +284,12 @@ class WrapIntoSubstream(process.Process[Config]):
                             b_ip.type,
                         )
 
-            for task in (in_task, brackets_task):
-                if task is not None and not task.done():
-                    task.cancel()
-            for task in (in_task, brackets_task):
-                if task is not None:
-                    await asyncio.gather(task, return_exceptions=True)
+            # No cleanup of the reads still pending here on purpose: the read on 'in' is usually
+            # still outstanding when the close-bracket wins the race, and it may already hold the
+            # last IP of this substream. Canceling it (or awaiting it and dropping the result)
+            # silently loses that IP, and the wait below then blocks forever on an IP that no
+            # longer exists. The read stays pending and is picked up by the loop below, or by the
+            # next substream if this one is already complete.
 
             if close_ip is None:
                 # 'in' or 'brackets' closed before a matching close-bracket could be assembled.
@@ -295,7 +317,7 @@ class WrapIntoSubstream(process.Process[Config]):
                         count,
                     )
                     break
-                in_ip = await self.read_in("in")
+                in_ip = await read_next("in")
                 if in_ip is None:
                     self.in_ports["in"] = None
                     logger.warning(
