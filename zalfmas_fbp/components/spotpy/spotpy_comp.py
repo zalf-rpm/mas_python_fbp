@@ -288,6 +288,7 @@ class SpotPySetup:
         sampled_params_out_p,
         sim_values_in_p,
         loop: asyncio.AbstractEventLoop,
+        component: Component,
         log_out_p=None,
     ):
         self.params = params
@@ -296,6 +297,8 @@ class SpotPySetup:
         self.sim_values_in_p = sim_values_in_p
         self.loop = loop
         self.log_out_p = log_out_p
+        self.component = component
+        self.iteration_count = 0
 
     def _run_on_loop(self, coro):
         return asyncio.run_coroutine_threadsafe(coro, self.loop).result()
@@ -316,6 +319,7 @@ class SpotPySetup:
     def simulation(self, vector):
         # vector = MaxAssimilationRate, AssimilateReallocation, RootPenetrationRate
         sim_values = None
+        self.iteration_count += 1
         try:
             name_to_param = dict(zip(vector.name, vector))
             out_value = common_capnp.Value.new_message()
@@ -325,7 +329,12 @@ class SpotPySetup:
                 n2p_list[i].snd = common_capnp.Value.new_message(f64=float(v))
             out_ip = fbp_capnp.IP.new_message(content=out_value)
             self._run_on_loop(self._write_sampled_params(out_ip))
-            logger.info("%s %s sent params to monica setup: %s", Path(__file__).name, datetime.now(), vector)
+            logger.info(
+                "%s - iteration %s - sent params to monica setup: %s",
+                self.component.name,
+                str(self.iteration_count),
+                vector,
+            )
             if self.log_out_p:
                 self._run_on_loop(self._write_log(f"{datetime.now()} sent params to monica setup: {vector}"))
 
@@ -634,6 +643,7 @@ class Component(process.Process[Config]):
                     self.out_ports["sampled_params"],
                     self.in_ports["sim_values"],
                     loop,
+                    self,
                 )
 
                 rep = self.config.repetitions
