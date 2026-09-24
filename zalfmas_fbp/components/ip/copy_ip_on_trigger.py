@@ -116,9 +116,9 @@ class CopyOnTrigger(process.Process[Config]):
             if self.out_ports["trigger"]:
                 await self.write_out("trigger", trigger_ip)
 
-            out_ip = common.copy_ip(in_ip)
             # copy IP/substream
             for in_ip in in_ips:
+                out_ip = common.copy_ip(in_ip)
                 if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, out_ip):
                     break
 
