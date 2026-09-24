@@ -21,9 +21,11 @@ from zalfmas_fbp.run.process.types import ArrayInStrategy, ArrayReaderPorts
 from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.clients import ReaderClient
+    from mas.schema.fbp.fbp_capnp.types.clients import LeaseClient, ReaderClient
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
+
+type LeasedMsg = tuple[ReadResult, LeaseClient | None]
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,11 @@ class InputRuntime:
         # Reads which have been started but whose result nobody has taken yet, keyed by the
         # identity of the port they were started on. See _pending_read below for why they are
         # kept. The port is held alongside the task so that its id() stays valid and unique.
-        self._pending_reads: dict[int, tuple[ReaderClient, asyncio.Future[ReadResult]]] = {}
+        self._pending_reads: dict[int, tuple[ReaderClient, asyncio.Future[LeasedMsg]]] = {}
+        # ports whose channel does not know readLeased, so that it is tried only once
+        self._ports_without_leases: set[int] = set()
+        # acknowledgements on their way, kept so that they are not garbage collected early
+        self._pending_acks: set[asyncio.Future[None]] = set()
 
     @property
     def in_ports(self) -> dict[str, ReaderClient | None]:
@@ -73,7 +79,63 @@ class InputRuntime:
     def stop_event(self) -> asyncio.Event:
         return self._stop_event
 
-    def _pending_read(self, port: ReaderClient) -> asyncio.Future[ReadResult]:
+    @staticmethod
+    def _is_unimplemented(error: capnp.KjException) -> bool:
+        if getattr(error, "type", None) == "unimplemented":
+            return True
+        return "unimplemented" in _kj_exception_description(error).lower()
+
+    async def _read_msg(self, port: ReaderClient) -> LeasedMsg:
+        """Read one message from the port, preferring the leased read.
+
+        readLeased keeps the message owed to the channel until it is acknowledged, so a read
+        whose result never reaches anybody - the call was canceled, the process died, the
+        connection broke - no longer destroys the message: the channel takes it back and hands
+        it out again. A plain read cannot offer that, so it is only used where readLeased is not
+        available: against an older channel, or with a schema that does not know the method yet.
+        """
+        if id(port) not in self._ports_without_leases:
+            try:
+                response = await port.readLeased()
+            except AttributeError:
+                # the schema this process was built against does not know readLeased
+                self._ports_without_leases.add(id(port))
+            except capnp.KjException as error:
+                if not self._is_unimplemented(error):
+                    raise
+                logger.info(
+                    "%s: channel does not offer readLeased, falling back to read.",
+                    self._identity.name,
+                )
+                self._ports_without_leases.add(id(port))
+            else:
+                return response.msg, response.lease
+
+        return await port.read(), None
+
+    async def _ack(self, lease: LeaseClient) -> None:
+        try:
+            _ = await lease.ack()
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:  # noqa: BLE001
+            # an acknowledgement that does not arrive only means the channel hands the message
+            # out again, so it must never take the component down with it
+            logger.debug("%s: acknowledging a leased message failed: %s", self._identity.name, error)
+
+    def _acknowledge(self, lease: LeaseClient) -> None:
+        """Tell the channel that the message has arrived, without waiting for the answer.
+
+        Acknowledging says "this IP is in my hands now", so it happens as early as possible:
+        whatever lies between receiving and acknowledging is a window in which this process
+        dying makes the channel deliver the message a second time. Cap'n Proto delivers calls
+        on a capability before its release, so the acknowledgement does not have to be awaited.
+        """
+        ack = asyncio.ensure_future(self._ack(lease))
+        self._pending_acks.add(ack)
+        _ = ack.add_done_callback(self._pending_acks.discard)
+
+    def _pending_read(self, port: ReaderClient) -> asyncio.Future[LeasedMsg]:
         """Return the read outstanding on this port, starting one if there is none.
 
         A read is a destructive take: the channel hands the IP over to the read call and forgets
@@ -88,11 +150,11 @@ class InputRuntime:
         entry = self._pending_reads.get(id(port))
         if entry is not None:
             return entry[1]
-        task = asyncio.ensure_future(port.read())
+        task = asyncio.ensure_future(self._read_msg(port))
         self._pending_reads[id(port)] = (port, task)
         return task
 
-    def _finish_pending_read(self, port: ReaderClient, task: asyncio.Future[ReadResult]) -> None:
+    def _finish_pending_read(self, port: ReaderClient, task: asyncio.Future[LeasedMsg]) -> None:
         # only forget the read once it has actually finished, so that a canceled caller leaves it
         # behind for the next one instead of dropping the IP it may be carrying
         if task.done():
@@ -100,6 +162,7 @@ class InputRuntime:
 
     def _drop_pending_read(self, port: ReaderClient) -> None:
         _ = self._pending_reads.pop(id(port), None)
+        _ = self._ports_without_leases.discard(id(port))
 
     def _clear_in_port(self, name: str) -> None:
         port = self.in_ports.get(name)
@@ -167,7 +230,9 @@ class InputRuntime:
         try:
             done_tasks, stopped = await wait_for_tasks_or_stop({read_task}, self.stop_event)
             if stopped:
-                # shutting down, so give up on the read even if it carries an IP
+                # Shutting down, so give up on the read. Its result is dropped without being
+                # acknowledged, which hands a leased message back to the channel instead of
+                # losing it - the one case where stopping used to cost an IP.
                 self._drop_pending_read(port)
                 if read_task not in done_tasks:
                     await _cancel_tasks((read_task,))
@@ -177,8 +242,11 @@ class InputRuntime:
 
             # shielded, so that a caller canceled here leaves the read - and any IP it already
             # holds - behind for the next reader instead of taking it down with itself
-            msg = await asyncio.shield(read_task)
+            msg, lease = await asyncio.shield(read_task)
             self._finish_pending_read(port, read_task)
+            if lease is not None and msg.which() == "value":
+                # the IP is in our hands now, so the channel may let go of it
+                self._acknowledge(lease)
             await self._activity.transition_to_activity("processing")
             if msg.which() == "done":
                 on_disconnect()

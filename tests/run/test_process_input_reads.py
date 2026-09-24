@@ -6,6 +6,7 @@ import contextlib
 from tests.component_harness import (
     InFlightReader,
     InMemoryWriter,
+    LeasedReader,
     done_message,
     ip_message,
     text_outputs,
@@ -70,3 +71,68 @@ async def _run(component: process.Process) -> None:
     await run_task
     if component.context.lifecycle.run_exception is not None:
         raise component.context.lifecycle.run_exception
+
+
+class _ReadsOneProcess(process.Process):
+    def __init__(self):
+        super().__init__(metadata=_port_meta())
+
+    async def run(self) -> None:
+        ip = await self.read_in("in")
+        if ip is not None:
+            _ = await self.write_out("out", ip)
+
+
+def test_leased_read_is_used_and_acknowledged() -> None:
+    component = _ReadsOneProcess()
+    writer = InMemoryWriter()
+    reader = LeasedReader([ip_message("a"), done_message()])
+    component.in_ports["in"] = reader  # pyright: ignore[reportAttributeAccessIssue]
+    component.out_ports["out"] = writer  # pyright: ignore[reportAttributeAccessIssue]
+
+    asyncio.run(_run(component))
+
+    assert text_outputs(writer) == ["a"]
+    assert reader.leased_reads == 1, "the runtime should prefer readLeased"
+    assert reader.plain_reads == 0
+    assert len(reader.acknowledged) == 1, "the message should have been acknowledged"
+
+
+def test_falls_back_to_plain_read_against_a_channel_without_leases() -> None:
+    component = _ReadsOneProcess()
+    writer = InMemoryWriter()
+    reader = LeasedReader([ip_message("a"), done_message()], unimplemented=True)
+    component.in_ports["in"] = reader  # pyright: ignore[reportAttributeAccessIssue]
+    component.out_ports["out"] = writer  # pyright: ignore[reportAttributeAccessIssue]
+
+    asyncio.run(_run(component))
+
+    assert text_outputs(writer) == ["a"]
+    assert reader.plain_reads == 1, "the runtime should have fallen back to read"
+    assert reader.acknowledged == []
+
+
+class _ReadsTwiceProcess(process.Process):
+    def __init__(self):
+        super().__init__(metadata=_port_meta())
+
+    async def run(self) -> None:
+        for _ in range(2):
+            ip = await self.read_in("in")
+            if ip is None:
+                return
+            _ = await self.write_out("out", ip)
+
+
+def test_readleased_is_only_tried_once_per_port() -> None:
+    component = _ReadsTwiceProcess()
+    writer = InMemoryWriter()
+    reader = LeasedReader([ip_message("a"), ip_message("b"), done_message()], unimplemented=True)
+    component.in_ports["in"] = reader  # pyright: ignore[reportAttributeAccessIssue]
+    component.out_ports["out"] = writer  # pyright: ignore[reportAttributeAccessIssue]
+
+    asyncio.run(_run(component))
+
+    assert text_outputs(writer) == ["a", "b"]
+    assert reader.leased_reads == 1, "an unavailable readLeased must not be retried on every read"
+    assert reader.plain_reads == 2

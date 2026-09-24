@@ -5,6 +5,7 @@ from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 
 from zalfmas_fbp.run import ports, process
@@ -62,6 +63,52 @@ class InFlightReader:
         for _ in range(self._turns):
             await asyncio.sleep(0)
         return message
+
+
+class FakeLease:
+    def __init__(self, on_ack: Callable[[], None]):
+        self._on_ack = on_ack
+
+    async def ack(self) -> None:
+        self._on_ack()
+
+
+class LeasedResponse:
+    def __init__(self, msg: PortMessage, lease: FakeLease):
+        self.msg = msg
+        self.lease = lease
+
+
+class LeasedReader:
+    """A port which offers readLeased, recording what was acknowledged.
+
+    Set unimplemented=True to imitate a channel too old to know the method, which is how the
+    runtime is supposed to discover that it has to fall back to a plain read.
+    """
+
+    def __init__(self, messages: Sequence[PortMessage], *, unimplemented: bool = False):
+        self._messages = list(messages)
+        self._unimplemented = unimplemented
+        self.acknowledged: list[PortMessage] = []
+        self.leased_reads = 0
+        self.plain_reads = 0
+
+    async def readLeased(self) -> LeasedResponse:  # noqa: N802 - the capnp method name
+        self.leased_reads += 1
+        if self._unimplemented:
+            raise capnp.KjException("unimplemented method not implemented")
+        message = self._take()
+        return LeasedResponse(message, FakeLease(lambda: self.acknowledged.append(message)))
+
+    async def read(self) -> PortMessage:
+        self.plain_reads += 1
+        return self._take()
+
+    def _take(self) -> PortMessage:
+        if not self._messages:
+            msg = "Test component read from an exhausted input port. Add an explicit done_message()."
+            raise AssertionError(msg)
+        return self._messages.pop(0)
 
 
 class InMemoryWriteRequest:
