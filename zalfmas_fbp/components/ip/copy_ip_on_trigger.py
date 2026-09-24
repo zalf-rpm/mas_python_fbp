@@ -107,6 +107,11 @@ class CopyOnTrigger(process.Process[Config]):
                         break
                     in_ips.append(in_ip)
 
+        # own copies, built in-memory rather than received over the wire: re-reading them on
+        # every trigger below does not count against a capnp::ReaderOptions traversal limit the
+        # way repeatedly re-reading the original, RPC-received readers would.
+        in_ips = [common.copy_ip(in_ip) for in_ip in in_ips]
+
         while self.in_ports["trigger"] and any(self.array_out_ports["out"]):
             trigger_ip = await self.read_in("trigger")
             if trigger_ip is None:
