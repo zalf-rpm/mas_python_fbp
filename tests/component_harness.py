@@ -40,6 +40,30 @@ class InMemoryReader:
         return self._messages.pop(0)
 
 
+class InFlightReader:
+    """A port whose read takes the message first and only then takes its time to deliver it.
+
+    That is how a channel read behaves: it takes the IP out of the channel, which forgets about
+    it, and the IP then exists only inside that read call. Dropping such a call - canceling it or
+    discarding its result - destroys the IP, while the writer upstream was already told that its
+    write succeeded. Use this reader to test that a component or the runtime never gives up on a
+    read it has started.
+    """
+
+    def __init__(self, messages: Sequence[PortMessage], turns: int = 5):
+        self._messages = list(messages)
+        self._turns = turns
+
+    async def read(self) -> PortMessage:
+        if not self._messages:
+            msg = "Test component read from an exhausted input port. Add an explicit done_message()."
+            raise AssertionError(msg)
+        message = self._messages.pop(0)  # the IP has left the channel now
+        for _ in range(self._turns):
+            await asyncio.sleep(0)
+        return message
+
+
 class InMemoryWriteRequest:
     def __init__(self, writer: InMemoryWriter):
         self._writer = writer

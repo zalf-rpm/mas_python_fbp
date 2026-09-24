@@ -52,6 +52,10 @@ class InputRuntime:
         self._ports: ProcessPortState = ports
         self._stop_event: asyncio.Event = stop_event
         self._activity: ProcessActivityContext = activity
+        # Reads which have been started but whose result nobody has taken yet, keyed by the
+        # identity of the port they were started on. See _pending_read below for why they are
+        # kept. The port is held alongside the task so that its id() stays valid and unique.
+        self._pending_reads: dict[int, tuple[ReaderClient, asyncio.Future[ReadResult]]] = {}
 
     @property
     def in_ports(self) -> dict[str, ReaderClient | None]:
@@ -69,7 +73,38 @@ class InputRuntime:
     def stop_event(self) -> asyncio.Event:
         return self._stop_event
 
+    def _pending_read(self, port: ReaderClient) -> asyncio.Future[ReadResult]:
+        """Return the read outstanding on this port, starting one if there is none.
+
+        A read is a destructive take: the channel hands the IP over to the read call and forgets
+        about it, so from that moment the IP exists nowhere else. Canceling the call therefore
+        destroys the IP, while the writer upstream was already told that its write succeeded -
+        silently, because neither side is in a position to notice.
+
+        A started read is consequently kept alive here until somebody takes its result, even if
+        the caller waiting for it is canceled in the meantime (see read_connected_port). The next
+        read on the same port picks up the same call, and with it the IP it may already hold.
+        """
+        entry = self._pending_reads.get(id(port))
+        if entry is not None:
+            return entry[1]
+        task = asyncio.ensure_future(port.read())
+        self._pending_reads[id(port)] = (port, task)
+        return task
+
+    def _finish_pending_read(self, port: ReaderClient, task: asyncio.Future[ReadResult]) -> None:
+        # only forget the read once it has actually finished, so that a canceled caller leaves it
+        # behind for the next one instead of dropping the IP it may be carrying
+        if task.done():
+            _ = self._pending_reads.pop(id(port), None)
+
+    def _drop_pending_read(self, port: ReaderClient) -> None:
+        _ = self._pending_reads.pop(id(port), None)
+
     def _clear_in_port(self, name: str) -> None:
+        port = self.in_ports.get(name)
+        if port is not None:
+            self._drop_pending_read(port)
         self.in_ports[name] = None
 
     def _clear_array_in_port(self, name: str, port_index: int) -> None:
@@ -128,26 +163,34 @@ class InputRuntime:
             return None
 
         await self._activity.transition_to_activity("waitingInput", port_label)
-        read_task = asyncio.ensure_future(port.read())
+        read_task = self._pending_read(port)
         try:
             done_tasks, stopped = await wait_for_tasks_or_stop({read_task}, self.stop_event)
             if stopped:
+                # shutting down, so give up on the read even if it carries an IP
+                self._drop_pending_read(port)
                 if read_task not in done_tasks:
                     await _cancel_tasks((read_task,))
                     return None
                 _ = await read_task
                 return None
 
-            msg = await read_task
+            # shielded, so that a caller canceled here leaves the read - and any IP it already
+            # holds - behind for the next reader instead of taking it down with itself
+            msg = await asyncio.shield(read_task)
+            self._finish_pending_read(port, read_task)
             await self._activity.transition_to_activity("processing")
             if msg.which() == "done":
                 on_disconnect()
                 return None
             return msg.value.as_struct(fbp_capnp.IP)
         except asyncio.CancelledError:
-            await _cancel_tasks((read_task,))
+            # Deliberately not canceling read_task: the channel may already have handed it an IP,
+            # which exists nowhere else and would be destroyed with the call. The read stays
+            # pending and the next read on this port takes it over.
             raise
         except capnp.KjException as error:
+            self._finish_pending_read(port, read_task)
             on_disconnect()
             if self.stop_event.is_set():
                 return None

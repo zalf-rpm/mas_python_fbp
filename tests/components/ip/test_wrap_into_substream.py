@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Sequence
-
 from mas.schema.common import common_capnp
 
 from tests.component_harness import (
-    PortMessage,
+    InFlightReader,
     close_bracket_message,
     done_message,
     ip_message,
@@ -14,28 +11,6 @@ from tests.component_harness import (
     run_process_component,
 )
 from zalfmas_fbp.components.ip.wrap_into_substream import METADATA, WrapIntoSubstream
-
-
-class InFlightReader:
-    """A port whose read takes the message first and only then takes its time to deliver it.
-
-    That is how a channel behaves: a read takes the IP out of the channel, which forgets about it,
-    and the IP then travels inside the read call. Dropping such a call loses the IP for good, so a
-    component must never cancel or discard a read it has started - which is what this models.
-    """
-
-    def __init__(self, messages: Sequence[PortMessage], turns: int = 5):
-        self._messages = list(messages)
-        self._turns = turns
-
-    async def read(self) -> PortMessage:
-        if not self._messages:
-            msg = "Test component read from an exhausted input port. Add an explicit done_message()."
-            raise AssertionError(msg)
-        message = self._messages.pop(0)  # the IP has left the channel now
-        for _ in range(self._turns):
-            await asyncio.sleep(0)
-        return message
 
 
 def test_free_running_mode_unchanged_when_brackets_port_unconnected() -> None:
