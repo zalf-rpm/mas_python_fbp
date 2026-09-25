@@ -105,6 +105,22 @@ METADATA = meta.Component(
     config=Config,
 )
 
+SUPPORTED_MATH_OPS = ["+", "-", "*", "/", "^"]
+
+
+def apply_math_op(left, op, right):
+    if op == "+":
+        return left + right
+    elif op == "-":
+        return left - right
+    elif op == "*":
+        return left * right
+    elif op == "/" and right != 0:
+        return left / right
+    elif op == "^":
+        return pow(left, right)
+    return right
+
 
 def as_type(
     attr_val, capnp_type_string: str
@@ -273,15 +289,19 @@ class UpdateJson(process.Process[Config]):
                     json_obj[spec_key] = spec_value
             # a list as value is treated as sub object access if the first element is an attribute (@) access
             elif isinstance(spec_value, list):
+                math_op = None
+                if len(spec_value) == 2 and spec_value[0] in SUPPORTED_MATH_OPS:
+                    math_op = spec_value[0]
+                    spec_value = spec_value[1]
                 attr_val, read_successful = read_attr_value(self.config.types, attrs, spec_value)
                 if read_successful:
                     spec_value = attr_val
                 # access a list
                 if spec_index is not None and isinstance(json_obj, list):
-                    json_obj[spec_index] = spec_value
+                    json_obj[spec_index] = apply_math_op(json_obj[spec_index], math_op, spec_value)
                 # access a dict
                 else:
-                    json_obj[spec_key] = spec_value
+                    json_obj[spec_key] = apply_math_op(json_obj[spec_key], math_op, spec_value)
             elif isinstance(spec_value, str):
                 # use existing function to resolve values from attributes
                 attr_val, is_attr_val = p.get_attr_val(
@@ -318,6 +338,11 @@ class UpdateJson(process.Process[Config]):
                             val, self.config.attr_sub_access_separator, create_int_indizes=True
                         )
                         d[key_part] = val_parts
+                    elif isinstance(val, list) and len(val) == 2 and val[0] in SUPPORTED_MATH_OPS:
+                        val_parts = split_into_parts(
+                            val[1], self.config.attr_sub_access_separator, create_int_indizes=True
+                        )
+                        d[key_part] = [val[0]] + val_parts
                     else:
                         # just assign the value to the correct sub dict entry
                         d[key_part] = val
