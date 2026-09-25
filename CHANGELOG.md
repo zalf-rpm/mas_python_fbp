@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.39](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.38...v0.2.39) (2026-09-25)
+
+
+### Features
+
+* read input ports with readLeased so a lost read cannot lose the IP ([09af9ab](https://github.com/zalf-rpm/mas_python_fbp/commit/09af9ab14da7282ca5919ec3c49afbc1ca12b849))
+
+
+### Bug Fixes
+
+* a canceled read no longer loses the IP the channel already handed over ([1d3a76c](https://github.com/zalf-rpm/mas_python_fbp/commit/1d3a76c14f9fe32ca1ee4c75feebbb3368ff4c23))
+* copied the wrong in_ip as out_ip ([282ca5e](https://github.com/zalf-rpm/mas_python_fbp/commit/282ca5eb84020abd64a5502ec32d9430252fd44c))
+* copy IP on trigger's stored input once, up front, to avoid the capnp traversal limit ([fa8bd66](https://github.com/zalf-rpm/mas_python_fbp/commit/fa8bd664ac15335b3a67fe35335c11b058b55884))
+* substream assembly dropped an IP that was in flight on 'in' ([5c0dfc7](https://github.com/zalf-rpm/mas_python_fbp/commit/5c0dfc7c300e35cae8425dba6fdc281a89b06265))
+
 ## [0.2.38](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.37...v0.2.38) (2026-09-16)
 
 
