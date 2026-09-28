@@ -378,6 +378,9 @@ class UpdateJson(process.Process[Config]):
                     attrs_attrs = {}
                     continue
 
+                if not in_substream:
+                    attrs_attrs = {}
+
                 # read the 'in' message attrs
                 attrs = {kv.key: kv.value for kv in in_ip.attributes}
                 j_content = json.loads(in_ip.content.as_text())
@@ -391,8 +394,8 @@ class UpdateJson(process.Process[Config]):
                         for kv in attrs_ip.attributes:
                             attrs_attrs[f"{self.config.name_for_attrs_port}_{kv.key}"] = kv.value
                     else:
+                        # close port and continue without it
                         self.in_ports["attrs"] = None
-                        continue
                     read_new_attrs = not in_substream
 
                 # merge attributes from attrs port into currently received attributes
