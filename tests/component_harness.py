@@ -65,6 +65,43 @@ class InFlightReader:
         return message
 
 
+@dataclass
+class NoMsgResult:
+    def which(self) -> str:
+        return "noMsg"
+
+
+NO_MSG = NoMsgResult()
+
+
+class ReadIfMsgReader:
+    """A port offering both blocking read() and non-blocking readIfMsg(), each drawing from its
+    own explicit queue so a test can script exactly what each call sees. Use NO_MSG in the
+    if_msg_messages queue for a call that should report nothing available yet, same as a real
+    channel's readIfMsg does when its buffer is currently empty.
+    """
+
+    def __init__(
+        self,
+        read_messages: Sequence[PortMessage] = (),
+        if_msg_messages: Sequence[PortMessage | NoMsgResult] = (),
+    ):
+        self._read_messages = list(read_messages)
+        self._if_msg_messages = list(if_msg_messages)
+
+    async def read(self) -> PortMessage:
+        if not self._read_messages:
+            msg = "Test component read from an exhausted input port. Add an explicit done_message()."
+            raise AssertionError(msg)
+        return self._read_messages.pop(0)
+
+    async def readIfMsg(self) -> PortMessage | NoMsgResult:  # noqa: N802 - the capnp method name
+        if not self._if_msg_messages:
+            msg = "Test component called readIfMsg with no scripted response left."
+            raise AssertionError(msg)
+        return self._if_msg_messages.pop(0)
+
+
 class FakeLease:
     def __init__(self, on_ack: Callable[[], None]):
         self._on_ack = on_ack
