@@ -102,6 +102,16 @@ METADATA = meta.Component(
                 "int/float/bool, or anything reached through embedded JSON) is JSON-serialized first."
             ),
         ),
+        meta.Port(
+            name="pass",
+            contentType="AnyPointer",
+            desc=(
+                "Optional: if connected, every IP received on 'in' - brackets included, and regardless "
+                "of whether extraction onto 'out' succeeds - is forwarded here completely unchanged, "
+                "so downstream can get both the extracted value and the original IP without needing a "
+                "separate copy component."
+            ),
+        ),
     ],
     config=Config,
 )
@@ -218,6 +228,11 @@ class Component(process.Process[Config]):
             if in_ip is None:
                 self.in_ports["in"] = None
                 continue
+
+            if self.out_ports["pass"]:
+                if not await self.write_out("pass", in_ip):
+                    self.out_ports["pass"] = None
+                    logger.info("%s: error on sending on 'pass' port; continuing without it.", self.name)
 
             if in_ip.type in ("openBracket", "closeBracket"):
                 if not await self.write_out("out", in_ip):

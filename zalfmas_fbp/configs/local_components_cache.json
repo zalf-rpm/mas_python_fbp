@@ -1708,6 +1708,62 @@
             }
         }
     },
+    "8869b77a-4dbf-4fbf-bc95-2a753d443624": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "8869b77a-4dbf-4fbf-bc95-2a753d443624",
+            "name": "Attribute to content",
+            "description": "Extract an attribute (optionally a sub-object of it) from an incoming IP and promote it to be the outgoing IP's content - the inverse of 'add attribute'."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Input IP whose 'attr_name' attribute (and optionally a sub-object of it) is extracted."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same IP as received on 'in' (same attributes), but with content replaced by the extracted attribute value. A plain capnp value (Text, a struct, a list, ...) is used as-is; a plain Python value that pycapnp's AnyPointer can't hold directly (e.g. a bare int/float/bool, or anything reached through embedded JSON) is JSON-serialized first."
+            },
+            {
+                "name": "pass",
+                "contentType": "AnyPointer",
+                "desc": "Optional: if connected, every IP received on 'in' - brackets included, and regardless of whether extraction onto 'out' succeeds - is forwarded here completely unchanged, so downstream can get both the extracted value and the original IP without needing a separate copy component."
+            }
+        ],
+        "defaultConfig": {
+            "attr_name": {
+                "value": "attribute_name",
+                "type": "string",
+                "desc": "Name of the attribute (on the incoming IP) to extract and promote to the outgoing IP's content."
+            },
+            "attr_path": {
+                "type": "string",
+                "desc": "Optional 'attr_sub_access_separator'-delimited path (e.g. 'sub1/sub2') into a sub-object of the attribute's value. Requires the attribute's capnp type to be described via 'types' (keyed by '@' + attr_name, same convention as Update JSON) so its value can be cast before the path is walked. A path segment may itself carry a ':type_ref' suffix (e.g. 'sub1:@othertype'), which looks 'type_ref' up in 'types' and casts to it right after that segment is applied - needed to keep drilling down whenever a struct field encountered along the way is itself just an untyped AnyPointer. Leave 'attr_path' unset to just extract the attribute's value as-is - no type needed in that case."
+            },
+            "types": {
+                "value": {},
+                "type": "object",
+                "desc": "Same convention as Update JSON's 'types' config: maps a type-reference key to the capnp type it describes (e.g. {'@attribute_name': '@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup'}). Used to cast the attribute's value up front (keyed by '@' + attr_name), and again for any ':type_ref' suffix attached to an 'attr_path' segment. Only needed when 'attr_path' is set."
+            },
+            "attr_sub_access_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "The token used to separate path segments in 'attr_path', e.g. 'sub1/sub2'."
+            }
+        }
+    },
     "67b31990-452a-4058-8a99-6785be345216": {
         "category": {
             "id": "json",
@@ -2152,6 +2208,53 @@
             "missing_key_value": {
                 "value": "",
                 "desc": "JSON value serialized onto 'value' when the requested key/path is missing, only used if emit_message_for_missing_key is true. Defaults to an empty JSON string; set to null, an object, etc. as needed - JSON null ('null') is a perfectly valid standalone JSON document."
+            }
+        }
+    },
+    "70b6eafd-2e22-4c3b-a886-93d3a72664e1": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "70b6eafd-2e22-4c3b-a886-93d3a72664e1",
+            "name": "Concat JSON substream",
+            "description": "Concatenate a substream of JSON IPs received on 'in' into one JSON list written on 'out', optionally flattening nested lists and merging attributes across the substream."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "A substream (open-bracket ... close-bracket) of JSON IPs to concatenate into one JSON list. Every IP is expected to arrive inside a substream; one arriving outside of one is skipped with a warning, since concatenating a substream is this component's whole purpose. Multiple consecutive substreams are each collected and emitted independently, until 'in' closes."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "One JSON list per completed substream received on 'in': the concatenation (optionally flattened) of that substream's parsed JSON values, carrying the merged and 'remove_attrs'-filtered attributes from all of that substream's IPs."
+            }
+        ],
+        "defaultConfig": {
+            "flatten": {
+                "value": false,
+                "type": "bool",
+                "desc": "If true, flatten the concatenated list by 'flatten_levels' levels before it is written on 'out': any list-valued element is spliced into the result in place of itself, rather than kept nested. If false (the default), the output is simply one list entry per IP received in the substream, in order, whatever shape each entry's own JSON value has."
+            },
+            "flatten_levels": {
+                "value": 1,
+                "type": "int",
+                "desc": "How many levels deep to flatten the concatenated list when 'flatten' is true. Ignored otherwise. 1 unwraps each top-level list-valued entry once; higher values keep unwrapping further nested lists inside those."
+            },
+            "remove_attrs": {
+                "value": [],
+                "type": "list[string]",
+                "desc": "Names of attributes to drop when merging attributes across the substream's IPs. Attributes are otherwise merged in incoming IP order - a later IP's attribute value overwrites an earlier one of the same name - and written onto the single output IP."
             }
         }
     },

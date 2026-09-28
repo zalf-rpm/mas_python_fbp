@@ -34,7 +34,17 @@ logger = logging.getLogger(__name__)
 class Config(process.ProcessConfig):
     types: dict[str, str] = Field(
         {"@setup": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"},
-        description="Define the loadable type the attribute being referenced has.",
+        description=(
+            "Define the loadable type the attribute being referenced has. Besides a real capnp type "
+            "string, the pseudo-type 'JSON' (case-insensitive) may be used as a types entry's value - "
+            "e.g. {'@myattr': 'JSON'} - for a plain capnp.capnp:Text value that itself holds "
+            "JSON-encoded text: it is decoded via json.loads() into a Python value (dict/list/str/int/"
+            "float/bool/None), same as common.capnp:StructuredText[JSON] is auto-decoded, just without "
+            "that struct wrapper. Usable both as the type for '@attr' itself (types['@attr'] = 'JSON') "
+            "and via a ':type_ref' suffix on an attr_sub_access_separator-delimited path segment (e.g. "
+            "'sub1:@myjson', with types['@myjson'] = 'JSON' - the part after ':' is always a lookup key "
+            "into 'types', never a literal type name, same as for any other type reference)."
+        ),
     )
     attr_sub_access_separator: str = Field(
         "/",
@@ -122,6 +132,9 @@ def apply_math_op(left, op, right):
     return right
 
 
+_JSON_PSEUDO_TYPE = "json"  # not a real capnp type - see as_type() below
+
+
 def as_type(
     attr_val, capnp_type_string: str
 ) -> tuple[
@@ -129,8 +142,17 @@ def as_type(
     capnp.lib.capnp._StructSchema
     | capnp.lib.capnp._InterfaceSchema
     | capnp.lib.capnp._EnumSchema
-    | capnp.lib.capnp._SchemaType,
+    | capnp.lib.capnp._SchemaType
+    | None,
 ]:
+    # pseudo-type: not a capnp.capnp:Text value to be used as-is, but capnp Text that itself holds
+    # JSON-encoded content, so it's decoded into a Python value here (dict/list/str/int/float/bool/
+    # None) - same as common.capnp:StructuredText[JSON]'s own auto-decode below, just without the
+    # extra struct wrapper. attr_val may already be a plain str if reached via a prior JSON decode
+    # (e.g. dict access into an already-decoded sub-object) rather than straight off an AnyPointer.
+    if capnp_type_string.strip().lower() == _JSON_PSEUDO_TYPE:
+        text = attr_val if isinstance(attr_val, str) else attr_val.as_text()
+        return json.loads(text), None
     schema = common.schema_from_content_type_string(capnp_type_string)
     return common.cast_to_schema(attr_val, schema), schema
 
@@ -146,13 +168,13 @@ def read_attr_value(
             attrs,
             remove=False,
         )
-        # attribute sub access
-        if is_capnp and len(v) > 1 and v[0] in types:
+        # attribute sub access - cast happens even without any further path segment (len(v) == 1),
+        # since types['@attr'] may be the 'JSON' pseudo-type, needed to decode the whole attribute
+        # value for direct assignment, not just for drilling further into it.
+        if is_capnp and v[0] in types:
             attr_val, _ = as_type(attr_val, types[v[0]])
-            is_json = False
-            sub_access_len = len(v[1:])
             try:
-                for i, field_name_and_opt_type_ref in enumerate(v[1:]):
+                for field_name_and_opt_type_ref in v[1:]:
                     # field name might contain an attached type (ref to types dict)
                     fnaotr = (
                         field_name_and_opt_type_ref.split(":")
@@ -167,14 +189,12 @@ def read_attr_value(
                     attr_dir = attr_val.__dir__()
                     # check if this is common.capnp/StructuredText[JSON], in that case get values
                     # out of a JSON dict, but only if the user didn't want to access the value directly
-                    # (next subaccess would have been value)
                     if (
                         "schema" in attr_dir
                         and attr_val.schema == common_capnp.StructuredText.schema  # 17108059578820121684
                         and attr_val.type == "json"
-                        and ((sub_access_len > (1 + i) and v[1 + i + 1] != "value") or sub_access_len > i)
+                        and field_name != "value"
                     ):
-                        is_json = True
                         attr_val = json.loads(attr_val.value)
 
                     # is array index
@@ -184,8 +204,10 @@ def read_attr_value(
                         else:
                             # attr_val isn't really a list or the list has not enough elements
                             return attr_val, False
-                    # is json access
-                    elif is_json and field_name in attr_val:
+                    # is json access - attr_val is a plain dict, whether it got there via the
+                    # StructuredText[JSON] auto-decode just above, or via an explicit "JSON"
+                    # pseudo-type cast (from types[v[0]] or a ':type_ref' segment, see as_type())
+                    elif isinstance(attr_val, dict) and field_name in attr_val:
                         attr_val = attr_val[field_name]
                     # is struct access
                     elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
