@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 
+from mas.schema.common import common_capnp
+
 from tests.component_harness import (
     NO_MSG,
     ReadIfMsgReader,
     close_bracket_message,
     done_message,
     ip_message,
+    ip_message_with_attrs,
     open_bracket_message,
     run_process_component,
 )
@@ -342,3 +345,140 @@ def test_nested_key_substream_only_refreshes_once_for_the_whole_substream() -> N
         "closeBracket",
     ]
     assert out[2].content.as_text() == "1"
+
+
+def test_attribute_key_mode_builds_object_incrementally_by_merging_entries() -> None:
+    component = Component(METADATA)
+    component.apply_config_values({"obj_value_key_attr": "k"})
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": ReadIfMsgReader(
+                read_messages=[ip_message_with_attrs(json.dumps(1), k="a")],
+                if_msg_messages=[ip_message_with_attrs(json.dumps(2), k="b"), NO_MSG, NO_MSG],
+            ),
+            "key": [
+                ip_message(json.dumps("a")),
+                ip_message(json.dumps("b")),
+                ip_message(json.dumps("a")),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    # the second entry ("b") merges into the object rather than replacing it - "a" is still there
+    assert values == ["1", "2", "1"]
+
+
+def test_attribute_key_mode_supports_common_capnp_value_keys() -> None:
+    component = Component(METADATA)
+    component.apply_config_values({"obj_value_key_attr": "k"})
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": ReadIfMsgReader(
+                read_messages=[
+                    ip_message_with_attrs(json.dumps("int"), k=common_capnp.Value.new_message(i64=42)),
+                ],
+                if_msg_messages=[
+                    ip_message_with_attrs(json.dumps("float"), k=common_capnp.Value.new_message(f64=1.5)),
+                    ip_message_with_attrs(json.dumps("bool"), k=common_capnp.Value.new_message(b=True)),
+                    NO_MSG,
+                ],
+            ),
+            "key": [
+                ip_message(json.dumps(42)),
+                ip_message(json.dumps(1.5)),
+                ip_message(json.dumps(True)),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    assert values == ['"int"', '"float"', '"bool"']
+
+
+def test_attribute_key_mode_skips_message_missing_the_key_attribute() -> None:
+    component = Component(METADATA)
+    component.apply_config_values({"obj_value_key_attr": "k"})
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": ReadIfMsgReader(
+                read_messages=[ip_message_with_attrs(json.dumps(1), k="a")],
+                if_msg_messages=[ip_message(json.dumps(999))],  # no 'k' attribute at all
+            ),
+            "key": [
+                ip_message(json.dumps("a")),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    assert values == ["1"]
+
+
+def test_attribute_key_mode_skips_unsupported_key_value_type() -> None:
+    component = Component(METADATA)
+    component.apply_config_values({"obj_value_key_attr": "k"})
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": ReadIfMsgReader(
+                read_messages=[ip_message_with_attrs(json.dumps(1), k="a")],
+                if_msg_messages=[
+                    ip_message_with_attrs(json.dumps(2), k=common_capnp.Value.new_message(lt=["x", "y"])),
+                ],
+            ),
+            "key": [
+                ip_message(json.dumps("a")),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    assert values == ["1"]
+
+
+def test_attribute_key_mode_substream_applies_all_entries_as_one_atomic_update() -> None:
+    component = Component(METADATA)
+    component.apply_config_values({"obj_value_key_attr": "k"})
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": ReadIfMsgReader(
+                # the first (initial) read consumes only "a": 1; readIfMsg then peeks the
+                # open-bracket, and the rest of the substream is drained via blocking reads.
+                read_messages=[
+                    ip_message_with_attrs(json.dumps(1), k="a"),
+                    ip_message_with_attrs(json.dumps(2), k="b"),
+                    ip_message_with_attrs(json.dumps(3), k="c"),
+                    close_bracket_message(),
+                ],
+                if_msg_messages=[open_bracket_message(), NO_MSG, NO_MSG],
+            ),
+            "key": [
+                ip_message(json.dumps("b")),
+                ip_message(json.dumps("c")),
+                ip_message(json.dumps("a")),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    assert values == ["2", "3", "1"]

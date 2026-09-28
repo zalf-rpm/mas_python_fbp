@@ -253,6 +253,16 @@ def ip_message(content: Any) -> PortMessage:
     return PortMessage(PortValue(fbp_capnp.IP.new_message(content=content)))
 
 
+def ip_message_with_attrs(content: Any, **attrs: Any) -> PortMessage:
+    ip = fbp_capnp.IP.new_message(content=content)
+    if attrs:
+        entries = ip.init("attributes", len(attrs))
+        for i, (key, value) in enumerate(attrs.items()):
+            entries[i].key = key
+            entries[i].value = value
+    return PortMessage(PortValue(ip))
+
+
 def done_message() -> PortMessage:
     return PortMessage(done=True)
 

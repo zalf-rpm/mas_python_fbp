@@ -19,6 +19,7 @@ import logging
 from typing import Any, override
 
 import capnp
+from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field, JsonValue
 from zalfmas_common import common
@@ -35,6 +36,19 @@ _MISSING = object()  # path (or single key) did not resolve to anything
 
 
 class Config(process.ProcessConfig):
+    obj_value_key_attr: str | None = Field(
+        None,
+        description=(
+            "If set, each 'obj' message (or each non-bracket IP inside an 'obj' substream) is treated "
+            "as a single value to insert/update in the persistent object under this attribute's value, "
+            "instead of the whole message being a JSON object to merge/replace with. The attribute value "
+            "may be plain Text or a common.capnp:Value wrapping t/i8../ui8../f32/f64/b - whichever of "
+            "those a Python dict can use as a key. This key is always a flat, top-level key: "
+            "path_separator does not apply to it (only to 'key' lookups). A message missing this "
+            "attribute, or whose attribute/value isn't one of the supported types, is skipped with a "
+            "warning. Leave unset (the default) to keep treating whole 'obj' messages as JSON objects."
+        ),
+    )
     path_separator: str = Field(
         "/",
         description=(
@@ -86,12 +100,13 @@ METADATA = meta.Component(
             name="obj",
             contentType="Text (JSON)",
             desc=(
-                "The JSON object to look keys up in. The first message received is the initial object; "
-                "if this port then closes, that object is kept in memory for good. While the port stays "
-                "open, each 'key' input triggers a single non-blocking check (readIfMsg) for a newer "
-                "object, which replaces the stored one if available, or is skipped otherwise. A substream "
-                "on this port is drained and treated as one single incoming object update, same as an "
-                "unwrapped message."
+                "The JSON object to look keys up in - or, with obj_value_key_attr set, a stream of "
+                "single values to insert/update by attribute-provided key. The first message received "
+                "is the initial object; if this port then closes, that object is kept in memory for "
+                "good. While the port stays open, each 'key' input triggers a single non-blocking check "
+                "(readIfMsg) for a newer update, which is applied if available, or skipped otherwise. A "
+                "substream on this port is drained and applied as one single incoming update, same as "
+                "an unwrapped message."
             ),
         ),
         meta.Port(
@@ -141,19 +156,67 @@ def _split_key_path(key: Any, separator: str) -> list[Any]:
 
 
 def _resolve_path(value: Any, parts: list[Any]) -> Any:
+    # dict membership is checked first and for every part type - not just str - since
+    # obj_value_key_attr mode can populate the object with int/float/bool keys too; only when
+    # current isn't a dict (or doesn't have that key) does an int part fall back to list indexing.
     current = value
     for part in parts:
-        if isinstance(part, int) and not isinstance(part, bool):
-            if isinstance(current, list) and -len(current) <= part < len(current):
-                current = current[part]
-                continue
-            return _MISSING
-
         if isinstance(current, dict) and part in current:
+            current = current[part]
+            continue
+        if (
+            isinstance(part, int)
+            and not isinstance(part, bool)
+            and isinstance(current, list)
+            and -len(current) <= part < len(current)
+        ):
             current = current[part]
             continue
         return _MISSING
     return current
+
+
+_KEY_ATTR_INT_FIELDS = ("i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64")
+_KEY_ATTR_FLOAT_FIELDS = ("f32", "f64")
+
+
+def _key_from_attr_value(value: Any, attr_name: str, process_name: str) -> Any:
+    """Extract a Python-hashable dict key from an attribute's AnyPointer value: plain Text, or a
+    common.capnp:Value wrapping t/i8../ui8../f32/f64/b. Anything else (Data, Pair, a capability, or
+    any of the list variants) is not something a Python dict can meaningfully key on, so it is
+    reported as unsupported rather than guessed at.
+    """
+    try:
+        return value.as_text()
+    except capnp.KjException:
+        pass
+
+    try:
+        cv = value.as_struct(common_capnp.Value)
+    except capnp.KjException:
+        logger.warning(
+            "%s: attribute '%s' is neither Text nor a common.capnp:Value; skipping message.",
+            process_name,
+            attr_name,
+        )
+        return _PARSE_FAILED
+
+    which = cv.which()
+    if which == "t":
+        return cv.t
+    if which in _KEY_ATTR_INT_FIELDS or which in _KEY_ATTR_FLOAT_FIELDS:
+        return getattr(cv, which)
+    if which == "b":
+        return cv.b
+
+    logger.warning(
+        "%s: attribute '%s' common.capnp:Value.%s is not a supported key type (Text/int/float/bool); "
+        "skipping message.",
+        process_name,
+        attr_name,
+        which,
+    )
+    return _PARSE_FAILED
 
 
 class Component(process.Process[Config]):
@@ -165,13 +228,61 @@ class Component(process.Process[Config]):
         super().__init__(metadata=metadata, con_man=con_man)
         self._obj: Any = None
 
+    def _extract_key_value_entry(self, ip: Any, attr_name: str) -> Any:
+        """Turn one 'obj' IP into a single-entry {key: value} update, in obj_value_key_attr mode."""
+        attr = next((kv for kv in ip.attributes if kv.key == attr_name), None)
+        if attr is None:
+            logger.warning(
+                "%s: 'obj' message is missing the configured key attribute '%s'; skipping.",
+                self.name,
+                attr_name,
+            )
+            return _PARSE_FAILED
+
+        key = _key_from_attr_value(attr.value, attr_name, self.name)
+        if key is _PARSE_FAILED:
+            return _PARSE_FAILED
+
+        value = _parse_json(ip.content.as_text(), "obj", self.name)
+        if value is _PARSE_FAILED:
+            return _PARSE_FAILED
+
+        return {key: value}
+
+    def _ingest_obj_message(self, ip: Any) -> Any:
+        """Turn one non-bracket 'obj' IP into a dict of updates to merge into the stored object:
+        the whole parsed JSON object by default, or a single-entry {key: value} update (from the
+        configured attribute and this message's content) in obj_value_key_attr mode.
+        """
+        attr_name = self.config.obj_value_key_attr
+        if attr_name is not None:
+            return self._extract_key_value_entry(ip, attr_name)
+
+        parsed = _parse_json(ip.content.as_text(), "obj", self.name)
+        if parsed is _PARSE_FAILED:
+            return _PARSE_FAILED
+        if not isinstance(parsed, dict):
+            logger.warning("%s: ignoring non-object JSON value on 'obj'.", self.name)
+            return _PARSE_FAILED
+        return parsed
+
+    def _apply_new_obj(self, new_updates: Any) -> None:
+        if new_updates is _PARSE_FAILED:
+            return
+        if self.config.obj_value_key_attr is None:
+            self._obj = new_updates
+        else:
+            base = self._obj if isinstance(self._obj, dict) else {}
+            self._obj = {**base, **new_updates}
+
     async def _drain_obj_substream(self) -> Any:
-        """Read (blocking) until the matching close-bracket, merging any JSON object payloads found
-        inside via dict.update() (later keys override earlier ones). Assumes the opening open-bracket
-        on 'obj' has already been consumed by the caller.
+        """Read (blocking) until the matching close-bracket, merging every inner message's update
+        (see _ingest_obj_message) via dict.update() (later keys override earlier ones) into one
+        combined update. Assumes the opening open-bracket on 'obj' has already been consumed by
+        the caller.
         """
         nesting_level = 1
-        merged: dict[str, Any] | None = None
+        merged: dict[Any, Any] | None = None
         while nesting_level > 0:
             ip = await self.read_in("obj")
             if ip is None:
@@ -186,13 +297,10 @@ class Component(process.Process[Config]):
             if ip.type == "closeBracket":
                 nesting_level -= 1
                 continue
-            parsed = _parse_json(ip.content.as_text(), "obj", self.name)
-            if parsed is _PARSE_FAILED:
+            entry = self._ingest_obj_message(ip)
+            if entry is _PARSE_FAILED:
                 continue
-            if isinstance(parsed, dict):
-                merged = {**(merged or {}), **parsed}
-            else:
-                logger.warning("%s: ignoring non-object JSON value inside 'obj' substream.", self.name)
+            merged = {**(merged or {}), **entry}
         return _PARSE_FAILED if merged is None else merged
 
     async def _read_initial_obj(self) -> None:
@@ -203,11 +311,8 @@ class Component(process.Process[Config]):
         if ip is None:
             return
 
-        new_obj = await self._drain_obj_substream() if ip.type == "openBracket" else _parse_json(
-            ip.content.as_text(), "obj", self.name
-        )
-        if new_obj is not _PARSE_FAILED:
-            self._obj = new_obj
+        new_updates = await self._drain_obj_substream() if ip.type == "openBracket" else self._ingest_obj_message(ip)
+        self._apply_new_obj(new_updates)
 
     async def _maybe_refresh_obj(self) -> None:
         """Non-blocking best-effort check for a newer object; leaves the stored object untouched
@@ -231,11 +336,8 @@ class Component(process.Process[Config]):
             return
 
         ip = msg.value.as_struct(fbp_capnp.IP)
-        new_obj = await self._drain_obj_substream() if ip.type == "openBracket" else _parse_json(
-            ip.content.as_text(), "obj", self.name
-        )
-        if new_obj is not _PARSE_FAILED:
-            self._obj = new_obj
+        new_updates = await self._drain_obj_substream() if ip.type == "openBracket" else self._ingest_obj_message(ip)
+        self._apply_new_obj(new_updates)
 
     @override
     async def run(self):
