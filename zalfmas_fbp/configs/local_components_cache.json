@@ -2100,6 +2100,61 @@
             }
         }
     },
+    "a45375ea-a7a9-4835-b165-2460f306dfc0": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "a45375ea-a7a9-4835-b165-2460f306dfc0",
+            "name": "Get value by key",
+            "description": "Look up a key or path (received on 'key') in a JSON object (received on 'obj'), like a Python dict.get() into possibly nested subobjects, and write the serialized result on 'value'."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+            },
+            {
+                "name": "obj",
+                "contentType": "Text (JSON)",
+                "desc": "The JSON object to look keys up in - or, with obj_value_key_attr set, a stream of single values to insert/update by attribute-provided key. The first message received is the initial object; if this port then closes, that object is kept in memory for good. While the port stays open, each 'key' input triggers a single non-blocking check (readIfMsg) for a newer update, which is applied if available, or skipped otherwise. A substream on this port is drained and applied as one single incoming update, same as an unwrapped message."
+            },
+            {
+                "name": "key",
+                "contentType": "Text (JSON)",
+                "desc": "JSON-encoded key (or 'path_separator'-delimited path, e.g. 'a/b/0/c') to look up in the current object, one lookup per message received. Bracket IPs are forwarded unchanged onto 'value'; all 'key' IPs inside one substream look up against the same single object snapshot, taken (subject to the same readIfMsg/substream rules as an unwrapped 'key' message) when the substream's open-bracket arrives."
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "value",
+                "contentType": "Text (JSON)",
+                "desc": "JSON-encoded value found for the requested key/path, or the configured missing-key value."
+            }
+        ],
+        "defaultConfig": {
+            "obj_value_key_attr": {
+                "type": "string",
+                "desc": "If set, each 'obj' message (or each non-bracket IP inside an 'obj' substream) is treated as a single value to insert/update in the persistent object under this attribute's value, instead of the whole message being a JSON object to merge/replace with. The attribute value may be plain Text or a common.capnp:Value wrapping t/i8../ui8../f32/f64/b - whichever of those a Python dict can use as a key. This key is always a flat, top-level key: path_separator does not apply to it (only to 'key' lookups). A message missing this attribute, or whose attribute/value isn't one of the supported types, is skipped with a warning. Leave unset (the default) to keep treating whole 'obj' messages as JSON objects."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used to split a 'key' input into a path of nested keys/list indices (e.g. 'a/b/0/c' to reach obj['a']['b'][0]['c']), so subobjects can be accessed - same convention as Filter JSON's traversal_path/path_separator. Set to an empty string to disable splitting and treat the whole decoded key as a single, top-level key."
+            },
+            "emit_message_for_missing_key": {
+                "value": true,
+                "type": "bool",
+                "desc": "Whether to write a message on 'value' at all when the requested key/path is missing from the current object (or no object has been received yet). If false, that 'key' input is silently dropped without any output on 'value'."
+            },
+            "missing_key_value": {
+                "value": "",
+                "desc": "JSON value serialized onto 'value' when the requested key/path is missing, only used if emit_message_for_missing_key is true. Defaults to an empty JSON string; set to null, an object, etc. as needed - JSON null ('null') is a perfectly valid standalone JSON document."
+            }
+        }
+    },
     "bc9f8bfd-db77-49ed-a347-a26bb37084d1": {
         "category": {
             "id": "management",
