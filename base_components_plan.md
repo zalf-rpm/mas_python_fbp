@@ -362,7 +362,7 @@ when several do (`to_content` on more than one aggregation ⇒ JSON object keyed
 
 ---
 
-### P0-9 `ip/flatten_substreams` — id `d4d0606e-211a-4c33-b326-134ff160a60b`
+### P0-9 `ip/flatten_substreams` — id `d4d0606e-211a-4c33-b326-134ff160a60b` — **implemented**
 
 *Category* `ip` · *Name* "Flatten substreams"
 
@@ -372,6 +372,9 @@ Config: `levels: int = 1` (how many nesting levels of brackets to strip; `0` = a
 `from_depth: int = 0` (strip starting at this depth, so you can flatten inner groups while keeping
 the outer one), `merge_bracket_attrs: bool = True` (copy attributes that sat on the removed open
 bracket onto each contained IP — otherwise they are lost).
+
+*As built:* inner bracket attributes win over outer ones, and an IP's own attributes win over both.
+Unbalanced close-brackets are forwarded with a warning rather than dropped.
 
 ---
 
@@ -391,7 +394,7 @@ Factor the implementation so `write_file` can be refactored onto the same helper
 
 ---
 
-### P0-11 `ip/probe` — id `fc669b60-ae89-46b5-9cee-044f95b01c3b`
+### P0-11 `ip/probe` — id `fc669b60-ae89-46b5-9cee-044f95b01c3b` — **implemented**
 
 *Category* `ip` · *Name* "Probe"
 
@@ -403,17 +406,21 @@ out `out` (unconnected `out` degrades to sink behaviour). Config:
 `max_content_chars: int = 500`, `every_nth: int = 1`, `first_n: int = 0` (0 = unlimited),
 `as_json: bool = False` (render the content via S3's `json_from_capnp` when a schema is resolvable),
 `emit_summary_on_close: bool = True` (log total IP/bracket counts when the input closes),
-`to: Literal["log_port","logger","both"] = "both"`.
+`include_brackets: bool = True`, `content_type: str | None` (type to assume for untagged IPs).
 
-Writes its observations as `LogMessage` IPs on its own `role = log` port (§6.2), which makes it "tee
-this data stream into the log stream" rather than a special case. It does not overlap with the
-runtime `log` port: probe reports *data*, the runtime port carries *component-internal* messages.
+*As built:* observations go to the ordinary logger, since the `log` port and `LogMessage` of §6.2
+arrive with WP-1. Once they exist, probe writes them as `LogMessage` IPs on its own `role = log`
+port, which makes it "tee this data stream into the log stream" rather than a special case, and the
+`to: Literal["log_port","logger","both"]` field from this card is added then. It does not overlap
+with the runtime `log` port: probe reports *data*, the runtime port carries *component-internal*
+messages. Content with no resolvable type is reported as `<unreadable content, type unset>` rather
+than guessed (D14).
 
 Cheap to build, and the thing you will reach for most often.
 
 ---
 
-### P0-12 `simple/sequence` — id `feec45a3-4908-4dfe-b6ab-a56be97d8f77`
+### P0-12 `simple/sequence` — id `feec45a3-4908-4dfe-b6ab-a56be97d8f77` — **implemented**
 
 *Category* `simple` · *Name* "Sequence"
 
@@ -426,6 +433,11 @@ A bounded generator; `counter` is unbounded and integer-only. Ports: `conf`, opt
 `as_type: Literal["value","json","text"] = "value"`,
 `index_attr: str | None = None`,
 `emit: Literal["all_at_once","on_trigger","one_per_trigger"] = "all_at_once"`.
+
+*As built:* `values` is named `sequence_values` (`values` collides with the `values` helper module
+in readers' minds and reads badly next to it), `date_step` is `date_step_days: int`, and an
+`integers: bool` flag controls whether a whole-number range emits ints. A trigger-paced `emit` with
+no `trigger` connected falls back to emitting once, rather than stalling the flow silently.
 
 This is the component that makes a flow self-starting and testable without a file on disk.
 
@@ -750,8 +762,8 @@ Each package is independently mergeable and leaves the library in a working stat
 | WP | Contents | Rough size |
 |---|---|---|
 | **WP-1** | The port model (§6). `fbp.capnp`: `PortRole` + `required` on `Component.Port`, `LogMessage`, array-in-port comment fix. Runtime: inject runtime-owned `conf`/`log` ports, staged config application at IP boundaries, `OutputRuntime.write_out_if_space`, `log_port_level`, the log-record tee. Metadata: `role`/`required` fields + reserved-name validator. Strip `conf` from existing component metadata and `run()` bodies. **Cross-repo** (`mas_capnproto_schemas`). | 1 large change, 2 repos |
-| **WP0** | S1 selectors, S2 brackets, S3 values + unit tests. No components. Then characterization tests for `to_string` and `json_to_common_value`, and refactor both onto S3 (D12) as the proof that the abstractions fit. Independent of WP-1, so the two run in parallel (D13). | 1 sizeable change |
-| **WP1** | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Small, no dependencies beyond S2 — good warm-up and they immediately improve the testability of everything after. | 3 small components |
+| **WP0** ✅ | S1 selectors, S2 brackets, S3 values + unit tests. No components. Then characterization tests for `to_string` and `json_to_common_value`, and refactor both onto S3 (D12) as the proof that the abstractions fit. Independent of WP-1, so the two run in parallel (D13). | 1 sizeable change |
+| **WP1** ✅ | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Done; 49 tests. Written against the *current* `conf` convention since WP-1 has not landed — each needs the same mechanical retrofit afterwards (drop the `conf` port from metadata, drop the `update_config_from_port` line). `probe` logs to the ordinary logger until the `log` port of §6.2 exists. | 3 small components |
 | **WP2** | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Add a round-trip test over a real schema (e.g. `model/monica/sim_setup.capnp:Setup`). | 2 medium components |
 | **WP3** | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ the `Process.write_array_out_at` wrapper). Semantic routing. | 3 medium components |
 | **WP4** | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra; test them as a pipeline `split_json → filter → group → reduce → concat`. | 3 medium components |

@@ -62,5 +62,8 @@
   "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c": "python -m zalfmas_fbp.components.string.split_string",
   "d44040ab-7d5a-44d1-94e8-3f79969edbd4": "python -m zalfmas_fbp.components.string.split_string2",
   "4b260f85-eb1b-4109-87ec-b30d38a5631a": "python -m zalfmas_fbp.components.string.collect_into_list",
-  "250488d8-7519-49a8-820e-0e981ffb2a71": "python -m zalfmas_fbp.components.string.to_string"
+  "250488d8-7519-49a8-820e-0e981ffb2a71": "python -m zalfmas_fbp.components.string.to_string",
+  "d4d0606e-211a-4c33-b326-134ff160a60b": "python -m zalfmas_fbp.components.ip.flatten_substreams",
+  "feec45a3-4908-4dfe-b6ab-a56be97d8f77": "python -m zalfmas_fbp.components.simple.sequence",
+  "fc669b60-ae89-46b5-9cee-044f95b01c3b": "python -m zalfmas_fbp.components.ip.probe"
 }
