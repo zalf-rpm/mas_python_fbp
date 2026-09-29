@@ -480,8 +480,8 @@ This is the component that makes a flow self-starting and testable without a fil
 
 ## 6. The port model: roles, runtime-owned ports, and logging
 
-Settled 2026-09-29. These three decisions change `fbp.capnp`, the `Process` runtime, and every
-component's metadata, so they land **before** WP0 (see WP-1 in §8). They are grouped here because
+Settled and **implemented** 2026-09-29 (WP-1). These three decisions changed `fbp.capnp`, the
+`Process` runtime, and every component's metadata. They are grouped here because
 they are one idea: *distinguish the ports that are part of a component's contract from the ports
 that are part of the runtime's contract.*
 
@@ -512,11 +512,15 @@ dynamic reconfiguration: it is deferred initial config, once, and then dead.
 4. The one thing this preserves that `setConfigEntry` cannot do: **config computed by an upstream
    component**, e.g. a flow that reads a settings file and configures its own downstream nodes.
 
-**Migration.** `ProcessBootstrap` dedupes an explicitly declared `conf` against the injected one and
-forces `role = config`. `update_config_from_port` becomes a no-op shim that warns once, then is
-removed after the existing components are stripped of their `conf` declarations (~60 repeated
-`meta.Port(name="conf", ...)` blocks plus the matching `await self.update_config_from_port("conf")`
-lines).
+**As built.** `ComponentMetadata` injects the ports (so the components cache the editor reads gets
+them for free), `runtime/config_watcher.py` owns the port, and `InputRuntime` applies staged config
+immediately before `read_in` hands an IP over. 33 components were stripped of their `conf`
+declaration and `update_config_from_port` call; the 21 legacy `standard` ones keep theirs, since
+nothing owns their port. `update_config_from_port` survives as a no-op that logs once.
+
+One behaviour note: while waiting for an initial config that never arrives, the watcher now says so
+every 15 seconds. It still waits indefinitely - timing out and running with defaults would be worse
+than a visibly stalled flow.
 
 ### 6.2 A runtime-owned `log` out-port
 
@@ -547,7 +551,14 @@ lines).
    `parallel_count > 1` puts N writers on one log channel (supported), so the record needs
    `processId` to disambiguate, and a hot `DEBUG` loop at N-way parallelism will otherwise flood it.
 
-**Record type.** Add a `LogMessage` struct to `fbp.capnp`, deliberately aligned with the existing
+**As built.** Records go onto a bounded deque (so `emit()` can never block the component that
+logged) and are drained by a task that writes them with `OutputRuntime.write_out_if_space`. A
+channel predating `writeIfSpace` reports it unimplemented; dropping is the right answer there too,
+since this path exists so it can never block. Drop counts are reported once when the process closes.
+`probe` needs no log port of its own after all: it logs normally, and the tee turns its observations
+into `LogMessage` IPs whenever a flow connects `log`.
+
+**Record type.** Added to `fbp.capnp`, deliberately aligned with the existing
 `Process.RunInfo` vocabulary so "something went wrong" reads the same whether it arrives via
 `lastRun` or via the port:
 
@@ -625,9 +636,14 @@ Mirrored on `ComponentPortMetadata` as `role: Literal[...] = "data"` and `requir
 `config`/`log` role on any other name. Cheap, and it catches drift before it propagates across three
 language implementations.
 
-**Note:** `fbp.capnp` lives in the separate `mas_capnproto_schemas` repository (shipped here as the
-`zalfmas-capnp-schemas` dependency), so 6.2 and 6.3 are a cross-repo change. Bundle it with the
-array-in-port comment fix (§7.5) so the schema is touched once.
+**Shipped.** `fbp.capnp` lives in the separate `mas_capnproto_schemas` repository (shipped here as
+the `zalfmas-capnp-schemas` dependency), so 6.2 and 6.3 were a cross-repo change, bundled with the
+array-in-port comment fix (D5) so the schema was touched once. Released as 0.1.70.
+
+Backwards compatible, verified in both directions against the released 0.1.69 package: a `Port`
+written by the old schema reads back with `role = data` and `required = false`, and one written by
+the new schema still reads correctly as the old type. Ordinals 4 and 5 were free on `Port` and both
+fields fit in its existing data word, so an encoded `Port` is the same 72 bytes as before.
 
 ---
 
@@ -781,7 +797,8 @@ Each package is independently mergeable and leaves the library in a working stat
 
 | WP | Contents | Rough size |
 |---|---|---|
-| **WP-1** | The port model (§6). `fbp.capnp`: `PortRole` + `required` on `Component.Port`, `LogMessage`, array-in-port comment fix. Runtime: inject runtime-owned `conf`/`log` ports, staged config application at IP boundaries, `OutputRuntime.write_out_if_space`, `log_port_level`, the log-record tee. Metadata: `role`/`required` fields + reserved-name validator. Strip `conf` from existing component metadata and `run()` bodies. **Cross-repo** (`mas_capnproto_schemas`). | 1 large change, 2 repos |
+| **WP-1** ✅ | The port model (§6). `fbp.capnp`: `PortRole` + `required` on `Component.Port`, `LogMessage`, array-in-port comment fix. Runtime: inject runtime-owned `conf`/`log` ports, staged config application at IP boundaries, `OutputRuntime.write_out_if_space`, `log_port_level`, the log-record tee. Metadata: `role`/`required` fields + reserved-name validator. Strip `conf` from existing component metadata and `run()` bodies. **Cross-repo** (`mas_capnproto_schemas`). Done; the schema change shipped as 0.1.70 and is
+backwards compatible in both directions at no wire cost. | 1 large change, 2 repos |
 | **WP0** ✅ | S1 selectors, S2 brackets, S3 values + unit tests. No components. Then characterization tests for `to_string` and `json_to_common_value`, and refactor both onto S3 (D12) as the proof that the abstractions fit. Independent of WP-1, so the two run in parallel (D13). | 1 sizeable change |
 | **WP1** ✅ | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Done; 49 tests. Written against the *current* `conf` convention since WP-1 has not landed — each needs the same mechanical retrofit afterwards (drop the `conf` port from metadata, drop the `update_config_from_port` line). `probe` logs to the ordinary logger until the `log` port of §6.2 exists. | 3 small components |
 | **WP2** | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Add a round-trip test over a real schema (e.g. `model/monica/sim_setup.capnp:Setup`). | 2 medium components |
