@@ -341,7 +341,7 @@ that delegates to the existing logic in S3.
 
 ---
 
-### P0-6 `json/split_json` — id `205dfc0a-7283-4322-a1b7-4f952abffb88`
+### P0-6 `json/split_json` — id `205dfc0a-7283-4322-a1b7-4f952abffb88` — **implemented**
 
 *Category* `json` · *Name* "Split JSON"
 
@@ -359,9 +359,13 @@ emitted item's attributes — the common "keep the header fields with each row" 
 Non-list/non-object input is forwarded unchanged. `split_json` + `concat_json_substream` is then the
 canonical map-over-a-collection idiom.
 
+*As built:* `copy_parent_paths` resolves against the document **as received**, not against whatever
+`traversal_path` narrowed it to — otherwise "parent" would mean nothing, and the common case
+(`traversal_path = "rows"`, copy a header field from the root) would silently copy nothing.
+
 ---
 
-### P0-7 `ip/group_into_substreams` — id `7553a3cb-8804-49d6-9dd6-f13759055534`
+### P0-7 `ip/group_into_substreams` — id `7553a3cb-8804-49d6-9dd6-f13759055534` — **implemented**
 
 *Category* `ip` · *Name* "Group IPs into substreams"
 
@@ -377,9 +381,15 @@ order), `key_attr: str | None = "group_key"` (attach the key to the open-bracket
 Pairs naturally with `sort_ips` upstream (`sort_ips` → `group_into_substreams(on_key_change)`), which
 keeps memory bounded.
 
+*As built:* incoming bracket IPs are dropped rather than nested inside the new grouping, since
+keeping both would nest unpredictably. `emit_empty` was dropped: a group only exists because an IP
+created it, so there is no empty group to emit.
+
+`key_attr` is disabled with an **empty string**, not `null` — see the note under §7.9.
+
 ---
 
-### P0-8 `ip/reduce_substream` — id `e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe`
+### P0-8 `ip/reduce_substream` — id `e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe` — **implemented**
 
 *Category* `ip` · *Name* "Reduce substream"
 
@@ -394,6 +404,11 @@ the close bracket — a "running total" mode).
 
 Output content is a `common.Value` when a single aggregation targets the content, or a JSON object
 when several do (`to_content` on more than one aggregation ⇒ JSON object keyed by `to_attr` name).
+
+*As built:* uses S2's `collect_substream`, so nesting is handled by the helper rather than by hand,
+and a substream truncated by a closing input is still reduced rather than lost. Numeric operators
+skip values that are not numbers (numeric *text* counts), returning `None` when nothing numeric
+remains, so one malformed IP does not void the aggregate.
 
 ---
 
@@ -825,6 +840,26 @@ content with a numeric sentinel), where no single `Value` field holds both. Ther
 attribute falls back to its own type — the attribute is worth more than the type match, and dropping
 the message was never the intent.
 
+### 7.9 A config `null` means "use the default", not "set to null"
+
+Found while building WP4, and worth knowing before writing any component with a nullable field.
+`ProcessConfigRuntime.apply_config_values` treats a `None` as *remove this key*:
+
+```python
+if value is None:
+    next_raw_config.pop(key, None)
+    continue
+```
+
+So a field with a non-null default cannot be turned off from a flow config — sending
+`key_attr = null` restores `"group_key"` rather than unsetting it. This is sensible for
+`setConfigEntry` (where removing an entry is a real operation), but it means a component wanting an
+"off" setting must accept one that is expressible.
+
+**Convention:** for optional *name* fields with a non-null default, treat the **empty string** as
+off, and say so in the field description. `group_into_substreams.key_attr` and
+`split_json.count_attr` both do.
+
 ### 7.7 D12 — refactor the two existing users onto S3 in WP0
 
 `to_string` and `json_to_common_value` move onto `values.py` as part of WP0, **characterization
@@ -852,7 +887,7 @@ backwards compatible in both directions at no wire cost. | 1 large change, 2 rep
 | **WP1** ✅ | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Done; 49 tests. Written against the *current* `conf` convention since WP-1 has not landed — each needs the same mechanical retrofit afterwards (drop the `conf` port from metadata, drop the `update_config_from_port` line). `probe` logs to the ordinary logger until the `log` port of §6.2 exists. | 3 small components |
 | **WP2** ✅ | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Done; 38 tests including round-trips over `StructuredText`, `Value` and `IP` (a struct with a nested list of structs and an enum), plus a two-lap test so the conversion is stable rather than merely reversible once. | 2 medium components |
 | **WP3** ✅ | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ `Process.write_array_out_at` and `read_array_in_with_index`). Semantic routing. Done; 34 tests. | 3 medium components |
-| **WP4** | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra; test them as a pipeline `split_json → filter → group → reduce → concat`. | 3 medium components |
+| **WP4** ✅ | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra. Done; 61 tests, including the `split → filter → group → reduce` pipeline run end to end. | 3 medium components |
 | **WP5** | P0-10 `format_string` + refactor `write_file` onto it. | 1 small component + refactor |
 | **WP6** | P1 set, in the order listed (join-by-key first — it unblocks any parallel-service flow). | 10 components |
 | **WP7** | P2 set, on demand. | — |

@@ -4689,5 +4689,271 @@
                 "desc": "Content type to assume for IPs that carry none, when building a JSON object."
             }
         }
+    },
+    "205dfc0a-7283-4322-a1b7-4f952abffb88": {
+        "category": {
+            "id": "json",
+            "name": "JSON"
+        },
+        "info": {
+            "id": "205dfc0a-7283-4322-a1b7-4f952abffb88",
+            "name": "Split JSON",
+            "description": "Explode a JSON list or object into a stream of IPs, one per item, optionally wrapped in a substream. The inverse of 'Concat JSON substream'."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "JSON documents to split.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "One IP per item.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path from the document root to the list or object to split."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used for traversal_path and copy_parent_paths."
+            },
+            "mode": {
+                "value": "list_items",
+                "type": [
+                    "list_items",
+                    "object_values",
+                    "object_entries"
+                ],
+                "desc": "What to emit: each item of a list, each value of an object, or each of its {'key': ..., 'value': ...} entries."
+            },
+            "wrap_in_substream": {
+                "value": true,
+                "type": "bool",
+                "desc": "Wrap each document's emitted items in an open-/close-bracket pair."
+            },
+            "key_attr": {
+                "type": "string",
+                "desc": "For the object modes, attach each entry's key as this attribute."
+            },
+            "index_attr": {
+                "type": "string",
+                "desc": "Attach each item's 0-based position within its document as this attribute."
+            },
+            "count_attr": {
+                "value": "substream_length",
+                "type": "string",
+                "desc": "Attach the number of emitted items to the close-bracket as this attribute, the way 'Split bracketed stream' does. Only used when wrapping in a substream. Empty disables it - a null in a config means 'use the default', so it cannot turn this off."
+            },
+            "copy_parent_paths": {
+                "value": {},
+                "type": "object",
+                "desc": "Attribute name -> path in the *parent* document, copied onto every emitted item. The usual 'keep the header fields with each row' case."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "pass_through"
+                ],
+                "desc": "What to do with an IP whose content is not readable JSON."
+            }
+        }
+    },
+    "7553a3cb-8804-49d6-9dd6-f13759055534": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "7553a3cb-8804-49d6-9dd6-f13759055534",
+            "name": "Group IPs into substreams",
+            "description": "Wrap runs of IPs sharing a key into substreams. Where 'Wrap IPs into substream' groups by count or an external bracket channel, this groups by the data itself."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "IPs to group.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same IPs, in substreams.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "selector": {
+                "value": "@group_key",
+                "type": "string",
+                "desc": "What to group by: an attribute ('@region'), a content path ('./site/id'), or IP metadata ('#contentType'). Same selector syntax as 'Filter IPs'."
+            },
+            "mode": {
+                "value": "on_key_change",
+                "type": [
+                    "on_key_change",
+                    "buffer_all"
+                ],
+                "desc": "'on_key_change' closes a group as soon as the key changes, which needs the stream sorted by key but holds only one group in memory. 'buffer_all' buffers everything and emits one substream per distinct key, in first-seen order."
+            },
+            "key_attr": {
+                "value": "group_key",
+                "type": "string",
+                "desc": "Attach the group's key to its open-bracket as this attribute. Empty disables it - a null in a config means 'use the default', so it cannot turn this off."
+            },
+            "max_group_size": {
+                "value": 0,
+                "type": "int",
+                "desc": "Split groups larger than this into several substreams. 0 means no limit."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used inside the selector."
+            },
+            "content_type": {
+                "type": "string",
+                "desc": "Content type to assume for IPs that carry none, when the selector reads content."
+            },
+            "attr_types": {
+                "value": {},
+                "type": "object",
+                "desc": "Cap'n Proto types for attributes written without a valueType, by attribute name."
+            }
+        }
+    },
+    "e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe",
+            "name": "Reduce substream",
+            "description": "Collapse each substream into a single IP carrying aggregates over it. The general form of 'Concat JSON substream', working on attributes and content alike."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Bracketed substreams to reduce.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "One IP per reduced substream.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "aggregations": {
+                "value": [
+                    {
+                        "selector": ".",
+                        "op": "count",
+                        "to_attr": "count",
+                        "to_content": true,
+                        "separator": ", "
+                    }
+                ],
+                "type": "list",
+                "desc": "The values to compute over each substream."
+            },
+            "nesting_level": {
+                "value": 0,
+                "type": "int",
+                "desc": "Which bracket depth to reduce at. 0 reduces the outermost substreams."
+            },
+            "keep_open_bracket_attrs": {
+                "value": true,
+                "type": "bool",
+                "desc": "Carry the substream's open-bracket attributes onto the emitted IP."
+            },
+            "pass_through_ips": {
+                "value": false,
+                "type": "bool",
+                "desc": "Also forward the original IPs, emitting the reduction in place of the close-bracket."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used inside selectors."
+            },
+            "content_type": {
+                "type": "string",
+                "desc": "Content type to assume for IPs that carry none, when a selector reads content."
+            },
+            "attr_types": {
+                "value": {},
+                "type": "object",
+                "desc": "Cap'n Proto types for attributes written without a valueType, by attribute name."
+            }
+        }
     }
 }
