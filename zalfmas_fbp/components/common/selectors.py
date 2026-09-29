@@ -372,9 +372,9 @@ class Predicate(BaseModel):
     left: Any = None
     op: Op = Op.TRUTHY
     right: Any = None
-    all_: list[Predicate] | None = Field(None, alias="all")
-    any_: list[Predicate] | None = Field(None, alias="any")
-    not_: Predicate | None = Field(None, alias="not")
+    all_: list[Predicate] | None = Field(default=None, alias="all")
+    any_: list[Predicate] | None = Field(default=None, alias="any")
+    not_: Predicate | None = Field(default=None, alias="not")
     strict_types: bool = False
 
     @model_validator(mode="after")

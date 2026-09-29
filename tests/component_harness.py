@@ -194,9 +194,13 @@ def run_process_component(
     inputs: Mapping[str, Sequence[PortMessage]],
     outputs: Sequence[str] = ("out",),
     array_outputs: Mapping[str, int] | None = None,
+    array_inputs: Mapping[str, Sequence[Sequence[PortMessage]]] | None = None,
 ) -> ComponentRunResult:
     readers, writers = _make_ports(inputs, outputs)
     array_writers = _make_array_ports(array_outputs)
+    array_readers = _make_array_readers(array_inputs)
+    for name, port_readers in array_readers.items():
+        component.array_in_ports[name] = cast("Any", list(port_readers))
     for name, reader in readers.items():
         component.in_ports[name] = cast("Any", reader)
     for name, writer in writers.items():
@@ -291,11 +295,22 @@ def _make_ports(
 ) -> tuple[dict[str, InMemoryReader], dict[str, InMemoryWriter]]:
     # an entry may already be a reader itself, to let a test control how reads resolve
     readers = {
-        name: messages if hasattr(messages, "read") else InMemoryReader(messages)
-        for name, messages in inputs.items()
+        name: messages if hasattr(messages, "read") else InMemoryReader(messages) for name, messages in inputs.items()
     }
     writers = {name: InMemoryWriter() for name in outputs}
     return readers, writers
+
+
+def _make_array_readers(
+    array_inputs: Mapping[str, Sequence[Sequence[PortMessage]]] | None,
+) -> dict[str, list[Any]]:
+    """One reader per slot of an array in-port, given a message list per slot."""
+    if array_inputs is None:
+        return {}
+    return {
+        name: [messages if hasattr(messages, "read") else InMemoryReader(messages) for messages in slots]
+        for name, slots in array_inputs.items()
+    }
 
 
 def _make_array_ports(array_outputs: Mapping[str, int] | None) -> dict[str, list[InMemoryWriter]]:

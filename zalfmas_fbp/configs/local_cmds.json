@@ -67,5 +67,8 @@
   "feec45a3-4908-4dfe-b6ab-a56be97d8f77": "python -m zalfmas_fbp.components.simple.sequence",
   "fc669b60-ae89-46b5-9cee-044f95b01c3b": "python -m zalfmas_fbp.components.ip.probe",
   "181b4a79-d1c0-4f19-90b8-26191806ae78": "python -m zalfmas_fbp.components.convert.capnp_to_json",
-  "43d107ff-c1b5-4622-a050-3445b8f7c159": "python -m zalfmas_fbp.components.convert.json_to_capnp"
+  "43d107ff-c1b5-4622-a050-3445b8f7c159": "python -m zalfmas_fbp.components.convert.json_to_capnp",
+  "3e52dd18-7369-4701-9a9a-7102e7fae1e2": "python -m zalfmas_fbp.components.ip.filter_ips",
+  "d0de1b9f-8f28-4a6c-85c5-8ec0e748d5e4": "python -m zalfmas_fbp.components.ip.route_ips",
+  "ea8826e7-3c60-42f6-bfca-f0a6285a7a63": "python -m zalfmas_fbp.components.ip.merge_ips"
 }

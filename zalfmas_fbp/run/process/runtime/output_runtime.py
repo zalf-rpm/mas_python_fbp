@@ -307,6 +307,22 @@ class OutputRuntime:
 
         return False
 
+    async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
+        """Write to one specific slot of an array out-port.
+
+        The ``ArrayOutStrategy`` variants all choose the slot themselves; a component routing by
+        content has already decided which one it wants.
+        """
+        if self.stop_event.is_set():
+            return False
+        ports = self.array_out_ports.get(name)
+        if not ports or not (0 <= index < len(ports)):
+            return False
+        port = ports[index]
+        if port is None:
+            return False
+        return await self.write_array_out_port(name, index, port, message)
+
     async def consume_array_out_write_task(self, name: str, port_index: int) -> bool:
         tasks = self.array_out_write_tasks.get(name)
         if tasks is None or port_index >= len(tasks):

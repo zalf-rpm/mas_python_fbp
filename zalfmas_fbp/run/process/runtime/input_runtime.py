@@ -363,6 +363,27 @@ class InputRuntime:
             raise InputPortReadError(self._identity.name, name, msg)
         return ordered_results
 
+    async def read_array_in_with_index(self, name: str) -> tuple[int, IPReader] | None:
+        """Read the next IP available on any slot, reporting which slot it came from.
+
+        ``read_array_in`` discards the index; a component merging streams needs it to record where
+        an IP came from.
+        """
+        if self.stop_event.is_set():
+            return None
+        ports = self.array_in_ports.get(name)
+        if not ports:
+            return None
+        active_ports = self._active_reader_ports(ports)
+        if not active_ports:
+            return None
+
+        result = await self.read_array_in_next_available(name, active_ports, ports)
+        if result is None:
+            return None
+        await self._activity.transition_to_activity("processing")
+        return result
+
     async def read_array_in_next_available(
         self,
         name: str,

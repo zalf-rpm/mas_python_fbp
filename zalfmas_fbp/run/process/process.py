@@ -492,6 +492,14 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     ) -> bool:
         return await self._output_runtime.write_array_out(name, strategy, message)
 
+    async def read_array_in_with_index(self, name: str) -> tuple[int, IPReader] | None:
+        """Read the next IP available on any slot of an array in-port, with the slot it came from."""
+        return await self._input_runtime.read_array_in_with_index(name)
+
+    async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
+        """Write to one chosen slot of an array out-port, rather than letting a strategy pick."""
+        return await self._output_runtime.write_array_out_at(name, index, message)
+
     async def close_in_ports(self):
         await self._lifecycle_runtime.close_in_ports()
 
