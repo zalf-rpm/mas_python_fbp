@@ -242,3 +242,12 @@ def test_a_non_numeric_extra_cannot_widen_a_scalar_and_is_ignored() -> None:
 def test_accommodation_does_not_change_values_only_the_field() -> None:
     built = values.value_from_python([1, 2], must_accommodate=[-9999]).as_reader()
     assert values.python_from_value(built) == [1, 2]
+
+
+def test_a_content_type_naming_a_file_rather_than_a_struct_is_an_actionable_error() -> None:
+    """The file id of fbp.capnp resolves to the file's schema, which pycapnp then fails to cast
+    with a message that says nothing useful. Easy mistake: the file id sits at the top of the file.
+    """
+    file_schema = values.resolve_schema("@0xbf602c4868dbb22f = fbp/fbp.capnp")
+    with pytest.raises(TypeError, match="is not a struct type"):
+        values.capnp_from_json({"a": 1}, file_schema)

@@ -794,6 +794,14 @@ def capnp_from_json(
     if _is_value_schema(schema):
         return value_from_python(obj)
 
+    node = getattr(schema, "node", None)
+    if node is None or node.which() != "struct":
+        # A content-type string naming a file rather than a struct resolves to the file's schema,
+        # which pycapnp then fails to cast with a message that says nothing useful.
+        name = getattr(node, "displayName", schema)
+        msg = f"{name} is not a struct type; a content type must name a struct, e.g. 'path/file.capnp:Type'"
+        raise TypeError(msg)
+
     prepared = _prepare_for_schema(obj, schema, unknown_fields, coerce_numbers)
     if not isinstance(prepared, Mapping):
         msg = f"Cannot build {schema.node.displayName} from {type(obj).__name__}; expected an object."

@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import override
 
 import capnp
-from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 

@@ -184,7 +184,7 @@ class ComponentMetadata(BaseModel):
                 *self.outPorts,
                 ComponentPortMetadata(
                     name=LOG_PORT_NAME,
-                    contentType="@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                    contentType="@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                     desc="Runtime-owned. Log records, if connected; never blocks the component.",
                     role="log",
                 ),

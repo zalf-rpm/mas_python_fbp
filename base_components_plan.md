@@ -263,7 +263,7 @@ already uses one. Decide and fix the schema comment as part of this task.
 
 ---
 
-### P0-4 `convert/capnp_to_json` — id `181b4a79-d1c0-4f19-90b8-26191806ae78`
+### P0-4 `convert/capnp_to_json` — id `181b4a79-d1c0-4f19-90b8-26191806ae78` — **implemented**
 
 *Category* `convert` · *Name* "Cap'n Proto to JSON"
 
@@ -282,9 +282,17 @@ Also sets `sysAttributes.contentType = "Text (JSON)"` on the outgoing IP.
 Behaviour: unresolvable schema → `on_error` policy. `common.Value` and `common.StructuredText`
 inputs get dedicated shortcuts (unwrap `StructuredText` of type JSON rather than double-encoding).
 
+*As built:* `capabilities` is `unresolved: "drop"|"null"|"repr"`, covering any pointer with no
+recoverable type rather than capabilities alone. `enums_as` is not implemented — `to_dict()` yields
+enumerant names and emitting numbers would mean walking the schema for little gain. Gained
+`parse_text_as_json: bool = False`: plain Text content is otherwise emitted as a JSON *string*, so
+piping the JSON components here (which emit untyped Text) straight into this one would encode
+twice. Off by default, because a text payload that merely looks like JSON would change meaning —
+the string `"123"` becoming the number `123`.
+
 ---
 
-### P0-5 `convert/json_to_capnp` — id `43d107ff-c1b5-4622-a050-3445b8f7c159`
+### P0-5 `convert/json_to_capnp` — id `43d107ff-c1b5-4622-a050-3445b8f7c159` — **implemented**
 
 *Category* `convert` · *Name* "JSON to Cap'n Proto"
 
@@ -299,6 +307,14 @@ that failed to convert). Config: `content_type: str` (required, e.g.
 Sets `sysAttributes.contentType` to the configured type on the outgoing IP. Together with P0-4 this
 makes the round trip JSON → struct → JSON the documented way to move between the two worlds, and
 lets a flow drop into JSON for a couple of steps and return to typed messages afterwards.
+
+*As built:* `missing_fields` is not implemented — Cap'n Proto already gives unset fields their
+declared defaults, so there is nothing to choose. The `type` port carries `role = control`.
+
+A content type naming a *file* rather than a struct (`fbp/fbp.capnp` instead of
+`fbp/fbp.capnp:IP` — an easy slip, since the file id sits at the top of the file) resolves to the
+file's schema and used to fail deep inside pycapnp with "Cannot convert _Schema to _StructSchema".
+`values.capnp_from_json` now rejects it with a message naming the problem.
 
 Generalises `json_to_common_value` (which stays as the specialised, type-optimising path for
 `common.Value`); consider giving `json_to_capnp` a `content_type = "…common.capnp:Value"` shortcut
@@ -815,7 +831,7 @@ Each package is independently mergeable and leaves the library in a working stat
 backwards compatible in both directions at no wire cost. | 1 large change, 2 repos |
 | **WP0** ✅ | S1 selectors, S2 brackets, S3 values + unit tests. No components. Then characterization tests for `to_string` and `json_to_common_value`, and refactor both onto S3 (D12) as the proof that the abstractions fit. Independent of WP-1, so the two run in parallel (D13). | 1 sizeable change |
 | **WP1** ✅ | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Done; 49 tests. Written against the *current* `conf` convention since WP-1 has not landed — each needs the same mechanical retrofit afterwards (drop the `conf` port from metadata, drop the `update_config_from_port` line). `probe` logs to the ordinary logger until the `log` port of §6.2 exists. | 3 small components |
-| **WP2** | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Add a round-trip test over a real schema (e.g. `model/monica/sim_setup.capnp:Setup`). | 2 medium components |
+| **WP2** ✅ | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Done; 38 tests including round-trips over `StructuredText`, `Value` and `IP` (a struct with a nested list of structs and an enum), plus a two-lap test so the conversion is stable rather than merely reversible once. | 2 medium components |
 | **WP3** | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ the `Process.write_array_out_at` wrapper). Semantic routing. | 3 medium components |
 | **WP4** | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra; test them as a pipeline `split_json → filter → group → reduce → concat`. | 3 medium components |
 | **WP5** | P0-10 `format_string` + refactor `write_file` onto it. | 1 small component + refactor |

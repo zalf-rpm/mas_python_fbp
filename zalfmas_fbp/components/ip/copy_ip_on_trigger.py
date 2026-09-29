@@ -18,15 +18,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, override
 
-from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 
 if TYPE_CHECKING:
-    from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
-    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
+    pass
 
 logger = logging.getLogger(__name__)
 

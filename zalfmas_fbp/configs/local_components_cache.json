@@ -304,7 +304,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -371,7 +371,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -422,7 +422,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -498,7 +498,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -564,7 +564,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -657,7 +657,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -723,7 +723,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -786,7 +786,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -857,7 +857,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -917,7 +917,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -975,7 +975,7 @@
         "outPorts": [
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1024,7 +1024,7 @@
         "outPorts": [
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1153,7 +1153,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1203,7 +1203,7 @@
         "outPorts": [
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1282,7 +1282,7 @@
         "outPorts": [
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1670,7 +1670,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1728,7 +1728,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1780,7 +1780,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1840,7 +1840,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1892,7 +1892,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1944,7 +1944,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -1998,7 +1998,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2062,7 +2062,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2120,7 +2120,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2165,7 +2165,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2228,7 +2228,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2300,7 +2300,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2383,7 +2383,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2453,7 +2453,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2523,7 +2523,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2615,7 +2615,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2715,7 +2715,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2778,7 +2778,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2842,7 +2842,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -2952,7 +2952,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3041,7 +3041,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3084,7 +3084,7 @@
         "outPorts": [
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3207,7 +3207,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3351,7 +3351,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3402,7 +3402,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3499,7 +3499,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3840,7 +3840,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3939,7 +3939,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -3990,7 +3990,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -4051,7 +4051,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -4181,7 +4181,7 @@
             },
             {
                 "name": "log",
-                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
                 "role": "log",
                 "required": false
@@ -4244,6 +4244,209 @@
                 "value": true,
                 "type": "bool",
                 "desc": "Log IP and bracket counts when the input closes."
+            }
+        }
+    },
+    "181b4a79-d1c0-4f19-90b8-26191806ae78": {
+        "category": {
+            "id": "convert",
+            "name": "Convert"
+        },
+        "info": {
+            "id": "181b4a79-d1c0-4f19-90b8-26191806ae78",
+            "name": "Cap'n Proto to JSON",
+            "description": "Convert an IP's Cap'n Proto content into JSON text, using the type the IP declares or one from config. Substream transparent. The inverse of 'JSON to Cap'n Proto'."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "IPs whose content should be converted. Their content type drives the conversion.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "The content as JSON text.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "err",
+                "contentType": "AnyPointer",
+                "desc": "IPs whose content could not be converted, forwarded unchanged. Optional.",
+                "role": "error",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "content_type": {
+                "type": "string",
+                "desc": "Cap'n Proto type to read the content as, for IPs that carry no sysAttributes.contentType themselves. An IP's own type always wins."
+            },
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path into the converted structure, emitting that part instead of the whole."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used for traversal_path."
+            },
+            "indent": {
+                "type": "int",
+                "desc": "Indentation for the emitted JSON. None emits it compact."
+            },
+            "include_attributes": {
+                "value": false,
+                "type": "bool",
+                "desc": "Emit {'content': ..., 'attributes': {...}} instead of the bare content, so an IP's attributes survive the conversion into JSON."
+            },
+            "parse_text_as_json": {
+                "value": false,
+                "type": "bool",
+                "desc": "When the content is plain Text, parse it as JSON instead of emitting it as a JSON string. Useful downstream of the JSON components here, which emit JSON as untyped Text and would otherwise be encoded twice. Off by default: a text payload that merely looks like JSON would change meaning, e.g. the string '123' becoming the number 123."
+            },
+            "data_as": {
+                "value": "base64",
+                "type": [
+                    "base64",
+                    "hex",
+                    "list"
+                ],
+                "desc": "How to encode Cap'n Proto Data fields, which JSON cannot hold directly."
+            },
+            "unresolved": {
+                "value": "drop",
+                "type": [
+                    "drop",
+                    "null",
+                    "repr"
+                ],
+                "desc": "What to do with pointers carrying no recoverable type, such as an AnyPointer field or a capability: leave the key out, emit null, or emit a debug representation."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "pass_through",
+                    "fail"
+                ],
+                "desc": "Per IP: skip it, forward the input unchanged, or let the process fail, when the content cannot be converted."
+            }
+        }
+    },
+    "43d107ff-c1b5-4622-a050-3445b8f7c159": {
+        "category": {
+            "id": "convert",
+            "name": "Convert"
+        },
+        "info": {
+            "id": "43d107ff-c1b5-4622-a050-3445b8f7c159",
+            "name": "JSON to Cap'n Proto",
+            "description": "Build a typed Cap'n Proto struct from JSON text, tagging the outgoing IP with the type it built. Substream transparent. The inverse of \"Cap'n Proto to JSON\"."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "Text (JSON)",
+                "desc": "JSON text to build from.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "type",
+                "contentType": "Text",
+                "desc": "Optional. A Cap'n Proto content-type string, read once at start, overriding the configured 'content_type' - so the target type can come from the flow.",
+                "role": "control",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The built struct, with sysAttributes.contentType set to the type that was built.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "err",
+                "contentType": "Text (JSON)",
+                "desc": "The original JSON for IPs that could not be built. Optional.",
+                "role": "error",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "content_type": {
+                "value": "",
+                "type": "string",
+                "desc": "Cap'n Proto type to build, e.g. '@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup'. Required unless a type arrives on the 'type' port."
+            },
+            "traversal_path": {
+                "type": "string",
+                "desc": "Optional path into the incoming JSON, building from that part instead of the whole."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used for traversal_path."
+            },
+            "unknown_fields": {
+                "value": "error",
+                "type": [
+                    "error",
+                    "ignore"
+                ],
+                "desc": "Whether a JSON key the target type does not have is an error or is dropped."
+            },
+            "coerce_numbers": {
+                "value": true,
+                "type": "bool",
+                "desc": "Accept '5' for an integer field, an int for a float field, and base64 text for Data."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "pass_through",
+                    "fail"
+                ],
+                "desc": "Per IP: skip it, forward the input unchanged, or let the process fail."
             }
         }
     }
