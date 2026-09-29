@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal, cast, overload
 import capnp
 from mas.schema.fbp import fbp_capnp
 
+from zalfmas_fbp.run.metadata import CONFIG_PORT_NAME
 from zalfmas_fbp.run.process.context import ProcessPortState
 from zalfmas_fbp.run.process.errors import InputPortReadError
 from zalfmas_fbp.run.process.identity import ProcessIdentityContext
@@ -62,6 +63,10 @@ class InputRuntime:
         self._ports_without_leases: set[int] = set()
         # acknowledgements on their way, kept so that they are not garbage collected early
         self._pending_acks: set[asyncio.Future[None]] = set()
+        # Set by the runtime's ConfigWatcher; called just before an IP is handed to the component,
+        # so staged config lands between IPs rather than part way through one.
+        self.apply_pending_config: Callable[[], bool] | None = None
+        self.config_port_name: str = CONFIG_PORT_NAME
 
     @property
     def in_ports(self) -> dict[str, ReaderClient | None]:
@@ -268,11 +273,23 @@ class InputRuntime:
         port = self.in_ports.get(name)
         if port is None:
             return None
-        return await self.read_connected_port(
+        in_ip = await self.read_connected_port(
             port=port,
             port_label=name,
             on_disconnect=lambda: self._clear_in_port(name),
         )
+        self._apply_pending_config_for(name)
+        return in_ip
+
+    def _apply_pending_config_for(self, name: str) -> None:
+        """Hand an IP over with any staged config already applied (plan section 6.1).
+
+        This is the IP boundary: config never changes part way through processing one. The config
+        port itself is skipped, since the watcher reading it is what stages the update.
+        """
+        if self.apply_pending_config is None or name == self.config_port_name:
+            return
+        _ = self.apply_pending_config()
 
     @overload
     async def read_array_in(

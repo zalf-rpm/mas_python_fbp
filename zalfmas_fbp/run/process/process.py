@@ -54,12 +54,9 @@ from zalfmas_common import common
 from zalfmas_fbp.run.logging_config import (
     configure_logging,
 )
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.metadata import CONFIG_PORT_NAME, ComponentMetadata
 
 from .bootstrap import ProcessBootstrap
-from .config.config_codec import (
-    config_from_ip as _config_from_ip,
-)
 from .config.config_codec import (
     config_value_from_python,
     python_value_from_capnp_value,
@@ -68,10 +65,8 @@ from .config.config_runtime import ProcessConfigRuntime
 from .context import (
     ProcessContext,
 )
-from .errors import (
-    ProcessConfigError,
-)
 from .io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE, ChunkedInputStream
+from .runtime.config_watcher import ConfigWatcher
 from .runtime.input_runtime import InputRuntime
 from .runtime.lifecycle_runtime import ProcessLifecycleRuntime
 from .runtime.output_runtime import OutputRuntime
@@ -99,6 +94,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     common.GatewayRegistrable,
 ):
     config_model: ClassVar[type[ProcessConfig] | None] = None
+    _warned_about_update_config_from_port: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
@@ -168,6 +164,13 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             con_man=self.con_man,
             output_runtime=self._output_runtime,
         )
+        self._config_watcher: ConfigWatcher = ConfigWatcher(
+            identity=self,
+            input_runtime=self._input_runtime,
+            config_runtime=self._config_runtime,
+            stop_event=self._context.lifecycle.stop_requested,
+        )
+        self._input_runtime.apply_pending_config = self._config_watcher.apply_pending
         self._lifecycle_runtime: ProcessLifecycleRuntime = ProcessLifecycleRuntime(
             identity=self,
             lifecycle=self._context.lifecycle,
@@ -175,6 +178,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             state_runtime=self._state_runtime,
             input_runtime=self._input_runtime,
             output_runtime=self._output_runtime,
+            config_watcher=self._config_watcher,
             run_fn=self.run,
         )
         self._context.lifecycle.soft_stop_timeout_seconds = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
@@ -363,19 +367,31 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
         return await self._input_runtime.read_in_chunked_stream(name)
 
-    async def update_config_from_port(self, name: str = "conf") -> bool:
-        in_msg = await self._input_runtime.read_in_raw(name)
-        if in_msg is None:
+    async def update_config_from_port(self, name: str = CONFIG_PORT_NAME) -> bool:
+        """Deprecated no-op kept so existing components keep working.
+
+        The runtime owns the ``conf`` port now (plan section 6.1): the initial config is applied
+        before ``run()`` is called and later updates land at IP boundaries, so a component never has
+        to ask. Read ``self.config`` whenever it is needed instead. Returns whether any config has
+        been applied from the port, which is what callers logged this for.
+        """
+        if name != CONFIG_PORT_NAME:
+            logger.warning(
+                "%s called update_config_from_port(%r); only the runtime-owned %r port is supported.",
+                self.name,
+                name,
+                CONFIG_PORT_NAME,
+            )
             return False
 
-        try:
-            config_values = _config_from_ip(in_msg)
-        except ProcessConfigError as e:
-            msg = f"{self.name} received invalid config on port '{name}': {e}"
-            raise ProcessConfigError(msg, port=name) from e
-
-        self.apply_config_values(config_values)
-        return True
+        if not type(self)._warned_about_update_config_from_port:  # noqa: SLF001 - our own class attribute
+            type(self)._warned_about_update_config_from_port = True
+            logger.info(
+                "%s calls update_config_from_port, which is now a no-op: the runtime applies config "
+                "before run() and between IPs. The call can be removed.",
+                self.name,
+            )
+        return self._config_watcher.applied_updates > 0
 
     @overload
     async def read_array_in(
