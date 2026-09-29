@@ -1804,7 +1804,7 @@
                     "@setup": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup"
                 },
                 "type": "object",
-                "desc": "Define the loadable type the attribute being referenced has."
+                "desc": "Define the loadable type the attribute being referenced has. Besides a real capnp type string, the pseudo-type 'JSON' (case-insensitive) may be used as a types entry's value - e.g. {'@myattr': 'JSON'} - for a plain capnp.capnp:Text value that itself holds JSON-encoded text: it is decoded via json.loads() into a Python value (dict/list/str/int/float/bool/None), same as common.capnp:StructuredText[JSON] is auto-decoded, just without that struct wrapper. Usable both as the type for '@attr' itself (types['@attr'] = 'JSON') and via a ':type_ref' suffix on an attr_sub_access_separator-delimited path segment (e.g. 'sub1:@myjson', with types['@myjson'] = 'JSON' - the part after ':' is always a lookup key into 'types', never a literal type name, same as for any other type reference)."
             },
             "attr_sub_access_separator": {
                 "value": "/",

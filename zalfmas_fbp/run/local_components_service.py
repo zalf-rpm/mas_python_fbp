@@ -463,13 +463,25 @@ async def main():
         default_config_path="./configs/local_components_service.toml",
     )
     add_log_level_argument(parser, default_level="INFO")
+    parser.add_argument(
+        "--regenerate_cache",
+        action="store_true",
+        help="Regenerate the components cache JSON file and exit, without starting the service.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force a full refresh of the components cache, re-querying every component instead of "
+        "reusing already-cached, still-valid entries. Combine with --regenerate_cache for a full "
+        "rebuild that exits without starting the service.",
+    )
     config, args = serv.handle_default_service_args(parser, path_to_service_py=__file__)
     configure_logging(args.log_level)
 
     # load components cache
     cache_path = Path(config["service"]["path_to_components_cache_json"])
     cmds_path = Path(config["service"]["path_to_cmds_json"])
-    if cache_path.exists():
+    if cache_path.exists() and not args.force:
         with cache_path.open() as f:
             components_cache = json.load(f)
     else:
@@ -486,9 +498,13 @@ async def main():
         restorer,
         log_level=args.log_level,
     )
-    # update components cache
+    # update components cache - this also creates the cache file the first time it's missing
     with cache_path.open("w") as f:
         json.dump(components_cache, f, indent=4)
+
+    if args.regenerate_cache:
+        logger.info("Regenerated components cache at %s (%d entries).", cache_path, len(components_cache))
+        return
 
     service = Service(
         cat_id_to_name_and_component_holders,
