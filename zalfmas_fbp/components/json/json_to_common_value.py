@@ -175,10 +175,24 @@ def _replace_sentinels_recursive(
 
 
 def _sentinel_value_for_selected_type(selected_type: str, sentinel_value: Any) -> ValueBuilder:
+    """Type the sentinel attribute like the payload, so consumers can compare it like for like.
+
+    Falls back to the sentinel's own best-fitting type when it does not fit the payload's - e.g. a
+    negative sentinel configured for an all-positive payload, which selects an unsigned field. The
+    attribute is worth more than the type match; failing here would drop the whole message.
+    """
     scalar_type = selected_type[1:] if selected_type.startswith("l") else selected_type
     if scalar_type in {"v", "pair"}:
         return config_value_from_python(sentinel_value)
-    coerced = values.coerce_scalar_for_field(sentinel_value, scalar_type)
+    try:
+        coerced = values.coerce_scalar_for_field(sentinel_value, scalar_type)
+    except (TypeError, ValueError):
+        logger.debug(
+            "Sentinel %r does not fit the payload's %r field; typing it on its own.",
+            sentinel_value,
+            scalar_type,
+        )
+        return values.value_from_python(sentinel_value)
     return values.value_message(scalar_type, coerced)
 
 
@@ -193,10 +207,6 @@ def _build_value(
         auto_select=cfg.auto_select_type,
         smallest=cfg.optimize_smallest_type,
         allow_fallback=cfg.allow_fallback_if_requested_type_fails,
-        # Lists picked signed integer fields before unsigned ones here before the selection logic
-        # moved into values.py, so [200] is li16 rather than lui8. Kept for compatibility; see
-        # values.determine_list_field.
-        signed_first_lists=True,
     )
     selected_field = value_msg.as_reader().which()
 

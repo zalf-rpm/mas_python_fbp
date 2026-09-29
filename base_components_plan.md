@@ -640,7 +640,7 @@ re-open them, and so the reasoning survives.
 | D12 | S3 refactor of `to_string` / `json_to_common_value` happens in WP0, tests first | §7.7 |
 | D13 | WP-1 and WP0 proceed in parallel | §8 |
 | D14 | Reads are type-driven; no struct-cast guessing, `MISSING` instead | §2 (S3) |
-| D15 | List integer fields keep their signed-first order for compatibility | §7.8 |
+| D15 | List and scalar integer field selection unified on unsigned-first | §7.8 |
 
 ### 7.1 D1 — sigils mark selectors
 
@@ -705,30 +705,28 @@ slot.
 - **D11, digit path segments** are list indices, matching `json_to_common_value._split_path` today,
   so `./items/0` indexes rather than looking up the key `"0"`.
 
-### 7.8 D15 — list integer field selection stays signed-first (open question)
+### 7.8 D15 — list and scalar integer field selection unified
 
-The D12 refactor surfaced an inconsistency in `json/json_to_common_value`: scalars try **unsigned**
-integer fields first, lists try **signed** first. So the same number picks a different width
-depending on where it sits:
+The D12 refactor surfaced an inconsistency in `json/json_to_common_value`: scalars tried **unsigned**
+integer fields first, lists tried **signed** first, so the same number picked a different width
+depending on where it sat — `200` was `ui8` but `[200]` was `li16`, and `[1, 2, 3]` was `li8`. Lists
+therefore spent an extra byte per element for values in 128–255, and a consumer switching on
+`which()` saw different types for the same data.
 
-| Input | Selected field |
-|---|---|
-| `200` | `ui8` |
-| `[200]` | `li16` |
-| `[1, 2, 3]` | `li8` |
+**Decision: unify on the scalar (unsigned-first) rule.** `200` and `[200]` now both select
+`ui8`/`lui8`. Negative values still select signed fields, as before.
 
-Lists therefore spend an extra byte per element for values in 128–255, and a consumer switching on
-`which()` sees different types for the same data. `values.py` unified the two on the scalar
-(unsigned-first) rule, so the refactor would have silently changed `[200]` from `li16` to `lui8`.
+This is wire-visible: a non-Python consumer switching on the Cap'n Proto union field will see
+`lui8`/`lui16` where it previously saw `li8`/`li16`. Python consumers are unaffected —
+`python_from_value` yields the same integers either way.
 
-**Decision: preserve the existing behaviour.** D12 is a refactor, so
-`values.value_from_python(..., signed_first_lists=True)` reproduces it exactly and
-`json_to_common_value` passes that flag with a comment. New components leave it off, so lists and
-scalars agree for anything written from here on.
-
-**Open for the user:** whether to drop the flag and unify. Python consumers see identical values
-either way (`python_from_value` yields the same ints); only consumers switching on the Cap'n Proto
-union field — plausibly a non-Python component — would notice. It is a one-line change if wanted.
+**A latent bug this exposed.** The sentinel attribute that `json_to_common_value` attaches was typed
+to match the payload's selected field, so a *negative* `null_sentinel` configured for an
+all-positive payload could not be represented — the build raised, and with `skip_on_error` the whole
+message was silently dropped. This already happened for scalars before D15 (`42` with
+`null_sentinel = -1` produced nothing); unifying merely widened it to lists. Fixed by falling back to
+the sentinel's own fitting type when it does not fit the payload's: the attribute is worth more than
+the type match, and dropping the message was never the intent.
 
 ### 7.7 D12 — refactor the two existing users onto S3 in WP0
 

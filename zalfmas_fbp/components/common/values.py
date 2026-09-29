@@ -290,7 +290,6 @@ _FLOAT_MAX: Final[dict[str, float]] = {"f32": 3.4028235e38, "f64": 1.79769313486
 
 _SMALLEST_SIGNED: Final[tuple[str, ...]] = ("i8", "i16", "i32", "i64")
 _SMALLEST_UNSIGNED: Final[tuple[str, ...]] = ("ui8", "ui16", "ui32", "ui64", "i8", "i16", "i32", "i64")
-_SMALLEST_SIGNED_FIRST: Final[tuple[str, ...]] = ("i8", "i16", "i32", "i64", "ui8", "ui16", "ui32", "ui64")
 _WIDEST_SIGNED: Final[tuple[str, ...]] = ("i64", "i32", "i16", "i8")
 _WIDEST_UNSIGNED: Final[tuple[str, ...]] = ("ui64", "i64", "ui32", "i32", "ui16", "i16", "ui8", "i8")
 
@@ -401,19 +400,11 @@ def coerce_list_for_field(items: Sequence[Any], list_field: str) -> list[Any]:
     return [coerce_scalar_for_field(item, list_field[1:]) for item in items]
 
 
-def _numeric_field_for(
-    kind: str,
-    items: Sequence[Any],
-    fields: set[str],
-    smallest: bool,
-    signed_first: bool = False,
-) -> str:
+def _numeric_field_for(kind: str, items: Sequence[Any], fields: set[str], smallest: bool) -> str:
     if kind == "float":
         candidates: tuple[str, ...] = ("f32", "f64") if smallest else ("f64", "f32")
     elif any(isinstance(item, int) and item < 0 for item in items):
         candidates = _SMALLEST_SIGNED if smallest else _WIDEST_SIGNED
-    elif signed_first and smallest:
-        candidates = _SMALLEST_SIGNED_FIRST
     else:
         candidates = _SMALLEST_UNSIGNED if smallest else _WIDEST_UNSIGNED
 
@@ -455,18 +446,11 @@ def determine_scalar_field(value: Any, fields: set[str], smallest: bool = True) 
     return _numeric_field_for(kind, [value], fields, smallest)
 
 
-def determine_list_field(
-    items: Sequence[Any],
-    fields: set[str],
-    smallest: bool = True,
-    signed_first: bool = False,
-) -> str:
+def determine_list_field(items: Sequence[Any], fields: set[str], smallest: bool = True) -> str:
     """Pick the ``Value`` list field that best fits a Python sequence, or raise for mixed types.
 
-    ``signed_first`` tries signed integer fields before unsigned ones, so ``[200]`` becomes ``li16``
-    rather than ``lui8``. That is what ``json/json_to_common_value`` did for lists (but not for
-    scalars) before the logic moved here, and the flag exists to preserve it; new code should leave
-    it off so lists and scalars agree.
+    Uses the same unsigned-first ordering as :func:`determine_scalar_field`, so ``200`` and ``[200]``
+    agree on ``ui8``/``lui8`` (D15).
     """
     if not items:
         return "lf64"
@@ -483,7 +467,7 @@ def determine_list_field(
         raise TypeError(msg)
 
     kind = "float" if "float" in kinds else "int"
-    return f"l{_numeric_field_for(kind, items, fields, smallest, signed_first)}"
+    return f"l{_numeric_field_for(kind, items, fields, smallest)}"
 
 
 def value_from_python(
@@ -492,7 +476,6 @@ def value_from_python(
     auto_select: bool = True,
     smallest: bool = True,
     allow_fallback: bool = True,
-    signed_first_lists: bool = False,
 ) -> ValueBuilder:
     """Build a ``common.capnp:Value`` from a plain Python value.
 
@@ -504,7 +487,7 @@ def value_from_python(
     ``json/json_to_common_value`` does) must substitute a sentinel first.
     """
     fields = value_fields()
-    return _value_from_python(obj, fields, requested_type, auto_select, smallest, allow_fallback, signed_first_lists)
+    return _value_from_python(obj, fields, requested_type, auto_select, smallest, allow_fallback)
 
 
 def _value_from_python(
@@ -514,7 +497,6 @@ def _value_from_python(
     auto_select: bool,
     smallest: bool,
     allow_fallback: bool,
-    signed_first_lists: bool = False,
 ) -> ValueBuilder:
     if obj is None:
         msg = "common.capnp:Value cannot represent None; substitute a sentinel first"
@@ -529,7 +511,7 @@ def _value_from_python(
         pairs = [
             common_capnp.Pair.new_message(
                 fst=str(key),
-                snd=_value_from_python(item, fields, None, auto_select, smallest, allow_fallback, signed_first_lists),
+                snd=_value_from_python(item, fields, None, auto_select, smallest, allow_fallback),
             )
             for key, item in obj.items()
         ]
@@ -551,14 +533,13 @@ def _value_from_python(
 
     if is_list:
         try:
-            field = determine_list_field(list(obj), fields, smallest, signed_first_lists)
+            field = determine_list_field(list(obj), fields, smallest)
             return value_message(field, coerce_list_for_field(list(obj), field))
         except TypeError:
             if "lv" not in fields:
                 raise
             items = [
-                _value_from_python(item, fields, None, auto_select, smallest, allow_fallback, signed_first_lists)
-                for item in obj
+                _value_from_python(item, fields, None, auto_select, smallest, allow_fallback) for item in obj
             ]
             return value_message("lv", items)
 

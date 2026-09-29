@@ -70,13 +70,21 @@ def test_smallest_type_optimization_can_be_turned_off() -> None:
 
 @pytest.mark.parametrize(
     ("payload", "field"),
-    [([1, 2, 3], "li8"), ([200], "li16"), ([-1, 2], "li8"), ([1.5], "lf32"), ([True, False], "lb"), (["a"], "lt")],
+    [
+        ([1, 2, 3], "lui8"),
+        ([200], "lui8"),
+        ([300], "lui16"),
+        ([-1, 2], "li8"),
+        ([1.5], "lf32"),
+        ([True, False], "lb"),
+        (["a"], "lt"),
+    ],
 )
-def test_lists_try_signed_integer_fields_before_unsigned_ones(payload, field) -> None:
-    """Unlike scalars, which try unsigned first - so 200 is ui8 alone but li16 in a list.
+def test_lists_get_the_smallest_fitting_list_field(payload, field) -> None:
+    """Lists use the same unsigned-first ordering as scalars, so 200 is ui8 alone and lui8 in a list.
 
-    An inconsistency in the original implementation, preserved across the D12 refactor by
-    values.value_from_python's signed_first_lists flag rather than silently changed.
+    Changed deliberately in D15: before the D12 refactor lists tried signed fields first, making
+    [200] an li16 while the bare 200 was a ui8.
     """
     assert only(run(payload)).which() == field
 
@@ -123,8 +131,8 @@ def test_an_object_forces_lpair_even_when_another_type_is_requested() -> None:
 
 def test_traversal_path_selects_a_sub_value() -> None:
     result = only(run({"a": {"b": [7, 8]}}, {"traversal_path": "a/b"}))
-    assert result.which() == "li8"
-    assert list(result.li8) == [7, 8]
+    assert result.which() == "lui8"
+    assert list(result.lui8) == [7, 8]
 
 
 def test_traversal_path_indexes_lists() -> None:
@@ -149,7 +157,7 @@ def test_json_null_without_a_sentinel_skips_the_message() -> None:
 def test_a_null_sentinel_replaces_nulls_and_is_reported_as_an_attribute() -> None:
     writer = run([1, None, 3], {"null_sentinel": -9999})
     result = only(writer)
-    assert list(result.li16) == [1, -9999, 3]
+    assert list(result.li16) == [1, -9999, 3]  # negative sentinel forces a signed field
     assert [kv.key for kv in writer.values[0].attributes] == ["null_sentinel"]
 
 
@@ -234,3 +242,22 @@ def PortMessage_close():
     from tests.component_harness import close_bracket_message
 
     return close_bracket_message()
+
+
+def test_a_sentinel_that_does_not_fit_the_payload_type_still_produces_a_message() -> None:
+    """A negative sentinel with an all-positive payload: the payload picks an unsigned field, which
+    cannot hold the sentinel. The attribute gets its own type rather than the message being dropped.
+    """
+    writer = run([1, 2], {"null_sentinel": -1})
+    result = only(writer)
+    assert result.which() == "lui8"
+
+    sentinel = writer.values[0].attributes[0]
+    assert sentinel.key == "null_sentinel"
+    assert sentinel.value.as_struct(common_capnp.Value).i8 == -1
+
+
+def test_a_fitting_sentinel_keeps_the_payload_type() -> None:
+    writer = run([1, 2], {"null_sentinel": 0})
+    sentinel = writer.values[0].attributes[0]
+    assert sentinel.value.as_struct(common_capnp.Value).which() == "ui8"
