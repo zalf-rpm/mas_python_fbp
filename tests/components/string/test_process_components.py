@@ -148,3 +148,48 @@ def test_to_string_uses_incoming_sys_content_type_before_config() -> None:
     ).output()
 
     assert text_outputs(writer) == ['(t = "alpha")']
+
+
+def test_to_string_falls_back_to_repr_for_an_unresolvable_content_type() -> None:
+    """Characterization (plan D12): an unparseable type must not raise, it degrades to str()."""
+    component = ToString(to_string_metadata)
+    in_ip = fbp_capnp.IP.new_message(
+        content=common_capnp.Value.new_message(t="alpha"),
+        sysAttributes={"contentType": "not a content type"},
+    )
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message(
+                    common_capnp.StructuredText.new_message(
+                        type="toml",
+                        value=f'struct_type = "{VALUE_CONTENT_TYPE}"',
+                    ),
+                ),
+                done_message(),
+            ],
+            "in": [PortMessage(PortValue(in_ip)), done_message()],
+        },
+    ).output()
+
+    assert text_outputs(writer) == ['(t = "alpha")']
+
+
+def test_to_string_without_any_usable_type_uses_the_raw_representation() -> None:
+    component = ToString(to_string_metadata)
+
+    writer = run_process_component(
+        component,
+        inputs={
+            "conf": [
+                ip_message(common_capnp.StructuredText.new_message(type="toml", value="struct_type = ''")),
+                done_message(),
+            ],
+            "in": [ip_message(common_capnp.Value.new_message(t="alpha")), done_message()],
+        },
+    ).output()
+
+    assert len(writer.values) == 1
+    assert "alpha" not in text_outputs(writer)[0]

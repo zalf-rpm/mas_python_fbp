@@ -23,6 +23,7 @@ from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
+from zalfmas_fbp.components.common import values
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -74,17 +75,6 @@ METADATA = meta.Component(
 )
 
 
-def _schema_from_content_type_string(content_type: str | None) -> Any | None:
-    if not content_type:
-        return None
-
-    try:
-        return common.schema_from_content_type_string(content_type)
-    except (AttributeError, RuntimeError, TypeError, ValueError, capnp.KjException):
-        logger.debug("Failed to parse Cap'n Proto schema from content type %r.", content_type, exc_info=True)
-        return None
-
-
 def _content_to_str(c: Any, schema_or_type: Any) -> str:
     if hasattr(schema_or_type, "node"):
         s_type = schema_or_type.node.which()
@@ -117,7 +107,7 @@ class ToString(process.Process[ToStringConfig]):
         if await self.update_config_from_port("conf"):
             logger.info("%s updated config from conf port", self.name)
 
-        configured_schema = _schema_from_content_type_string(self.config.struct_type)
+        configured_schema = values.resolve_schema(self.config.struct_type)
 
         while True:
             in_msg = await self.read_in("in")
@@ -125,7 +115,7 @@ class ToString(process.Process[ToStringConfig]):
                 break
 
             c = in_msg.content
-            resolved = _schema_from_content_type_string(process.ip_content_type(in_msg))
+            resolved = values.resolve_schema(process.ip_content_type(in_msg))
             if resolved is capnp_types.AnyPointer or resolved is None:
                 resolved = configured_schema
 

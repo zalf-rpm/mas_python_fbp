@@ -640,6 +640,7 @@ re-open them, and so the reasoning survives.
 | D12 | S3 refactor of `to_string` / `json_to_common_value` happens in WP0, tests first | §7.7 |
 | D13 | WP-1 and WP0 proceed in parallel | §8 |
 | D14 | Reads are type-driven; no struct-cast guessing, `MISSING` instead | §2 (S3) |
+| D15 | List integer fields keep their signed-first order for compatibility | §7.8 |
 
 ### 7.1 D1 — sigils mark selectors
 
@@ -704,12 +705,43 @@ slot.
 - **D11, digit path segments** are list indices, matching `json_to_common_value._split_path` today,
   so `./items/0` indexes rather than looking up the key `"0"`.
 
+### 7.8 D15 — list integer field selection stays signed-first (open question)
+
+The D12 refactor surfaced an inconsistency in `json/json_to_common_value`: scalars try **unsigned**
+integer fields first, lists try **signed** first. So the same number picks a different width
+depending on where it sits:
+
+| Input | Selected field |
+|---|---|
+| `200` | `ui8` |
+| `[200]` | `li16` |
+| `[1, 2, 3]` | `li8` |
+
+Lists therefore spend an extra byte per element for values in 128–255, and a consumer switching on
+`which()` sees different types for the same data. `values.py` unified the two on the scalar
+(unsigned-first) rule, so the refactor would have silently changed `[200]` from `li16` to `lui8`.
+
+**Decision: preserve the existing behaviour.** D12 is a refactor, so
+`values.value_from_python(..., signed_first_lists=True)` reproduces it exactly and
+`json_to_common_value` passes that flag with a comment. New components leave it off, so lists and
+scalars agree for anything written from here on.
+
+**Open for the user:** whether to drop the flag and unify. Python consumers see identical values
+either way (`python_from_value` yields the same ints); only consumers switching on the Cap'n Proto
+union field — plausibly a non-Python component — would notice. It is a one-line change if wanted.
+
 ### 7.7 D12 — refactor the two existing users onto S3 in WP0
 
 `to_string` and `json_to_common_value` move onto `values.py` as part of WP0, **characterization
 tests first**: capture current behaviour, then refactor, then show the tests still pass. The point is
 to validate the abstraction before twelve components depend on it — if S3 cannot absorb its two
 existing users, it is the wrong shape and better to find out in WP0 than in WP4.
+
+**Outcome (done).** 33 characterization tests were written for `json_to_common_value`, which had
+none, plus 2 for `to_string`'s fallback paths. All passed unmodified after the refactor. The
+component shed 399 lines; `to_string` lost its private schema-resolution helper. The abstraction
+held, with one genuine behavioural difference found and preserved rather than absorbed — see D15,
+which is exactly the kind of thing characterization tests exist to catch.
 
 ---
 
