@@ -47,8 +47,7 @@ METADATA = meta.Component(
         description="Creates/sets up parameters for Spotpy calibration.",
     ),
     type="process",
-    inPorts=[
-    ],
+    inPorts=[],
     outPorts=[
         meta.Port(
             name="params",

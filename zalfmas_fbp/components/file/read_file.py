@@ -58,8 +58,7 @@ METADATA = meta.Component(
         description="Read a file and send full string or lines downstream.",
     ),
     type="process",
-    inPorts=[
-    ],
+    inPorts=[],
     outPorts=[
         meta.Port(
             name="out",

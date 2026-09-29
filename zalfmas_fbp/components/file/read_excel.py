@@ -94,8 +94,7 @@ METADATA = meta.Component(
         description="Turn selected excel tables into JSON datastructures",
     ),
     type="process",
-    inPorts=[
-    ],
+    inPorts=[],
     config=Config,
 )
 
