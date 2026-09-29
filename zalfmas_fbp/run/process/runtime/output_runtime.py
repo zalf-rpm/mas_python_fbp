@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 import capnp
 
+from zalfmas_fbp.run.metadata import CONFIG_PORT_NAME, LOG_PORT_NAME
 from zalfmas_fbp.run.process.context import ProcessPortState
 from zalfmas_fbp.run.process.errors import OutputPortWriteError
 from zalfmas_fbp.run.process.identity import ProcessIdentityContext
@@ -42,6 +43,12 @@ class OutputRuntime:
         self._ports: ProcessPortState = ports
         self._stop_event: asyncio.Event = stop_event
         self._activity: ProcessActivityContext = activity
+        # Set by the runtime's ConfigWatcher; called once an IP has been written, so staged config
+        # lands between IPs. Reads have the same hook - a component with no data in-port, such as a
+        # file reader, would otherwise never reach a boundary at all.
+        self.apply_pending_config: Callable[[], bool] | None = None
+        self.config_port_name: str = CONFIG_PORT_NAME
+        self.log_port_name: str = LOG_PORT_NAME
 
     @property
     def stop_event(self) -> asyncio.Event:
@@ -104,7 +111,18 @@ class OutputRuntime:
                 return False
             raise self._output_port_rpc_error(name, error) from error
         else:
+            self._apply_pending_config_for(name)
             return True
+
+    def _apply_pending_config_for(self, name: str) -> None:
+        """An IP has left the component, so staged config may take effect (plan section 6.1).
+
+        The log port is skipped: the tee writes there from its own task, and config application is
+        the component's boundary, not the tee's.
+        """
+        if self.apply_pending_config is None or name in (self.config_port_name, self.log_port_name):
+            return
+        _ = self.apply_pending_config()
 
     async def write_out_if_space(self, name: str, message: IPBuilder | IPReader) -> bool:
         """Write without ever blocking: if the channel buffer is full, drop the message.

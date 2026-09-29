@@ -173,6 +173,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             stop_event=self._context.lifecycle.stop_requested,
         )
         self._input_runtime.apply_pending_config = self._config_watcher.apply_pending
+        self._output_runtime.apply_pending_config = self._config_watcher.apply_pending
         self._log_tee: LogPortTee = LogPortTee(
             identity=self,
             output_runtime=self._output_runtime,
@@ -375,6 +376,22 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
 
     async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
         return await self._input_runtime.read_in_chunked_stream(name)
+
+    async def next_config(self) -> bool:
+        """Wait until a config update from the ``conf`` port has been applied.
+
+        Returns False when no further update can arrive - ``conf`` unconnected, or closed - so a
+        component can drive itself from its config::
+
+            while True:
+                do_work_with(self.config)
+                if not await self.next_config():
+                    break
+
+        Components that read a data port do not need this: config is applied at every read and
+        write boundary anyway. It exists for sources, which reach no other boundary.
+        """
+        return await self._config_watcher.next_config()
 
     async def update_config_from_port(self, name: str = CONFIG_PORT_NAME) -> bool:
         """Deprecated no-op kept so existing components keep working.

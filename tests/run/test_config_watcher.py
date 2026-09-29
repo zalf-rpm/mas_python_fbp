@@ -143,3 +143,76 @@ def test_the_component_declares_no_conf_port_but_the_runtime_provides_one() -> N
     assert "conf" in METADATA.inPorts[-1].name
     assert METADATA.inPorts[-1].role == "config"
     assert ConfigProbe().in_ports.keys() == {"in", "conf"}
+
+
+# --- sources driven by their config port ------------------------------------------------------
+
+
+class Source(process.Process[Config]):
+    """A component with no data in-port, like file/read_file, driven by its conf port."""
+
+    def __init__(self):
+        super().__init__(metadata=SOURCE_METADATA)
+        self.emitted: list[str] = []
+
+    async def run(self):
+        while True:
+            self.emitted.append(self.config.label)
+            if not await self.next_config():
+                break
+
+
+SOURCE_METADATA = meta.Component(
+    info=meta.Info(id="7a1a2b3c-0000-4000-8000-00000000c0f1", name="config source"),
+    type="process",
+    inPorts=[],
+    outPorts=[meta.Port(name="out")],
+    config=Config,
+)
+
+
+def test_a_source_can_loop_over_successive_configs() -> None:
+    """A source reaches no read boundary, so it needs next_config to pick up updates at all."""
+    component = Source()
+
+    run_process_component(
+        component,
+        inputs={
+            "conf": [
+                conf_message(label="a.txt"),
+                conf_message(label="b.txt"),
+                conf_message(label="c.txt"),
+                done_message(),
+            ],
+        },
+    )
+
+    assert component.emitted == ["a.txt", "b.txt", "c.txt"]
+
+
+def test_a_source_loop_terminates_when_the_conf_port_closes() -> None:
+    component = Source()
+
+    run_process_component(component, inputs={"conf": [conf_message(label="only"), done_message()]})
+
+    assert component.emitted == ["only"]
+
+
+def test_a_source_loop_terminates_when_conf_is_unconnected() -> None:
+    """Otherwise a source with no config would hang forever instead of running once."""
+    component = Source()
+
+    run_process_component(component, inputs={})
+
+    assert component.emitted == ["default"]
+
+
+def test_config_also_lands_at_write_boundaries() -> None:
+    """Symmetric with reads, so a component that only writes still picks updates up."""
+    component = ConfigProbe()
+    component._config_watcher._pending = {"label": "staged"}
+
+    result = run_process_component(component, inputs={"in": [ip_message("a"), done_message()]})
+
+    assert component.config.label == "staged"
+    assert result.output() is not None

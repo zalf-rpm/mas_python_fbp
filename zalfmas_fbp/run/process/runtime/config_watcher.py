@@ -50,6 +50,10 @@ class ConfigWatcher:
         self._port_name: str = port_name
         self._pending: dict[str, ConfigValue | None] = {}
         self._task: asyncio.Task[None] | None = None
+        #: Set whenever an update is staged, so next_config() can wait for one.
+        self._staged: asyncio.Event = asyncio.Event()
+        #: True once the conf port is done, so a `while await next_config()` loop terminates.
+        self._closed: bool = False
         self.applied_updates: int = 0
 
     @property
@@ -64,9 +68,12 @@ class ConfigWatcher:
         """Read one config IP and stage it. Returns False when the port is done."""
         in_ip = await self._input_runtime.read_in_raw(self._port_name)
         if in_ip is None:
+            self._closed = True
+            self._staged.set()
             return False
         try:
             self._pending.update(config_from_ip(in_ip))
+            self._staged.set()
         except ProcessConfigError:
             logger.exception("%s received invalid config on port %r", self._identity.name, self._port_name)
         return True
@@ -127,8 +134,44 @@ class ConfigWatcher:
                 logger.exception("%s config watch failed; stopping it", self._identity.name)
                 return
 
+    async def next_config(self) -> bool:
+        """Wait until a config update has been applied. Returns False once no more can come.
+
+        Lets a component with no data in-port drive itself from its ``conf`` port - a file reader
+        fed a new path per config, say::
+
+            while True:
+                emit_file(self.config.file)
+                if not await self.next_config():
+                    break
+
+        Returns False immediately when ``conf`` is unconnected, and once the port closes, so such a
+        loop always terminates.
+        """
+        if self.apply_pending():
+            return True
+        if self._closed or not self.connected:
+            return False
+
+        self._staged.clear()
+        staged_task = asyncio.ensure_future(self._staged.wait())
+        stop_task = asyncio.ensure_future(self._stop_event.wait())
+        try:
+            _done, _pending = await asyncio.wait(
+                {staged_task, stop_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            for task in (staged_task, stop_task):
+                if not task.done():
+                    _ = task.cancel()
+
+        if self._stop_event.is_set():
+            return False
+        return self.apply_pending()
+
     def apply_pending(self) -> bool:
-        """Apply staged config. Called at IP boundaries, so never mid-processing."""
+        """Apply staged config. Called at IO boundaries, so never mid-processing."""
         if not self._pending:
             return False
         staged, self._pending = self._pending, {}

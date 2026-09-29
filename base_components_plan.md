@@ -512,9 +512,23 @@ dynamic reconfiguration: it is deferred initial config, once, and then dead.
 4. The one thing this preserves that `setConfigEntry` cannot do: **config computed by an upstream
    component**, e.g. a flow that reads a settings file and configures its own downstream nodes.
 
-**As built.** `ComponentMetadata` injects the ports (so the components cache the editor reads gets
-them for free), `runtime/config_watcher.py` owns the port, and `InputRuntime` applies staged config
-immediately before `read_in` hands an IP over. 33 components were stripped of their `conf`
+**As built.** `ComponentMetadata` injects the ports, so they are still in the components cache the
+flow editor reads and on the `inPorts`/`outPorts` RPC — a flow can wire `conf` or `log` exactly as
+before, and the editor needs no change beyond optionally rendering them by `role`. What changed is
+only that the *component source* no longer declares them.
+
+`runtime/config_watcher.py` owns the port. Staged config is applied at **both** IO boundaries —
+immediately before `read_in` hands an IP over, and once `write_out` has sent one. Components with no
+data in-port reach neither, so `Process.next_config()` lets a source drive itself from its config::
+
+    while True:
+        emit_file(self.config.file)
+        if not await self.next_config():
+            break
+
+It returns False when `conf` is unconnected or has closed, so such a loop always terminates. This is
+what makes the "`read_file` reading successive files" case work; the first cut applied config only at
+read boundaries and a source silently never saw an update. 33 components were stripped of their `conf`
 declaration and `update_config_from_port` call; the 21 legacy `standard` ones keep theirs, since
 nothing owns their port. `update_config_from_port` survives as a no-op that logs once.
 
