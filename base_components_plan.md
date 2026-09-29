@@ -200,7 +200,7 @@ Conventions applying to all of them unless the card says otherwise:
 
 ---
 
-### P0-1 `ip/filter_ips` — id `3e52dd18-7369-4701-9a9a-7102e7fae1e2`
+### P0-1 `ip/filter_ips` — id `3e52dd18-7369-4701-9a9a-7102e7fae1e2` — **implemented**
 
 *Category* `ip` · *Name* "Filter IPs"
 
@@ -222,9 +222,14 @@ evaluated (selector missing) counts as `False` and is logged at debug level.
 Example: `predicate = {left = "./yield", op = "gt", right = 5.0}` with content `{"yield": 7.1}` →
 `out`.
 
+*As built:* `drop_empty_substreams` applies to **both** outputs independently, via a bracket gate per
+port, so `out` and `rej` each carry well-formed substreams containing only the IPs that went their
+way and neither emits one that turned out empty. Nesting is preserved: an empty inner substream is
+dropped while its parent survives.
+
 ---
 
-### P0-2 `ip/route_ips` — id `d0de1b9f-8f28-4a6c-85c5-8ec0e748d5e4`
+### P0-2 `ip/route_ips` — id `d0de1b9f-8f28-4a6c-85c5-8ec0e748d5e4` — **implemented**
 
 *Category* `ip` · *Name* "Route IPs"
 
@@ -240,9 +245,14 @@ Needs an explicit per-index write rather than an `ArrayOutStrategy`. `OutputRunt
 thin `Process.write_array_out_at(name, index, message)` wrapper (resolving the port from
 `array_out_ports[name][index]` and returning `False` for a disconnected slot).
 
+*As built:* routes beyond the number of connected slots are ignored with a warning rather than
+treated as an error, since the slot count is a property of the flow rather than of the config.
+`default_to_first_output` was dropped: `default` covers it, and a silent fallback to slot 0 makes a
+misconfigured route hard to notice.
+
 ---
 
-### P0-3 `ip/merge_ips` — id `ea8826e7-3c60-42f6-bfca-f0a6285a7a63`
+### P0-3 `ip/merge_ips` — id `ea8826e7-3c60-42f6-bfca-f0a6285a7a63` — **implemented**
 
 *Category* `ip` · *Name* "Merge IPs"
 
@@ -257,9 +267,18 @@ combine them into one JSON object keyed by port index/name),
 `tag_source_attr: str | None = None` (record the originating input index in that attribute),
 `close_when: Literal["all","any"] = "all"`.
 
-Note: `array` is currently documented in `fbp.capnp` as out-port-only (`"only an out port can be an
-array port"`), while `InputRuntime` clearly supports array in-ports and `dakis/merge_geoparquet`
-already uses one. Decide and fix the schema comment as part of this task.
+*As built:* `round_robin` was dropped. The runtime offers no round-robin *input* strategy, and one
+would block on each slot in turn, so a single slow source stalls the merge — exactly what
+`next_available` avoids. `close_when` was dropped too: the semantics fall out of the strategy rather
+than being separately configurable, and saying so is more honest than a knob with one real setting.
+`next_available` drains every input and finishes when all have closed; `zip` finishes as soon as any
+one does.
+
+`tag_source_attr` needs the slot an IP arrived on, which `read_array_in` discards, so
+`Process.read_array_in_with_index` was added alongside `write_array_out_at`. Note that `zip` rejects
+bracket IPs at the runtime level, so zip mode does not accept substreams on its inputs.
+
+The `fbp.capnp` comment claiming only an out port may be an array port was corrected in WP-1 (D5).
 
 ---
 
@@ -832,7 +851,7 @@ backwards compatible in both directions at no wire cost. | 1 large change, 2 rep
 | **WP0** ✅ | S1 selectors, S2 brackets, S3 values + unit tests. No components. Then characterization tests for `to_string` and `json_to_common_value`, and refactor both onto S3 (D12) as the proof that the abstractions fit. Independent of WP-1, so the two run in parallel (D13). | 1 sizeable change |
 | **WP1** ✅ | P0-11 `probe`, P0-12 `sequence`, P0-9 `flatten_substreams`. Done; 49 tests. Written against the *current* `conf` convention since WP-1 has not landed — each needs the same mechanical retrofit afterwards (drop the `conf` port from metadata, drop the `update_config_from_port` line). `probe` logs to the ordinary logger until the `log` port of §6.2 exists. | 3 small components |
 | **WP2** ✅ | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Done; 38 tests including round-trips over `StructuredText`, `Value` and `IP` (a struct with a nested list of structs and an enum), plus a two-lap test so the conversion is stable rather than merely reversible once. | 2 medium components |
-| **WP3** | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ the `Process.write_array_out_at` wrapper). Semantic routing. | 3 medium components |
+| **WP3** ✅ | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ `Process.write_array_out_at` and `read_array_in_with_index`). Semantic routing. Done; 34 tests. | 3 medium components |
 | **WP4** | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra; test them as a pipeline `split_json → filter → group → reduce → concat`. | 3 medium components |
 | **WP5** | P0-10 `format_string` + refactor `write_file` onto it. | 1 small component + refactor |
 | **WP6** | P1 set, in the order listed (join-by-key first — it unblocks any parallel-service flow). | 10 components |
