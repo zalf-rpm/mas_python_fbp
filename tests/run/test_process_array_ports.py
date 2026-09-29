@@ -222,6 +222,16 @@ def _raise_multiline_runtime_error() -> None:
         return
 
 
+def _port(messages, name):
+    """One reported port, narrowed to the keys a test cares about.
+
+    Port messages also carry 'role' and 'required' (plan section 6.3); asserting on whole dicts
+    would make every future field a test change.
+    """
+    match = next(m for m in messages if m["name"] == name)
+    return {k: match[k] for k in ("name", "type", "contentType")}
+
+
 def test_process_metadata_initializes_array_in_and_out_ports() -> None:
     component = process.Process(metadata=_array_port_meta())
 
@@ -234,8 +244,8 @@ def test_process_metadata_initializes_array_in_and_out_ports() -> None:
     in_ports = asyncio.run(component.inPorts(cast("Any", None)))
     out_ports = asyncio.run(component.outPorts(cast("Any", None)))
 
-    assert {"name": "items", "type": "array", "contentType": "Text"} in in_ports
-    assert {"name": "out", "type": "array", "contentType": "Text"} in out_ports
+    assert _port(in_ports, "items") == {"name": "items", "type": "array", "contentType": "Text"}
+    assert _port(out_ports, "out") == {"name": "out", "type": "array", "contentType": "Text"}
 
 
 def test_process_metadata_updates_identifiable_name_and_description() -> None:
@@ -261,8 +271,8 @@ def test_port_messages_use_initial_metadata_content_types() -> None:
     in_ports = asyncio.run(component.inPorts(cast("Any", None)))
     out_ports = asyncio.run(component.outPorts(cast("Any", None)))
 
-    assert {"name": "in", "type": "standard", "contentType": "application/json"} in in_ports
-    assert {"name": "out", "type": "standard", "contentType": "application/octet-stream"} in out_ports
+    assert _port(in_ports, "in") == {"name": "in", "type": "standard", "contentType": "application/json"}
+    assert _port(out_ports, "out") == {"name": "out", "type": "standard", "contentType": "application/octet-stream"}
 
 
 def test_port_messages_do_not_follow_reassigned_context_metadata() -> None:
@@ -275,8 +285,8 @@ def test_port_messages_do_not_follow_reassigned_context_metadata() -> None:
     in_ports = asyncio.run(component.inPorts(cast("Any", None)))
     out_ports = asyncio.run(component.outPorts(cast("Any", None)))
 
-    assert {"name": "in", "type": "standard", "contentType": "Text"} in in_ports
-    assert {"name": "out", "type": "standard", "contentType": "Text"} in out_ports
+    assert _port(in_ports, "in") == {"name": "in", "type": "standard", "contentType": "Text"}
+    assert _port(out_ports, "out") == {"name": "out", "type": "standard", "contentType": "Text"}
 
 
 def test_process_soft_stop_returns_to_idle_and_clears_stopping_flag() -> None:
