@@ -47,10 +47,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="Input message with any content and attributes.",
@@ -78,8 +74,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         remove = set(self.config.remove_attrs)
 

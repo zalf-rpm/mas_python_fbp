@@ -95,14 +95,6 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[
-        meta.Port(name="conf", contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]")
-    ],
-    outPorts=[
-        meta.Port(
-            name="out",
-            contentType="Text (JSON)",
-            desc="The selected Excel tables as (possibly nested) JSON datastructures.",
-        )
     ],
     config=Config,
 )
@@ -119,8 +111,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         def default_if_nan(value, default: float | None = 0.0, apply_func=None):
             if value is not None:

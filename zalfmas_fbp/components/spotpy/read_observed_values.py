@@ -70,10 +70,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="country_ids",
             contentType="Text (JSON Array or Number)",
             desc="[1,2,3] :string of serialized json array containing country ids",
@@ -101,8 +97,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         country_ids = self.config.default_country_ids
 

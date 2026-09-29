@@ -48,10 +48,6 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
     ],
     outPorts=[
         meta.Port(
@@ -75,8 +71,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         params = []
         if self.config.path_to_calibrate_csv:

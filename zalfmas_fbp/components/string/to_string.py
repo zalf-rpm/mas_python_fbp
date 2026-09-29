@@ -60,10 +60,6 @@ METADATA = meta.Component(
             name="in",
             contentType="AnyStruct",
         ),
-        meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
     ],
     outPorts=[
         meta.Port(
@@ -104,8 +100,6 @@ class ToString(process.Process[ToStringConfig]):
 
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         configured_schema = values.resolve_schema(self.config.struct_type)
 

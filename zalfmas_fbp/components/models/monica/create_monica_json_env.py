@@ -49,10 +49,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="sim",
             contentType="common.capnp:StructuredText[JSON] | Text (JSON)",
         ),
@@ -86,8 +82,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while self.in_ports["sim"] and self.in_ports["crop"] and self.in_ports["site"] and self.out_ports["out"]:
             try:

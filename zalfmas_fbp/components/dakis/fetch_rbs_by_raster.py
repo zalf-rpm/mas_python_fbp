@@ -49,10 +49,6 @@ METADATA = meta.Component(
             contentType=blob_content_type(GEOTIFF_CONTENT_TYPE),
             desc="Compressed raster bytes used as the bounding box.",
         ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
     ],
     outPorts=[
         meta.Port(
@@ -76,8 +72,6 @@ class FetchRBSByRaster(process.Process[FetchRBSByRasterConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while True:
             in_msg = await self.read_in_chunked("in")

@@ -13,13 +13,17 @@
         "inPorts": [
             {
                 "name": "cs",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "ds",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -46,13 +50,17 @@
         "inPorts": [
             {
                 "name": "ds",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "ts",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -96,17 +104,23 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -146,13 +160,17 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -171,7 +189,9 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [],
@@ -191,17 +211,23 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "result",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "year_to_yield",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -220,17 +246,23 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -250,18 +282,32 @@
             {
                 "name": "in",
                 "contentType": "Text",
-                "desc": "GeoJSON bbox as text."
+                "desc": "GeoJSON bbox as text.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Compressed GeoTIFF bytes."
+                "desc": "Compressed GeoTIFF bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -296,19 +342,39 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Compressed raster bytes."
+                "desc": "Compressed raster bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Filtered GeoParquet bytes."
+                "desc": "Filtered GeoParquet bytes.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "raster",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Original raster bytes."
+                "desc": "Original raster bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -334,18 +400,32 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Compressed raster bytes used as the bounding box."
+                "desc": "Compressed raster bytes used as the bounding box.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Fetched RBS GeoParquet bytes."
+                "desc": "Fetched RBS GeoParquet bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -396,14 +476,32 @@
             {
                 "name": "trigger",
                 "contentType": "AnyPointer",
-                "desc": "Optional trigger messages."
+                "desc": "Optional trigger messages.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob",
-                "desc": "Prepared file Blob with path, filename, and content type metadata."
+                "desc": "Prepared file Blob with path, filename, and content type metadata.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -444,14 +542,32 @@
             {
                 "name": "trigger",
                 "contentType": "AnyPointer",
-                "desc": "Optional trigger messages."
+                "desc": "Optional trigger messages.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob",
-                "desc": "Prepared file Blob with path, filename, and content type metadata."
+                "desc": "Prepared file Blob with path, filename, and content type metadata.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -512,19 +628,39 @@
             {
                 "name": "raster",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Compressed raster bytes."
+                "desc": "Compressed raster bytes.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "geometries",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "GeoParquet bytes with lucode, priority, and geometry columns."
+                "desc": "GeoParquet bytes with lucode, priority, and geometry columns.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "Burned raster bytes."
+                "desc": "Burned raster bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -565,14 +701,32 @@
                 "name": "in",
                 "type": "array",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Array of relabeled GeoParquet bytes."
+                "desc": "Array of relabeled GeoParquet bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Merged GeoParquet bytes."
+                "desc": "Merged GeoParquet bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -603,19 +757,39 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "GeoParquet bytes."
+                "desc": "GeoParquet bytes.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "translation",
                 "contentType": "Text | common.capnp:Blob[text/csv]",
-                "desc": "Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used."
+                "desc": "Optional CSV mapping table bytes or path. If unconnected, mapping_csv_path is used.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Relabeled GeoParquet bytes."
+                "desc": "Relabeled GeoParquet bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -661,14 +835,32 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "GeoParquet bytes."
+                "desc": "GeoParquet bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[application/vnd.apache.parquet]",
-                "desc": "Prepared GeoParquet file payload."
+                "desc": "Prepared GeoParquet file payload.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -703,14 +895,32 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff]",
-                "desc": "GeoTIFF raster bytes."
+                "desc": "GeoTIFF raster bytes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Blob[image/tiff; application=geotiff] | common.capnp:Blob[image/tiff; application=geotiff; profile=cloud-optimized]",
-                "desc": "Prepared GeoTIFF or COG file payload."
+                "desc": "Prepared GeoTIFF or COG file payload.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -750,10 +960,27 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob",
-                "desc": "Prepared file Blob with optional path and filename metadata."
+                "desc": "Prepared file Blob with optional path and filename metadata.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
-        "outPorts": [],
+        "outPorts": [
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
         "defaultConfig": {
             "path": {
                 "value": "outputs/dakis",
@@ -782,10 +1009,27 @@
             {
                 "name": "in",
                 "contentType": "common.capnp:Blob",
-                "desc": "Prepared file Blob with optional path and filename metadata."
+                "desc": "Prepared file Blob with optional path and filename metadata.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
-        "outPorts": [],
+        "outPorts": [
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
         "defaultConfig": {
             "object_store_url": {
                 "value": "https://objects.dakispro.de",
@@ -833,14 +1077,18 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "desc": "A single row from the CSV file sent as Setup struct."
+                "desc": "A single row from the CSV file sent as Setup struct.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -889,14 +1137,26 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text",
-                "desc": "Output either full file content or each line as as separate message."
+                "desc": "Output either full file content or each line as as separate message.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -934,14 +1194,19 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
-                "name": "out",
-                "contentType": "Text (JSON)",
-                "desc": "The selected Excel tables as (possibly nested) JSON datastructures."
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1002,14 +1267,27 @@
             {
                 "name": "in",
                 "contentType": "Text",
-                "desc": "The input data to be written to a file."
+                "desc": "The input data to be written to a file.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
-        "outPorts": [],
+        "outPorts": [
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
         "defaultConfig": {
             "from_attr": {
                 "type": "string",
@@ -1056,24 +1334,32 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "ids",
                 "contentType": "List[int]",
-                "desc": "List of IDs to include in the output."
+                "desc": "List of IDs to include in the output.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "region",
                 "contentType": "string",
-                "desc": "The region we create the coords for."
+                "desc": "The region we create the coords for.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Pair(ID, geo.capnp:LatLonCoord) | string (JSON array)",
-                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs."
+                "desc": "Either a stream of LatLonCoords or a serialized JSON array [[lat1,lon1],[lat2,lon2]] of lat/lon pairs.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1129,19 +1415,25 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "in",
                 "contentType": "geo.capnp:LatLon",
-                "desc": "Lat/Lon coordinate to get the value at."
+                "desc": "Lat/Lon coordinate to get the value at.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "common.capnp:Value",
-                "desc": "Value at the given lat/lon coordinate."
+                "desc": "Value at the given lat/lon coordinate.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1177,19 +1469,25 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "in",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Input geo coordinate."
+                "desc": "Input geo coordinate.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Output geo coordinate."
+                "desc": "Output geo coordinate.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1227,19 +1525,25 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "vals",
                 "contentType": "List[float | int]",
-                "desc": "Values to convert into coord."
+                "desc": "Values to convert into coord.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "coord",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Coord to output."
+                "desc": "Coord to output.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1271,24 +1575,32 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "in",
                 "contentType": "geo.capnp:LatLonCoord",
-                "desc": "The coordinate to get the value at."
+                "desc": "The coordinate to get the value at.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "service",
                 "contentType": "grid.capnp:Service | SturdyRef",
-                "desc": "Capability or sturdy ref to service."
+                "desc": "Capability or sturdy ref to service.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "grid.capnp:Grid.Value | common.capnp:Value",
-                "desc": "Output grid value at given coordinate."
+                "desc": "Output grid value at given coordinate.",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1327,25 +1639,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content."
+                "desc": "Arbitrary content.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "attr",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'."
+                "desc": "Arbitrary content to store as attached attribute with name 'to_attr'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text",
-                "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port."
+                "desc": "IP (from in port) and attribute 'to_attr' containing content from attr port.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1369,25 +1697,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary IP from upstream."
+                "desc": "Arbitrary IP from upstream.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "content",
                 "contentType": "AnyPointer",
-                "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'"
+                "desc": "Arbitrary content to exchange for 'in's content. Optionally move 'in's content to attribute 'to_attr'",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'."
+                "desc": "IP (from in port) with new content from 'content' and possibly old content as attribute 'to_attr'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1413,7 +1757,16 @@
             {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "The IP to copy to all attached outports"
+                "desc": "The IP to copy to all attached outports",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
@@ -1421,7 +1774,16 @@
                 "name": "out",
                 "type": "array",
                 "contentType": "AnyPointer",
-                "desc": "Copied IP for each attached outport"
+                "desc": "Copied IP for each attached outport",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -1441,12 +1803,23 @@
             {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "The IP (or whole substream) to copy to all attached outports. "
+                "desc": "The IP (or whole substream) to copy to all attached outports. ",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "trigger",
                 "contentType": "AnyPointer",
-                "desc": "If connected, then a copy will only be triggered if an IP arrives on this port."
+                "desc": "If connected, then a copy will only be triggered if an IP arrives on this port.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
@@ -1454,12 +1827,23 @@
                 "name": "out",
                 "type": "array",
                 "contentType": "AnyPointer",
-                "desc": "Copied IP (substream) for each attached outport"
+                "desc": "Copied IP (substream) for each attached outport",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "trigger",
                 "contentType": "AnyPointer",
-                "desc": "If connected just forwards the IP which triggered the copies."
+                "desc": "If connected just forwards the IP which triggered the copies.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -1477,25 +1861,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "The IPs to wrap int substream."
+                "desc": "The IPs to wrap int substream.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "brackets",
                 "contentType": "AnyPointer",
-                "desc": "Optional side-channel of open-/close-bracket IPs (e.g. from a 'Split bracketed stream' component) dictating substream boundaries. If unconnected, 'no_of_ips' controls wrapping as usual. If connected, an open-bracket received here is forwarded to 'out', 'in' IPs are then forwarded until a matching close-bracket is received here; its 'substream_length' (common.capnp:Value(ui64)) attribute determines how many 'in' IPs belong to the substream."
+                "desc": "Optional side-channel of open-/close-bracket IPs (e.g. from a 'Split bracketed stream' component) dictating substream boundaries. If unconnected, 'no_of_ips' controls wrapping as usual. If connected, an open-bracket received here is forwarded to 'out', 'in' IPs are then forwarded until a matching close-bracket is received here; its 'substream_length' (common.capnp:Value(ui64)) attribute determines how many 'in' IPs belong to the substream.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "Substream wrapped IPs received on 'in' port."
+                "desc": "Substream wrapped IPs received on 'in' port.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1519,13 +1919,18 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "The IP to forward to one attached outport"
+                "desc": "The IP to forward to one attached outport",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
@@ -1533,7 +1938,16 @@
                 "name": "out",
                 "type": "array",
                 "contentType": "AnyPointer",
-                "desc": "Outgoing IPs distributed one-by-one across attached outports"
+                "desc": "Outgoing IPs distributed one-by-one across attached outports",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1560,20 +1974,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Input message with any content containing some structured attributes."
+                "desc": "Input message with any content containing some structured attributes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata."
+                "desc": "The same content as the message on 'in', but with some attributes lifted out of a structured attribute into the top level attribute metadata.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1610,20 +2038,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Input message with any content and attributes."
+                "desc": "Input message with any content and attributes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The same message as on 'in', but with the configured attributes removed."
+                "desc": "The same message as on 'in', but with the configured attributes removed.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1649,19 +2091,39 @@
             {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Input stream, potentially containing open-/close-bracket IPs wrapping non-bracket IPs."
+                "desc": "Input stream, potentially containing open-/close-bracket IPs wrapping non-bracket IPs.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The non-bracket IPs received on 'in', forwarded unchanged."
+                "desc": "The non-bracket IPs received on 'in', forwarded unchanged.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "brackets",
                 "contentType": "AnyPointer",
-                "desc": "The open-/close-bracket IPs received on 'in'. The close-bracket IP carries an additional 'substream_length' attribute (common.capnp:Value(ui64)) counting the non-bracket IPs forwarded on 'out' for that substream."
+                "desc": "The open-/close-bracket IPs received on 'in'. The close-bracket IP carries an additional 'substream_length' attribute (common.capnp:Value(ui64)) counting the non-bracket IPs forwarded on 'out' for that substream.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -1679,20 +2141,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "The IPs to sort. Substream sensitive, see 'sort_substreams'."
+                "desc": "The IPs to sort. Substream sensitive, see 'sort_substreams'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The (leaf-level) sorted IPs, see 'sort_substreams' and 'sort_attr'."
+                "desc": "The (leaf-level) sorted IPs, see 'sort_substreams' and 'sort_attr'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1721,25 +2197,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "AnyPointer",
-                "desc": "Input IP whose 'attr_name' attribute (and optionally a sub-object of it) is extracted."
+                "desc": "Input IP whose 'attr_name' attribute (and optionally a sub-object of it) is extracted.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "AnyPointer",
-                "desc": "The same IP as received on 'in' (same attributes), but with content replaced by the extracted attribute value. A plain capnp value (Text, a struct, a list, ...) is used as-is; a plain Python value that pycapnp's AnyPointer can't hold directly (e.g. a bare int/float/bool, or anything reached through embedded JSON) is JSON-serialized first."
+                "desc": "The same IP as received on 'in' (same attributes), but with content replaced by the extracted attribute value. A plain capnp value (Text, a struct, a list, ...) is used as-is; a plain Python value that pycapnp's AnyPointer can't hold directly (e.g. a bare int/float/bool, or anything reached through embedded JSON) is JSON-serialized first.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "pass",
                 "contentType": "AnyPointer",
-                "desc": "Optional: if connected, every IP received on 'in' - brackets included, and regardless of whether extraction onto 'out' succeeds - is forwarded here completely unchanged, so downstream can get both the extracted value and the original IP without needing a separate copy component."
+                "desc": "Optional: if connected, every IP received on 'in' - brackets included, and regardless of whether extraction onto 'out' succeeds - is forwarded here completely unchanged, so downstream can get both the extracted value and the original IP without needing a separate copy component.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1777,25 +2269,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "JSON text which is supposed to be updated and changed. Is substream sensitive, meaning if the\n            'attrs' port is connected one IP from 'attrs' will be applied to all the IPs in the substream."
+                "desc": "JSON text which is supposed to be updated and changed. Is substream sensitive, meaning if the\n            'attrs' port is connected one IP from 'attrs' will be applied to all the IPs in the substream.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "attrs",
                 "contentType": "AnyPointer",
-                "desc": "If connected, then for each message received on 'attrs', the attributes and the content of that message\n            will be made available to the component as '@attrs' for the content of the message and\n            each attribute as '@attrs_{attr_name}', if any. By default the used name will be\n            the ports name ('attrs'), unless it has been renamed via the config option 'name_for_attrs_port'."
+                "desc": "If connected, then for each message received on 'attrs', the attributes and the content of that message\n            will be made available to the component as '@attrs' for the content of the message and\n            each attribute as '@attrs_{attr_name}', if any. By default the used name will be\n            the ports name ('attrs'), unless it has been renamed via the config option 'name_for_attrs_port'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "The updated JSON text."
+                "desc": "The updated JSON text.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1851,20 +2359,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "Input JSON text to traverse and filter."
+                "desc": "Input JSON text to traverse and filter.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "Filtered JSON text."
+                "desc": "Filtered JSON text.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1907,20 +2429,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "Input JSON as list, object, or atomic value."
+                "desc": "Input JSON as list, object, or atomic value.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "Transformed JSON."
+                "desc": "Transformed JSON.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -1963,20 +2499,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "Input JSON containing or being a list of objects."
+                "desc": "Input JSON containing or being a list of objects.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "Output list of grouped interpolated points as JSON text."
+                "desc": "Output list of grouped interpolated points as JSON text.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2041,20 +2591,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "JSON text to convert to common.capnp:Value."
+                "desc": "JSON text to convert to common.capnp:Value.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "@0xe17592335373b246 = common/common.capnp:Value",
-                "desc": "Converted Value."
+                "desc": "Converted Value.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2127,20 +2691,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "Input JSON text."
+                "desc": "Input JSON text.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "Result JSON after applying all configured queries."
+                "desc": "Result JSON after applying all configured queries.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2169,25 +2747,41 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "obj",
                 "contentType": "Text (JSON)",
-                "desc": "The JSON object to look keys up in - or, with obj_value_key_attr set, a stream of single values to insert/update by attribute-provided key. The first message received is the initial object; if this port then closes, that object is kept in memory for good. While the port stays open, each 'key' input triggers a single non-blocking check (readIfMsg) for a newer update, which is applied if available, or skipped otherwise. A substream on this port is drained and applied as one single incoming update, same as an unwrapped message."
+                "desc": "The JSON object to look keys up in - or, with obj_value_key_attr set, a stream of single values to insert/update by attribute-provided key. The first message received is the initial object; if this port then closes, that object is kept in memory for good. While the port stays open, each 'key' input triggers a single non-blocking check (readIfMsg) for a newer update, which is applied if available, or skipped otherwise. A substream on this port is drained and applied as one single incoming update, same as an unwrapped message.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "key",
                 "contentType": "Text (JSON)",
-                "desc": "JSON-encoded key (or 'path_separator'-delimited path, e.g. 'a/b/0/c') to look up in the current object, one lookup per message received. Bracket IPs are forwarded unchanged onto 'value'; all 'key' IPs inside one substream look up against the same single object snapshot, taken (subject to the same readIfMsg/substream rules as an unwrapped 'key' message) when the substream's open-bracket arrives."
+                "desc": "JSON-encoded key (or 'path_separator'-delimited path, e.g. 'a/b/0/c') to look up in the current object, one lookup per message received. Bracket IPs are forwarded unchanged onto 'value'; all 'key' IPs inside one substream look up against the same single object snapshot, taken (subject to the same readIfMsg/substream rules as an unwrapped 'key' message) when the substream's open-bracket arrives.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "value",
                 "contentType": "Text (JSON)",
-                "desc": "JSON-encoded value found for the requested key/path, or the configured missing-key value."
+                "desc": "JSON-encoded value found for the requested key/path, or the configured missing-key value.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2224,20 +2818,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "A substream (open-bracket ... close-bracket) of JSON IPs to concatenate into one JSON list. Every IP is expected to arrive inside a substream; one arriving outside of one is skipped with a warning, since concatenating a substream is this component's whole purpose. Multiple consecutive substreams are each collected and emitted independently, until 'in' closes."
+                "desc": "A substream (open-bracket ... close-bracket) of JSON IPs to concatenate into one JSON list. Every IP is expected to arrive inside a substream; one arriving outside of one is skipped with a warning, since concatenating a substream is this component's whole purpose. Multiple consecutive substreams are each collected and emitted independently, until 'in' closes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text (JSON)",
-                "desc": "One JSON list per completed substream received on 'in': the concatenation (optionally flattened) of that substream's parsed JSON values, carrying the merged and 'remove_attrs'-filtered attributes from all of that substream's IPs."
+                "desc": "One JSON list per completed substream received on 'in': the concatenation (optionally flattened) of that substream's parsed JSON values, carrying the merged and 'remove_attrs'-filtered attributes from all of that substream's IPs.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2272,17 +2880,23 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -2300,30 +2914,48 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "timeseries",
                 "contentType": "@0xa7769f40fe6e6de8 = climate/climate.capnp:TimeSeries | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | CSV]",
-                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability, a sturdy ref to a TimeSeries or a path to a CSV file."
+                "desc": "Climate data for MONICA simulation, either as a TimeSeries capability, a sturdy ref to a TimeSeries or a path to a CSV file.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "soil",
                 "contentType": "@0xff67c2a593419c29 = soil/soil.capnp:Profile | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | JSON]",
-                "desc": "Soil profile data for MONICA simulation, either as a Profile capability, a sturdy ref to a Profile or an JSON array of soil layers."
+                "desc": "Soil profile data for MONICA simulation, either as a Profile capability, a sturdy ref to a Profile or an JSON array of soil layers.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "MONICA env json. Supports substreams on 'in' and will simply forward bracket IPs downstream."
+                "desc": "MONICA env json. Supports substreams on 'in' and will simply forward bracket IPs downstream.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "@0xb7fc866ef1127f7c = model/model.capnp:Env",
-                "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component."
+                "desc": "An Env structure with possible attached climate/soil capabilities ready to be sent to a MONICA Cap'n Proto service or component.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2375,26 +3007,44 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "sim",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "crop",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "site",
-                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)"
+                "contentType": "common.capnp:StructuredText[JSON] | Text (JSON)",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text (JSON)"
+                "contentType": "Text (JSON)",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2417,16 +3067,29 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "in",
                 "contentType": "Text (JSON)",
-                "desc": "Receive MONICA JSON result."
+                "desc": "Receive MONICA JSON result.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
-        "outPorts": [],
+        "outPorts": [
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
         "defaultConfig": {
             "types": {
                 "value": {
@@ -2474,25 +3137,35 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "coords",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "region",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "params",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "env",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {}
@@ -2512,14 +3185,32 @@
             {
                 "name": "reset",
                 "contentType": "AnyPointer",
-                "desc": "Received IPs are discarded, they only trigger a reset of the counter to 'start_at'."
+                "desc": "Received IPs are discarded, they only trigger a reset of the counter to 'start_at'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "count",
                 "contentType": "@0xe17592335373b246 = common/common.capnp:Value.i64",
-                "desc": "The current count."
+                "desc": "The current count.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2544,24 +3235,32 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             },
             {
                 "name": "latlon",
                 "contentType": "geo.capnp.LatLonCoord",
-                "desc": "Lat/Lon coordinate"
+                "desc": "Lat/Lon coordinate",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "service",
                 "contentType": "soil.capnp:Service | Text (SturdyRef)",
-                "desc": "Capability or sturdy ref to service."
+                "desc": "Capability or sturdy ref to service.",
+                "role": "data",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "grid.capnp:Grid.Value",
-                "desc": "value at requested location"
+                "desc": "value at requested location",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2636,14 +3335,26 @@
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "params",
                 "contentType": "Text (JSON list)",
-                "desc": "output spotpy calibration params as json list string"
+                "desc": "output spotpy calibration params as json list string",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2667,20 +3378,34 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "country_ids",
                 "contentType": "Text (JSON Array or Number)",
-                "desc": "[1,2,3] :string of serialized json array containing country ids"
+                "desc": "[1,2,3] :string of serialized json array containing country ids",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
                 "contentType": "Text",
-                "desc": "{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield"
+                "desc": "{country_id: {year: yield}} :string of json serialized mapping from country id to year to yield",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -2729,35 +3454,55 @@
         "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
-            },
-            {
                 "name": "init_params",
                 "contentType": "Text (JSON list)",
-                "desc": "list of JSON objects describing the parameters to calibrate"
+                "desc": "list of JSON objects describing the parameters to calibrate",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "obs_values",
                 "contentType": "@0xe17592335373b246 = common/common_capnp:Value.lf64",
-                "desc": "List of observations. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes."
+                "desc": "List of observations. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes.",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "sim_values",
                 "contentType": "@0xe17592335373b246 = common/common_capnp:Value.lf64",
-                "desc": "List of simulated values. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes."
+                "desc": "List of simulated values. If the list contains null or NaN sentinel values, these will be replaced with NaN.\n            These sentinel values can be given as 'null_sentinel' and 'NaN_sentinel' attributes.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "sampled_params",
                 "contentType": "@0xe17592335373b246 = common/common.capnp:Value.lpair[Text, common/common_capnp:Value.f64]",
-                "desc": "[Value.pair(name1, value1), Value.pair(name2, value2), ...] list of param_name -> sampled value pairs"
+                "desc": "[Value.pair(name1, value1), Value.pair(name2, value2), ...] list of param_name -> sampled value pairs",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "best",
                 "contentType": "Text",
-                "desc": "best optimized result"
+                "desc": "best optimized result",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -3033,17 +3778,23 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -3068,17 +3819,31 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -3103,17 +3868,23 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "List[Text | Float64 | Int64]"
+                "contentType": "List[Text | Float64 | Int64]",
+                "role": "data",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -3147,17 +3918,31 @@
         "inPorts": [
             {
                 "name": "in",
-                "contentType": "AnyStruct"
+                "contentType": "AnyStruct",
+                "role": "data",
+                "required": false
             },
             {
                 "name": "conf",
-                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]"
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "Text"
+                "contentType": "Text",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
             }
         ],
         "defaultConfig": {
@@ -3165,6 +3950,300 @@
                 "value": "@0xed6c098b67cad454 = common/common.capnp:StructuredText",
                 "type": "string",
                 "desc": "A Cap'n Proto content type string with a struct schema id (e.g. '@0xed6c098b67cad454 = common/common.capnp:StructuredText') or 'Text' for plain text content. If the incoming IP has a parseable sysAttributes.contentType, that schema takes precedence over this configured value."
+            }
+        }
+    },
+    "d4d0606e-211a-4c33-b326-134ff160a60b": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "d4d0606e-211a-4c33-b326-134ff160a60b",
+            "name": "Flatten substreams",
+            "description": "Remove bracket IPs to flatten substreams, the inverse of 'Wrap IPs into substream'. Substream sensitive: brackets outside the configured depth range are forwarded unchanged."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "Stream whose substreams should be flattened.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same IPs, with the brackets of the selected nesting levels removed.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "levels": {
+                "value": 1,
+                "type": "int",
+                "desc": "How many nesting levels of brackets to strip, counting from 'from_depth' inwards. 0 strips every level from 'from_depth' inwards."
+            },
+            "from_depth": {
+                "value": 0,
+                "type": "int",
+                "desc": "Nesting level to start stripping at, 0 being the outermost substream. Levels above it are forwarded untouched, so from_depth=1 keeps the outer substream and flattens the ones nested directly inside it."
+            },
+            "merge_bracket_attrs": {
+                "value": true,
+                "type": "bool",
+                "desc": "Copy attributes carried by a stripped open-bracket onto every IP that was inside it, so they are not lost with the bracket. An IP's own attributes win on conflict."
+            }
+        }
+    },
+    "feec45a3-4908-4dfe-b6ab-a56be97d8f77": {
+        "category": {
+            "id": "simple",
+            "name": "Simple"
+        },
+        "info": {
+            "id": "feec45a3-4908-4dfe-b6ab-a56be97d8f77",
+            "name": "Sequence",
+            "description": "Generate a bounded sequence of numbers, dates or literal values. The counterpart to 'counter', which is unbounded and integer only."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "trigger",
+                "contentType": "AnyPointer",
+                "desc": "Optional. Received IPs are discarded; they only pace emission, see the 'emit' config. Unconnected means the sequence is emitted immediately.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The sequence elements, encoded according to 'as_type'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "mode": {
+                "value": "range",
+                "type": [
+                    "range",
+                    "list",
+                    "dates"
+                ],
+                "desc": "Where the elements come from: a numeric range, a literal list, or a range of dates."
+            },
+            "start": {
+                "value": 0,
+                "type": "float",
+                "desc": "First value of a numeric range."
+            },
+            "stop": {
+                "value": 10,
+                "type": "float",
+                "desc": "End of a numeric range, exclusive."
+            },
+            "step": {
+                "value": 1,
+                "type": "float",
+                "desc": "Increment of a numeric range. May be negative, but not zero."
+            },
+            "integers": {
+                "value": true,
+                "type": "bool",
+                "desc": "Emit a numeric range as integers when start, stop and step are whole numbers."
+            },
+            "date_start": {
+                "type": "string",
+                "desc": "First date of a date range, as ISO 8601 (YYYY-MM-DD)."
+            },
+            "date_stop": {
+                "type": "string",
+                "desc": "End of a date range, exclusive, as ISO 8601."
+            },
+            "date_step_days": {
+                "value": 1,
+                "type": "int",
+                "desc": "Increment of a date range in days. May be negative, but not zero."
+            },
+            "date_format": {
+                "value": "%Y-%m-%d",
+                "type": "string",
+                "desc": "strftime format for emitted dates."
+            },
+            "sequence_values": {
+                "value": [],
+                "type": "list",
+                "desc": "The elements to emit in 'list' mode, in order."
+            },
+            "repeat": {
+                "value": 1,
+                "type": "int",
+                "desc": "How many times to emit the whole sequence."
+            },
+            "wrap_in_substream": {
+                "value": false,
+                "type": "bool",
+                "desc": "Wrap each emission of the sequence in an open-/close-bracket pair."
+            },
+            "as_type": {
+                "value": "value",
+                "type": [
+                    "value",
+                    "json",
+                    "text"
+                ],
+                "desc": "How to encode each element: 'value' as a common.capnp:Value, 'json' as JSON text, 'text' as a plain string."
+            },
+            "index_attr": {
+                "type": "string",
+                "desc": "If set, attach the element's 0-based index within the emission as this attribute."
+            },
+            "emit": {
+                "value": "all_at_once",
+                "type": [
+                    "all_at_once",
+                    "on_trigger",
+                    "one_per_trigger"
+                ],
+                "desc": "'all_at_once' emits the sequence immediately and finishes. 'on_trigger' emits the whole sequence for each IP received on 'trigger'. 'one_per_trigger' emits one element per trigger IP and finishes when the sequence runs out."
+            }
+        }
+    },
+    "fc669b60-ae89-46b5-9cee-044f95b01c3b": {
+        "category": {
+            "id": "ip",
+            "name": "IP (Flow packages)"
+        },
+        "info": {
+            "id": "fc669b60-ae89-46b5-9cee-044f95b01c3b",
+            "name": "Probe",
+            "description": "Log IPs passing through without altering them. Substream transparent. Leaving 'out' unconnected turns the probe into a sink."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "IPs to observe.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "AnyPointer",
+                "desc": "The same IPs, unchanged. May be left unconnected.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "log",
+                "contentType": "@0xbf602c4868dbb22f = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "label": {
+                "value": "",
+                "type": "string",
+                "desc": "Prefix identifying this probe in the log output."
+            },
+            "level": {
+                "value": "info",
+                "type": [
+                    "debug",
+                    "info",
+                    "warning"
+                ],
+                "desc": "Level to log observations at."
+            },
+            "show": {
+                "value": [
+                    "count",
+                    "type",
+                    "content"
+                ],
+                "type": "list",
+                "desc": "Which parts of each IP to report, in this order."
+            },
+            "max_content_chars": {
+                "value": 500,
+                "type": "int",
+                "desc": "Truncate rendered content beyond this length. 0 disables it."
+            },
+            "every_nth": {
+                "value": 1,
+                "type": "int",
+                "desc": "Report only every nth IP. 1 reports all of them."
+            },
+            "first_n": {
+                "value": 0,
+                "type": "int",
+                "desc": "Stop reporting after this many IPs. 0 means no limit."
+            },
+            "as_json": {
+                "value": false,
+                "type": "bool",
+                "desc": "Render content as JSON when its Cap'n Proto type can be resolved, rather than as text."
+            },
+            "content_type": {
+                "type": "string",
+                "desc": "Content type to assume for IPs that carry none themselves."
+            },
+            "include_brackets": {
+                "value": true,
+                "type": "bool",
+                "desc": "Report bracket IPs as well as standard ones."
+            },
+            "emit_summary_on_close": {
+                "value": true,
+                "type": "bool",
+                "desc": "Log IP and bracket counts when the input closes."
             }
         }
     }

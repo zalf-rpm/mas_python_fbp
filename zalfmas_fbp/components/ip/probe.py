@@ -15,8 +15,12 @@
 """Pass-through logger for looking at a stream without breaking it.
 
 ``console/console_output`` is a sink; this forwards what it observes, so a probe can be dropped into
-an existing connection. Once the runtime-owned ``log`` port of plan section 6.2 exists, the
-observations move onto it as ``LogMessage`` IPs; until then they go to the ordinary logger.
+an existing connection.
+
+Observations go to the ordinary logger, which is enough: the runtime mirrors every log record onto
+the runtime-owned ``log`` port when a flow connects it (plan section 6.2). A probe therefore needs no
+log port of its own - connecting its ``log`` port turns its observations into a stream of
+``LogMessage`` IPs that the rest of the base components can filter, format and write.
 """
 
 from __future__ import annotations
@@ -80,10 +84,6 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
         meta.Port(
             name="in",
             contentType="AnyPointer",
@@ -164,8 +164,6 @@ class Probe(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         count = 0
         forwarding = self.out_ports["out"] is not None

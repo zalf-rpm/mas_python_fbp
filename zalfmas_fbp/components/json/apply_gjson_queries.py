@@ -58,10 +58,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="Text (JSON)",
             desc="Input JSON text.",
@@ -118,8 +114,6 @@ class ApplyGJsonQueries(process.Process[ApplyGJsonQueriesConfig]):
 
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         in_first_level_substream = False
         nested_level = 0

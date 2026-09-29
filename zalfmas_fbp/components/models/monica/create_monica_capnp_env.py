@@ -77,10 +77,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="timeseries",
             contentType="@0xa7769f40fe6e6de8 = climate/climate.capnp:TimeSeries | @0xed6c098b67cad454 = common/common.capnp:StructuredText[SturdyRef | CSV]",
             desc="Climate data for MONICA simulation, either as a TimeSeries capability, a sturdy ref to a TimeSeries or a path to a CSV file.",
@@ -118,8 +114,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         timeseries = None
         timeseries_path = None

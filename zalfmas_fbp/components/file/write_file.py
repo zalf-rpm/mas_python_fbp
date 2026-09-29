@@ -82,10 +82,6 @@ METADATA = meta.Component(
             contentType="Text",
             desc="The input data to be written to a file.",
         ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
     ],
     config=WriteFileConfig,
 )
@@ -102,8 +98,6 @@ class WriteFile(process.Process[WriteFileConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         count = 0
         while True:

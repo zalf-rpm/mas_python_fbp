@@ -44,10 +44,6 @@ METADATA = meta.Component(
             contentType="Text",
             desc="GeoJSON bbox as text.",
         ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
     ],
     outPorts=[
         meta.Port(
@@ -71,8 +67,6 @@ class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while True:
             in_msg = await self.read_in("in")

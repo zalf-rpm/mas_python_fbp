@@ -55,11 +55,6 @@ METADATA = meta.Component(
             contentType="Text",
             desc="Incoming text messages.",
         ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-            desc="Optional runtime configuration updates.",
-        ),
     ],
     outPorts=[
         meta.Port(
@@ -87,8 +82,9 @@ class TemplateProcessComponent(process.Process[TemplateProcessConfig]):
         """Read input IPs, transform content, preserve attrs, and emit output IPs."""
 
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
+        # No config reading here: the runtime owns the 'conf' port, applies the initial config
+        # before run() is called, and applies later updates between IPs. Read self.config whenever
+        # it is needed.
 
         while True:
             in_msg = await self.read_in("in")

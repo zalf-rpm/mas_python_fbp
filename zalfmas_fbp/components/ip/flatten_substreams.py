@@ -74,10 +74,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="Stream whose substreams should be flattened.",
@@ -113,8 +109,6 @@ class FlattenSubstreams(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         # One entry per open substream: whether its brackets are being stripped, and the attributes
         # its open-bracket carried (kept only while stripping, to merge onto the IPs inside).

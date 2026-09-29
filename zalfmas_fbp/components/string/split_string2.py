@@ -43,7 +43,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(name="in", contentType="Text"),
-        meta.Port(name="conf", contentType="common.capnp:StructuredText[JSON | TOML]"),
     ],
     outPorts=[
         meta.Port(name="out", contentType="Text"),
@@ -63,8 +62,6 @@ class SplitString(process.Process[SplitStringConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while True:
             in_msg = await self.read_in("in")

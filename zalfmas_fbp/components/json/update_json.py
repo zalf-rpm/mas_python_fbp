@@ -87,10 +87,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="Text (JSON)",
             desc="""JSON text which is supposed to be updated and changed. Is substream sensitive, meaning if the
@@ -373,8 +369,6 @@ class UpdateJson(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         read_new_attrs = True
         in_substream = False
