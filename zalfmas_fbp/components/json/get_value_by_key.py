@@ -210,8 +210,7 @@ def _key_from_attr_value(value: Any, attr_name: str, process_name: str) -> Any:
         return cv.b
 
     logger.warning(
-        "%s: attribute '%s' common.capnp:Value.%s is not a supported key type (Text/int/float/bool); "
-        "skipping message.",
+        "%s: attribute '%s' common.capnp:Value.%s is not a supported key type (Text/int/float/bool); skipping message.",
         process_name,
         attr_name,
         which,

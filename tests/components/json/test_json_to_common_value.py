@@ -244,20 +244,44 @@ def PortMessage_close():
     return close_bracket_message()
 
 
-def test_a_sentinel_that_does_not_fit_the_payload_type_still_produces_a_message() -> None:
-    """A negative sentinel with an all-positive payload: the payload picks an unsigned field, which
-    cannot hold the sentinel. The attribute gets its own type rather than the message being dropped.
+def test_a_configured_sentinel_widens_the_payload_type_to_hold_it() -> None:
+    """D15: the sentinel belongs to the domain even when this message has no nulls, so the type
+    must accommodate it. Without that, a stream flaps between lui8 and li16 message to message.
     """
     writer = run([1, 2], {"null_sentinel": -1})
     result = only(writer)
-    assert result.which() == "lui8"
+    assert result.which() == "li8"
+    assert list(result.li8) == [1, 2]
 
     sentinel = writer.values[0].attributes[0]
     assert sentinel.key == "null_sentinel"
-    assert sentinel.value.as_struct(common_capnp.Value).i8 == -1
+    assert sentinel.value.as_struct(common_capnp.Value).which() == "i8"
 
 
-def test_a_fitting_sentinel_keeps_the_payload_type() -> None:
-    writer = run([1, 2], {"null_sentinel": 0})
+def test_a_message_with_nulls_and_one_without_agree_on_the_type() -> None:
+    """The point of the rule: both shapes of message are typed the same way."""
+    without_nulls = only(run([1, 2], {"null_sentinel": -9999}))
+    with_nulls = only(run([1, None, 2], {"null_sentinel": -9999}))
+    assert without_nulls.which() == with_nulls.which() == "li16"
+
+
+def test_a_positive_sentinel_does_not_force_a_signed_type() -> None:
+    """It is not 'sentinel means signed' - the sentinel is just another value the type must hold."""
+    assert only(run([1, 2], {"null_sentinel": 999})).which() == "lui16"
+
+
+def test_a_sentinel_of_another_kind_widens_a_list_to_boxed_values() -> None:
+    """Same result as if the sentinel had actually been substituted into the list."""
+    assert only(run([1, 2], {"null_sentinel": "N/A"})).which() == "lv"
+    assert only(run([1, None], {"null_sentinel": "N/A"})).which() == "lv"
+
+
+def test_a_sentinel_that_cannot_be_accommodated_falls_back_to_its_own_type() -> None:
+    """A text scalar with a numeric sentinel: no single Value field holds both, so the attribute
+    takes its own type rather than the message being dropped.
+    """
+    writer = run("hello", {"null_sentinel": -1})
+    assert only(writer).which() == "t"
+
     sentinel = writer.values[0].attributes[0]
-    assert sentinel.value.as_struct(common_capnp.Value).which() == "ui8"
+    assert sentinel.value.as_struct(common_capnp.Value).i8 == -1

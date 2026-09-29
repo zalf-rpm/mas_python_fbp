@@ -204,3 +204,41 @@ def test_struct_round_trips_through_json() -> None:
 
 def test_json_from_capnp_reports_missing_for_a_non_struct() -> None:
     assert values.json_from_capnp("not a reader", ST_SCHEMA) is MISSING
+
+
+# --- must_accommodate (D15) -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("payload", "extra"),
+    [([1, 2], -1), ([1, 2], -9999), ([1, 2], 0.5), ([1, 2], "N/A"), ([], -1), ([1, 2], 999)],
+)
+def test_accommodating_a_value_types_a_list_as_if_it_contained_it(payload, extra) -> None:
+    """The point of the rule: a list that could contain the value is typed like one that does."""
+    accommodated = values.value_from_python(payload, must_accommodate=[extra]).as_reader().which()
+    actual = values.value_from_python([*payload, extra]).as_reader().which()
+    assert accommodated == actual
+
+
+def test_accommodation_reaches_every_leaf_of_a_nested_structure() -> None:
+    """A null could appear anywhere, so every numeric leaf has to hold the sentinel."""
+    built = values.value_from_python({"a": 1, "b": {"c": 2}}, must_accommodate=[-1]).as_reader()
+    outer = built.lpair[0].snd.as_struct(VALUE_SCHEMA)
+    inner = built.lpair[1].snd.as_struct(VALUE_SCHEMA).lpair[0].snd.as_struct(VALUE_SCHEMA)
+    assert outer.which() == "i8"
+    assert inner.which() == "i8"
+
+
+def test_accommodation_widens_scalars_too() -> None:
+    assert values.value_from_python(42).as_reader().which() == "ui8"
+    assert values.value_from_python(42, must_accommodate=[-1]).as_reader().which() == "i8"
+
+
+def test_a_non_numeric_extra_cannot_widen_a_scalar_and_is_ignored() -> None:
+    """No single Value field holds both text and a number; the caller handles that case."""
+    assert values.value_from_python("hello", must_accommodate=[-1]).as_reader().which() == "t"
+
+
+def test_accommodation_does_not_change_values_only_the_field() -> None:
+    built = values.value_from_python([1, 2], must_accommodate=[-9999]).as_reader()
+    assert values.python_from_value(built) == [1, 2]

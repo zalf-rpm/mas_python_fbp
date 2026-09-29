@@ -434,8 +434,30 @@ def _kind_of(value: Any) -> str:
     raise TypeError(msg)
 
 
-def determine_scalar_field(value: Any, fields: set[str], smallest: bool = True) -> str:
-    """Pick the ``Value`` union field that best fits a Python scalar."""
+def _numeric_selection(values_in: Sequence[Any], must_accommodate: Sequence[Any]) -> tuple[str, list[Any]]:
+    """Combine values with the extras a field must also hold, and decide int vs. float."""
+    selection = [*values_in]
+    for extra in must_accommodate:
+        try:
+            if _kind_of(extra) in ("int", "float"):
+                selection.append(extra)
+        except TypeError:
+            continue
+    kind = "float" if any(_kind_of(item) == "float" for item in selection) else "int"
+    return kind, selection
+
+
+def determine_scalar_field(
+    value: Any,
+    fields: set[str],
+    smallest: bool = True,
+    must_accommodate: Sequence[Any] = (),
+) -> str:
+    """Pick the ``Value`` union field that best fits a Python scalar.
+
+    ``must_accommodate`` names further values the chosen field has to be able to hold, so a type
+    stays stable across messages whose payloads differ (see :func:`value_from_python`).
+    """
     kind = _kind_of(value)
     if kind == "bool":
         return "b"
@@ -443,19 +465,28 @@ def determine_scalar_field(value: Any, fields: set[str], smallest: bool = True) 
         return "t"
     if kind == "bytes":
         return "d"
-    return _numeric_field_for(kind, [value], fields, smallest)
+    numeric_kind, selection = _numeric_selection([value], must_accommodate)
+    return _numeric_field_for(numeric_kind, selection, fields, smallest)
 
 
-def determine_list_field(items: Sequence[Any], fields: set[str], smallest: bool = True) -> str:
+def determine_list_field(
+    items: Sequence[Any],
+    fields: set[str],
+    smallest: bool = True,
+    must_accommodate: Sequence[Any] = (),
+) -> str:
     """Pick the ``Value`` list field that best fits a Python sequence, or raise for mixed types.
 
     Uses the same unsigned-first ordering as :func:`determine_scalar_field`, so ``200`` and ``[200]``
-    agree on ``ui8``/``lui8`` (D15).
+    agree on ``ui8``/``lui8`` (D15). ``must_accommodate`` values take part in the choice exactly as
+    if they were elements, including in the mixed-type check, so a list that could contain them
+    later is typed the same way as one that already does.
     """
-    if not items:
+    selection = [*items, *must_accommodate]
+    if not selection:
         return "lf64"
 
-    kinds = {_kind_of(item) for item in items}
+    kinds = {_kind_of(item) for item in selection}
     if kinds == {"bool"}:
         return "lb"
     if kinds == {"str"}:
@@ -467,7 +498,7 @@ def determine_list_field(items: Sequence[Any], fields: set[str], smallest: bool 
         raise TypeError(msg)
 
     kind = "float" if "float" in kinds else "int"
-    return f"l{_numeric_field_for(kind, items, fields, smallest)}"
+    return f"l{_numeric_field_for(kind, selection, fields, smallest)}"
 
 
 def value_from_python(
@@ -476,6 +507,7 @@ def value_from_python(
     auto_select: bool = True,
     smallest: bool = True,
     allow_fallback: bool = True,
+    must_accommodate: Sequence[Any] = (),
 ) -> ValueBuilder:
     """Build a ``common.capnp:Value`` from a plain Python value.
 
@@ -483,11 +515,18 @@ def value_from_python(
     smallest fitting field unless ``smallest`` is false. ``requested_type`` forces a union field and,
     when it does not fit, either falls back to a fitting one or raises depending on ``allow_fallback``.
 
+    ``must_accommodate`` declares values that belong to the domain even when absent from ``obj``, and
+    every automatically chosen field - at every level, since they could appear at any leaf - has to
+    be able to hold them. A sentinel standing for JSON ``null`` is the motivating case: without this,
+    a stream emits ``lui8`` for the messages that happen to contain no nulls and ``li16`` for the
+    ones that do, so a consumer switching on the union field sees the type flap from message to
+    message. Declaring the sentinel here types both the same way.
+
     ``None`` has no ``Value`` representation and raises - a caller that needs one (as
     ``json/json_to_common_value`` does) must substitute a sentinel first.
     """
     fields = value_fields()
-    return _value_from_python(obj, fields, requested_type, auto_select, smallest, allow_fallback)
+    return _value_from_python(obj, fields, requested_type, auto_select, smallest, allow_fallback, must_accommodate)
 
 
 def _value_from_python(
@@ -497,6 +536,7 @@ def _value_from_python(
     auto_select: bool,
     smallest: bool,
     allow_fallback: bool,
+    must_accommodate: Sequence[Any] = (),
 ) -> ValueBuilder:
     if obj is None:
         msg = "common.capnp:Value cannot represent None; substitute a sentinel first"
@@ -511,7 +551,7 @@ def _value_from_python(
         pairs = [
             common_capnp.Pair.new_message(
                 fst=str(key),
-                snd=_value_from_python(item, fields, None, auto_select, smallest, allow_fallback),
+                snd=_value_from_python(item, fields, None, auto_select, smallest, allow_fallback, must_accommodate),
             )
             for key, item in obj.items()
         ]
@@ -533,17 +573,18 @@ def _value_from_python(
 
     if is_list:
         try:
-            field = determine_list_field(list(obj), fields, smallest)
+            field = determine_list_field(list(obj), fields, smallest, must_accommodate)
             return value_message(field, coerce_list_for_field(list(obj), field))
         except TypeError:
             if "lv" not in fields:
                 raise
             items = [
-                _value_from_python(item, fields, None, auto_select, smallest, allow_fallback) for item in obj
+                _value_from_python(item, fields, None, auto_select, smallest, allow_fallback, must_accommodate)
+                for item in obj
             ]
             return value_message("lv", items)
 
-    field = determine_scalar_field(obj, fields, smallest)
+    field = determine_scalar_field(obj, fields, smallest, must_accommodate)
     return value_message(field, coerce_scalar_for_field(obj, field))
 
 

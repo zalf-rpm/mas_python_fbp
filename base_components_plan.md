@@ -732,13 +732,33 @@ This is wire-visible: a non-Python consumer switching on the Cap'n Proto union f
 `lui8`/`lui16` where it previously saw `li8`/`li16`. Python consumers are unaffected —
 `python_from_value` yields the same integers either way.
 
-**A latent bug this exposed.** The sentinel attribute that `json_to_common_value` attaches was typed
-to match the payload's selected field, so a *negative* `null_sentinel` configured for an
-all-positive payload could not be represented — the build raised, and with `skip_on_error` the whole
-message was silently dropped. This already happened for scalars before D15 (`42` with
-`null_sentinel = -1` produced nothing); unifying merely widened it to lists. Fixed by falling back to
-the sentinel's own fitting type when it does not fit the payload's: the attribute is worth more than
-the type match, and dropping the message was never the intent.
+**A latent bug this exposed, and the rule that resolves it.** The sentinel attribute that
+`json_to_common_value` attaches was typed to match the payload's selected field, so a *negative*
+`null_sentinel` configured for an all-positive payload could not be represented — the build raised,
+and with `skip_on_error` the whole message was silently dropped. This already happened for scalars
+before D15 (`42` with `null_sentinel = -1` produced nothing); unifying merely widened it to lists.
+
+The real problem was that type selection ignored the sentinel unless a `null` happened to put it in
+the data. That also made the emitted type depend on the payload: a stream would emit `lui8` for
+messages containing no nulls and `li16` for the ones that did, so a consumer switching on the union
+field saw the type flap message to message.
+
+**Rule: a configured sentinel belongs to the value domain whether or not it currently appears, and
+the chosen type must accommodate it.** `values.value_from_python(..., must_accommodate=[...])`
+implements this, applying at every leaf since a null could appear anywhere. Accommodated values take
+part in selection exactly as if they were elements, so the two cases are now identical:
+
+| Payload | Sentinel | Field |
+|---|---|---|
+| `[1, 2]` | `-1` | `li8` — same as `[1, -1]` |
+| `[1, None, 2]` | `-9999` | `li16` — same as `[1, 2]` with that sentinel |
+| `[1, 2]` | `999` | `lui16` — a positive sentinel does not force a signed type |
+| `[1, 2]` | `"N/A"` | `lv` — same as `[1, "N/A"]` |
+
+One case cannot be accommodated: a scalar payload of one kind with a sentinel of another (text
+content with a numeric sentinel), where no single `Value` field holds both. There the sentinel
+attribute falls back to its own type — the attribute is worth more than the type match, and dropping
+the message was never the intent.
 
 ### 7.7 D12 — refactor the two existing users onto S3 in WP0
 

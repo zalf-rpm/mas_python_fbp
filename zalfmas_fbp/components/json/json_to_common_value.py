@@ -177,9 +177,11 @@ def _replace_sentinels_recursive(
 def _sentinel_value_for_selected_type(selected_type: str, sentinel_value: Any) -> ValueBuilder:
     """Type the sentinel attribute like the payload, so consumers can compare it like for like.
 
-    Falls back to the sentinel's own best-fitting type when it does not fit the payload's - e.g. a
-    negative sentinel configured for an all-positive payload, which selects an unsigned field. The
-    attribute is worth more than the type match; failing here would drop the whole message.
+    The payload's type already accommodates the sentinel (see ``_build_value``), so this normally
+    fits. The fallback is for the one case that cannot be accommodated: a scalar payload of one kind
+    with a sentinel of another - text content with a numeric sentinel, say - where no single Value
+    field can hold both. The attribute is worth more than the type match; failing here would drop
+    the whole message.
     """
     scalar_type = selected_type[1:] if selected_type.startswith("l") else selected_type
     if scalar_type in {"v", "pair"}:
@@ -207,6 +209,11 @@ def _build_value(
         auto_select=cfg.auto_select_type,
         smallest=cfg.optimize_smallest_type,
         allow_fallback=cfg.allow_fallback_if_requested_type_fails,
+        # A configured sentinel belongs to the value domain whether or not this particular message
+        # contains a null, so the chosen type must hold it. Otherwise a stream would emit lui8 for
+        # the messages without nulls and li16 for the ones with them, and a consumer switching on
+        # the union field would see the type flap message to message.
+        must_accommodate=[s for s in (cfg.null_sentinel, cfg.nan_sentinel) if s is not None],
     )
     selected_field = value_msg.as_reader().which()
 
