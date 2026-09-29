@@ -40,9 +40,12 @@ component config - and falls back to :data:`MISSING` rather than to a guess.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import math
 import tomllib
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Final
 
 import capnp
@@ -50,6 +53,7 @@ from mas.schema.common import common_capnp
 from zalfmas_common import common
 
 if TYPE_CHECKING:
+    from mas.schema.common.common_capnp.types.builders import ValueBuilder
     from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
@@ -265,3 +269,495 @@ def python_from_content(ip: IPReader, content_type: str | None = None) -> Any:
     that arrive untagged.
     """
     return python_from_any(ip.content, content_type_of(ip) or content_type)
+
+
+# --------------------------------------------------------------------------------------------
+# Write side: Python -> Cap'n Proto
+# --------------------------------------------------------------------------------------------
+
+_INT_RANGES: Final[dict[str, tuple[int, int]]] = {
+    "i8": (-128, 127),
+    "i16": (-32768, 32767),
+    "i32": (-2147483648, 2147483647),
+    "i64": (-9223372036854775808, 9223372036854775807),
+    "ui8": (0, 255),
+    "ui16": (0, 65535),
+    "ui32": (0, 4294967295),
+    "ui64": (0, 18446744073709551615),
+}
+
+_FLOAT_MAX: Final[dict[str, float]] = {"f32": 3.4028235e38, "f64": 1.7976931348623157e308}
+
+_SMALLEST_SIGNED: Final[tuple[str, ...]] = ("i8", "i16", "i32", "i64")
+_SMALLEST_UNSIGNED: Final[tuple[str, ...]] = ("ui8", "ui16", "ui32", "ui64", "i8", "i16", "i32", "i64")
+_WIDEST_SIGNED: Final[tuple[str, ...]] = ("i64", "i32", "i16", "i8")
+_WIDEST_UNSIGNED: Final[tuple[str, ...]] = ("ui64", "i64", "ui32", "i32", "ui16", "i16", "ui8", "i8")
+
+
+def _value_message(field: str, payload: Any) -> ValueBuilder:
+    """Build a one-field ``Value``.
+
+    ``setattr`` rather than ``new_message(**{field: payload})``: the splat form makes a type checker
+    try to match the payload against every union parameter, which buries real errors in noise.
+    """
+    message = common_capnp.Value.new_message()
+    setattr(message, field, payload)
+    return message
+
+
+def value_fields() -> set[str]:
+    """The union field names available on ``common.capnp:Value`` in the loaded schema."""
+    return set(common_capnp.Value.schema.fieldnames)
+
+
+def coerce_scalar_for_field(value: Any, field: str) -> Any:
+    """Coerce a Python scalar into what ``Value.<field>`` accepts, or raise."""
+    if field == "b":
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value.strip().lower() in ("true", "false", "1", "0"):
+            return value.strip().lower() in ("true", "1")
+        msg = f"Cannot coerce {value!r} to bool"
+        raise TypeError(msg)
+
+    if field == "t":
+        if isinstance(value, str):
+            return value
+        msg = f"Cannot coerce {value!r} to text"
+        raise TypeError(msg)
+
+    if field == "d":
+        if isinstance(value, (bytes, bytearray)):
+            return bytes(value)
+        msg = f"Cannot coerce {value!r} to data"
+        raise TypeError(msg)
+
+    if field in _INT_RANGES:
+        if isinstance(value, bool):
+            msg = "bool values are not accepted as integers"
+            raise TypeError(msg)
+        if isinstance(value, int):
+            number = value
+        elif isinstance(value, float) and value.is_integer():
+            number = int(value)
+        elif isinstance(value, str):
+            number = _int_from_text(value, field)
+        else:
+            msg = f"Cannot coerce {value!r} to integer type {field}"
+            raise TypeError(msg)
+        low, high = _INT_RANGES[field]
+        if low <= number <= high:
+            return number
+        msg = f"Integer {number} does not fit in {field}"
+        raise ValueError(msg)
+
+    if field in _FLOAT_MAX:
+        if isinstance(value, bool):
+            msg = "bool values are not accepted as float"
+            raise TypeError(msg)
+        if isinstance(value, (int, float)):
+            number = float(value)
+        elif isinstance(value, str):
+            try:
+                number = float(value.strip())
+            except ValueError as exc:
+                msg = f"Cannot coerce {value!r} to float type {field}"
+                raise TypeError(msg) from exc
+        else:
+            msg = f"Cannot coerce {value!r} to float type {field}"
+            raise TypeError(msg)
+        if math.isnan(number) or math.isinf(number) or abs(number) <= _FLOAT_MAX[field]:
+            return number
+        msg = f"Float {number} does not fit in {field}"
+        raise ValueError(msg)
+
+    msg = f"Unsupported Value field: {field}"
+    raise ValueError(msg)
+
+
+def _int_from_text(text: str, field: str) -> int:
+    stripped = text.strip()
+    try:
+        return int(stripped, 10)
+    except ValueError:
+        pass
+    try:
+        as_float = float(stripped)
+    except ValueError as exc:
+        msg = f"Cannot coerce {text!r} to integer type {field}"
+        raise TypeError(msg) from exc
+    if not as_float.is_integer():
+        msg = f"Cannot coerce {text!r} to integer type {field}"
+        raise TypeError(msg)
+    return int(as_float)
+
+
+def coerce_list_for_field(items: Sequence[Any], list_field: str) -> list[Any]:
+    """Coerce a Python sequence into what ``Value.<list_field>`` accepts, or raise."""
+    if not list_field.startswith("l"):
+        msg = f"Field {list_field} is not a list field"
+        raise ValueError(msg)
+    return [coerce_scalar_for_field(item, list_field[1:]) for item in items]
+
+
+def _numeric_field_for(kind: str, items: Sequence[Any], fields: set[str], smallest: bool) -> str:
+    if kind == "float":
+        candidates: tuple[str, ...] = ("f32", "f64") if smallest else ("f64", "f32")
+    elif any(isinstance(item, int) and item < 0 for item in items):
+        candidates = _SMALLEST_SIGNED if smallest else _WIDEST_SIGNED
+    else:
+        candidates = _SMALLEST_UNSIGNED if smallest else _WIDEST_UNSIGNED
+
+    for candidate in candidates:
+        if candidate not in fields:
+            continue
+        try:
+            _ = [coerce_scalar_for_field(item, candidate) for item in items]
+        except (TypeError, ValueError):
+            continue
+        return candidate
+    return "f64" if kind == "float" else "i64"
+
+
+def _kind_of(value: Any) -> str:
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, str):
+        return "str"
+    if isinstance(value, (bytes, bytearray)):
+        return "bytes"
+    msg = f"Unsupported scalar type: {type(value).__name__}"
+    raise TypeError(msg)
+
+
+def determine_scalar_field(value: Any, fields: set[str], smallest: bool = True) -> str:
+    """Pick the ``Value`` union field that best fits a Python scalar."""
+    kind = _kind_of(value)
+    if kind == "bool":
+        return "b"
+    if kind == "str":
+        return "t"
+    if kind == "bytes":
+        return "d"
+    return _numeric_field_for(kind, [value], fields, smallest)
+
+
+def determine_list_field(items: Sequence[Any], fields: set[str], smallest: bool = True) -> str:
+    """Pick the ``Value`` list field that best fits a Python sequence, or raise for mixed types."""
+    if not items:
+        return "lf64"
+
+    kinds = {_kind_of(item) for item in items}
+    if kinds == {"bool"}:
+        return "lb"
+    if kinds == {"str"}:
+        return "lt"
+    if kinds == {"bytes"}:
+        return "ld"
+    if kinds - {"int", "float"}:
+        msg = f"List contains mixed incompatible types: {sorted(kinds)}"
+        raise TypeError(msg)
+
+    kind = "float" if "float" in kinds else "int"
+    return f"l{_numeric_field_for(kind, items, fields, smallest)}"
+
+
+def value_from_python(
+    obj: Any,
+    requested_type: str | None = None,
+    auto_select: bool = True,
+    smallest: bool = True,
+    allow_fallback: bool = True,
+) -> ValueBuilder:
+    """Build a ``common.capnp:Value`` from a plain Python value.
+
+    Dicts become ``lpair``, lists a typed list field (or ``lv`` for mixed content), scalars the
+    smallest fitting field unless ``smallest`` is false. ``requested_type`` forces a union field and,
+    when it does not fit, either falls back to a fitting one or raises depending on ``allow_fallback``.
+
+    ``None`` has no ``Value`` representation and raises - a caller that needs one (as
+    ``json/json_to_common_value`` does) must substitute a sentinel first.
+    """
+    fields = value_fields()
+    return _value_from_python(obj, fields, requested_type, auto_select, smallest, allow_fallback)
+
+
+def _value_from_python(
+    obj: Any,
+    fields: set[str],
+    requested_type: str | None,
+    auto_select: bool,
+    smallest: bool,
+    allow_fallback: bool,
+) -> ValueBuilder:
+    if obj is None:
+        msg = "common.capnp:Value cannot represent None; substitute a sentinel first"
+        raise ValueError(msg)
+
+    requested = requested_type if requested_type not in (None, "auto") else None
+
+    if isinstance(obj, Mapping):
+        if requested is not None and requested != "lpair" and not allow_fallback:
+            msg = f"Requested type {requested!r} cannot hold object input (requires lpair)."
+            raise ValueError(msg)
+        pairs = [
+            common_capnp.Pair.new_message(
+                fst=str(key),
+                snd=_value_from_python(item, fields, None, auto_select, smallest, allow_fallback),
+            )
+            for key, item in obj.items()
+        ]
+        return _value_message("lpair", pairs)
+
+    is_list = isinstance(obj, Sequence) and not isinstance(obj, (str, bytes, bytearray))
+
+    if requested is not None:
+        try:
+            return _value_for_requested_type(obj, fields, requested, is_list, smallest, allow_fallback)
+        except (TypeError, ValueError):
+            if not allow_fallback:
+                raise
+            logger.warning("Requested type %r cannot represent %r; falling back to a fitting type.", requested, obj)
+
+    if not auto_select:
+        msg = "No usable requested_type and auto_select is disabled."
+        raise ValueError(msg)
+
+    if is_list:
+        try:
+            field = determine_list_field(list(obj), fields, smallest)
+            return _value_message(field, coerce_list_for_field(list(obj), field))
+        except TypeError:
+            if "lv" not in fields:
+                raise
+            items = [_value_from_python(item, fields, None, auto_select, smallest, allow_fallback) for item in obj]
+            return _value_message("lv", items)
+
+    field = determine_scalar_field(obj, fields, smallest)
+    return _value_message(field, coerce_scalar_for_field(obj, field))
+
+
+def _value_for_requested_type(
+    obj: Any,
+    fields: set[str],
+    requested: str,
+    is_list: bool,
+    smallest: bool,
+    allow_fallback: bool,
+) -> ValueBuilder:
+    if requested not in fields:
+        msg = f"Requested type {requested!r} is not available in the common.capnp:Value schema."
+        raise ValueError(msg)
+
+    if is_list:
+        if requested == "lv":
+            items = [_value_from_python(item, fields, None, True, smallest, allow_fallback) for item in obj]
+            return _value_message("lv", items)
+        if not requested.startswith("l"):
+            msg = f"Requested scalar type {requested!r} cannot hold list input."
+            raise ValueError(msg)
+        return _value_message(requested, coerce_list_for_field(list(obj), requested))
+
+    if requested.startswith("l"):
+        msg = f"Requested list type {requested!r} cannot hold scalar input."
+        raise ValueError(msg)
+    return _value_message(requested, coerce_scalar_for_field(obj, requested))
+
+
+# --------------------------------------------------------------------------------------------
+# Struct <-> JSON-compatible Python
+# --------------------------------------------------------------------------------------------
+
+_INT_TYPE_TO_FIELD: Final[dict[str, str]] = {
+    "int8": "i8",
+    "int16": "i16",
+    "int32": "i32",
+    "int64": "i64",
+    "uint8": "ui8",
+    "uint16": "ui16",
+    "uint32": "ui32",
+    "uint64": "ui64",
+    "float32": "f32",
+    "float64": "f64",
+}
+
+
+def _is_capnp_object(value: Any) -> bool:
+    return type(value).__module__.startswith("capnp")
+
+
+def _encode_bytes(raw: bytes, data_as: str) -> Any:
+    if data_as == "hex":
+        return raw.hex()
+    if data_as == "list":
+        return list(raw)
+    return base64.b64encode(raw).decode("ascii")
+
+
+def _normalise_for_json(value: Any, data_as: str, unresolved: str) -> Any:
+    if isinstance(value, (bytes, bytearray)):
+        return _encode_bytes(bytes(value), data_as)
+    if isinstance(value, Mapping):
+        result = {}
+        for key, item in value.items():
+            normalised = _normalise_for_json(item, data_as, unresolved)
+            if normalised is not MISSING:
+                result[str(key)] = normalised
+        return result
+    if isinstance(value, (list, tuple)):
+        items = [_normalise_for_json(item, data_as, unresolved) for item in value]
+        return [item for item in items if item is not MISSING]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+
+    if _is_capnp_object(value):
+        # An AnyPointer or capability that to_dict() could not flatten. Text is recoverable;
+        # anything else needs a type we do not have here (see D14).
+        try:
+            return value.as_text()
+        except (capnp.KjException, AttributeError):
+            pass
+        if unresolved == "null":
+            return None
+        if unresolved == "repr":
+            return repr(value)
+        return MISSING
+
+    return str(value)
+
+
+def json_from_capnp(
+    reader: Any,
+    schema: Any = None,
+    data_as: str = "base64",
+    unresolved: str = "drop",
+) -> Any:
+    """Convert a Cap'n Proto struct reader into JSON-compatible Python.
+
+    ``data_as`` encodes ``Data`` fields (``base64`` | ``hex`` | ``list``); ``unresolved`` decides what
+    happens to pointers that carry no recoverable type (``drop`` | ``null`` | ``repr``).
+
+    ``common.capnp:Value`` is special-cased because ``to_dict()`` leaves ``lpair``'s generic
+    ``fst``/``snd`` as opaque pointers.
+    """
+    if schema is not None and _is_value_schema(schema):
+        return _normalise_for_json(python_from_value(reader), data_as, unresolved)
+    try:
+        as_dict = reader.to_dict()
+    except (capnp.KjException, AttributeError, TypeError, ValueError):
+        logger.debug("to_dict() failed; falling back to the raw reader.", exc_info=True)
+        return MISSING
+    return _normalise_for_json(as_dict, data_as, unresolved)
+
+
+def _field_type_name(schema: Any, name: str) -> str | None:
+    try:
+        return schema.fields[name].proto.slot.type.which()
+    except (KeyError, AttributeError, capnp.KjException):
+        return None
+
+
+def _field_schema(schema: Any, name: str) -> Any | None:
+    try:
+        return schema.fields[name].schema
+    except (KeyError, AttributeError, capnp.KjException):
+        return None
+
+
+def _coerce_for_field_type(value: Any, type_name: str, coerce_numbers: bool) -> Any:
+    if not coerce_numbers:
+        return value
+    if type_name in _INT_TYPE_TO_FIELD and isinstance(value, (str, int, float, bool)):
+        try:
+            return coerce_scalar_for_field(value, _INT_TYPE_TO_FIELD[type_name])
+        except (TypeError, ValueError):
+            return value
+    if type_name == "text" and isinstance(value, (int, float, bool)):
+        return str(value)
+    if type_name == "data" and isinstance(value, str):
+        try:
+            return base64.b64decode(value, validate=True)
+        except (ValueError, TypeError):
+            return value
+    return value
+
+
+def _prepare_for_schema(value: Any, schema: Any, unknown_fields: str, coerce_numbers: bool) -> Any:
+    if not isinstance(value, Mapping) or schema is None:
+        return value
+
+    known = set(getattr(schema, "fieldnames", ()) or ())
+    prepared: dict[str, Any] = {}
+    for key, item in value.items():
+        name = str(key)
+        if known and name not in known:
+            if unknown_fields == "error":
+                msg = f"{schema.node.displayName} has no field {name!r}"
+                raise ValueError(msg)
+            logger.debug("Ignoring unknown field %r for %s.", name, schema.node.displayName)
+            continue
+
+        type_name = _field_type_name(schema, name)
+        if type_name == "struct":
+            prepared[name] = _prepare_for_schema(item, _field_schema(schema, name), unknown_fields, coerce_numbers)
+        elif type_name == "list" and isinstance(item, (list, tuple)):
+            element_schema = getattr(_field_schema(schema, name), "elementType", None)
+            prepared[name] = [
+                _prepare_for_schema(element, element_schema, unknown_fields, coerce_numbers)
+                if isinstance(element, Mapping)
+                else element
+                for element in item
+            ]
+        elif type_name == "anyPointer":
+            # JSON carries no type for an AnyPointer, so only text can be stored faithfully.
+            if item is None:
+                continue
+            if isinstance(item, str):
+                prepared[name] = item
+                continue
+            msg = (
+                f"Field {name!r} of {schema.node.displayName} is an AnyPointer, whose type JSON "
+                f"cannot describe. Build it separately for its own type, or omit the field."
+            )
+            raise ValueError(msg)
+        elif type_name is not None:
+            prepared[name] = _coerce_for_field_type(item, type_name, coerce_numbers)
+        else:
+            prepared[name] = item
+
+    return prepared
+
+
+def capnp_from_json(
+    obj: Any,
+    schema: Any,
+    unknown_fields: str = "error",
+    coerce_numbers: bool = True,
+) -> Any:
+    """Build a Cap'n Proto struct builder of ``schema`` from JSON-compatible Python.
+
+    ``unknown_fields`` is ``error`` or ``ignore``; ``coerce_numbers`` accepts ``"5"`` for an integer
+    field, an int for a float field, and base64 text for a ``Data`` field. ``common.capnp:Value``
+    targets are delegated to :func:`value_from_python`, which picks a fitting union field.
+    """
+    if _is_value_schema(schema):
+        return value_from_python(obj)
+
+    prepared = _prepare_for_schema(obj, schema, unknown_fields, coerce_numbers)
+    if not isinstance(prepared, Mapping):
+        msg = f"Cannot build {schema.node.displayName} from {type(obj).__name__}; expected an object."
+        raise TypeError(msg)
+
+    # A _StructSchema (what resolve_schema returns) has no new_message; that lives on the module
+    # level type. Building the root off a message builder works from the schema alone.
+    builder = capnp._MallocMessageBuilder().init_root(schema)
+    try:
+        builder.from_dict(prepared)
+    except capnp.KjException as exc:
+        msg = f"Could not build {schema.node.displayName} from the given object: {exc}"
+        raise ValueError(msg) from exc
+    return builder
