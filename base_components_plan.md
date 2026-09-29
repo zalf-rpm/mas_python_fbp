@@ -84,8 +84,9 @@ Plus `all`/`any`/`not` combinators for nesting. Comparisons coerce permissively 
 `selector` (D10).
 
 Deliverables: `parse_selector` (including leading-`\` unescaping), `Selector` and `Predicate` pydantic
-models, `resolve(ip, selector) -> Any | MISSING`, `evaluate(ip, predicate) -> bool`, and
-`python_from_attr` (the tolerant `common.Value`-or-raw reader required by D4).
+models, `resolve(ip, selector) -> Any | MISSING`, `evaluate(ip, predicate) -> bool`, `apply_path`,
+and `compare`/`coerce_pair`. The tolerant attribute reader `python_from_attr` (D4) lives in S3, which
+S1 imports — **S1 therefore depends on S3's read side and must be built after it.**
 
 ### S2 — `zalfmas_fbp/components/common/brackets.py` (substream policy)
 
@@ -118,6 +119,54 @@ and share:
   logic out of `json_to_common_value` so both directions share it).
 - `resolve_schema(content_type_string)` — thin wrapper over `common.schema_from_content_type_string`
   with caching and the `"Text"` / `"AnyPointer"` special cases already handled in `to_string`.
+
+**Constraint D14, established while building S3 — reads must be type-driven, never guessed.**
+
+Cap'n Proto validates a pointer's *kind* (text vs. struct) but not *which* struct it holds. Casting a
+struct pointer to the wrong struct schema therefore does not raise — it silently reinterprets the
+bits:
+
+```python
+from mas.schema.common import common_capnp
+from mas.schema.fbp import fbp_capnp
+
+ip = fbp_capnp.IP.new_message(
+    content=common_capnp.StructuredText.new_message(type="json", value='{"a":1}')
+)
+v = ip.as_reader().content.as_struct(common_capnp.Value)   # wrong schema
+v.which()   # -> 'f64'   (no exception)
+v.f64       # -> 5e-324
+```
+
+The struct must travel through an `AnyPointer` field for this to arise — which is exactly how
+`IP.content` and `IP.KV.value` work, so it is the normal case here, not an exotic one. A direct cast
+on a typed struct reader will not show it (a struct reader has no `.as_struct`).
+
+It is silent because of Cap'n Proto's forward-compatibility rule: reads past the end of a struct's
+allocated data section return defaults rather than erroring. `StructuredText.type = json` is
+enumerant 1 in bits `[0,16)`; `Value`'s union tag at bits `[64,80)` is past the end and reads 0,
+selecting the `f64` branch; `Value.f64` at bits `[0,64)` then reads that 1 as a double bit pattern,
+which is `5e-324`. Every number is derivable — the failure mode is deterministic, not corrupt, which
+is precisely what makes it dangerous to rely on.
+
+Where the boundary falls:
+
+| Cast | Result |
+|---|---|
+| Text pointer → `as_struct(Value)` | raises `KjException` |
+| struct pointer → `as_text()` | raises `KjException` |
+| struct pointer → `as_struct(StructuredText)` (right schema) | correct |
+| struct pointer → `as_struct(Value)` (wrong schema) | **silent nonsense** |
+
+So a "try `Value`, fall back" heuristic is unsound and must not be written, while an `as_text()`
+probe *is* sound for telling "this is text" from "this is some struct". Every read is driven by an
+explicit type — the attribute's `valueType`, the IP's `sysAttributes.contentType`, or a type from
+component config — and otherwise returns `MISSING`.
+
+This is also what makes D4's "always write `valueType`" a correctness requirement rather than
+tidiness: an attribute holding a struct with no `valueType` is genuinely unreadable.
+`copy_and_set_fbp_attrs` preserves `valueType` across copies and accepts a `(value, valueType)` tuple
+for writing typed attributes — verified against the installed `zalfmas_common`.
 
 Per D4, `values.py` also owns `python_from_attr` — the single place tolerating both `common.Value`
 and raw Text attribute values on read, while every writer emits `common.Value` with `valueType` set.
@@ -590,6 +639,7 @@ re-open them, and so the reasoning survives.
 | D11 | Digit path segments are list indices | §7.6 |
 | D12 | S3 refactor of `to_string` / `json_to_common_value` happens in WP0, tests first | §7.7 |
 | D13 | WP-1 and WP0 proceed in parallel | §8 |
+| D14 | Reads are type-driven; no struct-cast guessing, `MISSING` instead | §2 (S3) |
 
 ### 7.1 D1 — sigils mark selectors
 
