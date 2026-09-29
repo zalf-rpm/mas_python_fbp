@@ -13,6 +13,7 @@ from zalfmas_fbp.run.process.identity import ProcessIdentityContext
 
 from .config_watcher import ConfigWatcher
 from .input_runtime import InputRuntime
+from .log_runtime import LogPortTee
 from .output_runtime import OutputRuntime
 from .state_runtime import ProcessStateRuntime
 
@@ -33,6 +34,7 @@ class ProcessLifecycleRuntime:
         input_runtime: InputRuntime,
         output_runtime: OutputRuntime,
         config_watcher: ConfigWatcher,
+        log_tee: LogPortTee,
         run_fn: Callable[[], Awaitable[None]],
     ) -> None:
         self._identity: ProcessIdentityContext = identity
@@ -42,6 +44,7 @@ class ProcessLifecycleRuntime:
         self._input_runtime: InputRuntime = input_runtime
         self._output_runtime: OutputRuntime = output_runtime
         self._config_watcher: ConfigWatcher = config_watcher
+        self._log_tee: LogPortTee = log_tee
         self._run_fn: Callable[[], Awaitable[None]] = run_fn
 
     async def start(self) -> bool:
@@ -84,6 +87,7 @@ class ProcessLifecycleRuntime:
             await self._state_runtime.transition_to_state("running")
             await self._state_runtime.transition_to_activity("processing")
             self._config_watcher.start()
+            self._log_tee.start()
             await self._run_fn()
             outcome = "stopped" if lifecycle.stop_requested.is_set() else "completed"
         except asyncio.CancelledError as error:
@@ -102,6 +106,7 @@ class ProcessLifecycleRuntime:
             try:
                 await self._state_runtime.transition_to_activity("closing")
                 await self._config_watcher.close()
+                await self._log_tee.close()
                 await self._output_runtime.close_out_ports()
             except Exception as error:
                 if final_state != "failed":

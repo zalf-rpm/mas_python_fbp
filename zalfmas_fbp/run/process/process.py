@@ -69,6 +69,7 @@ from .io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE, ChunkedInputStream
 from .runtime.config_watcher import ConfigWatcher
 from .runtime.input_runtime import InputRuntime
 from .runtime.lifecycle_runtime import ProcessLifecycleRuntime
+from .runtime.log_runtime import LogPortTee
 from .runtime.output_runtime import OutputRuntime
 from .runtime.port_runtime import ProcessPortRuntime
 from .runtime.state_runtime import ProcessStateRuntime
@@ -83,6 +84,7 @@ from .types import (
 )
 
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
+DEFAULT_LOG_PORT_LEVEL = "INFO"
 DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS = 25
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -171,6 +173,12 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             stop_event=self._context.lifecycle.stop_requested,
         )
         self._input_runtime.apply_pending_config = self._config_watcher.apply_pending
+        self._log_tee: LogPortTee = LogPortTee(
+            identity=self,
+            output_runtime=self._output_runtime,
+            stop_event=self._context.lifecycle.stop_requested,
+            level=DEFAULT_LOG_PORT_LEVEL,
+        )
         self._lifecycle_runtime: ProcessLifecycleRuntime = ProcessLifecycleRuntime(
             identity=self,
             lifecycle=self._context.lifecycle,
@@ -179,6 +187,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             input_runtime=self._input_runtime,
             output_runtime=self._output_runtime,
             config_watcher=self._config_watcher,
+            log_tee=self._log_tee,
             run_fn=self.run,
         )
         self._context.lifecycle.soft_stop_timeout_seconds = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
@@ -437,6 +446,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
 
     async def write_out(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out(name, message)
+
+    async def write_out_if_space(self, name: str, message: IPBuilder | IPReader) -> bool:
+        """Write only if the channel has room, dropping the message otherwise. Never blocks."""
+        return await self._output_runtime.write_out_if_space(name, message)
 
     async def write_out_chunked(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out_chunked(

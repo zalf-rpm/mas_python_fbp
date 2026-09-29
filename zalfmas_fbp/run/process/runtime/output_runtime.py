@@ -106,6 +106,28 @@ class OutputRuntime:
         else:
             return True
 
+    async def write_out_if_space(self, name: str, message: IPBuilder | IPReader) -> bool:
+        """Write without ever blocking: if the channel buffer is full, drop the message.
+
+        Required for the runtime-owned ``log`` port (plan section 6.2). A blocking ``write`` there
+        would let a slow or stalled log consumer stall the flow it is observing, and a consumer
+        placed downstream in the same flow could deadlock it outright.
+        """
+        if self.stop_event.is_set():
+            return False
+        port = self.out_ports.get(name)
+        if port is None:
+            return False
+
+        try:
+            response = await port.writeIfSpace(value=message)
+        except capnp.KjException as error:
+            # A channel that predates writeIfSpace reports it as unimplemented. Dropping is the
+            # right answer either way: this path exists precisely so it can never block.
+            logger.debug("%s: writeIfSpace on port %r failed: %s", self._identity.name, name, error)
+            return False
+        return bool(getattr(response, "success", False))
+
     async def write_out_chunked(
         self,
         name: str,
