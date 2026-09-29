@@ -1296,7 +1296,7 @@
             "filename_pattern": {
                 "value": "csv_{count}.csv",
                 "type": "string",
-                "desc": "The pattern to use for the filename. Can contain multiple placeholders. Use\n        '{@attr_name}' to insert the value of the IP attribute 'attr_name' (the '@' is only a marker and is\n        stripped before the attribute lookup). Use '{count}' to insert the running count of received messages\n        (starting at 0)."
+                "desc": "The pattern to use for the filename. Can contain multiple placeholders. Use\n        '{@attr_name}' to insert the value of the IP attribute 'attr_name', '{@attr/sub}' to reach into it,\n        '{./a/b}' for a path into the content, and '{now:%Y-%m-%d}' for the time. A format spec after ':'\n        works as in str.format, e.g. '{count:03d}'. Use '{count}' to insert the running count of received messages\n        (starting at 0)."
             },
             "path_to_out_dir": {
                 "value": "path to output dir",
@@ -1312,6 +1312,13 @@
                 "value": false,
                 "type": "bool",
                 "desc": "If True, create missing directories in the output path."
+            },
+            "attr_types": {
+                "value": {
+                    "*": "@0xe17592335373b246 = common/common.capnp:Value"
+                },
+                "type": "object",
+                "desc": "Cap'n Proto types for attributes written without a valueType, by attribute name, with '*' covering all of them. Defaults to treating them as common.capnp:Value, which is this library's convention - declaring the type is needed because reading a struct without one would mean guessing, and a wrong guess misreads silently rather than failing."
             },
             "debug": {
                 "value": false,
@@ -4948,6 +4955,88 @@
             "content_type": {
                 "type": "string",
                 "desc": "Content type to assume for IPs that carry none, when a selector reads content."
+            },
+            "attr_types": {
+                "value": {},
+                "type": "object",
+                "desc": "Cap'n Proto types for attributes written without a valueType, by attribute name."
+            }
+        }
+    },
+    "7b8828a2-936e-4301-a907-0d6c2c73a558": {
+        "category": {
+            "id": "string",
+            "name": "String"
+        },
+        "info": {
+            "id": "7b8828a2-936e-4301-a907-0d6c2c73a558",
+            "name": "Format string",
+            "description": "Build a string from an IP's attributes, content and position, into the content or an attribute. Substream transparent."
+        },
+        "type": "process",
+        "inPorts": [
+            {
+                "name": "in",
+                "contentType": "AnyPointer",
+                "desc": "IPs to render from.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
+                "required": false
+            }
+        ],
+        "outPorts": [
+            {
+                "name": "out",
+                "contentType": "Text",
+                "desc": "The rendered string, or the IP with it attached.",
+                "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
+                "required": false
+            }
+        ],
+        "defaultConfig": {
+            "pattern": {
+                "value": "{.}",
+                "type": "string",
+                "desc": "Text with {...} placeholders: '{@attr}' or '{@attr/sub}' for an attribute, '{.}' or '{./a/b}' for the content, '{#type}' for IP metadata, '{count}' for the IP's position in the stream, and '{now:%Y-%m-%d}' for the time. A format spec after ':' works as in str.format, e.g. '{count:03d}'. Use '{{' and '}}' for literal braces."
+            },
+            "to_attr": {
+                "type": "string",
+                "desc": "Write the result to this attribute instead of replacing the content."
+            },
+            "missing": {
+                "value": "empty",
+                "type": [
+                    "error",
+                    "empty",
+                    "keep"
+                ],
+                "desc": "What an unresolvable placeholder does: skip the IP with a warning, render as empty, or leave the placeholder in the output as written."
+            },
+            "number_format": {
+                "type": "string",
+                "desc": "Format spec applied to numbers that have no explicit one, e.g. '.2f'."
+            },
+            "path_separator": {
+                "value": "/",
+                "type": "string",
+                "desc": "Separator used inside selectors."
+            },
+            "content_type": {
+                "type": "string",
+                "desc": "Content type to assume for IPs that carry none, when a placeholder reads content."
             },
             "attr_types": {
                 "value": {},

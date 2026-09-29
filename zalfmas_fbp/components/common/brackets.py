@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 
 from mas.schema.fbp import fbp_capnp
 
+from zalfmas_fbp.components.common import selectors
 from zalfmas_fbp.components.common.values import (
     VALUE_TYPE,
     python_from_attr,
@@ -102,7 +103,7 @@ def attrs_as_dict(ip: IPReader, attr_types: Mapping[str, str] | None = None) -> 
     Attributes that cannot be read without a type resolve to ``MISSING`` rather than a guess; pass
     ``attr_types`` to resolve those.
     """
-    return {kv.key: python_from_attr(kv, (attr_types or {}).get(kv.key)) for kv in (ip.attributes or [])}
+    return {kv.key: python_from_attr(kv, selectors.attr_type_for(kv.key, attr_types)) for kv in (ip.attributes or [])}
 
 
 def _write_attr(target: Any, name: str, value: Any) -> None:

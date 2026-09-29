@@ -47,6 +47,7 @@ import gjson
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from zalfmas_fbp.components.common.values import (
+    ATTR_TYPE_WILDCARD,
     MISSING,
     attr_reader,
     content_type_of,
@@ -189,6 +190,18 @@ def apply_path(value: Any, path: Sequence[str | int]) -> Any:
     return current
 
 
+def attr_type_for(name: str, attr_types: Mapping[str, str] | None) -> str | None:
+    """The declared type for an attribute written without a ``valueType``, if any.
+
+    ``"*"`` declares one for every such attribute. Declaring a type is not the same as guessing
+    one (D14): a wrong declaration is the caller's, and it is visible in the config, whereas a
+    guess would be the library silently misreading on their behalf.
+    """
+    if not attr_types:
+        return None
+    return attr_types.get(name) or attr_types.get(ATTR_TYPE_WILDCARD)
+
+
 def resolve(
     ip: IPReader,
     selector: Selector | str,
@@ -200,7 +213,7 @@ def resolve(
 
     ``content_type`` is a fallback for IPs that arrive without ``sysAttributes.contentType``;
     ``attr_types`` maps attribute names to Cap'n Proto type strings, for attributes written without
-    a ``valueType`` (see ``values.python_from_attr``).
+    a ``valueType`` (see ``values.python_from_attr``), with ``"*"`` covering every such attribute.
     """
     if not isinstance(selector, Selector):
         selector = parse_selector(selector, separator)
@@ -222,7 +235,7 @@ def resolve(
             kv = attr_reader(ip, selector.name)
             if kv is None:
                 return MISSING
-            value = python_from_attr(kv, (attr_types or {}).get(selector.name))
+            value = python_from_attr(kv, attr_type_for(selector.name, attr_types))
             return apply_path(value, selector.path) if selector.path else value
 
         case SelectorKind.CONTENT:

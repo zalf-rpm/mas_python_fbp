@@ -79,6 +79,9 @@ class _Missing:
 MISSING: Final[_Missing] = _Missing()
 
 VALUE_TYPE: Final[str] = "@0xe17592335373b246 = common/common.capnp:Value"
+
+#: Key in an ``attr_types`` mapping declaring a type for every untyped attribute.
+ATTR_TYPE_WILDCARD: Final[str] = "*"
 STRUCTURED_TEXT_TYPE: Final[str] = "@0xed6c098b67cad454 = common/common.capnp:StructuredText"
 
 _SCALAR_FIELDS: Final[frozenset[str]] = frozenset(

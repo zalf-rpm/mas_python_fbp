@@ -428,7 +428,7 @@ Unbalanced close-brackets are forwarded with a warning rather than dropped.
 
 ---
 
-### P0-10 `string/format_string` — id `7b8828a2-936e-4301-a907-0d6c2c73a558`
+### P0-10 `string/format_string` — id `7b8828a2-936e-4301-a907-0d6c2c73a558` — **implemented**
 
 *Category* `string` · *Name* "Format string"
 
@@ -441,6 +441,26 @@ for a content path, `{count}` for the IP index, `{now:%Y-%m-%d}` for a timestamp
 `number_format: str | None = None`.
 
 Factor the implementation so `write_file` can be refactored onto the same helper afterwards.
+
+*As built:* the renderer is `components/common/templating.py`, and every placeholder is an S1
+selector, so anything a predicate can test can also be interpolated. `str.format` could not be
+delegated to: a field name like `./a/b` is parsed by `format` as attribute access, so `{.}` and
+`{./path}` are impossible through it. A placeholder must therefore be a reserved name (`count`,
+`now`) or start with a sigil; a bare `{region}` is rejected rather than rendered as itself, so a
+typo is reported instead of silently producing the placeholder name. A pattern that fails validation
+stops the component rather than emitting a stream of typos.
+
+`write_file` was refactored onto it with its 10 existing tests as characterization, all passing
+unmodified. That refactor removed a D14 violation: `_attr_as_str` cast attribute values to
+`common.Value` **without** checking `valueType`, which happened to work for `Value` attributes and
+would have silently misread any other struct. Replacing it with `python_from_attr` broke one test -
+a `Value` attribute written with no `valueType` - which is exactly the case D14 says cannot be read
+without a declared type.
+
+That produced the **`attr_types` wildcard**: `{"*": "<type>"}` declares a type for every attribute
+written without a `valueType`. `write_file` defaults it to `common.capnp:Value`, preserving its
+behaviour. Declaring a type is not the same as guessing one: a wrong declaration is the caller's and
+is visible in the config, whereas a guess is the library misreading on their behalf.
 
 ---
 
@@ -888,7 +908,7 @@ backwards compatible in both directions at no wire cost. | 1 large change, 2 rep
 | **WP2** ✅ | P0-4 `capnp_to_json`, P0-5 `json_to_capnp`. The representation bridge. Done; 38 tests including round-trips over `StructuredText`, `Value` and `IP` (a struct with a nested list of structs and an enum), plus a two-lap test so the conversion is stable rather than merely reversible once. | 2 medium components |
 | **WP3** ✅ | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ `Process.write_array_out_at` and `read_array_in_with_index`). Semantic routing. Done; 34 tests. | 3 medium components |
 | **WP4** ✅ | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra. Done; 61 tests, including the `split → filter → group → reduce` pipeline run end to end. | 3 medium components |
-| **WP5** | P0-10 `format_string` + refactor `write_file` onto it. | 1 small component + refactor |
+| **WP5** ✅ | P0-10 `format_string` + refactor `write_file` onto it. Done; 35 tests. **P0 is complete.** | 1 small component + refactor |
 | **WP6** | P1 set, in the order listed (join-by-key first — it unblocks any parallel-service flow). | 10 components |
 | **WP7** | P2 set, on demand. | — |
 

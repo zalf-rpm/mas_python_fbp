@@ -73,5 +73,6 @@
   "ea8826e7-3c60-42f6-bfca-f0a6285a7a63": "python -m zalfmas_fbp.components.ip.merge_ips",
   "205dfc0a-7283-4322-a1b7-4f952abffb88": "python -m zalfmas_fbp.components.json.split_json",
   "7553a3cb-8804-49d6-9dd6-f13759055534": "python -m zalfmas_fbp.components.ip.group_into_substreams",
-  "e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe": "python -m zalfmas_fbp.components.ip.reduce_substream"
+  "e1f2e15f-dd1f-4d3f-8d06-dd675e6a1abe": "python -m zalfmas_fbp.components.ip.reduce_substream",
+  "7b8828a2-936e-4301-a907-0d6c2c73a558": "python -m zalfmas_fbp.components.string.format_string"
 }
