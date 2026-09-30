@@ -132,14 +132,39 @@ Done, one commit each, 45 tests where there had been 1. None of the three was pu
 
 Each has a typed config, bracket transparency and attribute propagation, none of which they had.
 
-### LP2 — the local-resource Runnables
+### LP2 ✅ — the local-resource Runnables
 
 `read_csv`, `proj_transform_coordinates`, `create_lat_lon_coords`, `get_lat_lon_grid_value`,
-`ilr_sowing_harvest_dates`.
+`ilr_sowing_harvest_dates`. Done, 75 tests where there had been none.
 
-Conversion plus tests using `tmp_path` and small committed fixtures. `read_csv` deserves attention
-beyond conversion: it emits raw text and nothing parses it, so it is also the natural place to
-revisit the P2 `file/csv_to_json` idea — but only if a flow wants it.
+**Two of the five had never worked at all**, and in both cases a bare `except Exception` inside the
+per-IP loop was what hid it — the component consumed its input and emitted nothing, which reads as
+a quiet flow rather than a failure.
+
+- **`get_lat_lon_grid_value`** called the grid's `value()` with two arguments where
+  `load_grid_cached` builds it as `lambda lat, lon, ret_no_data` — three required. `TypeError` per
+  IP, forever.
+- **`ilr_sowing_harvest_dates`** had *four* independent fatal faults: it imported `ILRDates` from
+  `management_capnp` where it lives in `monica_management_capnp` (`AttributeError`), indexed its
+  station dict with the 0-d numpy array the interpolator returns (`unhashable type`), never cleared
+  its input port on `done` so it spun forever on an exhausted stream, and had no `defaultConfig` in
+  its metadata so every config access raised `KeyError`.
+
+**`create_lat_lon_coords`** had three more: `json.loads` on a config value its own metadata declares
+a list (crashing at startup with the defaults), `lat_lons.append([lat, lon, id])` appending the
+*builtin* `id` so `json.dumps` could never serialise, and indexing the `earth` bounds as if they
+held `tl`/`br` when they are keyed by resolution.
+
+The two that did work gained real capability rather than only conversion: `read_csv` now reuses
+`values.capnp_from_json` instead of a second hand-rolled coercion, tags its output with the struct
+type, and reads a *sequence* of files via `next_config()`; `proj_transform_coordinates` and
+`to_geo_coord` now compose, because both tag what they emit and `proj_transform` prefers the IP's
+declared type over its configured one.
+
+Domain logic was preserved rather than rewritten, and pulled out as plain functions where it is the
+substance of the component — `ilr_date_fields`, `bounds_for`, `coordinates_in` — so it can be tested
+directly. The ILR date arithmetic is checked against the real data under
+`clim4cast/data/projects/monica-germany`, skipping if that is not present.
 
 ### LP3 — a fake-capability harness, then the service-dependent Runnables
 
