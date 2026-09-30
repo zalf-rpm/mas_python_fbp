@@ -25,6 +25,7 @@ from mas.schema.climate import climate_capnp
 from mas.schema.common import common_capnp
 from mas.schema.geo import geo_capnp
 from mas.schema.grid import grid_capnp
+from mas.schema.soil import soil_capnp
 
 
 class FakeTimeSeries(climate_capnp.TimeSeries.Server):
@@ -366,3 +367,80 @@ class FakeGrid(grid_capnp.Grid.Server):
         self.calls.append("dimension")
         _context.results.rows = 10
         _context.results.cols = 10
+
+
+class FakeSoilProfile(soil_capnp.Profile.Server):
+    """A soil profile of one or more layers, at a fixed location."""
+
+    def __init__(
+        self,
+        *,
+        id_: str = "profile-1",
+        name: str = "Fake profile",
+        percentage_of_area: float = 100.0,
+        latlon: tuple[float, float] = (52.0, 13.0),
+    ):
+        self.id = id_
+        self.name = name
+        self.percentage_of_area = percentage_of_area
+        self.latlon = latlon
+        self.calls: list[str] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def data(self, _context, **kwargs):
+        self.calls.append("data")
+        _context.results.percentageOfArea = self.percentage_of_area
+        _context.results.init("layers", 1)
+
+    async def geoLocation(self, _context, **kwargs):  # noqa: N802
+        self.calls.append("geoLocation")
+        _context.results.lat = self.latlon[0]
+        _context.results.lon = self.latlon[1]
+
+
+class FakeSoilService(soil_capnp.Service.Server):
+    """A soil service handing out a fixed set of profiles for any coordinate.
+
+    Records the query it was asked, so a test can check the mandatory/optional properties a
+    component actually sent rather than only that something came back.
+    """
+
+    def __init__(
+        self,
+        *,
+        id_: str = "soil-1",
+        name: str = "Fake soil service",
+        profiles: list[FakeSoilProfile] | None = None,
+    ):
+        self.id = id_
+        self.name = name
+        self.profiles = profiles if profiles is not None else [FakeSoilProfile()]
+        self.calls: list[str] = []
+        self.requested_coords: list[tuple[float, float]] = []
+        self.queries: list[dict[str, Any]] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def closestProfilesAt(self, coord, query, _context, **kwargs):  # noqa: N802
+        self.calls.append("closestProfilesAt")
+        self.requested_coords.append((round(coord.lat, 6), round(coord.lon, 6)))
+        self.queries.append(
+            {
+                "mandatory": [str(p) for p in query.mandatory],
+                "optional": [str(p) for p in query.optional],
+                "onlyRawData": query.onlyRawData,
+            }
+        )
+        _context.results.profiles = list(self.profiles)
+
+    async def getAllAvailableParameters(self, onlyRawData, _context, **kwargs):  # noqa: N802, N803
+        self.calls.append("getAllAvailableParameters")
+        _context.results.mandatory = []
+        _context.results.optional = []

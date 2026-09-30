@@ -3647,48 +3647,56 @@
         "info": {
             "id": "89da0cb9-2079-4245-aecc-068194bc1637",
             "name": "Use soil service",
-            "description": "Use the soil service to get the soil profiles at a given Lat/Lon coord."
+            "description": "Ask a soil service for the profiles closest to each incoming coordinate. A coordinate may be covered by several profiles; 'emit' decides whether to send the first or all of them. Substream transparent."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "role": "config",
-                "required": false
-            },
-            {
                 "name": "latlon",
-                "contentType": "geo.capnp.LatLonCoord",
-                "desc": "Lat/Lon coordinate",
+                "contentType": "geo.capnp:LatLonCoord",
+                "desc": "The coordinate to get soil profiles at.",
                 "role": "data",
-                "required": false
+                "required": true
             },
             {
                 "name": "service",
-                "contentType": "soil.capnp:Service | Text (SturdyRef)",
-                "desc": "Capability or sturdy ref to service.",
+                "contentType": "soil.capnp:Service | SturdyRef",
+                "desc": "Capability or sturdy ref to the service. Read once, before the first coordinate.",
                 "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
                 "required": false
             }
         ],
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "grid.capnp:Grid.Value",
-                "desc": "value at requested location",
+                "contentType": "soil.capnp:Profile",
+                "desc": "A capability to the soil profile at the given coordinate.",
                 "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
                 "required": false
             }
         ],
         "defaultConfig": {
             "from_attr": {
                 "type": "string",
-                "desc": "Get a [geo.capnp.LatLonCoord] from the attribute 'from_attr' received on 'in' message."
+                "desc": "Read the coordinate from this attribute instead of the content."
             },
             "to_attr": {
                 "type": "string",
-                "desc": "Stores the result, a [grid.capnp.Grid:Value], to attribute 'to_attr' on 'out' message."
+                "desc": "Write the profile to this attribute instead of the IP's content."
             },
             "mandatory": {
                 "value": [
@@ -3696,46 +3704,47 @@
                     "organicCarbon",
                     "rawDensity"
                 ],
-                "type": [
-                    "soilType",
-                    "sand",
-                    "clay",
-                    "silt",
-                    "organicCarbon",
-                    "organicMatter",
-                    "rawDensity",
-                    "bulkDensity",
-                    "fieldCapacity",
-                    "permanentWiltingPoint",
-                    "saturation",
-                    "sceleton",
-                    "pH"
-                ],
-                "desc": "Which soil attributes are needed in the result to be valid?"
+                "type": "list[string]",
+                "desc": "Soil properties the result must have, or the query fails."
             },
             "optional": {
                 "value": [],
-                "type": [
-                    "soilType",
-                    "sand",
-                    "clay",
-                    "silt",
-                    "organicCarbon",
-                    "organicMatter",
-                    "rawDensity",
-                    "bulkDensity",
-                    "fieldCapacity",
-                    "permanentWiltingPoint",
-                    "saturation",
-                    "sceleton",
-                    "pH"
-                ],
-                "desc": "Which soil attributes are needed in the result to be valid?"
+                "type": "list[string]",
+                "desc": "Soil properties to include when available."
             },
             "only_raw_data": {
                 "value": false,
                 "type": "bool",
-                "desc": "Just return data which are physically available from the data source. If false, data can be generated from the raw data to allow more params to be available mandatory"
+                "desc": "Only return what the source physically holds, deriving nothing from it."
+            },
+            "emit": {
+                "value": "first",
+                "type": [
+                    "first",
+                    "all"
+                ],
+                "desc": "A coordinate can be covered by several profiles, each over part of the area. Send only the first, or one IP per profile."
+            },
+            "wrap_in_substream": {
+                "value": false,
+                "type": "bool",
+                "desc": "With emit='all', wrap each coordinate's profiles in a substream."
+            },
+            "on_no_profiles": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "What to do when the service has no profile at a coordinate."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "Whether an IP holding no readable coordinate is skipped or stops the process."
             }
         }
     },
