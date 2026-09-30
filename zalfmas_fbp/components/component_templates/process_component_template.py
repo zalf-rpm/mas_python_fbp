@@ -8,7 +8,7 @@
 
 Replace the placeholder metadata values, then adapt the typed config, ports, and `run()` logic.
 
-It shows the three things every component has to get right, each a decision with a reason rather
+It shows the four things every component has to get right, each a decision with a reason rather
 than a style preference (see `agents_process.md`):
 
 - **Bracket transparency.** Bracket IPs are forwarded unchanged, so a substream passing through
@@ -17,13 +17,19 @@ than a style preference (see `agents_process.md`):
   override rather than only the first, and wraps plain Python values into a `common.Value`.
 - **No config reading.** The runtime owns the `conf` port - it applies the initial config before
   `run()` and later ones between IPs - so a component just reads `self.config`.
+- **Error handling that does not hide bugs.** Guard only the step that can fail on *caller data*,
+  and name what it can fail with. Do not wrap the whole per-IP body in `except Exception` and carry
+  on: a component that fails on every IP then looks exactly like one with no input at all, which
+  is the hardest kind of flow problem to find. Let a fault in the component itself stop the
+  process - the runtime records it and reports the component as failed.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import override
+from typing import Literal, override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
@@ -44,6 +50,10 @@ class TemplateProcessConfig(process.ProcessConfig):
     attribute_name: str | None = Field(
         "processedBy",
         description="If set, add this attribute to outgoing IPs with the component name as value.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        "skip",
+        description="Whether an IP this component cannot read is skipped or stops the process.",
     )
 
 
@@ -110,7 +120,16 @@ class TemplateProcessComponent(process.Process[TemplateProcessConfig]):
                     return
                 continue
 
-            text = in_msg.content.as_text()
+            text = self._text_of(in_msg)
+            if text is None:
+                # Bad input from upstream is this component's business; a bug in the component is
+                # not, and must not be turned into a silent skip.
+                message = f"{self.name}: no text could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
+
             out_ip = fbp_capnp.IP.new_message(content=f"{self.config.prefix}{text}")
             brackets.copy_attrs(in_msg, out_ip, extra=self._extra_attributes())
             if not await self.write_out("out", out_ip):
@@ -118,6 +137,18 @@ class TemplateProcessComponent(process.Process[TemplateProcessConfig]):
                 return
 
         logger.info("%s process finished", self.name)
+
+    def _text_of(self, in_ip) -> str | None:
+        """The IP's text, or None if it carries none.
+
+        The guard is around exactly one step - reading this IP's payload - and names the one thing
+        it can raise. Everything else in `run()` is left unguarded on purpose.
+        """
+
+        try:
+            return in_ip.content.as_text()
+        except capnp.KjException:
+            return None
 
     def _extra_attributes(self) -> dict[str, str]:
         """Return example extra attributes to attach in addition to copied input attrs."""
