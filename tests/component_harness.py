@@ -65,6 +65,70 @@ class InFlightReader:
         return message
 
 
+class CapMessage:
+    """An IP carrying a live Cap'n Proto capability, built lazily.
+
+    pycapnp can only attach a server to a message from inside a running kj event loop, so a test
+    that built one while collecting its inputs would fail with "no running event loop". The
+    capability is therefore built on first access to `.value`, which a reader only does from
+    inside the loop `run_process_component` sets up.
+
+    `make_server` is called once; the instance it returns is kept on `.server` so a test can
+    assert afterwards on what the fake was asked for.
+    """
+
+    def __init__(
+        self,
+        make_server: Callable[[], Any],
+        *,
+        to_attr: str | None = None,
+        content_type: str | None = None,
+        **attrs: Any,
+    ):
+        self.make_server = make_server
+        self.to_attr = to_attr
+        self.content_type = content_type
+        self.attrs = attrs
+        self.server: Any = None
+        self.done = False
+        self._value: PortValue | None = None
+
+    def which(self) -> str:
+        return "value"
+
+    @property
+    def value(self) -> PortValue:
+        if self._value is None:
+            self.server = self.make_server()
+            ip = fbp_capnp.IP.new_message()
+            named = dict(self.attrs)
+            if self.to_attr:
+                named[self.to_attr] = None  # placeholder, filled with the capability below
+            else:
+                ip.content = self.server
+            if self.content_type:
+                ip.sysAttributes.contentType = self.content_type
+            if named:
+                entries = ip.init("attributes", len(named))
+                for i, (key, plain) in enumerate(named.items()):
+                    entries[i].key = key
+                    entries[i].value = self.server if key == self.to_attr else plain
+            self._value = PortValue(ip)
+        return self._value
+
+
+def cap_message(
+    make_server: Callable[[], Any],
+    *,
+    to_attr: str | None = None,
+    content_type: str | None = None,
+    **attrs: Any,
+) -> CapMessage:
+    """An input IP whose content - or attribute `to_attr` - is a capability served by a fake."""
+
+    return CapMessage(make_server, to_attr=to_attr, content_type=content_type, **attrs)
+
+
 @dataclass
 class NoMsgResult:
     def which(self) -> str:
@@ -178,6 +242,8 @@ class ComponentRunResult:
     outputs: dict[str, InMemoryWriter]
     array_outputs: dict[str, list[InMemoryWriter]] | None = None
     port_connector: ports.PortConnector | None = None
+    after_result: Any = None
+    """Whatever the `after` hook returned, if `run_process_component` was given one."""
 
     def output(self, name: str = "out") -> InMemoryWriter:
         return self.outputs[name]
@@ -195,7 +261,16 @@ def run_process_component(
     outputs: Sequence[str] = ("out",),
     array_outputs: Mapping[str, int] | None = None,
     array_inputs: Mapping[str, Sequence[Sequence[PortMessage]]] | None = None,
+    after: Callable[[ComponentRunResult], Coroutine[Any, Any, Any]] | None = None,
 ) -> ComponentRunResult:
+    """Run a Process component to completion against in-memory ports.
+
+    `after` is an async hook called with the result once the component has finished but while the
+    kj event loop is still up, and its return value ends up on `result.after_result`. A capability
+    an output IP carries is only callable inside that loop - once it closes the client is dead -
+    so a test that wants to check what it handed downstream has to do it from here.
+    """
+
     readers, writers = _make_ports(inputs, outputs)
     array_writers = _make_array_ports(array_outputs)
     array_readers = _make_array_readers(array_inputs)
@@ -208,9 +283,15 @@ def run_process_component(
     for name, port_writers in array_writers.items():
         component.array_out_ports[name] = cast("Any", list(port_writers))
 
-    asyncio.run(_start_process_component(component))
+    result = ComponentRunResult(inputs=readers, outputs=writers, array_outputs=array_writers)
 
-    return ComponentRunResult(inputs=readers, outputs=writers, array_outputs=array_writers)
+    async def run_and_check() -> Any:
+        await _start_process_component(component)
+        return await after(result) if after is not None else None
+
+    # inside capnp.run: a component may build or call capabilities, which needs the kj loop
+    result.after_result = asyncio.run(capnp.run(run_and_check()))
+    return result
 
 
 async def _start_process_component(component: process.Process) -> None:
@@ -248,7 +329,7 @@ def run_standard_component(
         return port_connector
 
     monkeypatch.setattr(ports.PortConnector, "create_from_port_infos_reader", create_from_port_infos_reader)
-    asyncio.run(run_component("test-port-infos-reader", config or {}))
+    asyncio.run(capnp.run(run_component("test-port-infos-reader", config or {})))
 
     return ComponentRunResult(inputs=readers, outputs=writers, port_connector=port_connector)
 

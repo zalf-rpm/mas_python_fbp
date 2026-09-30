@@ -1,0 +1,205 @@
+"""In-process fakes for the Cap'n Proto services that components talk to.
+
+A component which takes a service over a port cannot be tested with plain IPs: it calls methods
+on a capability and reacts to what comes back. These fakes are real `capnp` servers, so the
+component exercises the actual RPC path - `as_interface`, method calls, promise pipelining - with
+no socket, no process and no network.
+
+Two rules come out of how pycapnp works, and both are load-bearing:
+
+- **Build them inside the event loop.** Attaching a server to a message needs a running kj loop,
+  so a fake constructed while a test collects its inputs raises "no running event loop". Pass the
+  *class* (or a lambda) to `component_harness.cap_message`, which builds it at read time.
+- **Fill `_context.results`, do not return a dict.** For `info @0 () -> IdInformation` the results
+  struct *is* the `IdInformation`, so its fields are set directly on `_context.results`.
+
+Every fake records what it was asked for - `calls`, and fields like `requested_latlon` - so a test
+can assert that a component asked the right question, not merely that it produced some output.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from mas.schema.climate import climate_capnp
+from mas.schema.common import common_capnp
+
+
+class FakeTimeSeries(climate_capnp.TimeSeries.Server):
+    """A time series over a fixed set of elements and rows.
+
+    `data` is row-major - one inner list per day, in `header` order - which is what the schema's
+    `data()` returns; `dataT()` transposes it here, exactly as a real implementation would.
+    """
+
+    def __init__(
+        self,
+        *,
+        id_: str = "ts-1",
+        name: str = "Fake time series",
+        header: list[str] | None = None,
+        data: list[list[float]] | None = None,
+        start_date: tuple[int, int, int] = (2020, 1, 1),
+        end_date: tuple[int, int, int] = (2020, 1, 3),
+        resolution: str = "daily",
+        location_id: str = "loc-1",
+        latlon: tuple[float, float] = (52.0, 13.0),
+    ):
+        self.id = id_
+        self.name = name
+        self.header_elements = header if header is not None else ["tavg", "precip"]
+        self.rows = data if data is not None else [[1.0, 0.0], [2.0, 0.5], [3.0, 1.5]]
+        self.start_date = start_date
+        self.end_date = end_date
+        self.resolution_name = resolution
+        self.location_id = location_id
+        self.latlon = latlon
+        self.calls: list[str] = []
+        self.subrange_args: list[tuple[Any, Any]] = []
+        self.subheader_args: list[list[str]] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def resolution(self, _context, **kwargs):
+        self.calls.append("resolution")
+        _context.results.resolution = self.resolution_name
+
+    async def range(self, _context, **kwargs):
+        self.calls.append("range")
+        for field, (year, month, day) in (
+            ("startDate", self.start_date),
+            ("endDate", self.end_date),
+        ):
+            date = getattr(_context.results, field)
+            date.year = year
+            date.month = month
+            date.day = day
+
+    async def header(self, _context, **kwargs):
+        self.calls.append("header")
+        _context.results.header = self.header_elements
+
+    async def data(self, _context, **kwargs):
+        self.calls.append("data")
+        _context.results.data = self.rows
+
+    async def dataT(self, _context, **kwargs):  # noqa: N802 - the schema's method name
+        self.calls.append("dataT")
+        _context.results.data = [list(column) for column in zip(*self.rows, strict=True)]
+
+    async def subrange(self, start, end, _context, **kwargs):
+        self.calls.append("subrange")
+        self.subrange_args.append((start, end))
+        _context.results.timeSeries = self
+
+    async def subheader(self, elements, _context, **kwargs):
+        self.calls.append("subheader")
+        self.subheader_args.append([str(e) for e in elements])
+        _context.results.timeSeries = self
+
+    async def metadata(self, _context, **kwargs):
+        self.calls.append("metadata")
+        _context.results.entries = []
+
+    async def location(self, _context, **kwargs):
+        self.calls.append("location")
+        _context.results.id = self.location_id
+        _context.results.heightNN = 0.0
+        _context.results.latlon.lat = self.latlon[0]
+        _context.results.latlon.lon = self.latlon[1]
+
+
+class FakeDataset(climate_capnp.Dataset.Server):
+    """A dataset handing out one time series, whichever way it is asked for."""
+
+    def __init__(
+        self,
+        *,
+        id_: str = "ds-1",
+        name: str = "Fake dataset",
+        time_series: FakeTimeSeries | None = None,
+        locations: list[str] | None = None,
+    ):
+        self.id = id_
+        self.name = name
+        self.time_series = time_series if time_series is not None else FakeTimeSeries()
+        self.location_ids = locations if locations is not None else ["loc-1", "loc-2"]
+        self.calls: list[str] = []
+        self.requested_latlon: list[tuple[float, float]] = []
+        self.requested_location_ids: list[str] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def metadata(self, _context, **kwargs):
+        self.calls.append("metadata")
+        _context.results.entries = []
+
+    async def closestTimeSeriesAt(self, latlon, _context, **kwargs):  # noqa: N802 - schema name
+        self.calls.append("closestTimeSeriesAt")
+        self.requested_latlon.append((latlon.lat, latlon.lon))
+        _context.results.timeSeries = self.time_series
+
+    async def timeSeriesAt(self, locationId, _context, **kwargs):  # noqa: N802, N803 - schema names
+        self.calls.append("timeSeriesAt")
+        self.requested_location_ids.append(locationId)
+        _context.results.timeSeries = self.time_series
+
+    async def locations(self, _context, **kwargs):
+        self.calls.append("locations")
+        entries = _context.results.init("locations", len(self.location_ids))
+        for entry, location_id in zip(entries, self.location_ids, strict=True):
+            entry.id = location_id
+            entry.timeSeries = self.time_series
+
+
+class FakeClimateService(climate_capnp.Service.Server):
+    """A climate service offering a fixed list of datasets."""
+
+    def __init__(
+        self,
+        *,
+        id_: str = "svc-1",
+        name: str = "Fake climate service",
+        datasets: list[FakeDataset] | None = None,
+    ):
+        self.id = id_
+        self.name = name
+        self.datasets = datasets if datasets is not None else [FakeDataset()]
+        self.calls: list[str] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def getAvailableDatasets(self, _context, **kwargs):  # noqa: N802 - schema name
+        self.calls.append("getAvailableDatasets")
+        entries = _context.results.init("datasets", len(self.datasets))
+        for entry, dataset in zip(entries, self.datasets, strict=True):
+            entry.data = dataset
+
+    async def getDatasetsFor(self, template, _context, **kwargs):  # noqa: N802 - schema name
+        self.calls.append("getDatasetsFor")
+        _context.results.datasets = list(self.datasets)
+
+
+class FakeIdentifiable(common_capnp.Identifiable.Server):
+    """The smallest possible capability, for tests that only need *some* live capability."""
+
+    def __init__(self, *, id_: str = "id-1", name: str = "Fake", description: str = ""):
+        self.id = id_
+        self.name = name
+        self.description = description
+        self.calls: list[str] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+        _context.results.description = self.description

@@ -179,12 +179,20 @@ def merge_attrs(ips: Sequence[IPReader], remove: Collection[str] = ()) -> dict[s
 def make_bracket(
     bracket_type: Literal["openBracket", "closeBracket"],
     attrs: Mapping[str, Any] | None = None,
+    *,
+    content: Any = None,
 ) -> IPBuilder:
-    """Build an open- or close-bracket IP, optionally carrying attributes."""
+    """Build an open- or close-bracket IP, optionally carrying attributes and content.
+
+    A bracket may carry content - typically a name or id labelling the substream it delimits -
+    which downstream components are free to ignore.
+    """
     if bracket_type not in BRACKET_TYPES:
         msg = f"{bracket_type!r} is not a bracket type; expected one of {sorted(BRACKET_TYPES)}"
         raise ValueError(msg)
     ip = fbp_capnp.IP.new_message(type=bracket_type)
+    if content is not None:
+        ip.content = content
     if attrs:
         set_attrs(ip, attrs)
     return ip
