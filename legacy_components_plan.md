@@ -274,11 +274,41 @@ Routing a sequence to one chosen slot needed `Process.choose_array_out_index`, s
 
 ### LP5 — the consistency sweep
 
-Once the above have tests, the mechanical fixes become safe:
+**The blind-handler sweep is done.** Not mechanical in the end: narrowing a handler is what
+*exposes* what it was hiding, so every one had to be read.
+
+The lesson from LP3 was that the damage is not the bare `except Exception` — it is a `try` around
+the **whole per-IP body** combined with carrying on round the loop. A component that fails on
+every IP then looks exactly like one with no input. So the rule applied was: guard only the steps
+that can fail on *caller data*, name what they can fail with, and let a fault in the component
+itself stop the process.
+
+What that turned up, all previously invisible:
+
+| where | fault |
+| --- | --- |
+| `create_monica_capnp_env` | `self.in_port["climate"]` — wrong attribute *and* wrong port name; closing either port raised on every later IP |
+| `create_monica_capnp_env` | soil layers written into `params.siteParameters` of arbitrary caller JSON, assuming the nesting |
+| `create_monica_json_env` | emitted the *string* `"null"` as an env whenever MONICA rejected the templates |
+| `load_calibration_params` | a lambda made the parameter list unserialisable, so one row with a ninth column sent **nothing at all** — and it closed over the loop variable |
+| `spotpy_comp` | `Uniform(**par)` raises on any unknown key; the handler turned that into a calibration with no parameters and no explanation |
+| `spotpy_comp` | the length check was an `assert`, which `python -O` removes — the configuration a long run is most likely to use |
+| `read_observed_values` | the yield CSV re-read, re-sniffed and re-parsed for every incoming IP |
+| `run_fbp_flow` | **a failed flow exited 0** — any script, scheduler or CI running it saw success |
+
+Also: `csv.Sniffer` failures abandoned whole files in two components (it raises on plenty of valid
+CSVs), one malformed row abandoned the rest of the file in three, and bracket IPs were read as
+data in two.
+
+Deliberately left broad, each for a stated reason: the dakis writers and `rbs.py` (catch, clean up
+or classify, then re-raise — nothing is swallowed), the input/output runtimes (cancel outstanding
+tasks, re-raise), and the lifecycle and config watchers (supervisors that must not die, and which
+record and log what happened). ruff reports no `BLE001` in the package.
+
+Still open from this work package:
 
 - `copy_and_set_fbp_attrs` → `brackets.copy_attrs` in the 15 files, gaining `desc` preservation and
   all-overrides behaviour.
-- Blind `except Exception:` narrowed to what can actually be raised, in the 28 files.
 - The two unguarded `Value` casts driven from `valueType` via `values.python_from_attr`.
 - The process template updated to show bracket handling, since it is what new components are copied
   from.
