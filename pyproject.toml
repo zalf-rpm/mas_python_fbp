@@ -64,8 +64,9 @@ format = { cmd = "ruff format ." }
 format-check = { cmd = "ruff format --check ." }
 typecheck = { cmd = "basedpyright" }
 # Everything that is green on a clean tree, so this is usable as a gate.
-# `typecheck` is deliberately not in here: basedpyright has a known baseline of pre-existing
-# errors, so it would fail every time and stop the tests from running at all. Run it on its own.
+# `typecheck` is deliberately kept out: type checking is easy to break - a dependency update can
+# do it on its own - and a failing type check should not stop the tests from running. Run it
+# separately with `pixi run typecheck`.
 check = { depends-on = ["lint", "format-check", "test"] }
 
 [tool.pixi.environments]
