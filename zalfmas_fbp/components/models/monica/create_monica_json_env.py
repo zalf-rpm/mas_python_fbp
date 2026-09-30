@@ -15,7 +15,7 @@
 
 import json
 import logging
-from typing import override
+from typing import Any, Literal, override
 
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
@@ -33,6 +33,10 @@ class Config(process.ProcessConfig):
     to_attr: str | None = Field(
         None,
         description="Set output into this attribute.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        "skip",
+        description="Whether a sim/crop/site trio MONICA rejects is skipped or stops the process.",
     )
 
 
@@ -79,38 +83,55 @@ class Component(process.Process[Config]):
     ):
         super().__init__(metadata=metadata, con_man=con_man)
 
+    def env_template_for(self, sim: dict, crop: dict, site: dict) -> dict[str, Any] | None:
+        """The MONICA env for this trio, or None if MONICA will not build one from it.
+
+        `create_env_json_from_json_config` answers None when the templates do not hold together,
+        and raises KeyError when one lacks a section it needs. Both used to end up as output:
+        the None was handed straight to `json.dumps`, so the component emitted the *string*
+        "null" as though it were a valid env.
+        """
+
+        try:
+            env_template = monica_io.create_env_json_from_json_config(
+                {"crop": crop, "site": site, "sim": sim, "climate": ""},
+            )
+        except (KeyError, TypeError, ValueError):
+            logger.exception("%s: MONICA rejected the sim/crop/site trio", self.name)
+            return None
+        return env_template if isinstance(env_template, dict) else None
+
     @override
     async def run(self):
         logger.info("%s process running", self.name)
 
+        sent = 0
         while self.in_ports["sim"] and self.in_ports["crop"] and self.in_ports["site"] and self.out_ports["out"]:
-            try:
-                sim = await p.read_dict_from_port_done(self.in_ports, "sim")
-                crop = await p.read_dict_from_port_done(self.in_ports, "crop")
-                site = await p.read_dict_from_port_done(self.in_ports, "site")
+            sim = await p.read_dict_from_port_done(self.in_ports, "sim")
+            crop = await p.read_dict_from_port_done(self.in_ports, "crop")
+            site = await p.read_dict_from_port_done(self.in_ports, "site")
+            if not (sim and crop and site):
+                continue
 
-                if sim and crop and site:
-                    env_template = monica_io.create_env_json_from_json_config(
-                        {
-                            "crop": crop,
-                            "site": site,
-                            "sim": sim,
-                            "climate": "",
-                        },
-                    )
+            env_template = self.env_template_for(sim, crop, site)
+            if env_template is None:
+                message = f"{self.name}: MONICA could not build an env from this sim/crop/site trio"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
 
-                    out_ip = fbp_capnp.IP.new_message()
-                    if self.config.to_attr is not None and len(self.config.to_attr) > 0:
-                        out_ip.attributes = [{"key": self.config.to_attr, "value": json.dumps(env_template)}]  # pyright: ignore
-                    else:
-                        out_ip.content = json.dumps(env_template)
-                    if not await self.write_out("out", out_ip):
-                        logger.info("%s: Could not send IP. Process finished.", self.name)
+            out_ip = fbp_capnp.IP.new_message()
+            if self.config.to_attr:
+                out_ip.attributes = [{"key": self.config.to_attr, "value": json.dumps(env_template)}]  # pyright: ignore
+            else:
+                out_ip.content = json.dumps(env_template)
+            if not await self.write_out("out", out_ip):
+                logger.info("%s: could not send IP; stopping.", self.name)
+                break
+            sent += 1
 
-            except Exception as e:
-                logger.exception("%s: Exception: %s", self.name, e)
-
-        logger.info("%s: process finished", self.name)
+        logger.info("%s process finished, sent %d env(s)", self.name, sent)
 
 
 def main():

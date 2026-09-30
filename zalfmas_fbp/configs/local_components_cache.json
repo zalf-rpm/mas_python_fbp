@@ -3405,10 +3405,13 @@
                 "type": "bool",
                 "desc": "Remove soil attribute from message after use."
             },
-            "id_attr": {
-                "value": "@id",
-                "type": "string",
-                "desc": "Id of current env via @ out of attribute or a UUID4 will be automatically generated."
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "Whether an IP holding no readable MONICA JSON env is skipped or stops the process."
             }
         }
     },
@@ -3469,6 +3472,14 @@
             "to_attr": {
                 "type": "string",
                 "desc": "Set output into this attribute."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "Whether a sim/crop/site trio MONICA rejects is skipped or stops the process."
             }
         }
     },
@@ -3533,6 +3544,14 @@
                 "value": "csv_{@object/id}.csv",
                 "type": "string",
                 "desc": "Replace {@id} to create the filename. @some_attr_name refers to an attribute.\n        It's type has to be defined in the 'types' attribute. If no @ is in front of the name, it will be\n        interpreted to be either the results \"customId\" stringified itself {customId} or if not 'customId' to be\n        a subpath access in the 'customId' JSON object. If the {name} contains '/' it will be treated as\n        a path in an object, where names will be keys in objects and numbers will be indizes in a list."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "Whether an IP holding no readable MONICA result is skipped or stops the process."
             },
             "csv_delimiter": {
                 "value": ",",
