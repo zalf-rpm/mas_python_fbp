@@ -14,9 +14,9 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-from pathlib import Path
 from typing import override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
@@ -93,12 +93,14 @@ class Component(process.Process[Config]):
         lift_fieldnames = lift_from_schema.as_struct().fieldnames if lift_from_schema else []
 
         while self.in_ports["in"] and self.out_ports["out"]:
-            try:
-                in_ip = await self.read_in("in")
-                if in_ip is None:
-                    self.in_ports["in"] = None
-                    continue
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                continue
 
+            try:
                 # Rebuilding below would drop the IP's type, turning a bracket into a standard IP
                 # and destroying the substream, so brackets are forwarded as they are.
                 if brackets.is_bracket(in_ip):
@@ -129,8 +131,9 @@ class Component(process.Process[Config]):
                     logger.info("%s process finished", self.name)
                     return
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except (capnp.KjException, AttributeError):
+                # A malformed IP, or an attribute whose struct lacks a configured field.
+                logger.exception("%s: could not lift from this IP", self.name)
 
         logger.info("%s process finished", self.name)
 

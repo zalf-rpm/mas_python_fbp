@@ -24,6 +24,7 @@ from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.components.common import brackets, templating, values
+from zalfmas_fbp.components.common.templating import TemplateError
 from zalfmas_fbp.run import metadata as meta
 
 if TYPE_CHECKING:
@@ -141,8 +142,11 @@ class WriteFile(process.Process[WriteFileConfig]):
                 if self.config.debug:
                     logger.info("%s: wrote %s", self.name, filepath)
 
-            except Exception:
-                logger.exception("%s Exception", self.name)
+            except (capnp.KjException, OSError, TemplateError, ValueError) as error:
+                # A bad filename pattern, an unwritable path, or an IP whose content cannot be
+                # read. All are properties of the input or the environment rather than of this
+                # component, so the next IP still gets a chance.
+                logger.warning("%s: could not write this IP: %s", self.name, error)
             finally:
                 count += 1
 

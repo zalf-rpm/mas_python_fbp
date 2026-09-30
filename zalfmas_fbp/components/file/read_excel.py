@@ -122,8 +122,8 @@ class Component(process.Process[Config]):
                         return apply_func(value)
                     else:
                         return value
-                except Exception:
-                    logger.exception("%s returning default for value %s", self.name, value)
+                except (TypeError, ValueError, ArithmeticError):
+                    logger.warning("%s: returning the default for value %r", self.name, value)
                     return default
             return value
 
@@ -147,8 +147,8 @@ class Component(process.Process[Config]):
                 if kind == "float":
                     return float(raw)
                 return str(raw)
-            except Exception:
-                logger.exception("%s: could not convert value %s as %s", self.name, raw, kind)
+            except (TypeError, ValueError, ArithmeticError):
+                logger.warning("%s: could not convert value %r as %s", self.name, raw, kind)
                 return None
 
         def add_dynamic_sheet(sheet_name: str, sheet_df: pandas.DataFrame):

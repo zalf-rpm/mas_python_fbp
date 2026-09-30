@@ -212,7 +212,10 @@ def read_attr_value(
                     # cast to specified type if it was an AnyPointer and the user specified the type
                     if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
                         attr_val, _ = as_type(attr_val, val_type)
-            except Exception:
+            except (capnp.KjException, AttributeError, KeyError, IndexError, TypeError, ValueError):
+                # This is a probe: the path may simply not exist on this value, which the caller
+                # handles via the False. Narrowed so a genuine error here is not reported as a
+                # missing attribute.
                 return attr_val, False
         return attr_val, True
 
@@ -374,11 +377,14 @@ class UpdateJson(process.Process[Config]):
         in_substream = False
         attrs_attrs = {}
         while self.in_ports["in"] and self.out_ports["out"]:
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            if not (in_ip := await self.read_in("in")):
+                self.in_ports["in"] = None
+                continue
+
             try:
-                if not (in_ip := await self.read_in("in")):
-                    self.in_ports["in"] = None
-                    continue
-                elif in_ip.type == "openBracket":
+                if in_ip.type == "openBracket":
                     if not await self.write_out("out", in_ip):
                         logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
                         break
@@ -437,10 +443,14 @@ class UpdateJson(process.Process[Config]):
                     content=json.dumps(j_content),
                     attributes=in_ip.attributes,  # list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
                 )
-                await self.write_out("out", out_ip)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s: process finished", self.name)
+                    return
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except (capnp.KjException, json.JSONDecodeError, KeyError, TypeError, ValueError):
+                # The IP's JSON, or an update path into it, did not hold up. That is a property of
+                # the message rather than of this component, so log it and take the next one.
+                logger.exception("%s: could not update this IP's JSON", self.name)
 
         logger.info("%s: process finished", Path(__file__).name)
 
