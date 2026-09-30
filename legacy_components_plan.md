@@ -305,13 +305,27 @@ or classify, then re-raise — nothing is swallowed), the input/output runtimes 
 tasks, re-raise), and the lifecycle and config watchers (supervisors that must not die, and which
 record and log what happened). ruff reports no `BLE001` in the package.
 
-Still open from this work package:
+**LP5 is complete.** The remaining three items, and what they turned out to be:
 
-- `copy_and_set_fbp_attrs` → `brackets.copy_attrs` in the 15 files, gaining `desc` preservation and
-  all-overrides behaviour.
-- The two unguarded `Value` casts driven from `valueType` via `values.python_from_attr`.
-- The process template updated to show bracket handling, since it is what new components are copied
-  from.
+- **`copy_and_set_fbp_attrs` → `brackets.copy_attrs`.** Four live call sites, not the fifteen the
+  survey counted — LP1–LP4 had already migrated the rest. Writing tests for the migration found a
+  fault neither `add_attribute` nor `add_content` had covered: when the side port (`attr` /
+  `content`) closed, the IP read from `in` in that same turn was dropped, so every run where the
+  side port finished first silently lost one input. Both also attached raw pointers with no
+  `valueType`, meaning what they attached could not be read back downstream (D4).
+- **The two unguarded `Value` casts.** Already fixed in passing during LP1–LP3. Verified by walking
+  the AST: every `as_struct(common_capnp.Value)` in the package is either inside a `try` or
+  schema-guaranteed (`Pair.snd`). The one apparent exception is the D14 repro in the `values.py`
+  docstring.
+- **The process template.** Already showed bracket handling (LP4 did it). What it was missing was
+  the error-handling rule, which is the one this work package spent its time on — and the template
+  is exactly where it belongs, since new components are copied from it. It also had no tests, while
+  the Runnable template did.
+
+Port connection failures are now fatal (`PortConnectionError`). A component that started with some
+of its ports silently unconnected read nothing and wrote nothing, which is indistinguishable from a
+component with no input. `try_connect` answering None is still not an error — that is how an
+intentionally unconnected port is expressed, and a test pins it.
 
 ### LP6 — dropped
 
