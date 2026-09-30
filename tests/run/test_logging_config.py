@@ -97,3 +97,61 @@ def test_configure_logging_updates_existing_handlers_with_full_traceback_formatt
     finally:
         root_logger.handlers = original_handlers
         root_logger.setLevel(original_level)
+
+
+# --- frames without line numbers ---------------------------------------------------------------
+
+
+def test_a_frame_without_a_line_number_does_not_crash_the_formatter() -> None:
+    """`FrameSummary.lineno` is `int | None`. Comparing and adding it unconditionally raised
+    TypeError inside the traceback formatter, so the crash replaced the traceback being read."""
+
+    import traceback
+
+    from zalfmas_fbp.run.logging_config import _format_frame_source_lines
+
+    frame = traceback.FrameSummary("somewhere.py", None, "fn", line="the source line")
+    assert _format_frame_source_lines(frame) == ["    the source line\n"]
+
+
+def test_a_frame_without_a_line_number_or_source_yields_nothing() -> None:
+    import traceback
+
+    from zalfmas_fbp.run.logging_config import _format_frame_source_lines
+
+    assert _format_frame_source_lines(traceback.FrameSummary("somewhere.py", None, "fn")) == []
+
+
+def test_an_end_line_before_the_start_is_treated_as_a_single_line() -> None:
+    import traceback
+
+    from zalfmas_fbp.run.logging_config import _format_frame_source_lines
+
+    frame = traceback.FrameSummary(__file__, 1, "fn")
+    frame.end_lineno = 0
+    assert len(_format_frame_source_lines(frame)) <= 1
+
+
+def test_format_exception_full_survives_a_stack_with_an_unknown_line_number() -> None:
+    """The whole formatter, not just the helper: this is the path a failing component takes."""
+
+    import traceback
+
+    from zalfmas_fbp.run.logging_config import _format_traceback_exception
+
+    try:
+        msg = "boom"
+        raise ValueError(msg)
+    except ValueError as exc:
+        te = traceback.TracebackException.from_exception(exc, capture_locals=False)
+
+    te.stack.append(traceback.FrameSummary("unknown.py", None, "mystery"))
+    rendered = "".join(_format_traceback_exception(te))
+    assert "ValueError: boom" in rendered
+    assert "mystery" in rendered
+
+
+def test_the_formatter_falls_back_when_there_is_no_exception() -> None:
+    from zalfmas_fbp.run.logging_config import FullTracebackFormatter
+
+    assert FullTracebackFormatter().formatException((None, None, None))

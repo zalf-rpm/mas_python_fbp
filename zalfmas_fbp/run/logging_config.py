@@ -11,15 +11,23 @@ LOG_LEVEL_CHOICES = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 def _format_frame_source_lines(frame: traceback.FrameSummary) -> list[str]:
-    end_lineno = frame.end_lineno or frame.lineno
-    if end_lineno < frame.lineno:
-        end_lineno = frame.lineno
+    """The source lines a frame spans, or its own cached line if they cannot be read.
+
+    A FrameSummary need not know its line number - `lineno` is `int | None` - and this used to
+    compare and add it regardless, raising TypeError. That happened *inside the traceback
+    formatter*, so the crash replaced the very traceback someone was trying to read.
+    """
 
     formatted_lines: list[str] = []
-    for lineno in range(frame.lineno, end_lineno + 1):
-        source_line = linecache.getline(frame.filename, lineno)
-        if source_line:
-            formatted_lines.append(f"    {source_line}")
+
+    start = frame.lineno
+    if start is not None:
+        end = frame.end_lineno if frame.end_lineno is not None else start
+        end = max(end, start)
+        for lineno in range(start, end + 1):
+            source_line = linecache.getline(frame.filename, lineno)
+            if source_line:
+                formatted_lines.append(f"    {source_line}")
 
     if not formatted_lines and frame.line:
         formatted_lines.append(f"    {frame.line}\n")
@@ -54,7 +62,8 @@ def format_exception_full(exc: BaseException) -> list[str]:
 class FullTracebackFormatter(logging.Formatter):
     def formatException(self, ei) -> str:  # noqa: N802
         exc_type, exc_value, exc_traceback = ei
-        if exc_value is None:
+        # both are None for an empty exc_info triple, and TracebackException needs a real type
+        if exc_value is None or exc_type is None:
             return super().formatException(ei)
         return "".join(
             _format_traceback_exception(
