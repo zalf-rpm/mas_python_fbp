@@ -49,7 +49,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, override
+from typing import TYPE_CHECKING, Any, Literal, cast, overload, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -540,13 +540,36 @@ def as_localhost_sturdy_ref(
         return None
     # readers expose as_builder() directly; builders don't (they already are one), so round-trip
     # through as_reader() first to get an independent copy and leave the original untouched.
-    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    local_ref = as_owned_builder(sturdy_ref)
     local_ref.vat.address.host = "127.0.0.1"
     return local_ref
 
 
+def as_owned_builder(sturdy_ref: SturdyRefBuilder | SturdyRefReader) -> SturdyRefBuilder:
+    """An independent builder copy, whichever of the two was passed.
+
+    Readers expose `as_builder()` directly; builders do not - they already are one - so those
+    round-trip through `as_reader()` first. Either way the caller gets a copy it owns, since the
+    input is typically a reader into a short-lived message.
+    """
+
+    # only a builder has as_reader(), so its presence is what tells the two apart
+    as_reader = getattr(sturdy_ref, "as_reader", None)
+    if as_reader is not None:
+        return as_reader().as_builder()
+    return cast("SturdyRefReader", sturdy_ref).as_builder()
+
+
+@overload
+def local_sr(sturdy_ref: str) -> str: ...
+@overload
+def local_sr(sturdy_ref: SturdyRefBuilder | SturdyRefReader) -> SturdyRefBuilder: ...
 def local_sr(sturdy_ref: str | SturdyRefBuilder | SturdyRefReader) -> str | SturdyRefBuilder:
     """Owned copy of sturdy_ref with its host forced to 127.0.0.1.
+
+    The overloads say what the body already does: this is an in-kind transform, so a sturdy ref
+    that went in as text comes back as text. Without them the union leaked into every caller and
+    on into the functions they hand the result to.
 
     Unlike as_localhost_sturdy_ref, this is meant to be applied proactively to every sturdy ref
     produced by a locally started channel - not just as a reconnect fallback - because most of
@@ -558,7 +581,7 @@ def local_sr(sturdy_ref: str | SturdyRefBuilder | SturdyRefReader) -> str | Stur
     """
     if isinstance(sturdy_ref, str):
         return as_localhost_sturdy_ref(sturdy_ref) or sturdy_ref
-    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    local_ref = as_owned_builder(sturdy_ref)
     if str(local_ref.vat.address.host) not in LOOPBACK_HOSTS:
         local_ref.vat.address.host = "127.0.0.1"
     return local_ref
