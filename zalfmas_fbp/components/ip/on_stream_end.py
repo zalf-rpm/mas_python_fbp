@@ -34,8 +34,7 @@ class Config(process.ProcessConfig):
     trigger_on: Literal["stream_end", "substream_end", "both"] = Field(
         default="stream_end",
         description=(
-            "When to emit: once when the input closes, once per substream as its close-bracket "
-            "passes, or both."
+            "When to emit: once when the input closes, once per substream as its close-bracket passes, or both."
         ),
     )
     content: str = Field(default="done", description="Content of the emitted IP.")
