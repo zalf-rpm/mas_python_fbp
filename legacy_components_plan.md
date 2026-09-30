@@ -184,19 +184,45 @@ Cost of running the whole suite in the kj loop: 0.024 ms per test, measured.
 Also worth recording: a *wrong* `as_interface` cast does not raise either — it fails only when the
 capability is called. D14 extends to interfaces.
 
-| component | state |
-| --- | --- |
-| `climate/climate_service_to_datasets` | ✅ converted, 16 tests — 2 faults fixed |
-| `climate/datasets_to_timeseries` | ✅ converted, 21 tests — 3 faults fixed |
-| `climate/timeseries_cap_to_data` | ✅ converted, 23 tests — 5 faults fixed, emitted nothing at all |
-| `climate/timeseries_data_to_csv` | todo |
-| `grid/use_grid_service` | todo |
-| `soil/use_soil_service` | todo |
-| `models/monica/create_monica_env` | todo |
+**LP3 is complete.** All seven converted, 158 tests added, 30 faults fixed.
 
-The recurring faults so far: a close bracket falling through its branch and then being read as a
-capability (3 of 3), config defaults whose type does not match the code reading them (2), and
-missing `await` on a write (1). All were invisible behind a blanket `except Exception`.
+| component | tests | faults |
+| --- | --- | --- |
+| `climate/climate_service_to_datasets` | 16 | 2 |
+| `climate/datasets_to_timeseries` | 21 | 3 |
+| `climate/timeseries_cap_to_data` | 23 | 5 — **emitted nothing at all** |
+| `climate/timeseries_data_to_csv` | 20 | 5 — **emitted nothing at all** |
+| `grid/use_grid_service` | 26 | 7 — **emitted nothing at all** |
+| `soil/use_soil_service` | 22 | 4 — **emitted nothing at all** |
+| `models/monica/create_monica_env` | 27 | 5 — **emitted nothing at all** |
+
+Five of the seven could never emit a single IP. Every one of those five had **at least two
+independent** fatal faults, so no single fix would have revealed the others.
+
+What the faults actually were, by frequency:
+
+- **The blanket `except Exception` around the whole per-IP body (7 of 7).** It is the reason all
+  of this stayed invisible: a component that crashes on every IP looks exactly like a component
+  with no input. This is the single most valuable thing to stop writing.
+- **Config keys the code reads that the METADATA never declares (3).** `subrange_to` vs
+  `subrange_end`; `dgm` vs `dgm_attr`; a `defaultConfig` missing entirely. A `KeyError` per IP.
+- **Names that do not exist in the schema (3).** `grid_capnp.Service` (it is `Grid`),
+  `service.profilesAt` (it is `closestProfilesAt`), `common_capnp.IP` (it is `fbp_capnp.IP`).
+- **A close bracket falling through its branch and then being read as data (4).**
+- **Config defaults whose type does not match the code reading them (3).** `.split(",")` on a
+  list, `len()` on None, a bool compared to `"true"`.
+- **Awaiting the wrong thing (2).** `.wait()` on an async read; `await promise.field` rather than
+  `(await promise).field`.
+- **Caching a mutable template and handing out the original (1).** Silent cross-contamination
+  between runs rather than a crash - the one fault here that produced *wrong* output rather than
+  none.
+
+Two library fixes came out of this: `brackets.make_bracket` takes `content`, and
+`ports.get_attr_val` no longer lets a failed cast escape (`as_interface` raises outright on any
+message without a capability table, which is every IP not built by the RPC system).
+
+Runnable-style components remaining: the deliberate `runnable_component_template`, and
+`africa_calibration_producer`/`consumer`, which are being removed.
 
 ### LP4 ✅ — bracket transparency for the 11 Process components
 
