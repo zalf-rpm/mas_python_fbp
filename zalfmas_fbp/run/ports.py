@@ -80,12 +80,19 @@ def get_attr_val(
     else:
         attr_val = attrs[name]
 
-    if as_struct:
-        return attr_val.as_struct(as_struct), True
-    if as_interface:
-        return attr_val.as_interface(as_interface), True
-    if as_text:
-        return attr_val.as_text(), True
+    # A cast that does not fit is an answer ("not of that type"), not a failure: these attributes
+    # are routinely either a capability or a plain value, and the caller picks a branch on the
+    # returned flag. as_interface in particular raises outright when the message carries no
+    # capability table at all, which is the case for any IP not built by the RPC system.
+    try:
+        if as_struct:
+            return attr_val.as_struct(as_struct), True
+        if as_interface:
+            return attr_val.as_interface(as_interface), True
+        if as_text:
+            return attr_val.as_text(), True
+    except (KjException, AttributeError, TypeError, ValueError):
+        return attr_val, False
     return attr_val, True
 
 
