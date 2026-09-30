@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol, override
 
+import capnp
 import matplotlib.pyplot as plt
 import numpy as np
 import spotpy
@@ -354,9 +355,18 @@ class SpotPySetup:
                         f"len(sim_values): {len(sim_values)} == len(self.observations): {len(self.observations)}",
                     ),
                 )
-            assert len(sim_values) == len(self.observations)
-        except Exception:
-            logger.exception("%s %s exception", Path(__file__).name, datetime.now())
+            if len(sim_values) != len(self.observations):
+                # an `assert` here vanished under `python -O`, so a mismatch reached the sampler
+                logger.error(
+                    "%s: got %d simulated values for %d observations; discarding this iteration",
+                    self.component.name,
+                    len(sim_values),
+                    len(self.observations),
+                )
+                return None
+        except (capnp.KjException, ValueError, TypeError):
+            logger.exception("%s: could not read the simulated values", self.component.name)
+            return None
 
         return sim_values
 
@@ -533,20 +543,49 @@ def capnp_value_lf64_to_numpy_array(lf64: common_capnp.types.readers.Float64List
     return np.array(lf64, np.float64)
 
 
-def capnp_value_lf64_to_numpy_array_with_nan(lf64: common_capnp.types.readers.Float64ListReader, sentinel_values={}):
+def capnp_value_lf64_to_numpy_array_with_nan(
+    lf64: common_capnp.types.readers.Float64ListReader,
+    sentinel_values: dict | None = None,
+):
     return np.array([sentinel_values.get(v, v) if sentinel_values else v for v in lf64])
+
+
+SPOTPY_PARAM_KEYS = ("name", "low", "high", "step", "optguess", "minbound", "maxbound")
+
+
+def spotpy_parameters(init_params: list[dict]) -> list[Any]:
+    """Build spotpy parameters, passing only the keys spotpy accepts.
+
+    `spotpy.parameter.Uniform(**par)` raises TypeError on any key it does not know - including
+    `derive_expression`, which the loader sends along - and that used to be swallowed, leaving
+    the calibration with no parameters and no explanation.
+    """
+
+    params = []
+    for par in init_params:
+        kwargs = {k: v for k, v in par.items() if k in SPOTPY_PARAM_KEYS}
+        if "array_index" in par:
+            # spotpy does not allow two parameters to have the same name
+            kwargs["name"] = f"{kwargs.get('name', '')}_{par['array_index']}"
+        if ignored := sorted(set(par) - set(SPOTPY_PARAM_KEYS) - {"array_index"}):
+            logger.info("%s: ignoring parameter keys spotpy does not take: %s", Path(__file__).name, ignored)
+        params.append(spotpy.parameter.Uniform(**kwargs))
+    return params
 
 
 def check_and_possibly_add_sentinel_value(sentinel_values: dict, attr, sentinel_attr_name):
     if attr.key == sentinel_attr_name:
         try:
-            if (val := attr.value.as_struct(common_capnp.Value)).which() == "f64":
-                sentinel_values[val.f64] = np.nan
-        except Exception:
+            val = attr.value.as_struct(common_capnp.Value)
+        except capnp.KjException:
             logger.warning(
-                "%s: null_sentinel attribute's type was no common.capnp:Value.f64! Skipping.",
+                "%s: the %s attribute is not a common.capnp:Value; skipping it.",
                 Path(__file__).name,
+                sentinel_attr_name,
             )
+            return
+        if val.which() == "f64":
+            sentinel_values[val.f64] = np.nan
 
 
 class Component(process.Process[Config]):
@@ -579,30 +618,25 @@ class Component(process.Process[Config]):
                             self.in_ports["init_params"] = None
                             continue
 
-                        init_params = []
+                        init_params: list[dict] = []
                         if init_params_ip._has("content"):
                             try:
-                                init_params: list[dict] = json.loads(params_text := init_params_ip.content.as_text())
-                            except Exception:
+                                init_params = json.loads(init_params_ip.content.as_text())
+                            except (capnp.KjException, TypeError, ValueError):
                                 logger.warning(
-                                    "%s: Couldn't read JSON parameters to calibrate! params: %s",
+                                    "%s: could not read the JSON parameters to calibrate.",
                                     Path(__file__).name,
-                                    params_text,
                                 )
-                        if len(init_params) == 0:
+                        if not init_params:
                             continue
 
-                        for par in init_params:
-                            if "array_index" in par:
-                                # spotpy does not allow two parameters to have the same name
-                                par["name"] += f"_{par.pop('array_index')}"
-                            spotpy_params.append(spotpy.parameter.Uniform(**par))
+                        spotpy_params.extend(spotpy_parameters(init_params))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
                             continue
 
-                    except Exception:
-                        logger.exception("%s Exception", Path(__file__).name)
+                    except (capnp.KjException, TypeError, ValueError):
+                        logger.exception("%s: could not set up the parameters", Path(__file__).name)
                         continue
 
                 obs_values = None
@@ -627,8 +661,8 @@ class Component(process.Process[Config]):
                         if len(obs_values) == 0:
                             logger.warning("%s: no observed values to calibrate!", Path(__file__).name)
                             continue
-                    except Exception:
-                        logger.exception("%s Exception", Path(__file__).name)
+                    except (capnp.KjException, TypeError, ValueError):
+                        logger.exception("%s: could not read the observed values", Path(__file__).name)
                         continue
 
                 spot_setup = SpotPySetup(
@@ -680,8 +714,9 @@ class Component(process.Process[Config]):
                 )
                 plt.close(fig)
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except (OSError, KeyError, IndexError, ValueError):
+                # loading the sampler's CSV back and plotting it: file and data problems only
+                logger.exception("%s: could not write the calibration results", Path(__file__).name)
 
             if temp_dir:
                 temp_dir.cleanup()
