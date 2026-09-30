@@ -721,6 +721,14 @@ def _field_schema(schema: Any, name: str) -> Any | None:
 def _coerce_for_field_type(value: Any, type_name: str, coerce_numbers: bool) -> Any:
     if not coerce_numbers:
         return value
+    if type_name == "bool" and isinstance(value, str):
+        # Text sources - CSV especially - carry booleans as words.
+        lowered = value.strip().lower()
+        if lowered in ("true", "yes", "1"):
+            return True
+        if lowered in ("false", "no", "0", ""):
+            return False
+        return value
     if type_name in _INT_TYPE_TO_FIELD and isinstance(value, (str, int, float, bool)):
         try:
             return coerce_scalar_for_field(value, _INT_TYPE_TO_FIELD[type_name])

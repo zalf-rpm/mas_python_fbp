@@ -1156,13 +1156,14 @@
         "info": {
             "id": "0e7507f8-97ae-4479-a608-4c1ebf37c4ba",
             "name": "read csv",
-            "description": "Read a csv file and send content as string downstream."
+            "description": "Read a CSV file and emit each row as a typed Cap'n Proto struct. A source: it reads its file from config, and reads another whenever new config arrives on 'conf', so a flow can drive it over several files."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
             {
                 "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
                 "role": "config",
                 "required": false
             }
@@ -1170,41 +1171,65 @@
         "outPorts": [
             {
                 "name": "out",
-                "contentType": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "desc": "A single row from the CSV file sent as Setup struct.",
+                "contentType": "AnyPointer",
+                "desc": "One IP per row, tagged with the struct type it was built as.",
                 "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
                 "required": false
             }
         ],
         "defaultConfig": {
+            "file": {
+                "value": "",
+                "type": "string",
+                "desc": "Path to the CSV file to read."
+            },
+            "struct_type": {
+                "value": "@0xa4b1a2ad9a77fdc7 = model/monica/sim_setup.capnp:Setup",
+                "type": "string",
+                "desc": "Cap'n Proto struct type to build from each row."
+            },
             "id_col": {
                 "value": "id",
                 "type": "string",
-                "desc": "The column to be used to unique identify a row."
+                "desc": "Column identifying a row, used by 'send_ids'."
             },
             "col_to_field_names": {
                 "value": {},
                 "type": "object",
-                "desc": "Map CSV column names to field names in the Cap'n Proto struct. E.g. {'col1': 'field1', 'col2': 'field2'}."
+                "desc": "Map CSV column names onto the struct's field names, e.g. {'col1': 'field1'}."
             },
             "send_ids": {
                 "value": [],
                 "type": "list",
-                "desc": "Send only these ids as messages downstream. E.g. [1,2,3]"
-            },
-            "file": {
-                "value": "path to csv file",
-                "type": "string",
-                "desc": "The path to the CSV file to be read."
-            },
-            "struct_type": {
-                "value": "mas.schema.model.monica.sim_setup_capnp:Setup",
-                "type": "string",
-                "desc": "The Cap'n Proto struct type to fill from a CSV row."
+                "desc": "Emit only rows whose 'id_col' is in this list. Empty emits every row."
             },
             "to_attr": {
                 "type": "string",
-                "desc": "Instead of sending a row as IP content, send it in this attribute."
+                "desc": "Put the row in this attribute instead of the IP's content."
+            },
+            "delimiter": {
+                "type": "string",
+                "desc": "Column delimiter. Null sniffs it from the file, trying ';', ',' and tab."
+            },
+            "wrap_in_substream": {
+                "value": false,
+                "type": "bool",
+                "desc": "Wrap each file's rows in an open-/close-bracket pair."
+            },
+            "unknown_columns": {
+                "value": "ignore",
+                "type": [
+                    "ignore",
+                    "error"
+                ],
+                "desc": "Whether a column the struct has no field for is skipped or stops the file."
             }
         }
     },
