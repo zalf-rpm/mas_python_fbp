@@ -18,13 +18,15 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import override
+from typing import Any, Literal, override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,14 @@ class Config(process.ProcessConfig):
     default_country_ids: list[int] = Field(
         default_factory=list,
         description="string of serialized json array containing country ids",
+    )
+    delimiter: str = Field(
+        "",
+        description="Column separator of the yield CSV. Empty works it out, falling back to a comma.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        "skip",
+        description="Whether an unreadable input or yield row is skipped or stops the process.",
     )
 
 
@@ -93,6 +103,8 @@ class Component(process.Process[Config]):
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
+        self._yields: dict[str, dict[int, dict[int, float]]] = {}
+        self._yields_from: str | None = None
 
     @override
     async def run(self):
@@ -100,51 +112,117 @@ class Component(process.Process[Config]):
 
         country_ids = self.config.default_country_ids
 
+        sent = 0
         while self.in_ports["country_ids"] and self.out_ports["out"]:
+            in_ip = await self.read_in("country_ids")
+            if in_ip is None:
+                self.in_ports["country_ids"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
+                continue
+
+            wanted = self.country_ids_of(in_ip, country_ids)
+            if wanted is None:
+                message = f"{self.name}: no country ids could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
+            country_ids = wanted
+
+            observed = self.observed_for(country_ids)
+            out_ip = fbp_capnp.IP.new_message(
+                attributes=[{"key": "param_set_id", "value": "-".join(str(c) for c in country_ids)}],
+                content=json.dumps(observed),
+            )
+            sent += 1
+            if not await self.write_out("out", out_ip):
+                break
+
+        logger.info("%s process finished, sent %d set(s) of observed values", self.name, sent)
+
+    def country_ids_of(self, in_ip: Any, current: list[int]) -> list[int] | None:
+        """The country ids this IP asks for, or the ones in force if it names none."""
+
+        try:
+            text = in_ip.content.as_text()
+        except capnp.KjException:
+            return None
+        if not text:
+            return current
+        try:
+            ids = json.loads(text)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(ids, int):
+            return [ids]
+        if isinstance(ids, list) and all(isinstance(c, int) for c in ids):
+            return ids
+        return None
+
+    def yield_data(self) -> dict[str, dict[int, dict[int, float]]]:
+        """Every yield row, by crop, country and year. Read once: the file does not change."""
+
+        path = Path(self.config.path_to_yield_data)
+        if self._yields_from == str(path):
+            return self._yields
+
+        try:
+            text = path.read_text()
+        except OSError:
+            if self.config.on_error == "fail":
+                raise
+            logger.exception("%s: could not read %s", self.name, path)
+            return {}
+
+        by_crop: dict[str, dict[int, dict[int, float]]] = defaultdict(lambda: defaultdict(dict))
+        reader = csv.reader(text.splitlines(), delimiter=self.delimiter_for(text))
+        next(reader, None)  # skip the header
+        for line_no, row in enumerate(reader, start=2):
             try:
-                country_ids_ip = await self.read_in("country_ids")
-                if country_ids_ip is None:
-                    self.in_ports["country_ids"] = None
-                    continue
+                crop = row[0].strip().lower()
+                by_crop[crop][int(row[4])][int(row[2])] = float(row[3]) * 1000.0  # t/ha -> kg/ha
+            except (IndexError, ValueError):
+                # one malformed row used to abandon the whole file for that IP
+                message = f"{self.name}: {path}:{line_no} is not a readable yield row"
+                if self.config.on_error == "fail":
+                    raise ValueError(message) from None
+                logger.warning(message)
 
-                c_ids_txt = country_ids_ip.content.as_text()
-                if len(c_ids_txt):
-                    country_ids = json.loads(c_ids_txt)
-                    if isinstance(country_ids, int):
-                        country_ids = [country_ids]
+        self._yields = {crop: dict(countries) for crop, countries in by_crop.items()}
+        self._yields_from = str(path)
+        return self._yields
 
-                crop_to_country_to_year_to_value = defaultdict(lambda: defaultdict(dict))
-                with Path(self.config.path_to_yield_data).open() as file:
-                    dialect = csv.Sniffer().sniff(file.read(), delimiters=";,\t")
-                    file.seek(0)
-                    reader = csv.reader(file, dialect)
-                    next(reader, None)  # skip the header
-                    for row in reader:
-                        crop = row[0].strip().lower()
-                        country_id = int(row[4])
-                        year = int(row[2])
-                        value = float(row[3]) * 1000.0  # t/ha -> kg/ha
-                        if country_ids is None or len(country_ids) == 0 or country_id in country_ids:
-                            crop_to_country_to_year_to_value[crop][country_id][year] = value
+    def delimiter_for(self, text: str) -> str:
+        """The configured separator, or one worked out from the file, falling back to a comma.
 
-                # fill in no data values
-                for _crop, country_to_year_to_value in crop_to_country_to_year_to_value.items():
-                    for _country_id, year_to_value in country_to_year_to_value.items():
-                        for year in range(self.config.from_year, self.config.to_year + 1):
-                            if year not in year_to_value:
-                                year_to_value[year] = self.config.no_data_value
+        `csv.Sniffer` raises on plenty of good files, and giving up meant reading no data at all.
+        """
 
-                param_set_id = "-".join([str(id) for id in country_ids])
-                out_ip = fbp_capnp.IP.new_message(
-                    attributes=[{"key": "param_set_id", "value": param_set_id}],
-                    content=json.dumps(crop_to_country_to_year_to_value.get(self.config.crop, {})),
-                )
-                await self.write_out("out", out_ip)
+        if self.config.delimiter:
+            return self.config.delimiter
+        try:
+            return csv.Sniffer().sniff(text, delimiters=";,\t").delimiter
+        except csv.Error:
+            logger.info("%s: could not work out the delimiter; assuming a comma.", self.name)
+            return ","
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+    def observed_for(self, country_ids: list[int]) -> dict[int, dict[int, float]]:
+        """The configured crop's values for these countries, with missing years filled in."""
 
-        logger.info("%s: process finished", self.name)
+        wanted = self.yield_data().get(self.config.crop, {})
+        observed: dict[int, dict[int, float]] = {}
+        for country_id, year_to_value in wanted.items():
+            if country_ids and country_id not in country_ids:
+                continue
+            filled = dict(year_to_value)
+            for year in range(self.config.from_year, self.config.to_year + 1):
+                filled.setdefault(year, self.config.no_data_value)
+            observed[country_id] = filled
+        return observed
 
 
 def main():
