@@ -168,7 +168,7 @@ def _sub_access(value: Any, parts: list[str | int], types: dict[str, str], path:
                 return _MISSING
         elif isinstance(current, dict) and field_name in current:
             current = current[field_name]
-        elif hasattr(current, "schema") and field_name in current.schema.fieldnames:
+        elif (schema := getattr(current, "schema", None)) is not None and field_name in schema.fieldnames:
             current = getattr(current, field_name)
         else:
             logger.error(

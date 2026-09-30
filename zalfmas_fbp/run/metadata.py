@@ -124,10 +124,16 @@ def _config_type_from_annotation(annotation: Any) -> str | list[str] | None:
 
 
 def _config_default_value(field: FieldInfo) -> Any:
+    """A field's default, calling its factory if it has one.
+
+    Pydantic's own accessor is used rather than calling `default_factory` directly: a factory may
+    take the already-validated data as an argument, and only pydantic knows which kind this is.
+    """
+
     if field.default is not PydanticUndefined:
         return field.default
     if field.default_factory is not None:
-        return field.default_factory()
+        return field.get_default(call_default_factory=True)
     return PydanticUndefined
 
 

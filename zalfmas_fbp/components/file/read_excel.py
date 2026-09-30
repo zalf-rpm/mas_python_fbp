@@ -133,12 +133,27 @@ class Component(process.Process[Config]):
         data: dict[str, Any] = {}
 
         # read additional (custom/optional) sheets dynamically and attach them based on their key columns
-        def convert_cell(raw, kind: Literal["date", "int", "float", "str"]):
+        def is_blank(raw: Any) -> bool:
+            """Whether a cell holds nothing: None, or a scalar NaN/NaT.
+
+            Kept separate so the narrowing `np.isscalar` performs stays in here. Inlined, it
+            leaked into the conversions below and made every one of them a type error.
+            """
+
             try:
-                if raw is None or (np.isscalar(raw) and pandas.isna(raw)):
-                    return None
+                return raw is None or bool(np.isscalar(raw) and pandas.isna(raw))
             except (TypeError, ValueError):
-                pass
+                return False
+
+        def convert_cell(raw: Any, kind: Literal["date", "int", "float", "str"]):
+            """One spreadsheet cell as the wanted type, or None if it is blank or unconvertible.
+
+            `raw` is whatever pandas produced for that cell - a numpy scalar, a Timestamp, a str,
+            NaN - so it is typed as Any rather than pretending to a union.
+            """
+
+            if is_blank(raw):
+                return None
             try:
                 if kind == "date":
                     return str(raw)[:10]

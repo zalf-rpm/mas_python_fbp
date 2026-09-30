@@ -19,7 +19,7 @@ import sys
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import capnp
 from mas.schema.common import common_capnp
@@ -27,6 +27,10 @@ from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
 
 from zalfmas_fbp.run import channels as chans
+
+if TYPE_CHECKING:
+    from mas.schema.persistence.persistence_capnp.types.builders import SturdyRefBuilder
+    from mas.schema.persistence.persistence_capnp.types.readers import SturdyRefReader
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +132,17 @@ async def start_flow_via_port_infos_sr(config: dict[str, Any]):
     process_id_to_process = {}
     channels = []
 
-    async def connect_or_raise(sturdy_ref: str, target: str):
+    async def connect_or_raise(sturdy_ref: SturdyRefBuilder | SturdyRefReader | str | None, target: str):
+        """Connect, or say which thing could not be reached.
+
+        Accepts the same shapes `try_connect` does, plus None - a channel that failed to start
+        hands back no sturdy ref at all, and that is worth a clear message rather than being
+        passed on as if it were one.
+        """
+
+        if sturdy_ref is None:
+            msg = f"Couldn't get the sturdy ref of the {target}."
+            raise RuntimeError(msg)
         cap = await con_man.try_connect(sturdy_ref)
         if cap is None:
             msg = f"Couldn't connect to {target} {sturdy_ref}."

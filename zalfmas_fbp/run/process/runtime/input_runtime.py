@@ -23,10 +23,12 @@ from .state_runtime import ProcessActivityContext
 
 if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.clients import LeaseClient, ReaderClient
-    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader, MsgReader
     from mas.schema.fbp.fbp_capnp.types.results.client import ReadResult
 
-type LeasedMsg = tuple[ReadResult, LeaseClient | None]
+# read() answers a ReadResult, readLeased() a MsgReader. They are the same thing to every
+# caller here - `.which()` and `.value` - but they are distinct types, so both belong in the alias.
+type LeasedMsg = tuple[ReadResult | MsgReader, LeaseClient | None]
 
 logger = logging.getLogger(__name__)
 

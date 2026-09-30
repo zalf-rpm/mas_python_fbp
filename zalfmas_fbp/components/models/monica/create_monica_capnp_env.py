@@ -170,7 +170,8 @@ class Component(process.Process[Config]):
                     break
                 continue
 
-            in_attrs = {kv.key: kv.value for kv in in_ip.attributes}
+            # readers for what arrived, plus whatever this component builds and puts back in
+            in_attrs: dict[str, Any] = {kv.key: kv.value for kv in in_ip.attributes}
 
             json_env = self.json_env_of(in_ip, in_attrs)
             if json_env is None:

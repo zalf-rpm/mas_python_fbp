@@ -29,7 +29,7 @@ from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.process as process
 from zalfmas_fbp.components.common import brackets
-from zalfmas_fbp.components.json.update_json import read_attr_value, read_dict_value
+from zalfmas_fbp.components.json.update_json import read_attr_value, read_dict_value, split_into_parts
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -164,10 +164,7 @@ class Component(process.Process[Config]):
             while (i := file_pattern.find("{")) != -1 and (k := file_pattern.find("}", i + 1)) != -1 and k > i + 1:
                 file_name += file_pattern[:i]
                 expr = file_pattern[i + 1 : k]
-                parts = expr.split("/")
-                for j in range(len(parts)):
-                    if parts[j].isdigit():
-                        parts[j] = int(parts[j])
+                parts = split_into_parts(expr, create_int_indizes=True)
                 if len(parts) > 0 and not parts[0].startswith("@"):
                     attr_val, success = read_dict_value(result, parts)
                 elif len(parts) > 0:

@@ -14,7 +14,7 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-from typing import override
+from typing import Any, cast, override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -88,9 +88,21 @@ class Component(process.Process[Config]):
         logger.info("%s process running", self.name)
 
         lift_from_schema = None
+        lift_fieldnames: list[str] = []
         if self.config.lift_from_type is not None:
             lift_from_schema = common.schema_from_content_type_string(self.config.lift_from_type)
-        lift_fieldnames = lift_from_schema.as_struct().fieldnames if lift_from_schema else []
+            # Only a struct has fields to lift. A content type naming an interface or an enum
+            # resolves fine and then has no `as_struct`, which used to raise here.
+            as_struct = getattr(lift_from_schema, "as_struct", None)
+            if as_struct is None:
+                logger.warning(
+                    "%s: 'lift_from_type' %r is not a struct, so it has no fields to lift.",
+                    self.name,
+                    self.config.lift_from_type,
+                )
+                lift_from_schema = None
+            else:
+                lift_fieldnames = list(as_struct().fieldnames)
 
         while self.in_ports["in"] and self.out_ports["out"]:
             # The read is outside the try: a failing read is the runtime's to report, and
@@ -109,7 +121,9 @@ class Component(process.Process[Config]):
                         return
                     continue
 
-                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, lift_from_schema)
+                # get_fbp_attr defaults `schema` to None but does not say so in its annotation,
+                # so passing the None we may hold needs spelling out.
+                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, cast("Any", lift_from_schema))
 
                 out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
                 attrs = []
