@@ -66,8 +66,8 @@ class Config(process.ProcessConfig):
         default="substream_length",
         description=(
             "Attach the number of emitted items to the close-bracket as this attribute, the way "
-            "'Split bracketed stream' does. Only used when wrapping in a substream. Empty disables "
-            "it - a null in a config means 'use the default', so it cannot turn this off."
+            "'Split bracketed stream' does. Only used when wrapping in a substream. Null or empty "
+            "disables it."
         ),
     )
     copy_parent_paths: dict[str, str] = Field(

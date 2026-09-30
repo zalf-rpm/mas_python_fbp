@@ -126,19 +126,17 @@ def test_an_unresolvable_key_groups_under_none_rather_than_failing() -> None:
     assert grouping(writer) == [["a", "b"]]
 
 
-def test_the_key_attribute_can_be_suppressed_with_an_empty_name() -> None:
-    """Empty rather than null: a null config value means 'use the default', so it cannot turn a
-    field with a non-null default off. Framework behaviour, see ProcessConfigRuntime.
-    """
-    writer = run([attr_ip("a", region="north")], selector="@region", key_attr="")
+def test_the_key_attribute_can_be_suppressed_with_null() -> None:
+    """A null config value is the null value, not a request to restore the default."""
+    writer = run([attr_ip("a", region="north")], selector="@region", key_attr=None)
     opens = [v for v in writer.values if str(v.type) == "openBracket"]
     assert list(opens[0].attributes) == []
 
 
-def test_a_null_config_value_reverts_to_the_default_rather_than_unsetting() -> None:
-    writer = run([attr_ip("a", region="north")], selector="@region", key_attr=None)
+def test_an_empty_name_also_suppresses_it() -> None:
+    writer = run([attr_ip("a", region="north")], selector="@region", key_attr="")
     opens = [v for v in writer.values if str(v.type) == "openBracket"]
-    assert [kv.key for kv in opens[0].attributes] == ["group_key"]
+    assert list(opens[0].attributes) == []
 
 
 def test_incoming_brackets_are_replaced_by_the_new_grouping() -> None:

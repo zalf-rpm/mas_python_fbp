@@ -1080,16 +1080,16 @@ class FlowRunner:
     @staticmethod
     async def apply_config(process_cap: ProcessClient, node: FlowNode, name: str) -> None:
         for key, value in (node.config or {}).items():
-            # a None value means 'use the component's default', which is what happens anyway
-            # if the entry is not set at all
-            if value is None:
-                continue
             try:
                 # setConfigEntry has a named param struct, so it can neither be called with
                 # positional args nor with a 'name' keyword (that one belongs to _send)
                 request = process_cap.setConfigEntry_request()
                 request.name = key
-                request.val = config_value_from_python(value)
+                # A null is sent by leaving 'val' unset, since Value has no null variant. Skipping
+                # the entry instead would mean the component keeps its default, which is a
+                # different value from the null the flow asked for.
+                if value is not None:
+                    request.val = config_value_from_python(value)
                 _ = await request.send()
             except (capnp.KjException, TypeError):
                 logger.exception("%s: couldn't set config entry '%s'", name, key)

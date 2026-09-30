@@ -309,17 +309,30 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     # configEntries @4 () -> (config :List(ConfigEntry));
     @override
     async def configEntries(self, _context, **kwargs):
-        return [
-            fbp_capnp.Process.ConfigEntry.new_message(
-                name=item[0],
-                val=config_value_from_python(item[1]),
-            )
-            for item in self.raw_config.items()
-        ]
+        return [self._config_entry_message(name, value) for name, value in self.raw_config.items()]
+
+    @staticmethod
+    def _config_entry_message(name: str, value: ConfigValue):
+        """One config entry. A null value leaves 'val' unset, since Value has no null variant.
+
+        The same convention Pair.snd already uses for nulls nested inside a config dict, so a
+        reader tells them apart with _has("val").
+        """
+        entry = fbp_capnp.Process.ConfigEntry.new_message(name=name)
+        if value is not None:
+            entry.val = config_value_from_python(value)
+        return entry
 
     @override
     async def setConfigEntry(self, name, val, _context, **kwargs):
-        self.apply_config_values({name: python_value_from_capnp_value(val)})
+        # An unset 'val' is the null value, not a missing argument: Value cannot encode null, so
+        # leaving the field out is how a caller sends one. See _config_entry_message.
+        has_val = True
+        try:
+            has_val = _context.params._has("val")  # noqa: SLF001 - capnp exposes presence only via _has
+        except (AttributeError, capnp.KjException):
+            logger.debug("%s: could not check whether 'val' was set; treating it as present.", self.name)
+        self.apply_config_values({name: python_value_from_capnp_value(val) if has_val else None})
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
         await self._state_runtime.transition_to_state(new_state)

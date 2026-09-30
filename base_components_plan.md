@@ -860,25 +860,35 @@ content with a numeric sentinel), where no single `Value` field holds both. Ther
 attribute falls back to its own type — the attribute is worth more than the type match, and dropping
 the message was never the intent.
 
-### 7.9 A config `null` means "use the default", not "set to null"
+### 7.9 D16 — a config `null` is a value, not a request to unset
 
-Found while building WP4, and worth knowing before writing any component with a nullable field.
-`ProcessConfigRuntime.apply_config_values` treats a `None` as *remove this key*:
+`ProcessConfigRuntime.apply_config_values` used to treat a `None` as *remove this key*, so the field
+fell back to its declared default. A field with a non-null default could therefore not be set to
+null from a flow at all, and — worse — the removal happened *before* validation, so pydantic never
+saw the `None` and could not enforce the field's contract either way.
 
-```python
-if value is None:
-    next_raw_config.pop(key, None)
-    continue
-```
+**Decision: `None` is an ordinary value.** A field declared `str | None` takes it; one declared
+`str` is rejected by the model, which is the check that was being bypassed. Nothing is committed
+unless the merged config validates, and setting a single key still validates every field, so
+incremental updates stay safe.
 
-So a field with a non-null default cannot be turned off from a flow config — sending
-`key_attr = null` restores `"group_key"` rather than unsetting it. This is sensible for
-`setConfigEntry` (where removing an entry is a real operation), but it means a component wanting an
-"off" setting must accept one that is expressible.
+There is no "unset" operation, and none is needed: a component's starting state equals the defaults
+its metadata publishes, which is what the flow editor populates its dialog from, so going back to
+"the component ignores this" is just another value to set.
 
-**Convention:** for optional *name* fields with a non-null default, treat the **empty string** as
-off, and say so in the field description. `group_into_substreams.key_attr` and
-`split_json.count_attr` both do.
+**Carrying a null over the RPC.** `common.capnp:Value` has no null variant, so a null is sent by
+leaving `Process.ConfigEntry.val` **unset** and read back with `_has("val")`. This needs no schema
+change: it is the same convention `Pair.snd` already uses for nulls nested inside a config dict.
+`configEntries` emits such an entry for a null, and `setConfigEntry` reads one, so a caller can read
+a live config, change one field to null, and send just that field back.
+
+*Consequence for other languages:* `configEntries` can now return an entry whose `val` is unset,
+which a consumer must read as null rather than as a missing argument. Nothing breaks retroactively —
+a null was previously impossible to hold — but the case should be handled before anyone sets one.
+
+The four places that each independently decided null was not a value are now one: the flow runner
+sends it, `config_value_from_python` is only called for non-null values, the funnel sets it, and
+`ProcessBootstrap` applies null defaults like any other.
 
 ### 7.7 D12 — refactor the two existing users onto S3 in WP0
 

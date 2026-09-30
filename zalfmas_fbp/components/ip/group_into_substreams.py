@@ -52,10 +52,7 @@ class Config(process.ProcessConfig):
     )
     key_attr: str | None = Field(
         default="group_key",
-        description=(
-            "Attach the group's key to its open-bracket as this attribute. Empty disables it - a "
-            "null in a config means 'use the default', so it cannot turn this off."
-        ),
+        description="Attach the group's key to its open-bracket as this attribute. Null or empty disables it.",
     )
     max_group_size: int = Field(
         0,
