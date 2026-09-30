@@ -12,106 +12,209 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import io
 import logging
-from datetime import date, timedelta
-from pathlib import Path
-from typing import Any
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Literal, override
 
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+TIMESERIES_DATA_TYPE = "climate.capnp:TimeSeriesData"
+DATE_FORMATS = {"daily": "%Y-%m-%d", "hourly": "%Y-%m-%dT%H:%M"}
+
+
+class Config(process.ProcessConfig):
+    from_attr: str | None = Field(
+        default=None,
+        description="Read the time series data from this attribute instead of the content.",
+    )
+    to_attr: str | None = Field(
+        default=None,
+        description="Write the CSV to this attribute instead of the IP's content.",
+    )
+    date_column: str = Field(
+        default="date",
+        description="Header for the leading date column. Empty leaves the dates out entirely.",
+    )
+    date_format: str = Field(
+        default="",
+        description=(
+            "strftime format for the dates. Empty picks one from the data's resolution: "
+            "'%Y-%m-%d' for daily, '%Y-%m-%dT%H:%M' for hourly."
+        ),
+    )
+    delimiter: str = Field(default=",", description="Column separator.")
+    include_header: bool = Field(default=True, description="Write the header row.")
+    on_error: Literal["skip", "fail"] = Field(
+        default="skip",
+        description="Whether an IP holding no readable time series data is skipped or stops the process.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="climate",
-        name="Climate",
-    ),
+    category=meta.Category(id="climate", name="Climate"),
     info=meta.Info(
         id="6b11cf2a-08bb-43f9-964a-1d4ed248cce9",
         name="timeseries data -> csv",
-        description="Create CSV string out of timeseries data.",
+        description=(
+            "Render plain TimeSeriesData as a CSV string, one row per date. Transposed data is "
+            "turned back the right way round first, and hourly data is stepped by the hour. "
+            "Substream transparent."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="in",
+            contentType=TIMESERIES_DATA_TYPE,
+            desc="The time series data to render.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
+            contentType="Text",
+            desc="The data as a CSV string.",
+            required=True,
         ),
     ],
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+def rows_of(data: Any) -> list[list[float]]:
+    """The data as one row per date, transposing it back if it arrived the other way round.
 
-    def py_date(capnp_date):
-        return date(year=capnp_date.year, month=capnp_date.month, day=capnp_date.day)
+    `dataT` gives one list per element, which is the transpose of what a CSV needs. The old code
+    ignored `isTransposed` and wrote whichever it got, so transposed input produced a file with
+    one row per element, each stamped with a consecutive date.
+    """
 
-    def data_to_csv(header: list[Any], data: list[list[float]], start_date: date):
-        csv_buffer = io.StringIO()
-        h_str = ",".join([str(h) for h in header])
-        csv_buffer.write(h_str + "\n")
-        for i, line in enumerate(data):
-            current_date = py_date(start_date) + timedelta(days=i)
-            d_str = ",".join([str(d) for d in line])
-            csv_buffer.write(current_date.strftime("%Y-%m-%d") + "," + d_str + "\n")
-        return csv_buffer.getvalue()
+    rows = [list(row) for row in data.data]
+    if data.isTransposed and rows:
+        return [list(row) for row in zip(*rows, strict=True)]
+    return rows
 
-    while pc.in_ports["in"] and pc.out_ports["out"]:
+
+def start_datetime_of(data: Any) -> datetime | None:
+    """The first date, or None if the data carries none - an all-zero date is 'not set'."""
+
+    start = data.startDate
+    if start.year == 0 or start.month == 0 or start.day == 0:
+        return None
+    try:
+        return datetime(year=start.year, month=start.month, day=start.day)  # noqa: DTZ001 - a plain calendar date
+    except ValueError:
+        return None
+
+
+def data_to_csv(data: Any, config: Config) -> str:
+    """One row per date, with the dates stepped by the data's own resolution."""
+
+    resolution = str(data.resolution)
+    step = timedelta(hours=1) if resolution == "hourly" else timedelta(days=1)
+    date_format = config.date_format or DATE_FORMATS.get(resolution, DATE_FORMATS["daily"])
+    start = start_datetime_of(data)
+    with_dates = bool(config.date_column) and start is not None
+
+    buffer = io.StringIO()
+    if config.include_header:
+        # The date column has to be named, or the header is one column short of every row.
+        names = ([config.date_column] if with_dates else []) + [str(h) for h in data.header]
+        buffer.write(config.delimiter.join(names) + "\n")
+
+    for i, row in enumerate(rows_of(data)):
+        cells = [str(cell) for cell in row]
+        if with_dates:
+            cells.insert(0, (start + i * step).strftime(date_format))  # pyright: ignore[reportOptionalOperand]
+        buffer.write(config.delimiter.join(cells) + "\n")
+    return buffer.getvalue()
+
+
+class TimeseriesDataToCsv(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+        self.sent: int = 0
+
+    def data_of(self, in_ip: IPReader) -> Any | None:
+        """The incoming TimeSeriesData, from an attribute or the content."""
+
+        if self.config.from_attr:
+            kv = values.attr_reader(in_ip, self.config.from_attr)
+            if kv is None:
+                return None
+            pointer = kv.value
+        else:
+            pointer = in_ip.content
         try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
+            return pointer.as_struct(climate_capnp.TimeSeriesData)
+        except Exception:  # noqa: BLE001 - as_struct raises several unrelated types
+            return None
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                break
+
+            # A bracket used to be read as TimeSeriesData, which Cap'n Proto cannot refuse (D14).
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
                 continue
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            if attr:
-                data = attr.as_struct(climate_capnp.TimeSeriesData)
-            else:
-                data = in_ip.content.as_struct(climate_capnp.TimeSeriesData)
+            data = self.data_of(in_ip)
+            if data is None:
+                message = f"{self.name}: no time series data could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
 
-            csv = data_to_csv(data.header, data.data, data.startDate)
+            csv = data_to_csv(data, self.config)
 
             out_ip = fbp_capnp.IP.new_message()
-            if not config["to_attr"]:
+            extra: dict[str, Any] = {}
+            if self.config.to_attr:
+                extra[self.config.to_attr] = csv
+            else:
                 out_ip.content = csv
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: csv} if config["to_attr"] else {}))
-            await pc.out_ports["out"].write(value=out_ip)
+            brackets.copy_attrs(in_ip, out_ip, extra=extra)
 
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
+            self.sent += 1
+            if not await self.write_out("out", out_ip):
+                break
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
-
-
-default_config = {
-    "to_attr": None,
-    "from_attr": None,
-    "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
-    "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[climate_capnp.TimeSeriesData]-> ",
-    "port:out": "[string (csv)] -> send a timeseries as CSV string",
-}
+        logger.info("%s process finished, sent %d CSV string(s)", self.name, self.sent)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(TimeseriesDataToCsv(METADATA), METADATA)
 
 
 if __name__ == "__main__":
