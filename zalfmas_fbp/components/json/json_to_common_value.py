@@ -25,7 +25,7 @@ from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
-from zalfmas_fbp.components.common import selectors, values
+from zalfmas_fbp.components.common import brackets, selectors, values
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -264,8 +264,12 @@ class JsonToCommonValue(process.Process[JsonToCommonValueConfig]):
             out_ip = fbp_capnp.IP.new_message(content=value_msg)
             extra_attrs: dict[str, Any] = {}
             if self.config.attach_sentinel_attributes:
-                extra_attrs.update(sentinel_attrs)
-            common.copy_and_set_fbp_attrs(in_msg, out_ip, **extra_attrs)
+                # already common.Value messages, so they are written as-is but tagged, which is
+                # what lets a downstream component read them back (D4)
+                extra_attrs.update(
+                    {name: brackets.Attr(value, values.VALUE_TYPE) for name, value in sentinel_attrs.items()}
+                )
+            brackets.copy_attrs(in_msg, out_ip, extra=extra_attrs)
 
             if not await self.write_out("out", out_ip):
                 logger.info("%s process finished", self.name)

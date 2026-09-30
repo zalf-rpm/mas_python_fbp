@@ -22,7 +22,7 @@ from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
-from zalfmas_fbp.components.common import brackets
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ class Component(process.Process[Config]):
         logger.info("%s process running", self.name)
 
         attr = None
+        attr_type: str | None = None
         while self.in_ports["in"] and (self.in_ports["attr"] or attr) and self.out_ports["out"]:
             try:
                 in_ip = await self.read_in("in")
@@ -104,12 +105,20 @@ class Component(process.Process[Config]):
                 if self.in_ports["attr"]:
                     attr_ip = await self.read_in("attr")
                     if attr_ip is None:
+                        # The 'attr' port closing must not take this IP with it: the loop is
+                        # allowed to run on with the last attribute, so dropping it here lost
+                        # one input IP every time the attr side finished first.
                         self.in_ports["attr"] = None
-                        continue
-                    attr = attr_ip.content
+                        if attr is None:
+                            continue
+                    else:
+                        attr = attr_ip.content
+                        # carried over so the attribute can be read back: an attribute written
+                        # without a type resolves to MISSING downstream (D4)
+                        attr_type = values.content_type_of(attr_ip)
 
                 out_ip = common.copy_ip(in_ip)
-                common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
+                brackets.copy_attrs(in_ip, out_ip, extra={self.config.to_attr: brackets.Attr(attr, attr_type)})
                 if not await self.write_out("out", out_ip):
                     logger.info("%s: Could not send IP. Process finished.", self.name)
                     return

@@ -246,7 +246,6 @@ class Component(process.Process[Config]):
                                         return
                     else:
                         out_ip = fbp_capnp.IP.new_message(content=json.dumps(d))
-                        # common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
                         if not await self.write_out("out", out_ip):
                             logger.info("%s: process finished", self.name)
                             return

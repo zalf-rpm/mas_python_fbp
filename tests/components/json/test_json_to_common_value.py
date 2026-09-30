@@ -177,6 +177,17 @@ def test_sentinel_attribute_names_are_configurable() -> None:
     assert [kv.key for kv in writer.values[0].attributes] == ["nulls_were"]
 
 
+def test_the_sentinel_attribute_is_tagged_so_it_can_be_read_back() -> None:
+    """An attribute written without a valueType resolves to MISSING downstream (D4)."""
+
+    from zalfmas_fbp.components.common.values import VALUE_TYPE, python_from_attr
+
+    writer = run([1, None, 3], {"null_sentinel": -9999})
+    kv = writer.values[0].attributes[0]
+    assert kv.valueType == VALUE_TYPE
+    assert python_from_attr(kv) == -9999
+
+
 # --- errors and stream handling ---------------------------------------------------------------
 
 
