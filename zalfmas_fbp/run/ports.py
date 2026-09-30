@@ -39,9 +39,16 @@ ArrayWriterPorts = list["WriterClient | None"]
 logger = logging.getLogger(__name__)
 
 CONNECT_FAILURES = (KjException, OSError, AttributeError, KeyError, TypeError, ValueError)
-"""What connecting a port can legitimately fail with: an unreachable peer, or a malformed
-port configuration. Naming them means a mistake in the connecting code itself still surfaces,
-rather than leaving the component running with silently unconnected ports."""
+"""What connecting a port can fail with: an unreachable peer, or a malformed port configuration."""
+
+
+class PortConnectionError(RuntimeError):
+    """A component could not connect its ports.
+
+    This is fatal by design. A component that starts with some of its ports silently unconnected
+    does not fail - it reads nothing, writes nothing, and looks exactly like a component with no
+    input, which is the hardest kind of flow problem to track down.
+    """
 
 
 def get_attr_val(
@@ -300,12 +307,9 @@ class PortConnector:
                             )
                             writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
-        except CONNECT_FAILURES:
-            logger.exception(
-                "%s: Exception connecting to ports via CMD config:\n%s",
-                Path(__file__).name,
-                config,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the command-line config: {config}"
+            raise PortConnectionError(msg) from error
 
     async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
         in_port = self.in_ports[in_port_id]
@@ -399,12 +403,9 @@ class PortConnector:
                                 writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
 
-        except CONNECT_FAILURES:
-            logger.exception(
-                "%s: Exception connecting to ports via port infos reader SR:\n%s",
-                Path(__file__).name,
-                port_infos_reader_sr,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the port infos reader: {port_infos_reader_sr}"
+            raise PortConnectionError(msg) from error
 
     @staticmethod
     async def create_from_toml_str(
@@ -455,12 +456,9 @@ class PortConnector:
                         else None,
                     )
 
-        except CONNECT_FAILURES:
-            logger.exception(
-                "%s: Exception connecting to ports via toml:\n%s",
-                Path(__file__).name,
-                toml_config,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the TOML config: {toml_config}"
+            raise PortConnectionError(msg) from error
 
     @staticmethod
     async def create_from_toml_reader_sr(
