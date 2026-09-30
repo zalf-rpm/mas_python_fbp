@@ -15,6 +15,7 @@ import logging
 from collections.abc import AsyncIterable, Mapping
 from typing import (
     TYPE_CHECKING,
+    Any,
     ClassVar,
     Literal,
     cast,
@@ -30,10 +31,7 @@ from mas.schema.fbp import fbp_capnp
 
 if TYPE_CHECKING:
     from capnp.lib.capnp import (
-        _CapabilityClient,
-        _DynamicCapabilityClient,
         _DynamicObjectReader,
-        _InterfaceSchema,
     )
     from mas.schema.common.common_capnp.types.readers import StructuredTextReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -557,11 +555,23 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         finally:
             await self._lifecycle_runtime.force_close_ports()
 
-    # try to read capability from port or a sturdy ref out of a structured text
-    # return structured text if not a sturdy ref or else the IPReader as second element in the tuple
     async def cast_cap_or_connect(
-        self, anyPointerReader: _DynamicObjectReader, interface_type: _InterfaceSchema
-    ) -> tuple[_DynamicCapabilityClient | _CapabilityClient | None, StructuredTextReader | None]:
+        self, anyPointerReader: _DynamicObjectReader, interface_type: Any
+    ) -> tuple[Any, StructuredTextReader | None]:
+        """A capability from this pointer, whether it holds one directly or a sturdy ref to one.
+
+        Returns ``(capability, None)`` when one was obtained, ``(None, structured_text)`` when the
+        pointer held structured text that was not a sturdy ref, and ``(None, None)`` when neither
+        worked.
+
+        Both ends are typed ``Any`` on purpose. Callers pass a generated interface *module*
+        (``climate_capnp.Service``), not an ``_InterfaceSchema``, and pycapnp types the result of
+        ``as_interface`` through ~80 overloads - one per interface - which a wrapper cannot
+        forward. Annotating them precisely is therefore impossible, and annotating them narrowly
+        made every call on the returned capability a type error, which is worse than no checking
+        because it buries the real ones.
+        """
+
         try:
             return (anyPointerReader.as_interface(interface_type), None)
         except capnp.KjException:
