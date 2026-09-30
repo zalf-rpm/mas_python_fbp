@@ -12,187 +12,204 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Any
+from datetime import date
+from typing import Any, Literal, override
 
-from capnp.lib.capnp import KjException
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+TIMESERIES_DATA_TYPE = "climate.capnp:TimeSeriesData"
+
+
+class Config(process.ProcessConfig):
+    from_attr: str | None = Field(
+        default=None,
+        description="Read the time series capability from this attribute instead of the content.",
+    )
+    to_attr: str | None = Field(
+        default=None,
+        description="Write the data to this attribute instead of the IP's content.",
+    )
+    subrange_start: date | None = Field(
+        default=None,
+        description="Start of the wanted date range, as an ISO date. Unset means from the beginning.",
+    )
+    subrange_end: date | None = Field(
+        default=None,
+        description="End of the wanted date range, as an ISO date. Unset means to the end.",
+    )
+    subheader: list[str] = Field(
+        default_factory=lambda: ["tavg", "precip"],
+        description="Climate elements to fetch, in this order. Empty means whatever the series has.",
+    )
+    transposed: bool = Field(
+        default=False,
+        description="Fetch the data transposed - one list per element rather than per day.",
+    )
+    maintain_substreams: bool = Field(
+        default=False,
+        description="Forward incoming bracket IPs. If false, incoming substreams are flattened.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        default="skip",
+        description="Whether an input that yields no usable time series is skipped or stops the process.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="climate",
-        name="Climate",
-    ),
+    category=meta.Category(id="climate", name="Climate"),
     info=meta.Info(
         id="b510d603-8f2a-4fbd-ac24-634362b4b0f4",
         name="timeseries capability -> data",
-        description="Get the actual data from a timeseries capability.",
+        description=(
+            "Fetch the actual data behind a time series capability and send it on as plain "
+            "TimeSeriesData. Can narrow the series to a date range and a set of elements first. "
+            "Accepts a live capability or a sturdy ref."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="in",
-        ),
-        meta.Port(
-            name="conf",
+            contentType="climate.capnp:TimeSeries",
+            desc="Time series, as a capability or a sturdy ref.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
+            contentType=TIMESERIES_DATA_TYPE,
+            desc="The time series' data, header, range and resolution.",
+            required=True,
         ),
     ],
-    defaultConfig={
-        "to_attr": meta.ConfigEntry(
-            value=None,
-        ),
-        "from_attr": meta.ConfigEntry(
-            value=None,
-        ),
-        "subrange_start": meta.ConfigEntry(
-            value=None,
-            type="iso-date",
-        ),
-        "subrange_end": meta.ConfigEntry(
-            value=None,
-            type="iso-date",
-        ),
-        "subheader": meta.ConfigEntry(
-            value=["tavg", "precip"],
-        ),
-        "transposed": meta.ConfigEntry(
-            value=False,
-        ),
-        "maintain_substreams": meta.ConfigEntry(
-            value=False,
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+def capnp_date(day: date | None) -> dict[str, int]:
+    """A Cap'n Proto date, or an all-zero one, which the schema reads as 'not set'."""
 
-    def create_capnp_date(py_date):  # isodate):
-        # py_date = date.fromisoformat(isodate)
-        return {"year": py_date.year, "month": py_date.month, "day": py_date.day}
+    if day is None:
+        return {"year": 0, "month": 0, "day": 0}
+    return {"year": day.year, "month": day.month, "day": day.day}
 
-    def set_capnp_date(capnp_date, py_date):  # isodate):
-        # py_date = date.fromisoformat(isodate)
-        capnp_date.year = py_date.year
-        capnp_date.month = py_date.month
-        capnp_date.day = py_date.day
 
-    while pc.in_ports["in"] and pc.out_ports["out"]:
-        try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
+class TimeseriesCapToData(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+        self.sent: int = 0
+
+    def narrow(self, timeseries: Any) -> Any:
+        """Apply the configured element and date restrictions, each as one pipelined call."""
+
+        if self.config.subheader:
+            timeseries = timeseries.subheader(self.config.subheader).timeSeries
+        if self.config.subrange_start is not None or self.config.subrange_end is not None:
+            timeseries = timeseries.subrange(
+                capnp_date(self.config.subrange_start),
+                capnp_date(self.config.subrange_end),
+            ).timeSeries
+        return timeseries
+
+    async def data_of(self, timeseries: Any) -> Any:
+        """Everything the outgoing TimeSeriesData needs, fetched concurrently."""
+
+        # All four are requested before any is awaited, so they cost one round trip, not four.
+        header_promise = timeseries.header()
+        range_promise = timeseries.range()
+        resolution_promise = timeseries.resolution()
+        data_promise = timeseries.dataT() if self.config.transposed else timeseries.data()
+
+        header = (await header_promise).header
+        rows = (await data_promise).data
+
+        tsd = climate_capnp.TimeSeriesData.new_message()
+        tsd.isTransposed = self.config.transposed
+        tsd.init("data", len(rows))
+        for i, row in enumerate(rows):
+            out_row = tsd.data.init(i, len(row))
+            for j, cell in enumerate(row):
+                out_row[j] = cell
+
+        span = await range_promise
+        tsd.startDate = span.startDate
+        tsd.endDate = span.endDate
+        tsd.resolution = (await resolution_promise).resolution
+        out_header = tsd.init("header", len(header))
+        for i, element in enumerate(header):
+            out_header[i] = element
+        return tsd
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                if self.config.maintain_substreams and not await self.write_out("out", in_ip):
+                    break
                 continue
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-
-            # pass through brackets as we just want to preserve structure for downstream components
-            if in_ip.type == "openBracket":
-                if config["maintain_substreams"]:
-                    await pc.out_ports["out"].write(in_ip)
-                continue
-            if in_ip.type == "closeBracket":
-                if config["maintain_substreams"]:
-                    await pc.out_ports["out"].write(in_ip)
-
-            attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            cap_or_sr = attr or in_ip.content
-            timeseries = None
-            try:
-                timeseries = cap_or_sr.as_interface(climate_capnp.TimeSeries)
-            except (KjException, TypeError):
-                try:
-                    timeseries = (
-                        timeseries_cap.cast_as(climate_capnp.TimeSeries)
-                        if (
-                            timeseries_cap := await pc.connection_manager.try_connect(
-                                cap_or_sr.as_text(),
-                                retry_secs=1,
-                            )
-                        )
-                        is not None
-                        else None
-                    )
-                except (KjException, RuntimeError, OSError, TypeError):
-                    logger.exception("Error: Couldn't connect to timeseries. %s", cap_or_sr)
+            source = in_ip.content
+            if self.config.from_attr:
+                kv = values.attr_reader(in_ip, self.config.from_attr)
+                if kv is None:
+                    logger.warning("%s: no attribute %r on this IP", self.name, self.config.from_attr)
                     continue
+                source = kv.value
+
+            timeseries, _ = await self.cast_cap_or_connect(source, climate_capnp.TimeSeries)
             if timeseries is None:
+                message = f"{self.name}: no time series could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
                 continue
 
-            tsd = climate_capnp.TimeSeriesData.new_message()
-            tsd.isTransposed = config["transposed"] == "true"
-
-            if config["subheader"]:
-                subheader = config["subheader"].split(",")
-                timeseries = timeseries.subheader(subheader).timeSeries
-            header = (await timeseries.header()).header
-
-            if config["subrange_start"] or config["subrange_to"]:
-                # sr_req = timeseries.subrange_request()
-                # timeseries = timeseries.subrange(
-                #    ({"from": create_capnp_date(config["subrange_start"])} if config["subrange_start"] else {}),
-                #    ({"to": create_capnp_date(config["subrange_end"])} if config["subrange_end"] else {})).timeSeries
-                timeseries = timeseries.subrange(
-                    create_capnp_date(config["subrange_start"]),
-                    create_capnp_date(config["subrange_end"]),
-                ).timeSeries
-                # if config["subrange_start"]:
-                #    set_capnp_date(sr_req.start, config["subrange_start"])
-                # if config["subrange_end"]:
-                #    set_capnp_date(sr_req.end, config["subrange_end"])
-                # timeseries = (await sr_req.send()).timeSeries
-
-            # resolution_prom = timeseries.resolution()
-            resolution = timeseries.resolution()
-            se_date_prom = timeseries.range()
-            header_size = len(header)
-            ds = (await timeseries.dataT()).data if tsd.isTransposed else (await timeseries.data()).data
-            tsd.init("data", len(ds))
-            for i in range(len(ds)):
-                row_data = tsd.data.init(i, header_size)
-                for j in range(header_size):
-                    row_data[j] = ds[i][j]
-            se_date = await se_date_prom
-            tsd.startDate = se_date.startDate
-            tsd.endDate = se_date.endDate
-            tsd.resolution = (await resolution).resolution
-            # tsd.resolution = resolution_prom.resolution
-            h = tsd.init("header", len(header))
-            for i in range(len(header)):
-                h[i] = header[i]
+            tsd = await self.data_of(self.narrow(timeseries))
 
             out_ip = fbp_capnp.IP.new_message()
-            if not config["to_attr"]:
+            extra: dict[str, Any] = {}
+            if self.config.to_attr:
+                extra[self.config.to_attr] = brackets.Attr(tsd, TIMESERIES_DATA_TYPE)
+            else:
                 out_ip.content = tsd
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **({config["to_attr"]: tsd} if config["to_attr"] else {}))
-            await pc.out_ports["out"].write(value=out_ip)
+                out_ip.sysAttributes.contentType = TIMESERIES_DATA_TYPE
+            brackets.copy_attrs(in_ip, out_ip, extra=extra)
 
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
+            self.sent += 1
+            if not await self.write_out("out", out_ip):
+                break
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+        logger.info("%s process finished, sent %d time series", self.name, self.sent)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(TimeseriesCapToData(METADATA), METADATA)
 
 
 if __name__ == "__main__":

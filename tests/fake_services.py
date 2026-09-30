@@ -92,14 +92,50 @@ class FakeTimeSeries(climate_capnp.TimeSeries.Server):
         _context.results.data = [list(column) for column in zip(*self.rows, strict=True)]
 
     async def subrange(self, start, end, _context, **kwargs):
+        """Records the range it was asked for and hands back a series tagged with it.
+
+        A zero year means 'not set', which is how the schema says an open-ended bound is passed.
+        """
+
         self.calls.append("subrange")
-        self.subrange_args.append((start, end))
-        _context.results.timeSeries = self
+        as_tuple = lambda d: None if d.year == 0 else (d.year, d.month, d.day)  # noqa: E731
+        wanted = (as_tuple(start), as_tuple(end))
+        self.subrange_args.append(wanted)
+        narrowed = self._clone()
+        narrowed.start_date = wanted[0] if wanted[0] is not None else self.start_date
+        narrowed.end_date = wanted[1] if wanted[1] is not None else self.end_date
+        _context.results.timeSeries = narrowed
 
     async def subheader(self, elements, _context, **kwargs):
+        """Really narrows the series, so a component that ignores the result cannot pass."""
+
         self.calls.append("subheader")
-        self.subheader_args.append([str(e) for e in elements])
-        _context.results.timeSeries = self
+        wanted = [str(e) for e in elements]
+        self.subheader_args.append(wanted)
+        keep = [self.header_elements.index(e) for e in wanted if e in self.header_elements]
+        narrowed = self._clone()
+        narrowed.header_elements = [self.header_elements[i] for i in keep]
+        narrowed.rows = [[row[i] for i in keep] for row in self.rows]
+        _context.results.timeSeries = narrowed
+
+    def _clone(self) -> FakeTimeSeries:
+        """A copy sharing this fake's call log, so a test sees the whole conversation in one place."""
+
+        clone = FakeTimeSeries(
+            id_=self.id,
+            name=self.name,
+            header=list(self.header_elements),
+            data=[list(row) for row in self.rows],
+            start_date=self.start_date,
+            end_date=self.end_date,
+            resolution=self.resolution_name,
+            location_id=self.location_id,
+            latlon=self.latlon,
+        )
+        clone.calls = self.calls
+        clone.subrange_args = self.subrange_args
+        clone.subheader_args = self.subheader_args
+        return clone
 
     async def metadata(self, _context, **kwargs):
         self.calls.append("metadata")
