@@ -22,6 +22,7 @@ from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="1ccc2798-23b2-4148-a40f-6b70a69be2fb",
         name="lift attributes",
-        description="Lift attributes.",
+        description=(
+            "Lift fields of a struct-valued attribute into attributes of their own. Substream "
+            "transparent: bracket IPs are forwarded unchanged."
+        ),
     ),
     type="process",
     inPorts=[
@@ -93,6 +97,14 @@ class Component(process.Process[Config]):
                 in_ip = await self.read_in("in")
                 if in_ip is None:
                     self.in_ports["in"] = None
+                    continue
+
+                # Rebuilding below would drop the IP's type, turning a bracket into a standard IP
+                # and destroying the substream, so brackets are forwarded as they are.
+                if brackets.is_bracket(in_ip):
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
                     continue
 
                 lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, lift_from_schema)

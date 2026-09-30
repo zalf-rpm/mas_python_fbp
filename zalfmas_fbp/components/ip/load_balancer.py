@@ -46,7 +46,15 @@ METADATA = meta.Component(
     info=meta.Info(
         id="d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d",
         name="load balancer",
-        description="Forward IPs across multiple outputs using a configurable distribution strategy.",
+        description=(
+            "Forward IPs across multiple outputs using a configurable distribution strategy. "
+            "A substream is treated as one unit of work: its whole contents go to a single output, "
+            "nested substreams included, so a group is never torn across workers. That means "
+            "bracketed input is distributed per substream, not per IP - to parallelise the "
+            "individual IPs of a substream instead, strip the brackets before this component (see "
+            "'Split bracketed stream') and reassemble them afterwards (see 'Wrap IPs into "
+            "substream')."
+        ),
     ),
     type="process",
     inPorts=[

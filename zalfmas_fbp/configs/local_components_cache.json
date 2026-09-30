@@ -1641,7 +1641,7 @@
         "info": {
             "id": "1d442f41-dee4-4973-ad99-09855af1d7ad",
             "name": "add attribute",
-            "description": "Add attribute to incoming IP."
+            "description": "Add attribute to incoming IP. Substream transparent: bracket IPs are forwarded unchanged and do not consume an IP from the 'attr' port, so the pairing of attributes to IPs is unaffected by grouping."
         },
         "type": "process",
         "inPorts": [
@@ -1699,7 +1699,7 @@
         "info": {
             "id": "030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
             "name": "Add content",
-            "description": "Add content to incoming IP, optionally moving the old to an attribute."
+            "description": "Add content to incoming IP, optionally moving the old to an attribute. Substream transparent: bracket IPs are forwarded unchanged and do not consume an IP from the 'content' port."
         },
         "type": "process",
         "inPorts": [
@@ -1921,7 +1921,7 @@
         "info": {
             "id": "d73056f1-47b5-4ca5-a9ea-c7c5dff89b1d",
             "name": "load balancer",
-            "description": "Forward IPs across multiple outputs using a configurable distribution strategy."
+            "description": "Forward IPs across multiple outputs using a configurable distribution strategy. A substream is treated as one unit of work: its whole contents go to a single output, nested substreams included, so a group is never torn across workers. That means bracketed input is distributed per substream, not per IP - to parallelise the individual IPs of a substream instead, strip the brackets before this component (see 'Split bracketed stream') and reassemble them afterwards (see 'Wrap IPs into substream')."
         },
         "type": "process",
         "inPorts": [
@@ -1976,7 +1976,7 @@
         "info": {
             "id": "1ccc2798-23b2-4148-a40f-6b70a69be2fb",
             "name": "lift attributes",
-            "description": "Lift attributes."
+            "description": "Lift fields of a struct-valued attribute into attributes of their own. Substream transparent: bracket IPs are forwarded unchanged."
         },
         "type": "process",
         "inPorts": [
@@ -3779,15 +3779,16 @@
         "info": {
             "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
             "name": "split string",
-            "description": "Splits a string along delimiter."
+            "description": "Splits a string along a delimiter, emitting one IP per part. Substream transparent: brackets around the incoming strings are forwarded unchanged, so an input substream stays one substream. Turn on 'wrap_in_substream' to additionally make each input's parts their own substream - nested inside any incoming one."
         },
         "type": "process",
         "inPorts": [
             {
                 "name": "in",
                 "contentType": "Text",
+                "desc": "Strings to split.",
                 "role": "data",
-                "required": false
+                "required": true
             },
             {
                 "name": "conf",
@@ -3801,8 +3802,9 @@
             {
                 "name": "out",
                 "contentType": "Text",
+                "desc": "One IP per part.",
                 "role": "data",
-                "required": false
+                "required": true
             },
             {
                 "name": "log",
@@ -3817,6 +3819,16 @@
                 "value": ",",
                 "type": "string",
                 "desc": "split string at this character"
+            },
+            "wrap_in_substream": {
+                "value": false,
+                "type": "bool",
+                "desc": "Wrap each input string's parts in an open-/close-bracket pair, so one input becomes one substream. Off by default, which means the parts of successive inputs arrive as one flat stream - the same shape as if the strings had arrived separately."
+            },
+            "keep_empty": {
+                "value": true,
+                "type": "bool",
+                "desc": "Emit empty parts as well, e.g. the two produced by splitting 'a,,b' at ','."
             }
         }
     },

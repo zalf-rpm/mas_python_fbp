@@ -23,6 +23,7 @@ from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,11 @@ METADATA = meta.Component(
     info=meta.Info(
         id="030214e4-7ce8-4de7-8b3c-fb96b7fba7e0",
         name="Add content",
-        description="Add content to incoming IP, optionally moving the old to an attribute.",
+        description=(
+            "Add content to incoming IP, optionally moving the old to an attribute. Substream "
+            "transparent: bracket IPs are forwarded unchanged and do not consume an IP from the "
+            "'content' port."
+        ),
     ),
     type="process",
     inPorts=[
@@ -84,17 +89,25 @@ class Component(process.Process[Config]):
         new_content = None
         while self.in_ports["in"] and (self.in_ports["content"] or new_content) and self.out_ports["out"]:
             try:
+                in_ip = await self.read_in("in")
+                if in_ip is None:
+                    self.in_ports["in"] = None
+                    continue
+
+                # A bracket carries no content to replace, and consuming a 'content' IP for one
+                # would slip the pairing with the standard IPs.
+                if brackets.is_bracket(in_ip):
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
+                    continue
+
                 if self.in_ports["content"]:
                     content_ip = await self.read_in("content")
                     if content_ip is None:
                         self.in_ports["content"] = None
                         continue
                     new_content = content_ip.content
-
-                in_ip = await self.read_in("in")
-                if in_ip is None:
-                    self.in_ports["in"] = None
-                    continue
 
                 out_ip = fbp_capnp.IP.new_message(content=new_content)
                 if self.config.to_attr:
