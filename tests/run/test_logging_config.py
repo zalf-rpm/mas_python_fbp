@@ -141,7 +141,7 @@ def test_format_exception_full_survives_a_stack_with_an_unknown_line_number() ->
 
     try:
         msg = "boom"
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY301 - raised here on purpose, to get a real traceback
     except ValueError as exc:
         te = traceback.TracebackException.from_exception(exc, capture_locals=False)
 
