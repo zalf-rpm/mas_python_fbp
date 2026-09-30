@@ -1580,21 +1580,22 @@
         "info": {
             "id": "b753df51-40f1-4778-ac47-82858c8ef80c",
             "name": "Proj transform coords",
-            "description": "Transform coordinates using the Proj library."
+            "description": "Transform coordinates between CRSs using the Proj library. Reads the source type from the IP's own content type when it has one, falling back to 'from_name'. Substream transparent."
         },
-        "type": "standard",
+        "type": "process",
         "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "role": "config",
-                "required": false
-            },
             {
                 "name": "in",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Input geo coordinate.",
+                "desc": "Coordinates to transform.",
                 "role": "data",
+                "required": true
+            },
+            {
+                "name": "conf",
+                "contentType": "@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
+                "desc": "Runtime-owned. Configuration updates, applied between IPs.",
+                "role": "config",
                 "required": false
             }
         ],
@@ -1602,8 +1603,15 @@
             {
                 "name": "out",
                 "contentType": "geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-                "desc": "Output geo coordinate.",
+                "desc": "The transformed coordinates, tagged with the type they were built as.",
                 "role": "data",
+                "required": true
+            },
+            {
+                "name": "log",
+                "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
+                "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
+                "role": "log",
                 "required": false
             }
         ],
@@ -1611,20 +1619,28 @@
             "from_name": {
                 "value": "LatLon",
                 "type": "string",
-                "desc": "Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])."
+                "desc": "Source CRS: one of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]). Case does not matter. Ignored for IPs that declare their own content type."
             },
             "to_name": {
                 "value": "LatLon",
                 "type": "string",
-                "desc": "Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X])."
+                "desc": "Target CRS, same names as 'from_name'. Case does not matter."
             },
             "from_attr": {
                 "type": "string",
-                "desc": "Attribute name to use as the input coordinate."
+                "desc": "Read the input coordinate from this attribute instead of the content."
             },
             "to_attr": {
                 "type": "string",
-                "desc": "Attribute name to use as the output."
+                "desc": "Write the result to this attribute instead of the content."
+            },
+            "on_error": {
+                "value": "skip",
+                "type": [
+                    "skip",
+                    "fail"
+                ],
+                "desc": "Whether an IP whose coordinate cannot be read is skipped or stops the process."
             }
         }
     },

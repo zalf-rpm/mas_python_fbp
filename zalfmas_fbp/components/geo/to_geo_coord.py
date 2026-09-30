@@ -24,6 +24,7 @@ from pydantic import Field
 from zalfmas_common import common, geo
 
 from zalfmas_fbp.components.common import brackets, values
+from zalfmas_fbp.components.geo import _coord_types as coord_types
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -117,11 +118,7 @@ class ToGeoCoord(process.Process[Config]):
     async def run(self):
         logger.info("%s process running", self.name)
 
-        # zalfmas_common.geo.name_to_struct_type lowercases the name for '2d'/'xy'/'latlon' but
-        # compares the raw string for 'wgs84', 'gk*' and 'utm*', so the capitalised forms this
-        # component has always documented did not work. Normalising here makes all of them work
-        # without needing a change upstream.
-        template = geo.name_to_struct_instance(self.config.to_name.lower())
+        template = coord_types.struct_instance_for(self.config.to_name)
         if template is None:
             logger.error(
                 "%s: %r is not a known coordinate name; use 2D, XY, LatLon, WGS84, GKx or UTMab.",
@@ -154,6 +151,10 @@ class ToGeoCoord(process.Process[Config]):
             coord = template.copy()
             geo.set_xy(coord, numbers[self.config.x_index], numbers[self.config.y_index])
             out_ip = fbp_capnp.IP.new_message(content=coord)
+            # Tag it, so a type-driven component downstream can read the coordinate without
+            # having its type configured again.
+            if (content_type := coord_types.content_type_of(coord)) is not None:
+                out_ip.sysAttributes.contentType = content_type
             brackets.copy_attrs(in_ip, out_ip)
 
             converted += 1
