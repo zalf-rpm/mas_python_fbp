@@ -80,5 +80,9 @@
   "af8fe95a-8040-441a-b4b3-13ee33ddbbcf": "python -m zalfmas_fbp.components.ip.discard",
   "48315511-87cb-4e86-a886-0ea28da2c500": "python -m zalfmas_fbp.components.ip.take_drop_ips",
   "34ee2532-85a7-41c3-8918-d293487592a5": "python -m zalfmas_fbp.components.ip.deduplicate_ips",
-  "40656b19-8ee0-4f5a-b77f-2df759d89601": "python -m zalfmas_fbp.components.ip.gate"
+  "40656b19-8ee0-4f5a-b77f-2df759d89601": "python -m zalfmas_fbp.components.ip.gate",
+  "ae18965d-c034-4836-ae44-5becd7f602a0": "python -m zalfmas_fbp.components.ip.content_to_attributes",
+  "cf980fe1-c991-4e41-9ae8-55b81ea20f92": "python -m zalfmas_fbp.components.ip.attributes_to_content",
+  "7e133b74-8024-46e9-8d40-4b8333d8b9a4": "python -m zalfmas_fbp.components.ip.map_attributes",
+  "807c3185-83fc-4a4f-8a4e-38b58970b711": "python -m zalfmas_fbp.components.json.merge_json"
 }

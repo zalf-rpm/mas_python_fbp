@@ -513,20 +513,38 @@ This is the component that makes a flow self-starting and testable without a fil
 
 ---
 
-## 4. P1 — completes the symmetry (do after P0)
+## 4. P1 — completes the symmetry (do after P0) — **implemented**
+
+Notes on what differed from these one-line sketches:
+
+- **`join_ips_by_key`** checks timeouts when an IP arrives and when the inputs close, not on a
+  timer, so an idle join is not interrupted. Groups that never complete reach `unmatched` whatever
+  ended them — timeout, `max_pending` eviction, or the inputs closing.
+- **`gate`** treats signals as **credits**, not "release now". With two inputs there is no
+  guaranteed arrival order, so a signal that finds nothing held must still release the IP that
+  arrives next; the first version dropped it.
+- **`take_drop_ips`** buffers only in `last_n`, and only the tail, since that is the one mode whose
+  answer is not known until the end.
+- **`deduplicate_ips`** lets an IP whose key cannot be resolved through rather than collapsing them,
+  since otherwise every IP missing the key would look like a duplicate of the first.
+- **`attributes_to_content`** carries both directions under one `direction` field, as sketched, and
+  round-trips.
+- **`on_stream_end`** signals even for an empty stream, so a flow sequenced after it cannot stall
+  just because nothing came through.
+
 
 | Component | id | Why |
 |---|---|---|
-| `ip/join_ips_by_key` | `d027a5fa-d61c-483d-874b-2f3a399410c4` | Correlate IPs arriving on 2..n ports by a key selector; emit one combined IP (content from the primary port, others into attributes or a JSON object). Essential once anything runs in parallel and returns out of order — today the only synchronisation primitive is positional `ZIP`, which silently mispairs. Config needs `timeout`/`max_pending` and an `unmatched` out port. |
-| `ip/gate` | `40656b19-8ee0-4f5a-b77f-2df759d89601` | Hold IPs until an `open` signal; `copy_ip_on_trigger` copies but cannot buffer-and-release. Modes: `pass_n_per_signal`, `open_close`, `drop_while_closed`. |
-| `ip/take_drop_ips` | `48315511-87cb-4e86-a886-0ea28da2c500` | One component, `mode: first_n / skip_n / every_nth / last_n / while_predicate / until_predicate`, substream-scoped or stream-scoped. Test flows need this constantly. |
-| `ip/deduplicate_ips` | `34ee2532-85a7-41c3-8918-d293487592a5` | By selector or content hash; `scope: stream / substream`, `window: int = 0`, optional `dup` out port. |
-| `ip/content_to_attributes` | `ae18965d-c034-4836-ae44-5becd7f602a0` | Inverse of `attribute_to_content` on the extraction side: `paths: dict[str, str]` (attr name → selector), `keep_content: bool = True`, `value_type: auto/value/json/text`. Completes axis C. |
-| `ip/attributes_to_content` | `cf980fe1-c991-4e41-9ae8-55b81ea20f92` | All or selected attributes → one JSON object as content (`attribute_to_content` handles exactly one attribute). Inverse mode `json_to_attributes` explodes a JSON object into attributes — put both in this component under a `direction` config. |
-| `ip/map_attributes` | `7e133b74-8024-46e9-8d40-4b8333d8b9a4` | rename / keep-list / drop-list / set-default / retype in one pass. Supersedes `remove_attributes` (keep that one as a thin alias for compatibility). |
-| `json/merge_json` | `807c3185-83fc-4a4f-8a4e-38b58970b711` | Deep-merge JSON from an array in-port or from `in` + `patch`; `strategy: deep/shallow/replace`, `list_strategy: replace/append/by_key`, `null_deletes: bool`. `update_json` patches from config/attrs, not from a second stream. |
-| `ip/on_stream_end` | `e9fde9d5-249c-4329-b651-6ef82b79a176` | Emit a configured IP when `in` closes (or on each close bracket). The sequencing primitive for "now that everything is written, do X". |
-| `ip/discard` | `af8fe95a-8040-441a-b4b3-13ee33ddbbcf` | Drain a port silently. Needed because leaving an out-port unconnected and leaving it connected-to-nothing behave differently. |
+| `ip/join_ips_by_key` ✅ | `d027a5fa-d61c-483d-874b-2f3a399410c4` | Correlate IPs arriving on 2..n ports by a key selector; emit one combined IP (content from the primary port, others into attributes or a JSON object). Essential once anything runs in parallel and returns out of order — today the only synchronisation primitive is positional `ZIP`, which silently mispairs. Config needs `timeout`/`max_pending` and an `unmatched` out port. |
+| `ip/gate` ✅ | `40656b19-8ee0-4f5a-b77f-2df759d89601` | Hold IPs until an `open` signal; `copy_ip_on_trigger` copies but cannot buffer-and-release. Modes: `pass_n_per_signal`, `open_close`, `drop_while_closed`. |
+| `ip/take_drop_ips` ✅ | `48315511-87cb-4e86-a886-0ea28da2c500` | One component, `mode: first_n / skip_n / every_nth / last_n / while_predicate / until_predicate`, substream-scoped or stream-scoped. Test flows need this constantly. |
+| `ip/deduplicate_ips` ✅ | `34ee2532-85a7-41c3-8918-d293487592a5` | By selector or content hash; `scope: stream / substream`, `window: int = 0`, optional `dup` out port. |
+| `ip/content_to_attributes` ✅ | `ae18965d-c034-4836-ae44-5becd7f602a0` | Inverse of `attribute_to_content` on the extraction side: `paths: dict[str, str]` (attr name → selector), `keep_content: bool = True`, `value_type: auto/value/json/text`. Completes axis C. |
+| `ip/attributes_to_content` ✅ | `cf980fe1-c991-4e41-9ae8-55b81ea20f92` | All or selected attributes → one JSON object as content (`attribute_to_content` handles exactly one attribute). Inverse mode `json_to_attributes` explodes a JSON object into attributes — put both in this component under a `direction` config. |
+| `ip/map_attributes` ✅ | `7e133b74-8024-46e9-8d40-4b8333d8b9a4` | rename / keep-list / drop-list / set-default / retype in one pass. Supersedes `remove_attributes` (keep that one as a thin alias for compatibility). |
+| `json/merge_json` ✅ | `807c3185-83fc-4a4f-8a4e-38b58970b711` | Deep-merge JSON from an array in-port or from `in` + `patch`; `strategy: deep/shallow/replace`, `list_strategy: replace/append/by_key`, `null_deletes: bool`. `update_json` patches from config/attrs, not from a second stream. |
+| `ip/on_stream_end` ✅ | `e9fde9d5-249c-4329-b651-6ef82b79a176` | Emit a configured IP when `in` closes (or on each close bracket). The sequencing primitive for "now that everything is written, do X". |
+| `ip/discard` ✅ | `af8fe95a-8040-441a-b4b3-13ee33ddbbcf` | Drain a port silently. Needed because leaving an out-port unconnected and leaving it connected-to-nothing behave differently. |
 
 ## 5. P2 — valuable, not structural
 
@@ -919,7 +937,7 @@ backwards compatible in both directions at no wire cost. | 1 large change, 2 rep
 | **WP3** ✅ | P0-1 `filter_ips`, P0-2 `route_ips`, P0-3 `merge_ips` (+ `Process.write_array_out_at` and `read_array_in_with_index`). Semantic routing. Done; 34 tests. | 3 medium components |
 | **WP4** ✅ | P0-6 `split_json`, P0-7 `group_into_substreams`, P0-8 `reduce_substream`. The substream algebra. Done; 61 tests, including the `split → filter → group → reduce` pipeline run end to end. | 3 medium components |
 | **WP5** ✅ | P0-10 `format_string` + refactor `write_file` onto it. Done; 35 tests. **P0 is complete.** | 1 small component + refactor |
-| **WP6** | P1 set, in the order listed (join-by-key first — it unblocks any parallel-service flow). | 10 components |
+| **WP6** ✅ | P1 set, join-by-key first. Done; 96 tests. **P0 and P1 are both complete.** | 10 components |
 | **WP7** | P2 set, on demand. | — |
 
 After WP4 the library covers every cell of the §1 matrix at least once, which is the point at which
