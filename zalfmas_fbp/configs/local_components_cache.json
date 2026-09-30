@@ -275,7 +275,7 @@
         "info": {
             "id": "2a1a5561-fee4-4c21-9b0d-e7626db1585e",
             "name": "create empty raster",
-            "description": "Create an empty compressed in-memory raster from a GeoJSON bbox."
+            "description": "Create an empty compressed in-memory raster from a GeoJSON bbox. Substream transparent: bracket IPs are forwarded unchanged."
         },
         "type": "process",
         "inPorts": [
@@ -1260,7 +1260,7 @@
         "info": {
             "id": "b3867019-5f42-4c59-9438-a49fe9452e6f",
             "name": "write file",
-            "description": "Write input into a file."
+            "description": "Write input into a file. Substream transparent: bracket IPs are ignored, so they neither produce a file nor advance the '{count}' placeholder."
         },
         "type": "process",
         "inPorts": [
@@ -1757,7 +1757,7 @@
         "info": {
             "id": "b1e875af-4ee7-4937-8824-17d185216ec4",
             "name": "Copy IP",
-            "description": "Copy IP to multiple outputs."
+            "description": "Copy IP to multiple outputs. Substream transparent: brackets are broadcast like any other IP, so every output receives an intact copy of the substream."
         },
         "type": "process",
         "inPorts": [
@@ -3069,7 +3069,7 @@
         "info": {
             "id": "92e48886-2728-4a78-b53e-5cb0d4ac415a",
             "name": "Write MONICA CSV",
-            "description": "Write a MONICA CSV file."
+            "description": "Write a MONICA CSV file. Substream transparent: bracket IPs are ignored, so they neither produce a file nor advance the running count."
         },
         "type": "process",
         "inPorts": [
@@ -3840,7 +3840,7 @@
         "info": {
             "id": "250488d8-7519-49a8-820e-0e981ffb2a71",
             "name": "to string",
-            "description": "Outputs input structures as string (if possible)."
+            "description": "Outputs input structures as string (if possible). Substream transparent: bracket IPs are forwarded unchanged rather than being stringified."
         },
         "type": "process",
         "inPorts": [

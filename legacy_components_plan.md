@@ -135,11 +135,38 @@ testing every service-using component, including the `dakis` ones. Worth buildin
 Until it exists these components can be *converted* but only smoke-tested (metadata, config
 validation, clean start and stop with no input).
 
-### LP4 — bracket transparency for the 11 Process components
+### LP4 ✅ — bracket transparency for the 11 Process components
 
-Characterization tests first, then `brackets.handle_bracket` with an explicitly stated policy, per
-D3. Expect this to change behaviour for substreams in every one of them — that is the point, but it
-means each needs a test showing what it did before and a note saying what it does now.
+Done. Characterization first paid for itself twice over.
+
+**One was a false positive.** `ip/copy_ip` was already correct: broadcasting every IP including
+brackets is exactly what keeps a substream intact on each output. The survey had flagged it by
+grepping for `"openBracket"`, which cannot see correctness that comes from treating everything
+uniformly. It now says so in a comment, so the next reader does not mistake it for an oversight.
+
+**Two were worse than "brackets pass through wrong".** `ip/add_attribute` and `ip/add_content` read
+their *second* input before checking what arrived on `in`, so a bracket consumed an IP from the
+`attr`/`content` port and a substream slipped the pairing — the open bracket and the first data IP
+ate both partners, and the second data IP got whatever was left. `ip/lift_attributes` rebuilt every
+IP with `new_message(content=...)`, which drops the `type`, so a bracket came out as a *standard* IP
+and the substream was destroyed outright.
+
+**The two sinks produced spurious files.** `file/write_file` and `models/monica/write_monica_csv`
+wrote a file for every bracket and advanced the running count used in filename patterns, so
+`{count}` was wrong for everything after the first substream.
+
+`string/split_string` forwards incoming brackets and gained `wrap_in_substream` (off by default) per
+the user's specification: the default keeps the flat shape it has always produced, which is also
+what arrives when the strings come in separately. `string/to_string` and `dakis/create_empty_raster`
+forward brackets rather than emitting a standard IP for them.
+
+`ip/load_balancer`'s description now states that a substream is one unit of work, and what to do if
+the IPs inside one should be parallelised: strip the brackets before it and reassemble after. That
+is what the `amei_exercises` calibration flow does deliberately — keeping the brackets would send a
+whole substream to a single worker — so it is a documented consequence, not a workaround.
+
+Every component's bracket policy is now stated in its metadata description, and the process template
+demonstrates the default.
 
 `ip/copy_ip` and `ip/load_balancer` needed a semantic decision rather than a mechanical fix, and it
 has been made: **`copy_ip` keeps a substream intact on every output** (as `route_ips` does), and

@@ -27,6 +27,7 @@ from zalfmas_common import common
 from zalfmas_common.model import monica_io
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.components.json.update_json import read_attr_value, read_dict_value
 from zalfmas_fbp.run import metadata as meta
 
@@ -72,7 +73,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="92e48886-2728-4a78-b53e-5cb0d4ac415a",
         name="Write MONICA CSV",
-        description="Write a MONICA CSV file.",
+        description=(
+            "Write a MONICA CSV file. Substream transparent: bracket IPs are ignored, so they "
+            "neither produce a file nor advance the running count."
+        ),
     ),
     type="process",
     inPorts=[
@@ -104,6 +108,11 @@ class Component(process.Process[Config]):
                 in_ip = await self.read_in("in")
                 if in_ip is None:
                     self.in_ports["in"] = None
+                    continue
+
+                # Brackets are grouping, not data: writing one would produce a spurious file and
+                # shift the running count used in filenames.
+                if brackets.is_bracket(in_ip):
                     continue
 
                 attrs = {kv.key: kv.value for kv in in_ip.attributes}

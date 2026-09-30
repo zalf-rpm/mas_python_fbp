@@ -6,9 +6,17 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 """Copyable template for a Process-based component.
 
-Replace the placeholder metadata values, then adapt the typed config, ports,
-and `run()` logic. The example keeps incoming attributes and shows how to add
-one more attribute to the outgoing IP.
+Replace the placeholder metadata values, then adapt the typed config, ports, and `run()` logic.
+
+It shows the three things every component has to get right, each a decision with a reason rather
+than a style preference (see `agents_process.md`):
+
+- **Bracket transparency.** Bracket IPs are forwarded unchanged, so a substream passing through
+  stays one substream. Only a component that genuinely reasons about grouping does otherwise.
+- **Attribute propagation.** `brackets.copy_attrs` preserves `desc` and `valueType`, applies every
+  override rather than only the first, and wraps plain Python values into a `common.Value`.
+- **No config reading.** The runtime owns the `conf` port - it applies the initial config before
+  `run()` and later ones between IPs - so a component just reads `self.config`.
 """
 
 from __future__ import annotations
@@ -20,6 +28,7 @@ from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -46,14 +55,18 @@ METADATA = meta.Component(
     info=meta.Info(
         id="replace-with-process-component-id",
         name="replace with process component name",
-        description="Template process component to copy and adapt.",
+        description=(
+            "Template process component to copy and adapt. Substream transparent: bracket IPs are forwarded unchanged."
+        ),
     ),
     type="process",
+    # 'conf' and 'log' are runtime-owned: do not declare them, they are injected.
     inPorts=[
         meta.Port(
             name="in",
             contentType="Text",
             desc="Incoming text messages.",
+            required=True,
         ),
     ],
     outPorts=[
@@ -61,6 +74,7 @@ METADATA = meta.Component(
             name="out",
             contentType="Text",
             desc="Outgoing text messages.",
+            required=True,
         ),
     ],
     config=TemplateProcessConfig,
@@ -82,18 +96,23 @@ class TemplateProcessComponent(process.Process[TemplateProcessConfig]):
         """Read input IPs, transform content, preserve attrs, and emit output IPs."""
 
         logger.info("%s process running", self.name)
-        # No config reading here: the runtime owns the 'conf' port, applies the initial config
-        # before run() is called, and applies later updates between IPs. Read self.config whenever
-        # it is needed.
 
-        while True:
+        while self.in_ports["in"] and self.out_ports["out"]:
             in_msg = await self.read_in("in")
             if in_msg is None:
+                self.in_ports["in"] = None
                 break
+
+            # Forward the caller's grouping untouched; this component only transforms data.
+            if brackets.is_bracket(in_msg):
+                if not await self.write_out("out", in_msg):
+                    logger.info("%s process finished", self.name)
+                    return
+                continue
 
             text = in_msg.content.as_text()
             out_ip = fbp_capnp.IP.new_message(content=f"{self.config.prefix}{text}")
-            common.copy_and_set_fbp_attrs(in_msg, out_ip, **self._extra_attributes())
+            brackets.copy_attrs(in_msg, out_ip, extra=self._extra_attributes())
             if not await self.write_out("out", out_ip):
                 logger.info("%s process finished", self.name)
                 return

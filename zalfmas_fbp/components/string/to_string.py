@@ -23,7 +23,7 @@ from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
-from zalfmas_fbp.components.common import values
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import configure_logging
@@ -52,7 +52,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="250488d8-7519-49a8-820e-0e981ffb2a71",
         name="to string",
-        description="Outputs input structures as string (if possible).",
+        description=(
+            "Outputs input structures as string (if possible). Substream transparent: bracket "
+            "IPs are forwarded unchanged rather than being stringified."
+        ),
     ),
     type="process",
     inPorts=[
@@ -107,6 +110,14 @@ class ToString(process.Process[ToStringConfig]):
             in_msg = await self.read_in("in")
             if in_msg is None:
                 break
+
+            # A bracket carries no content to stringify, and emitting a new standard IP for one
+            # would turn the caller's grouping into data.
+            if brackets.is_bracket(in_msg):
+                if not await self.write_out("out", in_msg):
+                    logger.info("%s process finished", self.name)
+                    return
+                continue
 
             c = in_msg.content
             resolved = values.resolve_schema(process.ip_content_type(in_msg))

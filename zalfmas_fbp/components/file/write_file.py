@@ -18,11 +18,12 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
+import capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
-from zalfmas_fbp.components.common import templating, values
+from zalfmas_fbp.components.common import brackets, templating, values
 from zalfmas_fbp.run import metadata as meta
 
 if TYPE_CHECKING:
@@ -81,7 +82,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="b3867019-5f42-4c59-9438-a49fe9452e6f",
         name="write file",
-        description="Write input into a file.",
+        description=(
+            "Write input into a file. Substream transparent: bracket IPs are ignored, so they "
+            "neither produce a file nor advance the '{count}' placeholder."
+        ),
     ),
     type="process",
     inPorts=[
@@ -113,11 +117,17 @@ class WriteFile(process.Process[WriteFileConfig]):
             if in_ip is None:
                 break
 
+            # Brackets are grouping, not data: writing one would produce a spurious file, and
+            # counting it would shift the '{count}' of every file after it.
+            if brackets.is_bracket(in_ip):
+                continue
+
             try:
                 content_attr = common.get_fbp_attr(in_ip, self.config.from_attr)
                 try:
                     content = content_attr.as_text() if content_attr else in_ip.content.as_text()
-                except Exception:
+                except capnp.KjException:
+                    # Not text: fall back to a representation rather than failing to write at all.
                     content = str(content_attr) if content_attr else str(in_ip.content)
 
                 filename = self._render_filename(in_ip, count)

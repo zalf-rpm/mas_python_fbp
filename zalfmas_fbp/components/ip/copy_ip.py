@@ -41,7 +41,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="b1e875af-4ee7-4937-8824-17d185216ec4",
         name="Copy IP",
-        description="Copy IP to multiple outputs.",
+        description=(
+            "Copy IP to multiple outputs. Substream transparent: brackets are broadcast like any "
+            "other IP, so every output receives an intact copy of the substream."
+        ),
     ),
     type="process",
     inPorts=[
@@ -80,6 +83,8 @@ class Copy(process.Process[CopyConfig]):
             if in_ip is None:
                 break
 
+            # No bracket check needed, and none wanted: broadcasting every IP - brackets
+            # included - is precisely what keeps a substream intact on each output.
             out_ip = common.copy_ip(in_ip)
             if not await self.write_array_out("out", process.ArrayOutStrategy.BROADCAST, out_ip):
                 break
