@@ -4,6 +4,12 @@ This file summarizes practical rules and implementation hints from existing **Pr
 
 The goal is to make creating new components (or migrating old `standard` components) faster and more consistent.
 
+**On the two styles.** Process is the style to write here, and what the rest of this file describes.
+The `standard` (Runnable) style is supported rather than deprecated — it is what the C++
+implementation uses, and Python is so far the only one implementing the `Process` interface. See
+`components/component_templates/runnable_component_template.py`, which documents what a Runnable
+has to do for itself: read its own config, and forward bracket IPs rather than rebuilding them.
+
 ## 1. Canonical Process-style structure
 
 Use this shape every time:

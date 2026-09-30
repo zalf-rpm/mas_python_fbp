@@ -7,11 +7,23 @@ class implementing `run()`. A component is only launchable if `configs/local_cmd
 
 ## Which style to write
 
-**Write `type="process"` components.** They are the supported style and the large majority of what
-is here. `type="standard"` is the older Runnable-based style, kept only until the remaining ones are
-converted — see `legacy_components_plan.md` at the repo root.
+**Write `type="process"` components** unless you have a reason not to. Start from
+`component_templates/process_component_template.py`.
 
-Start from `component_templates/process_component_template.py`.
+A Process component gets runtime-owned `conf` and `log` ports, config applied before it starts and
+between IPs, lifecycle and activity reporting, array port strategies, chunked IO and cooperative
+stop. Every component in the base set is written that way.
+
+`type="standard"` — the Runnable style — is **supported, not deprecated**. It is what the C++
+implementation currently uses, and Python is so far the only one implementing the `Process`
+interface, so the Runnable style is the cross-language baseline. It is also conceptually simpler:
+connect ports, loop, write. Start from `component_templates/runnable_component_template.py`, and
+note that a Runnable has to do for itself what the runtime does for a Process — read its own config,
+and forward bracket IPs rather than rebuilding them.
+
+The remaining Runnable components in this repository are being converted where the Process style
+buys something; see `legacy_components_plan.md` at the repo root. That is a migration of *these*
+components, not a deprecation of the style.
 
 ## Where the rules are written down
 

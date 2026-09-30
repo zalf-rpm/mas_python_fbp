@@ -7,6 +7,12 @@ The base set is done, so attention moves to what was already there. Three jobs, 
 they interact: converting the remaining Runnable-style components, giving the untested ones
 characterization tests, and fixing the inconsistencies those tests will expose.
 
+**The Runnable style itself is not being deprecated.** It is what the C++ implementation uses, and
+Python is so far the only one implementing the `Process` interface, so it remains the cross-language
+baseline and its template is kept working and tested. What this plan converts are the *components*
+in this repository, where the Process style buys runtime-owned config, bracket helpers, lifecycle
+reporting and the rest.
+
 ---
 
 ## 1. What a survey of the tree actually found

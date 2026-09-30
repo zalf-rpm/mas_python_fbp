@@ -4,11 +4,27 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"""Copyable template for a standard runnable component.
+"""Copyable template for a `standard` (Runnable) component.
 
-Replace the placeholder metadata values, then adapt the ports and coroutine
-body. The example keeps incoming attributes and shows how to add one more
-attribute to the outgoing IP.
+**Prefer the Process style** for new components in this repository - see
+`process_component_template.py`. A Process component gets runtime-owned `conf` and `log` ports,
+config applied before it starts and between IPs, lifecycle and activity reporting, array port
+strategies, chunked IO, and cooperative stop. None of that is available here, and every component
+in the base set is written that way.
+
+The Runnable style is still supported rather than merely tolerated: it is what the C++
+implementation currently uses, and Python is so far the only one implementing the `Process`
+interface. It is also conceptually simpler - connect ports, loop, write - which makes it a
+reasonable choice for a small component or a second language implementation.
+
+What this template shows, and what a Runnable has to do for itself:
+
+- **Bracket transparency.** Forward bracket IPs unchanged, or a substream passing through is
+  destroyed. Rebuilding an IP with `fbp_capnp.IP.new_message(content=...)` drops its type, so a
+  bracket would come out as a standard IP.
+- **Config.** There is no runtime to apply it: read the `conf` port yourself, once, before the loop.
+- **Attributes.** `components/common/brackets.py` works here too, and writes values as
+  `common.Value` with `valueType` set, which is the convention the rest of the library reads.
 """
 
 from __future__ import annotations
@@ -19,10 +35,10 @@ from typing import Any
 
 import capnp
 from mas.schema.fbp import fbp_capnp
-from zalfmas_common import common
 
 import zalfmas_fbp.run.components as c
 import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -35,7 +51,11 @@ METADATA = meta.Component(
     info=meta.Info(
         id="replace-with-runnable-component-id",
         name="replace with runnable component name",
-        description="Template runnable component to copy and adapt.",
+        description=(
+            "Template runnable component to copy and adapt. Prefer the Process template for new "
+            "components; this style exists for parity with implementations that do not offer the "
+            "Process interface yet. Substream transparent: bracket IPs are forwarded unchanged."
+        ),
     ),
     type="standard",
     inPorts=[
@@ -77,8 +97,8 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
     pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
     logger.info("%s: %s connected port(s)", Path(__file__).name, config["name"])
-    _ = await p.update_config_from_port(config, pc.in_ports["conf"])
-    if pc.in_ports["conf"]:
+    # A Runnable applies its own config: there is no runtime doing it before the loop starts.
+    if await p.update_config_from_port(config, pc.in_ports["conf"]):
         logger.info("%s: %s updated config from conf port", Path(__file__).name, config["name"])
 
     while pc.in_ports["in"] and pc.out_ports["out"]:
@@ -89,9 +109,16 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
                 continue
 
             in_ip = in_msg.value.as_struct(fbp_capnp.IP)
+
+            # Forward the caller's grouping untouched. Rebuilding the IP below would drop its type,
+            # turning a bracket into a standard IP and destroying the substream.
+            if brackets.is_bracket(in_ip):
+                await pc.out_ports["out"].write(value=in_ip)
+                continue
+
             text = in_ip.content.as_text()
             out_ip = fbp_capnp.IP.new_message(content=f"{config['prefix']}{text}")
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **_extra_attributes(config))
+            brackets.copy_attrs(in_ip, out_ip, extra=_extra_attributes(config))
             await pc.out_ports["out"].write(value=out_ip)
 
         except capnp.KjException as e:
@@ -104,7 +131,11 @@ async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
 
 
 def _extra_attributes(config: dict[str, Any]) -> dict[str, str]:
-    """Return example extra attributes to attach in addition to copied input attrs."""
+    """Example extra attributes, added to the ones copied from the input.
+
+    Plain Python values: `brackets.copy_attrs` wraps them into a `common.Value` with `valueType`
+    set, which is what the rest of the library expects to read.
+    """
 
     attribute_name = config.get("attribute_name")
     if not attribute_name:
