@@ -317,3 +317,69 @@ def test_port_infos_message_uses_single_sr_for_standard_out_port(flow_files: tup
     port_infos = runner.port_infos(runner.nodes["copy-1"], 0)
 
     assert port_infos["outPorts"] == [{"name": "out", "sr": "writer-sr-1"}]
+
+
+# --- failure is reported through the exit code (plan LP5) ---------------------------------
+
+
+class _Watcher:
+    """A component state watcher that has already finished, with the given outcome."""
+
+    def __init__(self, *, failed: bool):
+        import asyncio
+
+        self.failed = failed
+        self.finished = asyncio.Event()
+        self.finished.set()
+
+
+class _Proc:
+    """A subprocess that is still running, so the watcher decides when the component is done."""
+
+    def poll(self):
+        return None
+
+
+class _Started:
+    def __init__(self, name: str, *, failed: bool):
+        self.name = name
+        self.watcher = _Watcher(failed=failed)
+        self.proc = _Proc()
+
+
+def _runner_with(started: list[Any]) -> FlowRunner:
+    """A runner whose components have all finished, so wait_for_flow just collects the outcome."""
+
+    runner = FlowRunner(FlowArgs(path_to_flow="unused.json"))
+    runner.started_processes = started  # pyright: ignore[reportAttributeAccessIssue]
+    runner.sink_node_ids = []  # pyright: ignore[reportAttributeAccessIssue]
+    return runner
+
+
+def test_a_fresh_runner_has_not_failed():
+    assert FlowRunner(FlowArgs(path_to_flow="unused.json")).failed is False
+
+
+def test_wait_for_flow_marks_the_run_failed_when_a_component_failed():
+    """A flow whose components failed used to log the names and still exit 0, so a script or
+    scheduler running it saw a success."""
+
+    import asyncio
+
+    async def go():
+        runner = _runner_with([_Started("good", failed=False), _Started("bad", failed=True)])
+        await runner.wait_for_flow()
+        return runner.failed
+
+    assert asyncio.run(go()) is True
+
+
+def test_wait_for_flow_leaves_a_clean_run_unfailed():
+    import asyncio
+
+    async def go():
+        runner = _runner_with([_Started("good", failed=False)])
+        await runner.wait_for_flow()
+        return runner.failed
+
+    assert asyncio.run(go()) is False

@@ -38,6 +38,11 @@ if TYPE_CHECKING:
 ArrayWriterPorts = list["WriterClient | None"]
 logger = logging.getLogger(__name__)
 
+CONNECT_FAILURES = (KjException, OSError, AttributeError, KeyError, TypeError, ValueError)
+"""What connecting a port can legitimately fail with: an unreachable peer, or a malformed
+port configuration. Naming them means a mistake in the connecting code itself still surfaces,
+rather than leaving the component running with silently unconnected ports."""
+
 
 def get_attr_val(
     name: str,
@@ -141,7 +146,8 @@ async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
                         d = json.loads(text_value)
                 except (KjException, TypeError, ValueError):
                     pass
-        except Exception:
+        except KjException:
+            # the port went away mid-read; the parse failures are handled above
             logger.exception("%s read_dict_from_port.", Path(__file__).name)
     return d
 
@@ -294,7 +300,7 @@ class PortConnector:
                             )
                             writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
-        except Exception:
+        except CONNECT_FAILURES:
             logger.exception(
                 "%s: Exception connecting to ports via CMD config:\n%s",
                 Path(__file__).name,
@@ -393,7 +399,7 @@ class PortConnector:
                                 writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
 
-        except Exception:
+        except CONNECT_FAILURES:
             logger.exception(
                 "%s: Exception connecting to ports via port infos reader SR:\n%s",
                 Path(__file__).name,
@@ -449,7 +455,7 @@ class PortConnector:
                         else None,
                     )
 
-        except Exception:
+        except CONNECT_FAILURES:
             logger.exception(
                 "%s: Exception connecting to ports via toml:\n%s",
                 Path(__file__).name,

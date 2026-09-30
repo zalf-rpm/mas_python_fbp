@@ -651,6 +651,10 @@ class FlowRunner:
         self.channels: list[PopenT] = []
         self.standard_procs: dict[str, list[PopenT]] = {}
         self.started_processes: list[StartedProcess] = []
+
+        # whether anything went wrong: a component that failed, or the run ending early.
+        # Reported through the process exit code, so a script or scheduler can see it.
+        self.failed: bool = False
         self.port_infos_writers: list[WriterClient] = []
         self.sink_node_ids: list[str] = []
 
@@ -746,9 +750,7 @@ class FlowRunner:
 
     @staticmethod
     def _is_array_out_port(node: FlowNode, port: str) -> bool:
-        return node.metadata is not None and any(
-            p.name == port and p.type == "array" for p in node.metadata.outPorts
-        )
+        return node.metadata is not None and any(p.name == port and p.type == "array" for p in node.metadata.outPorts)
 
     def _start_data_channels_for_link(self, link: FlowLink, first_writer_sr: str) -> None:
         """Start the channel(s) backing one flow-JSON link.
@@ -880,9 +882,7 @@ class FlowRunner:
                 config_chans.append(
                     ConfigChannel(
                         # the reader srs go on the components' command lines, so they have to be strings
-                        reader_srs=[
-                            local_sr(common.sturdy_ref_str_from_sr(reader_sr)) for reader_sr in info.readerSRs
-                        ],
+                        reader_srs=[local_sr(common.sturdy_ref_str_from_sr(reader_sr)) for reader_sr in info.readerSRs],
                         writer_sr=local_sr(info.writerSRs[0]),
                     ),
                 )
@@ -1111,6 +1111,7 @@ class FlowRunner:
 
         failed = [sp_.name for sp_ in self.started_processes if sp_.watcher.failed]
         if failed:
+            self.failed = True
             logger.error("these process components failed: %s", ", ".join(failed))
         else:
             logger.info("all components finished")
@@ -1185,7 +1186,9 @@ class FlowRunner:
 
     # -- entry point ---------------------------------------------------------------------
 
-    async def run(self) -> None:
+    async def run(self) -> bool:
+        """Run the flow to completion. False means it ended early because something failed."""
+
         self.load_flow()
         logger.info(
             "flow '%s': %d standard component(s), %d process component(s), %d link(s)",
@@ -1215,9 +1218,14 @@ class FlowRunner:
                 await self.start_process_components()
                 await self.wait_for_flow()
             except Exception:
+                # Broad on purpose: whatever went wrong, every component and channel still has to
+                # be brought down. The failure is reported through the exit code rather than
+                # re-raised, so `finally` cannot be skipped.
+                self.failed = True
                 logger.exception("exception terminated %s early", Path(__file__).name)
             finally:
                 await self.shutdown()
+        return not self.failed
 
 
 def _find_config_file(argv: list[str] | None) -> str | None:
@@ -1228,7 +1236,8 @@ def _find_config_file(argv: list[str] | None) -> str | None:
     return pre_args.config_file
 
 
-async def start_flow(argv: list[str] | None = None) -> None:
+async def start_flow(argv: list[str] | None = None) -> bool:
+    """Start a flow from the command line. False means it ended early because something failed."""
     defaults = load_toml_defaults(config_file) if (config_file := _find_config_file(argv)) else {}
     namespace = FlowArgs()
     apply_toml_defaults(namespace, defaults)
@@ -1237,11 +1246,14 @@ async def start_flow(argv: list[str] | None = None) -> None:
     parser.parse_args(argv, namespace=namespace)
     args = namespace
     configure_logging(args.log_level)
-    await FlowRunner(args).run()
+    return await FlowRunner(args).run()
 
 
 def main() -> None:
-    asyncio.run(capnp.run(start_flow()))
+    # A flow that died early used to log the traceback and still exit 0, so whatever ran it -
+    # a script, a scheduler, CI - saw a success.
+    if not asyncio.run(capnp.run(start_flow())):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
