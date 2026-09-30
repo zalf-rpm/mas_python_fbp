@@ -251,7 +251,9 @@ class JsonToCommonValue(process.Process[JsonToCommonValueConfig]):
                     )
                     if payload is _MISSING:
                         msg = f"Could not resolve traversal_path '{self.config.traversal_path}'."
-                        raise KeyError(msg)
+                        # raised to be caught just below, so an unresolvable path takes the same
+                        # route as malformed JSON rather than needing a second error path
+                        raise KeyError(msg)  # noqa: TRY301
 
                 value_msg, _selected_type, sentinel_attrs = _build_value(payload, self.config)
             except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:

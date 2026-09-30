@@ -55,6 +55,19 @@ zalfmas-fbp = { path = ".", editable = true }
 [tool.pixi.feature.dev.dependencies]
 pixi-pycharm = ">=0.0.12,<0.0.13"
 
+# Tasks belonging to the dev feature, so they run in the environment that actually has pytest,
+# ruff and basedpyright. `pixi run test` finds them without needing `-e dev`.
+[tool.pixi.feature.dev.tasks]
+test = { cmd = "pytest" }
+lint = { cmd = "ruff check ." }
+format = { cmd = "ruff format ." }
+format-check = { cmd = "ruff format --check ." }
+typecheck = { cmd = "basedpyright" }
+# Everything that is green on a clean tree, so this is usable as a gate.
+# `typecheck` is deliberately not in here: basedpyright has a known baseline of pre-existing
+# errors, so it would fail every time and stop the tests from running at all. Run it on its own.
+check = { depends-on = ["lint", "format-check", "test"] }
+
 [tool.pixi.environments]
 dev = ["dev"]
 
@@ -69,6 +82,8 @@ requires = ["hatchling"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+# The plan documents embed illustrative Python that is deliberately not formatted as source.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = [

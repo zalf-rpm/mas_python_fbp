@@ -197,7 +197,9 @@ class LeasedReader:
     async def readLeased(self) -> LeasedResponse:  # noqa: N802 - the capnp method name
         self.leased_reads += 1
         if self._unimplemented:
-            raise capnp.KjException("unimplemented method not implemented")
+            # The wording matters: InputRuntime._is_unimplemented falls back to looking for
+            # "unimplemented" in the description, so this has to read like the real thing.
+            raise capnp.KjException("unimplemented method not implemented")  # noqa: TRY003
         message = self._take()
         return LeasedResponse(message, FakeLease(lambda: self.acknowledged.append(message)))
 
