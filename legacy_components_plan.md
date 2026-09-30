@@ -168,15 +168,35 @@ directly. The ILR date arithmetic is checked against the real data under
 
 ### LP3 — a fake-capability harness, then the service-dependent Runnables
 
-`climate_service_to_datasets`, `datasets_to_timeseries`, `timeseries_cap_to_data`,
-`use_grid_service`, `use_soil_service`, `create_monica_env`.
+**The harness is built and proven.** `tests/fake_services.py` holds in-process capnp servers; the
+component harness runs every component inside `capnp.run()` so capability calls resolve. No socket,
+no subprocess, no network. Two properties of pycapnp shaped it, both established by experiment
+rather than assumed:
 
-These need something the test harness does not have: a way to stand up a fake Cap'n Proto capability
-and hand it to a component over a port. That harness is the real deliverable here — it unblocks
-testing every service-using component, including the `dakis` ones. Worth building once, carefully.
+- A capability can only be attached to a message from *inside* a running kj loop, so
+  `cap_message()` builds its fake lazily, at read time, not when the test collects its inputs.
+- A capability an output IP carries is only callable while that loop is up. `after=` runs an async
+  hook once the component has finished but before the loop closes — the only place a test can check
+  what was actually handed downstream.
 
-Until it exists these components can be *converted* but only smoke-tested (metadata, config
-validation, clean start and stop with no input).
+Cost of running the whole suite in the kj loop: 0.024 ms per test, measured.
+
+Also worth recording: a *wrong* `as_interface` cast does not raise either — it fails only when the
+capability is called. D14 extends to interfaces.
+
+| component | state |
+| --- | --- |
+| `climate/climate_service_to_datasets` | ✅ converted, 16 tests — 2 faults fixed |
+| `climate/datasets_to_timeseries` | ✅ converted, 21 tests — 3 faults fixed |
+| `climate/timeseries_cap_to_data` | ✅ converted, 23 tests — 5 faults fixed, emitted nothing at all |
+| `climate/timeseries_data_to_csv` | todo |
+| `grid/use_grid_service` | todo |
+| `soil/use_soil_service` | todo |
+| `models/monica/create_monica_env` | todo |
+
+The recurring faults so far: a close bracket falling through its branch and then being read as a
+capability (3 of 3), config defaults whose type does not match the code reading them (2), and
+missing `await` on a write (1). All were invisible behind a blanket `except Exception`.
 
 ### LP4 ✅ — bracket transparency for the 11 Process components
 
