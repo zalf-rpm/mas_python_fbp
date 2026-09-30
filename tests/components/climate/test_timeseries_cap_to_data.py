@@ -163,16 +163,10 @@ def test_input_attributes_are_carried_over() -> None:
     assert "scenario" in [entry.key for entry in standard(result.output("out"))[0].attributes]
 
 
-def test_incoming_brackets_are_flattened_by_default() -> None:
+def test_incoming_brackets_pass_through() -> None:
+    """Transparent by default, like every other Process component."""
+
     result = run([open_bracket_message(), cap_message(lambda: series()), close_bracket_message()])
-    assert [str(v.type) for v in result.output("out").values] == ["standard"]
-
-
-def test_incoming_brackets_can_be_maintained() -> None:
-    result = run(
-        [open_bracket_message(), cap_message(lambda: series()), close_bracket_message()],
-        maintain_substreams=True,
-    )
     assert [str(v.type) for v in result.output("out").values] == [
         "openBracket",
         "standard",

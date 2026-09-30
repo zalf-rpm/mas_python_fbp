@@ -59,10 +59,6 @@ class Config(process.ProcessConfig):
         default=False,
         description="Fetch the data transposed - one list per element rather than per day.",
     )
-    maintain_substreams: bool = Field(
-        default=False,
-        description="Forward incoming bracket IPs. If false, incoming substreams are flattened.",
-    )
     on_error: Literal["skip", "fail"] = Field(
         default="skip",
         description="Whether an input that yields no usable time series is skipped or stops the process.",
@@ -77,7 +73,7 @@ METADATA = meta.Component(
         description=(
             "Fetch the actual data behind a time series capability and send it on as plain "
             "TimeSeriesData. Can narrow the series to a date range and a set of elements first. "
-            "Accepts a live capability or a sturdy ref."
+            "Accepts a live capability or a sturdy ref. Substream transparent."
         ),
     ),
     type="process",
@@ -170,7 +166,7 @@ class TimeseriesCapToData(process.Process[Config]):
                 break
 
             if brackets.is_bracket(in_ip):
-                if self.config.maintain_substreams and not await self.write_out("out", in_ip):
+                if not await self.write_out("out", in_ip):
                     break
                 continue
 

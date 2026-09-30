@@ -38,7 +38,7 @@ class Config(process.ProcessConfig):
         default=None,
         description="Send each dataset in this attribute instead of as the IP's content.",
     )
-    create_substream: bool = Field(
+    wrap_in_substream: bool = Field(
         default=False,
         description="Wrap each service's datasets in a substream, bracketed by the service's id.",
     )
@@ -128,14 +128,14 @@ class ClimateServiceToDatasets(process.Process[Config]):
 
             # Ask for the id while the datasets are being fetched; it is only needed for the
             # brackets, so an unbracketed run never waits on it.
-            info_promise = service.info() if self.config.create_substream else None
+            info_promise = service.info() if self.config.wrap_in_substream else None
             datasets = (await service.getAvailableDatasets()).datasets
             if not datasets:
                 logger.info("%s: service returned no datasets", self.name)
                 continue
 
             service_id = (await info_promise).id if info_promise is not None else ""
-            if self.config.create_substream and not await self.write_out(
+            if self.config.wrap_in_substream and not await self.write_out(
                 "ds", brackets.make_bracket("openBracket", content=service_id)
             ):
                 break
@@ -148,7 +148,7 @@ class ClimateServiceToDatasets(process.Process[Config]):
             if stopped:
                 break
 
-            if self.config.create_substream and not await self.write_out(
+            if self.config.wrap_in_substream and not await self.write_out(
                 "ds", brackets.make_bracket("closeBracket", content=service_id)
             ):
                 break

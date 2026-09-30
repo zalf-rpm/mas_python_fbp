@@ -47,7 +47,7 @@
                 "type": "string",
                 "desc": "Send each dataset in this attribute instead of as the IP's content."
             },
-            "create_substream": {
+            "wrap_in_substream": {
                 "value": false,
                 "type": "bool",
                 "desc": "Wrap each service's datasets in a substream, bracketed by the service's id."
@@ -70,7 +70,7 @@
         "info": {
             "id": "ce4749cc-abab-4830-9eb3-1c44c9d451ce",
             "name": "datasets -> timeseries",
-            "description": "Stream a capability to every time series of an incoming climate dataset. Accepts a live capability or a sturdy ref. Locations are fetched in pages, so a large dataset does not have to be held at once. Incoming substreams are flattened unless 'maintain_incoming_substreams' is set."
+            "description": "Stream a capability to every time series of an incoming climate dataset. Accepts a live capability or a sturdy ref. Locations are fetched in pages, so a large dataset does not have to be held at once. Substream transparent; use 'Flatten substreams' to remove incoming brackets."
         },
         "type": "process",
         "inPorts": [
@@ -124,15 +124,10 @@
                 "type": "string",
                 "desc": "Attribute to carry the location's identifier: 'row-<r>_col-<c>' for a grid dataset, otherwise the location's own id. Empty adds no attribute."
             },
-            "create_substream": {
+            "wrap_in_substream": {
                 "value": false,
                 "type": "bool",
                 "desc": "Wrap each dataset's time series in a substream, bracketed by the dataset's id."
-            },
-            "maintain_incoming_substreams": {
-                "value": false,
-                "type": "bool",
-                "desc": "Forward incoming bracket IPs. If false, incoming substreams are flattened."
             },
             "on_error": {
                 "value": "skip",
@@ -152,7 +147,7 @@
         "info": {
             "id": "b510d603-8f2a-4fbd-ac24-634362b4b0f4",
             "name": "timeseries capability -> data",
-            "description": "Fetch the actual data behind a time series capability and send it on as plain TimeSeriesData. Can narrow the series to a date range and a set of elements first. Accepts a live capability or a sturdy ref."
+            "description": "Fetch the actual data behind a time series capability and send it on as plain TimeSeriesData. Can narrow the series to a date range and a set of elements first. Accepts a live capability or a sturdy ref. Substream transparent."
         },
         "type": "process",
         "inPorts": [
@@ -214,11 +209,6 @@
                 "value": false,
                 "type": "bool",
                 "desc": "Fetch the data transposed - one list per element rather than per day."
-            },
-            "maintain_substreams": {
-                "value": false,
-                "type": "bool",
-                "desc": "Forward incoming bracket IPs. If false, incoming substreams are flattened."
             },
             "on_error": {
                 "value": "skip",

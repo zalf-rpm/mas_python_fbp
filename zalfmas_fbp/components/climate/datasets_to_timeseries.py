@@ -56,13 +56,9 @@ class Config(process.ProcessConfig):
             "otherwise the location's own id. Empty adds no attribute."
         ),
     )
-    create_substream: bool = Field(
+    wrap_in_substream: bool = Field(
         default=False,
         description="Wrap each dataset's time series in a substream, bracketed by the dataset's id.",
-    )
-    maintain_incoming_substreams: bool = Field(
-        default=False,
-        description="Forward incoming bracket IPs. If false, incoming substreams are flattened.",
     )
     on_error: Literal["skip", "fail"] = Field(
         default="skip",
@@ -78,8 +74,8 @@ METADATA = meta.Component(
         description=(
             "Stream a capability to every time series of an incoming climate dataset. Accepts a "
             "live capability or a sturdy ref. Locations are fetched in pages, so a large dataset "
-            "does not have to be held at once. Incoming substreams are flattened unless "
-            "'maintain_incoming_substreams' is set."
+            "does not have to be held at once. Substream transparent; use 'Flatten substreams' to "
+            "remove incoming brackets."
         ),
     ),
     type="process",
@@ -152,7 +148,7 @@ class DatasetsToTimeseries(process.Process[Config]):
 
         callback = dataset.streamLocations(self.config.continue_after_location_id or "").locationsCallback
         # Only needed to label the brackets, so an unbracketed run never waits on it.
-        info_promise = dataset.info() if self.config.create_substream else None
+        info_promise = dataset.info() if self.config.wrap_in_substream else None
         opened = False
         dataset_id = ""
 
@@ -161,7 +157,7 @@ class DatasetsToTimeseries(process.Process[Config]):
             if len(locations) == 0:
                 break
 
-            if self.config.create_substream and not opened:
+            if self.config.wrap_in_substream and not opened:
                 # Deferred until there is something to put inside, so a dataset without
                 # locations does not leave an empty substream behind.
                 dataset_id = (await info_promise).id if info_promise is not None else ""
@@ -189,7 +185,7 @@ class DatasetsToTimeseries(process.Process[Config]):
 
             if brackets.is_bracket(in_ip):
                 # The close-bracket branch used to fall through and be treated as a dataset.
-                if self.config.maintain_incoming_substreams and not await self.write_out("ts", in_ip):
+                if not await self.write_out("ts", in_ip):
                     break
                 continue
 

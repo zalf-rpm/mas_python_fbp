@@ -142,28 +142,23 @@ def test_streaming_can_resume_after_a_location() -> None:
     assert dataset.stream_started_after == ["loc-1"]
 
 
-def test_create_substream_brackets_each_datasets_timeseries() -> None:
-    result = run([cap_message(lambda: grid_dataset(2, id_="ds-7"))], create_substream=True)
+def test_wrap_in_substream_brackets_each_datasets_timeseries() -> None:
+    result = run([cap_message(lambda: grid_dataset(2, id_="ds-7"))], wrap_in_substream=True)
     values = result.output("ts").values
     assert [str(v.type) for v in values] == ["openBracket", "standard", "standard", "closeBracket"]
     assert values[0].content.as_text() == "ds-7"
 
 
 def test_a_dataset_without_locations_leaves_no_empty_substream() -> None:
-    result = run([cap_message(lambda: FakeDataset(locations=[]))], create_substream=True)
+    result = run([cap_message(lambda: FakeDataset(locations=[]))], wrap_in_substream=True)
     assert result.output("ts").values == []
 
 
-def test_incoming_brackets_are_flattened_by_default() -> None:
+def test_incoming_brackets_pass_through() -> None:
+    """Transparent by default, like every other Process component. Compose 'Flatten substreams'
+    upstream to drop them, rather than configuring it here."""
+
     result = run([open_bracket_message(), cap_message(lambda: grid_dataset(1)), close_bracket_message()])
-    assert [str(v.type) for v in result.output("ts").values] == ["standard"]
-
-
-def test_incoming_brackets_can_be_maintained() -> None:
-    result = run(
-        [open_bracket_message(), cap_message(lambda: grid_dataset(1)), close_bracket_message()],
-        maintain_incoming_substreams=True,
-    )
     assert [str(v.type) for v in result.output("ts").values] == [
         "openBracket",
         "standard",

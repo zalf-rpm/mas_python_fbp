@@ -96,9 +96,9 @@ def test_input_attributes_are_carried_over() -> None:
     assert "region" in [entry.key for entry in standard(result.output("ds"))[0].attributes]
 
 
-def test_create_substream_brackets_each_services_datasets() -> None:
+def test_wrap_in_substream_brackets_each_services_datasets() -> None:
     service = FakeClimateService(id_="svc-7", datasets=[FakeDataset(), FakeDataset()])
-    result = run([cap_message(lambda: service)], create_substream=True)
+    result = run([cap_message(lambda: service)], wrap_in_substream=True)
 
     values = result.output("ds").values
     assert [str(v.type) for v in values] == ["openBracket", "standard", "standard", "closeBracket"]
@@ -134,7 +134,7 @@ def test_a_service_without_datasets_emits_nothing() -> None:
 
 
 def test_an_empty_service_does_not_open_a_substream_it_never_fills() -> None:
-    result = run([cap_message(lambda: FakeClimateService(datasets=[]))], create_substream=True)
+    result = run([cap_message(lambda: FakeClimateService(datasets=[]))], wrap_in_substream=True)
     assert result.output("ds").values == []
 
 
