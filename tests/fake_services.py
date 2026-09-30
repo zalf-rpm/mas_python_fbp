@@ -24,6 +24,7 @@ from typing import Any
 from mas.schema.climate import climate_capnp
 from mas.schema.common import common_capnp
 from mas.schema.geo import geo_capnp
+from mas.schema.grid import grid_capnp
 
 
 class FakeTimeSeries(climate_capnp.TimeSeries.Server):
@@ -311,3 +312,57 @@ class FakeIdentifiable(common_capnp.Identifiable.Server):
         _context.results.id = self.id
         _context.results.name = self.name
         _context.results.description = self.description
+
+
+class FakeGrid(grid_capnp.Grid.Server):
+    """A grid answering with values taken from a lookup, or a default.
+
+    `values_at` maps a rounded (lat, lon) to a number; anything not in it gets `default`. Pass
+    `default=None` for a grid that has no data there, which is the case components most often get
+    wrong. `value_field` picks which arm of the union the answer is built as.
+    """
+
+    def __init__(
+        self,
+        *,
+        id_: str = "grid-1",
+        name: str = "Fake grid",
+        default: float | int | None = 42.0,
+        values_at: dict[tuple[float, float], float | int | None] | None = None,
+        value_field: str = "f",
+        no_data: float = -9999.0,
+    ):
+        self.id = id_
+        self.name = name
+        self.default = default
+        self.values_at = values_at or {}
+        self.value_field = value_field
+        self.no_data = no_data
+        self.calls: list[str] = []
+        self.requested_coords: list[tuple[float, float]] = []
+        self.ignore_no_data_flags: list[bool] = []
+
+    async def info(self, _context, **kwargs):
+        self.calls.append("info")
+        _context.results.id = self.id
+        _context.results.name = self.name
+
+    async def closestValueAt(self, latlonCoord, ignoreNoData, _context, **kwargs):  # noqa: N802, N803
+        self.calls.append("closestValueAt")
+        key = (round(latlonCoord.lat, 6), round(latlonCoord.lon, 6))
+        self.requested_coords.append(key)
+        self.ignore_no_data_flags.append(ignoreNoData)
+        number = self.values_at.get(key, self.default)
+        if number is None:
+            _context.results.val.no = True
+        else:
+            setattr(_context.results.val, self.value_field, number)
+
+    async def noDataValue(self, _context, **kwargs):  # noqa: N802
+        self.calls.append("noDataValue")
+        _context.results.nodata.f = self.no_data
+
+    async def dimension(self, _context, **kwargs):
+        self.calls.append("dimension")
+        _context.results.rows = 10
+        _context.results.cols = 10
