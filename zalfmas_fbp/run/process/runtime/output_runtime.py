@@ -307,6 +307,28 @@ class OutputRuntime:
 
         return False
 
+    async def choose_array_out_index(self, name: str, strategy: ArrayOutStrategy | str) -> int | None:
+        """Pick a slot of an array out-port without writing to it yet.
+
+        A component sending a *sequence* of IPs to one slot - a whole substream, say - has to choose
+        once and then keep writing there; the write_array_out strategies choose per message.
+        """
+        ports = self.array_out_ports.get(name)
+        if not ports:
+            return None
+
+        if ArrayOutStrategy(strategy) == ArrayOutStrategy.NEXT_AVAILABLE:
+            chosen = await self.wait_for_next_available_array_out_port(name, ports)
+            return None if chosen is None else chosen[0]
+
+        start_index = self.array_out_next_indices.get(name, 0)
+        for offset in range(len(ports)):
+            port_index = (start_index + offset) % len(ports)
+            if ports[port_index] is not None:
+                self.array_out_next_indices[name] = (port_index + 1) % len(ports)
+                return port_index
+        return None
+
     async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
         """Write to one specific slot of an array out-port.
 

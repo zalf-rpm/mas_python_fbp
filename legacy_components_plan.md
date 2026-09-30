@@ -141,10 +141,20 @@ Characterization tests first, then `brackets.handle_bracket` with an explicitly 
 D3. Expect this to change behaviour for substreams in every one of them — that is the point, but it
 means each needs a test showing what it did before and a note saying what it does now.
 
-`ip/copy_ip` and `ip/load_balancer` need thought rather than a mechanical fix: what a *broadcast* or
-a *distribution* should do with a bracket pair is a semantic question, not an oversight.
-`route_ips` (WP3) already had to answer it — brackets broadcast to every output, so each branch sees
-well-formed substreams — and `copy_ip` should probably match.
+`ip/copy_ip` and `ip/load_balancer` needed a semantic decision rather than a mechanical fix, and it
+has been made: **`copy_ip` keeps a substream intact on every output** (as `route_ips` does), and
+**`load_balancer` treats a whole substream as one unit of work**, routing it entirely to one output.
+Tearing a group across workers leaves every branch with a malformed stream; the calibration flow in
+`amei_exercises` works around it today by stripping brackets before the balancer and reassembling
+after, which this removes the need for.
+
+Characterization showed `copy_ip` was **already correct** — it broadcasts every IP including
+brackets, so the survey's text-based flag was a false positive. `load_balancer` was not: a nested
+substream came out as `[['openBracket','openBracket','closeBracket'], ['standard','standard','closeBracket']]`.
+
+Routing a sequence to one chosen slot needed `Process.choose_array_out_index`, since the
+`write_array_out` strategies choose per message. Third such accessor after `write_array_out_at` and
+`read_array_in_with_index`, each added because a component needed it.
 
 ### LP5 — the consistency sweep
 

@@ -509,6 +509,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         """Read the next IP available on any slot of an array in-port, with the slot it came from."""
         return await self._input_runtime.read_array_in_with_index(name)
 
+    async def choose_array_out_index(self, name: str, strategy: ArrayOutStrategy | str) -> int | None:
+        """Pick a slot of an array out-port, for a component writing a sequence to one of them."""
+        return await self._output_runtime.choose_array_out_index(name, strategy)
+
     async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
         """Write to one chosen slot of an array out-port, rather than letting a strategy pick."""
         return await self._output_runtime.write_array_out_at(name, index, message)
