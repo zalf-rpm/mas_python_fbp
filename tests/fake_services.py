@@ -23,6 +23,7 @@ from typing import Any
 
 from mas.schema.climate import climate_capnp
 from mas.schema.common import common_capnp
+from mas.schema.geo import geo_capnp
 
 
 class FakeTimeSeries(climate_capnp.TimeSeries.Server):
@@ -106,10 +107,64 @@ class FakeTimeSeries(climate_capnp.TimeSeries.Server):
 
     async def location(self, _context, **kwargs):
         self.calls.append("location")
-        _context.results.id = self.location_id
+        _context.results.id.id = self.location_id
         _context.results.heightNN = 0.0
         _context.results.latlon.lat = self.latlon[0]
         _context.results.latlon.lon = self.latlon[1]
+
+
+class FakeLocation:
+    """One climate location: an id, a time series, and optionally a grid row/col in customData.
+
+    Grid-backed climate services put a `Geo.RowCol` in `customData[0]`, which is what components
+    reading a grid dataset look for. Set `row_col=None` for a location without one, which is how
+    a non-grid dataset looks - components have to cope with both.
+    """
+
+    def __init__(
+        self,
+        *,
+        id_: str = "loc-1",
+        row_col: tuple[int, int] | None = (0, 0),
+        latlon: tuple[float, float] = (52.0, 13.0),
+        time_series: FakeTimeSeries | None = None,
+        custom_key: str = "rowCol",
+    ):
+        self.id = id_
+        self.row_col = row_col
+        self.latlon = latlon
+        self.time_series = time_series if time_series is not None else FakeTimeSeries(id_=f"ts-{id_}")
+        self.custom_key = custom_key
+
+    def write_into(self, builder) -> None:
+        builder.id.id = self.id
+        builder.id.name = self.id
+        builder.heightNN = 0.0
+        builder.latlon.lat = self.latlon[0]
+        builder.latlon.lon = self.latlon[1]
+        builder.timeSeries = self.time_series
+        if self.row_col is not None:
+            entries = builder.init("customData", 1)
+            entries[0].key = self.custom_key
+            row_col = entries[0].value.as_struct(geo_capnp.RowCol)
+            row_col.row = self.row_col[0]
+            row_col.col = self.row_col[1]
+
+
+class FakeLocationsCallback(climate_capnp.Dataset.GetLocationsCallback.Server):
+    """Hands out locations in pages, then an empty page to signal the end, as the schema expects."""
+
+    def __init__(self, locations: list[FakeLocation]):
+        self.remaining = list(locations)
+        self.requested_counts: list[int] = []
+
+    async def nextLocations(self, maxCount, _context, **kwargs):  # noqa: N802, N803 - schema names
+        self.requested_counts.append(maxCount)
+        page = self.remaining[:maxCount]
+        self.remaining = self.remaining[maxCount:]
+        entries = _context.results.init("locations", len(page))
+        for entry, location in zip(entries, page, strict=True):
+            location.write_into(entry)
 
 
 class FakeDataset(climate_capnp.Dataset.Server):
@@ -121,15 +176,21 @@ class FakeDataset(climate_capnp.Dataset.Server):
         id_: str = "ds-1",
         name: str = "Fake dataset",
         time_series: FakeTimeSeries | None = None,
-        locations: list[str] | None = None,
+        locations: list[FakeLocation] | None = None,
     ):
         self.id = id_
         self.name = name
         self.time_series = time_series if time_series is not None else FakeTimeSeries()
-        self.location_ids = locations if locations is not None else ["loc-1", "loc-2"]
+        self.locations_list = (
+            locations
+            if locations is not None
+            else [FakeLocation(id_="loc-1", row_col=(0, 0)), FakeLocation(id_="loc-2", row_col=(0, 1))]
+        )
         self.calls: list[str] = []
         self.requested_latlon: list[tuple[float, float]] = []
         self.requested_location_ids: list[str] = []
+        self.stream_started_after: list[str] = []
+        self.callbacks: list[FakeLocationsCallback] = []
 
     async def info(self, _context, **kwargs):
         self.calls.append("info")
@@ -152,10 +213,21 @@ class FakeDataset(climate_capnp.Dataset.Server):
 
     async def locations(self, _context, **kwargs):
         self.calls.append("locations")
-        entries = _context.results.init("locations", len(self.location_ids))
-        for entry, location_id in zip(entries, self.location_ids, strict=True):
-            entry.id = location_id
-            entry.timeSeries = self.time_series
+        entries = _context.results.init("locations", len(self.locations_list))
+        for entry, location in zip(entries, self.locations_list, strict=True):
+            location.write_into(entry)
+
+    async def streamLocations(self, startAfterLocationId, _context, **kwargs):  # noqa: N802, N803 - schema names
+        self.calls.append("streamLocations")
+        self.stream_started_after.append(startAfterLocationId)
+        remaining = self.locations_list
+        if startAfterLocationId:
+            ids = [location.id for location in self.locations_list]
+            if startAfterLocationId in ids:
+                remaining = self.locations_list[ids.index(startAfterLocationId) + 1 :]
+        callback = FakeLocationsCallback(remaining)
+        self.callbacks.append(callback)
+        _context.results.locationsCallback = callback
 
 
 class FakeClimateService(climate_capnp.Service.Server):

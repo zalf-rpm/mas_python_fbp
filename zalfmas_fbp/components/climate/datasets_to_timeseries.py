@@ -12,169 +12,203 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Any
+from typing import Any, Literal, override
 
-from capnp.lib.capnp import KjException
+import capnp
 from mas.schema.climate import climate_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
+from pydantic import Field
+from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+TIMESERIES_TYPE = "climate.capnp:TimeSeries"
+
+
+class Config(process.ProcessConfig):
+    no_of_locations_at_once: int = Field(
+        default=10,
+        gt=0,
+        description="How many locations to ask the dataset for per round trip.",
+    )
+    continue_after_location_id: str | None = Field(
+        default=None,
+        description="Start streaming after this location id instead of at the beginning.",
+    )
+    to_attr: str | None = Field(
+        default=None,
+        description="Send each time series in this attribute instead of as the IP's content.",
+    )
+    id_attr: str = Field(
+        default="id",
+        description=(
+            "Attribute to carry the location's identifier: 'row-<r>_col-<c>' for a grid dataset, "
+            "otherwise the location's own id. Empty adds no attribute."
+        ),
+    )
+    create_substream: bool = Field(
+        default=False,
+        description="Wrap each dataset's time series in a substream, bracketed by the dataset's id.",
+    )
+    maintain_incoming_substreams: bool = Field(
+        default=False,
+        description="Forward incoming bracket IPs. If false, incoming substreams are flattened.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        default="skip",
+        description="Whether an input that yields no usable dataset is skipped or stops the process.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="climate",
-        name="Climate",
-    ),
+    category=meta.Category(id="climate", name="Climate"),
     info=meta.Info(
         id="ce4749cc-abab-4830-9eb3-1c44c9d451ce",
         name="datasets -> timeseries",
-        description="Get timeseries capabilties from a dataset.",
+        description=(
+            "Stream a capability to every time series of an incoming climate dataset. Accepts a "
+            "live capability or a sturdy ref. Locations are fetched in pages, so a large dataset "
+            "does not have to be held at once. Incoming substreams are flattened unless "
+            "'maintain_incoming_substreams' is set."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
             name="ds",
+            contentType="climate.capnp:Dataset",
+            desc="Climate dataset, as a capability or a sturdy ref.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="ts",
+            contentType=TIMESERIES_TYPE,
+            desc="One IP per location of each incoming dataset.",
+            required=True,
         ),
     ],
-    defaultConfig={
-        "no_of_locations_at_once": meta.ConfigEntry(
-            value=10,
-            type="int",
-            desc="number of locations to send at once",
-        ),
-        "continue_after_location_id": meta.ConfigEntry(
-            value=False,
-            type="string",
-            desc="continue after a particular location id",
-        ),
-        "to_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="send data attached to attribute 'to_attr'",
-        ),
-        "create_substream": meta.ConfigEntry(
-            value=False,
-            type="[true | false]",
-            desc="create a substream for each datasets' timeseries",
-        ),
-        "maintain_incoming_substreams": meta.ConfigEntry(
-            value=False,
-            type="[true | false]",
-            desc="if false, ignore bracket IPs, thus flatten incoming substreams",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "ds"], outs=["ts"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+def location_id_of(location: Any) -> str:
+    """A grid location's 'row-<r>_col-<c>', or else the location's own id.
 
-    while pc.in_ports["ds"] and pc.out_ports["ts"]:
+    Grid-backed services put a `Geo.RowCol` first in `customData`; other datasets put nothing
+    there at all, which used to raise an IndexError and abort the whole dataset. Note that a
+    `customData[0]` holding some *other* struct would be misread rather than rejected (D14) -
+    Cap'n Proto cannot tell what an AnyPointer was written as.
+    """
+
+    if len(location.customData) > 0:
         try:
-            ds_msg = await pc.in_ports["ds"].read()
-            if ds_msg.which() == "done":
-                pc.in_ports["ds"] = None
-                continue
+            row_col = location.customData[0].value.as_struct(geo_capnp.RowCol)
+        except capnp.KjException:
+            pass
+        else:
+            return f"row-{row_col.row}_col-{row_col.col}"
+    return location.id.id
 
-            ds_ip = ds_msg.value.as_struct(fbp_capnp.IP)
 
-            # pass through brackets as we just want to preserve structure for downstream components
-            if ds_ip.type == "openBracket":
-                if config["maintain_incoming_substreams"]:
-                    await pc.out_ports["ts"].write(ds_ip)
-                continue
-            if ds_ip.type == "closeBracket":
-                if config["maintain_incoming_substreams"]:
-                    await pc.out_ports["ts"].write(ds_ip)
+class DatasetsToTimeseries(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+        self.sent: int = 0
 
-            dataset = None
-            try:
-                dataset = ds_ip.content.as_interface(climate_capnp.Dataset)
-            except (KjException, TypeError):
-                try:
-                    dataset = (
-                        dataset_cap.cast_as(climate_capnp.Dataset)
-                        if (
-                            dataset_cap := await pc.connection_manager.try_connect(
-                                ds_ip.content.as_text(),
-                                retry_secs=1,
-                            )
-                        )
-                        is not None
-                        else None
-                    )
-                except (KjException, RuntimeError, OSError, TypeError):
-                    logger.exception("Error: Couldn't connect to dataset.")
-                    continue
-            if dataset is None:
-                continue
+    async def write_timeseries(self, location: Any, in_ip: Any) -> bool:
+        """One outgoing IP carrying a location's time series capability."""
 
-            if config["continue_after_location_id"]:
-                callback = dataset.streamLocations(config["continue_after_location_id"]).locationsCallback
-            else:
-                callback = dataset.streamLocations().locationsCallback
-            info = await dataset.info()
-            # callback = await callback_prom
+        out_ip = fbp_capnp.IP.new_message()
+        extra: dict[str, Any] = {}
+        if self.config.id_attr:
+            extra[self.config.id_attr] = location_id_of(location)
+        if self.config.to_attr:
+            extra[self.config.to_attr] = brackets.Attr(location.timeSeries, TIMESERIES_TYPE)
+        else:
+            out_ip.content = location.timeSeries
+            out_ip.sysAttributes.contentType = TIMESERIES_TYPE
+        brackets.copy_attrs(in_ip, out_ip, extra=extra)
+        self.sent += 1
+        return await self.write_out("ts", out_ip)
 
-            if config["create_substream"]:
-                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="openBracket", content=info.id))
-            while True:
-                ls = (await callback.nextLocations(int(config["no_of_locations_at_once"]))).locations
-                if len(ls) == 0:
+    async def stream_dataset(self, dataset: Any, in_ip: Any) -> bool:
+        """Page through a dataset's locations, emitting one IP each. False means stop the process."""
+
+        callback = dataset.streamLocations(self.config.continue_after_location_id or "").locationsCallback
+        # Only needed to label the brackets, so an unbracketed run never waits on it.
+        info_promise = dataset.info() if self.config.create_substream else None
+        opened = False
+        dataset_id = ""
+
+        while True:
+            locations = (await callback.nextLocations(self.config.no_of_locations_at_once)).locations
+            if len(locations) == 0:
+                break
+
+            if self.config.create_substream and not opened:
+                # Deferred until there is something to put inside, so a dataset without
+                # locations does not leave an empty substream behind.
+                dataset_id = (await info_promise).id if info_promise is not None else ""
+                if not await self.write_out("ts", brackets.make_bracket("openBracket", content=dataset_id)):
+                    return False
+                opened = True
+
+            for location in locations:
+                if not await self.write_timeseries(location, in_ip):
+                    return False
+
+        if opened and not await self.write_out("ts", brackets.make_bracket("closeBracket", content=dataset_id)):
+            return False
+        return True
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        while self.in_ports["ds"] and self.out_ports["ts"]:
+            in_ip = await self.read_in("ds")
+            if in_ip is None:
+                self.in_ports["ds"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                # The close-bracket branch used to fall through and be treated as a dataset.
+                if self.config.maintain_incoming_substreams and not await self.write_out("ts", in_ip):
                     break
-                for location in ls:
-                    rc = location.customData[0].value.as_struct(geo_capnp.RowCol)
-                    attrs = [{"key": "id", "value": f"row-{rc.row}_col-{rc.col}"}]
-                    if config["to_attr"]:
-                        attrs.append({"key": config["to_attr"], "value": location.timeSeries})
-                    out_ip = fbp_capnp.IP.new_message(attributes=attrs)
-                    if not config["to_attr"]:
-                        out_ip.content = location.timeSeries
-                    await pc.out_ports["ts"].write(value=out_ip)
-            if config["create_substream"]:
-                await pc.out_ports["ts"].write(value=fbp_capnp.IP.new_message(type="closeBracket", content=info.id))
+                continue
 
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
+            dataset, _ = await self.cast_cap_or_connect(in_ip.content, climate_capnp.Dataset)
+            if dataset is None:
+                message = f"{self.name}: no climate dataset could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+            if not await self.stream_dataset(dataset, in_ip):
+                break
 
-
-default_config = {
-    "no_of_locations_at_once": "10",
-    "continue_after_location_id": None,
-    "to_attr": None,
-    "create_substream": False,
-    "maintain_incoming_substreams": False,
-    "opt:no_of_locations_at_once": "[int] -> number of locations to send at once",
-    "opt:continue_after_location_id": "[string] -> continue after a particular location id",
-    # "opt:from_attr": "[name:string] -> get sturdy ref or capability from attibute 'from_attr'",
-    "opt:to_attr": "[name:string] -> send data attached to attribute 'to_attr'",
-    "opt:create_substream": "[true | false] -> create a substream for each datasets' timeseries",
-    "opt:maintain_incoming_substreams": "[true | false] -> if false, ignore bracket IPs thus flatten incoming substreams",
-    "port:conf": "[TOML string] -> component configuration",
-    "port:ds": "[climate_capnp.Dataset]-> ",
-    "port:ts": "[climate.capnp:TimeSeries (capability)] -> get all the timeseries for the input climate dataset",
-}
+        logger.info("%s process finished, sent %d time series", self.name, self.sent)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(DatasetsToTimeseries(METADATA), METADATA)
 
 
 if __name__ == "__main__":
