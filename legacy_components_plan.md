@@ -103,16 +103,28 @@ Done.
   `update_config_from_port`, which is now a no-op. It duplicated `agents_process.md`, which is how it
   drifted, so it is now a map to the authoritative documents rather than a third copy of them.
 
-### LP1 — characterization tests for the pure Runnables, then convert them
+### LP1 ✅ — the pure Runnables
 
-`console_output`, `split_string`, `collect_into_list`, `ordered_flatten_nested_dicts`, `to_geo_coord`.
+`console_output`, `to_geo_coord`, `ordered_flatten_nested_dicts` — `split_string` and
+`collect_into_list` were retired in LP0 rather than converted.
 
-These are small, pure, and the conversion is mechanical. Write the test against the *converted*
-component, but convert and test in one commit per component so a regression is attributable.
+Done, one commit each, 45 tests where there had been 1. None of the three was purely mechanical:
 
-`string/split_string` is worth a decision rather than a conversion: `string/split_string2` already
-exists as its Process replacement. Either retire the old one or, if flows still reference its id,
-keep it as a thin alias. Same question for `collect_into_list` versus `json/concat_json_substream`.
+- **`console_output`** printed bracket IPs as blank lines and fell back to `repr` for typed content.
+  It now renders content through its declared type, reports unreadable content rather than guessing
+  (D14), skips brackets unless asked, and can show attributes, type and a running count — enough to
+  serve as a quick console probe.
+- **`to_geo_coord`** rejected every capitalised coordinate name it documented.
+  `zalfmas_common.geo.name_to_struct_type` lowercases when matching `2d`/`xy`/`latlon` but compares
+  the raw string for `wgs84`, `gk*` and `utm*`, so `LatLon` worked while `WGS84`, `GK5` and `UTM32N`
+  returned `None` — and the old code then crashed on `None.copy()`. Normalising the name in the
+  component fixes all of them without an upstream change. It also accepts `common.Value` lists and
+  JSON text now, which is what `sequence`, `json_to_common_value` and `split_json` emit.
+- **`ordered_flatten_nested_dicts`** had a `default_config` dict at module level that was never
+  wired into its `METADATA`, so `config["reverse"]` raised `KeyError` for every IP — swallowed by a
+  bare `except`, silently dropping the whole stream when unconfigured.
+
+Each has a typed config, bracket transparency and attribute propagation, none of which they had.
 
 ### LP2 — the local-resource Runnables
 

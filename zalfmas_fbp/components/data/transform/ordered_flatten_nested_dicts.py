@@ -12,101 +12,143 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
-from typing import Any
+from typing import Any, Literal, override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
+from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets, selectors, values
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+JSON_CONTENT_TYPE = "Text (JSON)"
+
+
+class Config(process.ProcessConfig):
+    reverse: bool | list[bool] = Field(
+        default=False,
+        description=(
+            "Sort each nesting level's keys descending instead of ascending. A single value applies "
+            "to every level; a list applies its entries level by level, ascending beyond its end."
+        ),
+    )
+    traversal_path: str | None = Field(
+        default=None,
+        description="Optional path from the document root to the object to flatten.",
+    )
+    path_separator: str = Field(default="/", description="Separator used for traversal_path.")
+    on_error: Literal["skip", "pass_through"] = Field(
+        default="skip",
+        description="What to do with an IP whose content is not a readable JSON object.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="data/transform",
-        name="Data/Transform",
-    ),
+    category=meta.Category(id="data/transform", name="Data/Transform"),
     info=meta.Info(
         id="c0ec26bf-2d10-4dae-89f6-2e0fea58980e",
         name="ordered flatten nested dicts",
-        description="ordered_flatten_nested_dicts",
+        description=(
+            "Flatten a nested JSON object into a list of its leaf values, visiting each level's "
+            "keys in sorted order so the result is deterministic. Substream transparent."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-        ),
-        meta.Port(
-            name="in",
-        ),
+        meta.Port(name="in", contentType=JSON_CONTENT_TYPE, desc="Nested objects to flatten.", required=True),
     ],
     outPorts=[
-        meta.Port(
-            name="out",
-        ),
+        meta.Port(name="out", contentType=JSON_CONTENT_TYPE, desc="The leaf values, in order.", required=True),
     ],
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+def ordered_flatten(nested: Any, reverse: bool | list[bool]) -> list[Any]:
+    """Leaf values of a nested mapping, each level's keys visited in sorted order."""
+    flattened: list[Any] = []
 
-    reverse = config["reverse"]
-    while pc.in_ports["in"] and pc.out_ports["out"]:
-        try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
+    def visit(current: Any, reverse_here: bool | list[bool]) -> None:
+        if isinstance(reverse_here, list):
+            this_level = bool(reverse_here[0]) if reverse_here else False
+            deeper: bool | list[bool] = reverse_here[1:] if reverse_here else False
+        else:
+            this_level = deeper = reverse_here
+
+        if not isinstance(current, dict):
+            flattened.append(current)
+            return
+        for key in sorted(current, reverse=this_level):
+            visit(current[key], deeper)
+
+    visit(nested, reverse)
+    return flattened
+
+
+class OrderedFlattenNestedDicts(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        flattened_count = 0
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
                 continue
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            in_dict = json.loads(in_ip.content.as_text())
+            try:
+                document = json.loads(in_ip.content.as_text())
+            except (capnp.KjException, json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                logger.warning("%s: content was not readable JSON text.", self.name)
+                if self.config.on_error == "pass_through" and not await self.write_out("out", in_ip):
+                    break
+                continue
 
-            def ordered_flatten_dict(in_d, out_l, reverse_sort):
-                rev, rev_rest = False, False
-                if isinstance(reverse_sort, list):
-                    if len(reverse_sort) > 0:
-                        rev = reverse_sort[0]
-                        rev_rest = reverse_sort[1:]
-                else:
-                    rev, rev_rest = reverse_sort, reverse_sort
+            if self.config.traversal_path:
+                path = selectors.split_path(self.config.traversal_path, self.config.path_separator)
+                document = selectors.apply_path(document, path)
+                if document is values.MISSING:
+                    logger.warning("%s: traversal_path %r did not resolve.", self.name, self.config.traversal_path)
+                    continue
 
-                for k in sorted(in_d.keys(), reverse=rev):
-                    v = in_d[k]
-                    if isinstance(v, dict):
-                        ordered_flatten_dict(v, out_l, rev_rest)
-                    else:
-                        out_l.append(v)
+            out_ip = fbp_capnp.IP.new_message(
+                content=json.dumps(ordered_flatten(document, self.config.reverse), default=str),
+            )
+            out_ip.sysAttributes.contentType = JSON_CONTENT_TYPE
+            brackets.copy_attrs(in_ip, out_ip)
 
-            out_list = []
-            ordered_flatten_dict(in_dict, out_list, reverse)
+            flattened_count += 1
+            if not await self.write_out("out", out_ip):
+                break
 
-            out_ip = fbp_capnp.IP.new_message(content=json.dumps(out_list))
-            await pc.out_ports["out"].write(value=out_ip)
-
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
-
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
-
-
-default_config = {
-    "reverse": False,  # true or false or [true, true, false] for nesting levels :string of json serialized array
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[]",
-    "port:out": "[]",
-}
+        logger.info("%s process finished, flattened %d document(s)", self.name, flattened_count)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(OrderedFlattenNestedDicts(METADATA), METADATA)
 
 
 if __name__ == "__main__":
