@@ -3771,47 +3771,6 @@
             }
         }
     },
-    "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c": {
-        "category": {
-            "id": "string",
-            "name": "String"
-        },
-        "info": {
-            "id": "d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
-            "name": "split string",
-            "description": "Splits a string along delimiter."
-        },
-        "type": "standard",
-        "inPorts": [
-            {
-                "name": "in",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            },
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "role": "config",
-                "required": false
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "defaultConfig": {
-            "split_at": {
-                "value": ",",
-                "type": "string",
-                "desc": "Split string at this character."
-            }
-        }
-    },
     "d44040ab-7d5a-44d1-94e8-3f79969edbd4": {
         "category": {
             "id": "string",
@@ -3819,7 +3778,7 @@
         },
         "info": {
             "id": "d44040ab-7d5a-44d1-94e8-3f79969edbd4",
-            "name": "split string2",
+            "name": "split string",
             "description": "Splits a string along delimiter."
         },
         "type": "process",
@@ -3858,56 +3817,6 @@
                 "value": ",",
                 "type": "string",
                 "desc": "split string at this character"
-            }
-        }
-    },
-    "4b260f85-eb1b-4109-87ec-b30d38a5631a": {
-        "category": {
-            "id": "string",
-            "name": "String"
-        },
-        "info": {
-            "id": "4b260f85-eb1b-4109-87ec-b30d38a5631a",
-            "name": "Collect into list",
-            "description": "Collects values (parsed out of a string) into a list."
-        },
-        "type": "standard",
-        "inPorts": [
-            {
-                "name": "in",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            },
-            {
-                "name": "conf",
-                "contentType": "common.capnp:StructuredText[JSON | TOML]",
-                "role": "config",
-                "required": false
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "out",
-                "contentType": "List[Text | Float64 | Int64]",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "defaultConfig": {
-            "no_of_elements": {
-                "value": 0,
-                "type": "int",
-                "desc": "Number of elements to collect into array. no_of_elements <= 0 means collect all elements from upstream. This means the component waits for the 'in' port to close, before sending a message on out."
-            },
-            "cast_to": {
-                "value": "text",
-                "type": [
-                    "text",
-                    "float",
-                    "int"
-                ],
-                "desc": "Cast received value on 'in' port to either text, float or int values."
             }
         }
     },

@@ -83,16 +83,25 @@ characterize-then-fix the existing Process components.
 
 ## 3. Work packages
 
-### LP0 — the outright bug, and a guard against it recurring
+### LP0 ✅ — the outright bug, and a guard against it recurring
 
-Small, self-contained, no dependencies.
+Done.
 
-1. Give `timeseries_data_to_monthly_aggregate` its own `info.id`, name and description, and register
-   it in `local_cmds.json`. Check with the user first whether it is still wanted — it has been
-   unreachable for some time, so "delete it" is a legitimate answer and cheaper than maintaining it.
-2. Add a test asserting **every component's `info.id` and name is unique**, and that every id in the
-   cache has a `local_cmds.json` entry. A structural test over the whole tree, so this class of
-   mistake cannot return.
+- `climate/timeseries_data_to_monthly_aggregate` **deleted**. It had been unlaunchable, and
+  maintaining it cost more than it was worth.
+- `string/split_string` (Runnable) **deleted**; `string/split_string2` **renamed** to
+  `split_string`, keeping its own id and gaining the plain name. `flows/test_flow4.json` referenced
+  the retired id and now points at the survivor — the configs were identical, so nothing else
+  changed.
+- `string/collect_into_list` **retired**, superseded by `json/concat_json_substream`.
+- `tests/run/test_component_registry.py` added: ids and names unique tree-wide, every registered
+  command's module exists, every registered id matches its module's `METADATA`, the cache covers the
+  registry, and every id is a UUID. Templates are excluded — their placeholder metadata is
+  deliberate.
+- `zalfmas_fbp/components/README.md` **rewritten**. It called `process` a "minority (2 components)",
+  pointed at the file that was just renamed as the template to copy, and taught
+  `update_config_from_port`, which is now a no-op. It duplicated `agents_process.md`, which is how it
+  drifted, so it is now a map to the authoritative documents rather than a third copy of them.
 
 ### LP1 — characterization tests for the pure Runnables, then convert them
 
@@ -148,11 +157,10 @@ Once the above have tests, the mechanical fixes become safe:
 - The process template updated to show bracket handling, since it is what new components are copied
   from.
 
-### LP6 — the flow-specific Runnables
+### LP6 — dropped
 
-`africa_calibration_producer`, `africa_calibration_consumer`. Convert mechanically; meaningful tests
-need the calibration flow's context, so smoke tests plus a note is the honest outcome unless the
-flow is being exercised anyway.
+`africa_calibration_producer` and `africa_calibration_consumer` are being deleted or moved out of
+this repository, so they are not converted.
 
 ---
 
@@ -170,11 +178,16 @@ flow is being exercised anyway.
 
 ## 5. Open questions for the user
 
-1. **`timeseries_data_to_monthly_aggregate`**: still wanted, or delete it? It has been unreachable.
-2. **`split_string` vs `split_string2`**, and **`collect_into_list` vs `concat_json_substream`**:
-   retire the old ones, or keep them as aliases because saved flows reference their ids?
-3. **The africa calibration producer/consumer**: still in use? 636 lines is a large conversion for a
-   component that may be historical.
-4. **Priority between LP3 (the fake-capability harness) and LP4 (bracket transparency).** LP4 fixes
-   behaviour that is wrong today; LP3 unblocks a whole category of testing. LP4 first is the
-   recommendation, since it is correctness rather than coverage.
+Answered 2026-09-30:
+
+1. `timeseries_data_to_monthly_aggregate` — **deleted**.
+2. `split_string` — old one **deleted**, `split_string2` renamed over it. `collect_into_list` —
+   **retired**.
+3. The africa calibration producer and consumer — **leave them alone**; they will be deleted or
+   moved elsewhere. LP6 is dropped.
+4. **LP4 before LP3**, as recommended.
+
+Standing direction: domain-specific components should leave this repository mid-term — the `dakis`
+set is the obvious candidate. What is missing is a user-friendly mechanism for working with several
+component libraries or services at once, so this waits on that rather than on effort. It does mean
+new work should not deepen the coupling between the base set and any one domain.

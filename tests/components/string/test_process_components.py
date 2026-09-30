@@ -11,8 +11,8 @@ from tests.component_harness import (
     run_process_component,
     text_outputs,
 )
-from zalfmas_fbp.components.string.split_string2 import METADATA as split_string_metadata
-from zalfmas_fbp.components.string.split_string2 import SplitString
+from zalfmas_fbp.components.string.split_string import METADATA as split_string_metadata
+from zalfmas_fbp.components.string.split_string import SplitString
 from zalfmas_fbp.components.string.to_string import METADATA as to_string_metadata
 from zalfmas_fbp.components.string.to_string import ToString
 
@@ -20,7 +20,7 @@ STRUCTURED_TEXT_CONTENT_TYPE = "@0xed6c098b67cad454 = common/common.capnp:Struct
 VALUE_CONTENT_TYPE = "@0xe17592335373b246 = common/common.capnp:Value"
 
 
-def test_split_string2_uses_default_config_and_writes_split_values() -> None:
+def test_split_string_uses_default_config_and_writes_split_values() -> None:
     component = SplitString(split_string_metadata)
 
     writer = run_process_component(
@@ -37,7 +37,7 @@ def test_split_string2_uses_default_config_and_writes_split_values() -> None:
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
-def test_split_string2_reads_conf_port_before_processing_input() -> None:
+def test_split_string_reads_conf_port_before_processing_input() -> None:
     component = SplitString(split_string_metadata)
 
     writer = run_process_component(
@@ -58,7 +58,7 @@ def test_split_string2_reads_conf_port_before_processing_input() -> None:
     assert text_outputs(writer) == ["alpha", "beta", "gamma"]
 
 
-def test_split_string2_reads_unstructured_json_conf_port_before_processing_input() -> None:
+def test_split_string_reads_unstructured_json_conf_port_before_processing_input() -> None:
     component = SplitString(split_string_metadata)
 
     writer = run_process_component(

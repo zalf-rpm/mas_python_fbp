@@ -21,7 +21,7 @@ from zalfmas_fbp.components.dakis.write_geoparquet import (
 )
 from zalfmas_fbp.components.ip.copy_ip import METADATA as copy_metadata
 from zalfmas_fbp.components.ip.load_balancer import METADATA as load_balancer_metadata
-from zalfmas_fbp.components.string.split_string2 import METADATA as split_string_metadata
+from zalfmas_fbp.components.string.split_string import METADATA as split_string_metadata
 from zalfmas_fbp.components.string.to_string import METADATA as to_string_metadata
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run.metadata import ComponentMetadata
