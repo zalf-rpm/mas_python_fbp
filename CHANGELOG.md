@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.40](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.39...v0.2.40) (2026-10-05)
+
+
+### Features
+
+* construct better logline indicating component and instance with id ([6d13356](https://github.com/zalf-rpm/mas_python_fbp/commit/6d13356271b6a401775cfb3f3c92b8122f676cec))
+* regenerate component cache on image rebuild ([3b9c4e5](https://github.com/zalf-rpm/mas_python_fbp/commit/3b9c4e5c04b55b591ff2ff2612d0d477872db9ab))
+
 ## [0.2.39](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.38...v0.2.39) (2026-09-29)
 
 
