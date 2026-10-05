@@ -9,17 +9,19 @@ RUN pixi global install git
 
 FROM build-base AS prod-build
 RUN pixi install --locked --environment default
-RUN pixi shell-hook --environment default > /shell-hook.sh
-RUN echo 'exec "$@"' >> /shell-hook.sh
 COPY binaries /app/binaries
 COPY configs /app/configs
+RUN pixi run --environment default regenerate-components-cache
+RUN pixi shell-hook --environment default > /shell-hook.sh
+RUN echo 'exec "$@"' >> /shell-hook.sh
 
 FROM build-base AS dev-build
 RUN pixi install --locked --environment dev
-RUN pixi shell-hook --environment dev > /shell-hook.sh
-RUN echo 'exec "$@"' >> /shell-hook.sh
 COPY binaries /app/binaries
 COPY configs /app/configs
+RUN pixi run --environment dev regenerate-components-cache
+RUN pixi shell-hook --environment dev > /shell-hook.sh
+RUN echo 'exec "$@"' >> /shell-hook.sh
 
 FROM debian:13 AS runtime
 
