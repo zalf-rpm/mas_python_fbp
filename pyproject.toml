@@ -3,6 +3,7 @@ name = "zalfmas-fbp"
 version = "0.2.40"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
+# Cap below 3.15: duckdb ships no cp315 wheels yet, so pixi would build the sdist (needs a C++ toolchain).
 requires-python = ">=3.12,<3.15"
 authors = [
     { name = "Michael Berg-Mohnicke", email = "michael.berg@zalf.de" },
@@ -42,8 +43,6 @@ dev = [
 ]
 
 [tool.pixi.dependencies]
-# Cap below 3.15: duckdb ships no cp315 wheels yet, so pixi would build the sdist (needs a C++ toolchain).
-python = ">=3.12,<3.15"
 libsodium = ">=1.0.22,<2"
 openpyxl = ">=3.1.5,<4"
 
