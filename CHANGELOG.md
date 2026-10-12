@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.40](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.39...v0.2.40) (2026-10-12)
+
+
+### Bug Fixes
+
+* cap below python 3.15 as duckdb doesnt publish wheels for it yet complicating the docker builds ([932320c](https://github.com/zalf-rpm/mas_python_fbp/commit/932320c95fdc21b8b2981d2052f5ac7c974b5bb1))
+* update channel binary to latest ([8ee6827](https://github.com/zalf-rpm/mas_python_fbp/commit/8ee682731e77d36652f658c91e3e7367cda7573a))
+
 ## [0.2.39](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.38...v0.2.39) (2026-10-05)
 
 
