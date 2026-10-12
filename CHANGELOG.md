@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.41](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.40...v0.2.41) (2026-10-12)
+
+
+### Bug Fixes
+
+* use proper requires-python field to lock python version below 3.15 ([d5bc440](https://github.com/zalf-rpm/mas_python_fbp/commit/d5bc440186edd4970e21734f9827bd654452e225))
+
 ## [0.2.40](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.39...v0.2.40) (2026-10-12)
 
 
