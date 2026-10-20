@@ -377,41 +377,6 @@
             }
         }
     },
-    "b5dea358-e34e-49ad-b20d-4d97159114a0": {
-        "category": {
-            "id": "consumers",
-            "name": "Consumers"
-        },
-        "info": {
-            "id": "b5dea358-e34e-49ad-b20d-4d97159114a0",
-            "name": "africa calibration",
-            "description": "Consumer to work in an Africa calibration flow."
-        },
-        "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "Text",
-                "role": "config",
-                "required": false
-            },
-            {
-                "name": "result",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "year_to_yield",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "defaultConfig": {}
-    },
     "c0ec26bf-2d10-4dae-89f6-2e0fea58980e": {
         "category": {
             "id": "data/transform",
@@ -3559,53 +3524,6 @@
                 "desc": "Like ','. Use this string as delimiter for csv output."
             }
         }
-    },
-    "4b324ff3-a91d-434b-a2bf-8363bc4828ec": {
-        "category": {
-            "id": "producers",
-            "name": "Producers"
-        },
-        "info": {
-            "id": "4b324ff3-a91d-434b-a2bf-8363bc4828ec",
-            "name": "africa calibration producer",
-            "description": "Producer to work in an Africa calibration flow."
-        },
-        "type": "standard",
-        "inPorts": [
-            {
-                "name": "conf",
-                "contentType": "Text",
-                "role": "config",
-                "required": false
-            },
-            {
-                "name": "coords",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            },
-            {
-                "name": "region",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            },
-            {
-                "name": "params",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "outPorts": [
-            {
-                "name": "env",
-                "contentType": "Text",
-                "role": "data",
-                "required": false
-            }
-        ],
-        "defaultConfig": {}
     },
     "b96e9b2a-f5c6-44d2-a6a9-aec767f1bda9": {
         "category": {
