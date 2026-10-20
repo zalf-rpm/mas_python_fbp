@@ -30,7 +30,7 @@ def _parse_with_toml_defaults(defaults: dict[str, Any], argv: list[str]) -> Flow
     return namespace
 
 
-SPLIT_STRING2_ID = "d44040ab-7d5a-44d1-94e8-3f79969edbd4"
+SPLIT_STRING_ID = "d44040ab-7d5a-44d1-94e8-3f79969edbd4"
 CONSOLE_OUTPUT_ID = "2de9c491-d8a6-4b36-84de-db7f4a312731"
 COPY_IP_ID = "b1e875af-4ee7-4937-8824-17d185216ec4"
 
@@ -50,7 +50,7 @@ def flow_files(tmp_path: Path) -> tuple[Path, Path, Path]:
         "id": "some-cmds-file-id",
         "name": "test cmds",
         "___disabled": "python -m nope",
-        SPLIT_STRING2_ID: "python -m zalfmas_fbp.components.string.split_string2",
+        SPLIT_STRING_ID: "python -m zalfmas_fbp.components.string.split_string",
         CONSOLE_OUTPUT_ID: "python -m zalfmas_fbp.components.console.console_output",
         COPY_IP_ID: "python -m zalfmas_fbp.components.ip.copy_ip",
     }
@@ -58,7 +58,7 @@ def flow_files(tmp_path: Path) -> tuple[Path, Path, Path]:
     _ = cmds_path.write_text(json.dumps(cmds))
 
     components = {
-        SPLIT_STRING2_ID: _metadata(SPLIT_STRING2_ID, "split string2", "process", [{"name": "out"}]),
+        SPLIT_STRING_ID: _metadata(SPLIT_STRING_ID, "split string", "process", [{"name": "out"}]),
         CONSOLE_OUTPUT_ID: _metadata(CONSOLE_OUTPUT_ID, "output to console", "standard", []),
         COPY_IP_ID: _metadata(COPY_IP_ID, "copy IP", "standard", [{"name": "out", "type": "array"}]),
     }
@@ -71,7 +71,7 @@ def flow_files(tmp_path: Path) -> tuple[Path, Path, Path]:
             {
                 "nodeId": "split-1",
                 "processName": "split 1",
-                "componentId": SPLIT_STRING2_ID,
+                "componentId": SPLIT_STRING_ID,
                 "config": {"split_at": ";"},
             },
             {"nodeId": "copy-1", "processName": "copy 1", "componentId": COPY_IP_ID, "config": {"count": 2}},
@@ -245,7 +245,7 @@ def test_load_flow_classifies_nodes_by_metadata(flow_files: tuple[Path, Path, Pa
     assert runner.nodes["copy-1"].kind == "standard"
     assert runner.nodes["console-1"].kind == "standard"
     assert runner.nodes["iip-1"].kind == "iip"
-    assert runner.nodes["split-1"].cmd == "python -m zalfmas_fbp.components.string.split_string2"
+    assert runner.nodes["split-1"].cmd == "python -m zalfmas_fbp.components.string.split_string"
 
 
 def test_config_iips_are_generated_only_for_standard_components(flow_files: tuple[Path, Path, Path]):
@@ -317,3 +317,69 @@ def test_port_infos_message_uses_single_sr_for_standard_out_port(flow_files: tup
     port_infos = runner.port_infos(runner.nodes["copy-1"], 0)
 
     assert port_infos["outPorts"] == [{"name": "out", "sr": "writer-sr-1"}]
+
+
+# --- failure is reported through the exit code (plan LP5) ---------------------------------
+
+
+class _Watcher:
+    """A component state watcher that has already finished, with the given outcome."""
+
+    def __init__(self, *, failed: bool):
+        import asyncio
+
+        self.failed = failed
+        self.finished = asyncio.Event()
+        self.finished.set()
+
+
+class _Proc:
+    """A subprocess that is still running, so the watcher decides when the component is done."""
+
+    def poll(self):
+        return None
+
+
+class _Started:
+    def __init__(self, name: str, *, failed: bool):
+        self.name = name
+        self.watcher = _Watcher(failed=failed)
+        self.proc = _Proc()
+
+
+def _runner_with(started: list[Any]) -> FlowRunner:
+    """A runner whose components have all finished, so wait_for_flow just collects the outcome."""
+
+    runner = FlowRunner(FlowArgs(path_to_flow="unused.json"))
+    runner.started_processes = started  # pyright: ignore[reportAttributeAccessIssue]
+    runner.sink_node_ids = []  # pyright: ignore[reportAttributeAccessIssue]
+    return runner
+
+
+def test_a_fresh_runner_has_not_failed():
+    assert FlowRunner(FlowArgs(path_to_flow="unused.json")).failed is False
+
+
+def test_wait_for_flow_marks_the_run_failed_when_a_component_failed():
+    """A flow whose components failed used to log the names and still exit 0, so a script or
+    scheduler running it saw a success."""
+
+    import asyncio
+
+    async def go():
+        runner = _runner_with([_Started("good", failed=False), _Started("bad", failed=True)])
+        await runner.wait_for_flow()
+        return runner.failed
+
+    assert asyncio.run(go()) is True
+
+
+def test_wait_for_flow_leaves_a_clean_run_unfailed():
+    import asyncio
+
+    async def go():
+        runner = _runner_with([_Started("good", failed=False)])
+        await runner.wait_for_flow()
+        return runner.failed
+
+    assert asyncio.run(go()) is False

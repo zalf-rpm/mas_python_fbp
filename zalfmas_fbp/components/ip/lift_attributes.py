@@ -14,14 +14,15 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-from pathlib import Path
-from typing import override
+from typing import Any, cast, override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -50,14 +51,13 @@ METADATA = meta.Component(
     info=meta.Info(
         id="1ccc2798-23b2-4148-a40f-6b70a69be2fb",
         name="lift attributes",
-        description="Lift attributes.",
+        description=(
+            "Lift fields of a struct-valued attribute into attributes of their own. Substream "
+            "transparent: bracket IPs are forwarded unchanged."
+        ),
     ),
     type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
         meta.Port(
             name="in",
             contentType="AnyPointer",
@@ -86,22 +86,44 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         lift_from_schema = None
+        lift_fieldnames: list[str] = []
         if self.config.lift_from_type is not None:
             lift_from_schema = common.schema_from_content_type_string(self.config.lift_from_type)
-        lift_fieldnames = lift_from_schema.as_struct().fieldnames if lift_from_schema else []
+            # Only a struct has fields to lift. A content type naming an interface or an enum
+            # resolves fine and then has no `as_struct`, which used to raise here.
+            as_struct = getattr(lift_from_schema, "as_struct", None)
+            if as_struct is None:
+                logger.warning(
+                    "%s: 'lift_from_type' %r is not a struct, so it has no fields to lift.",
+                    self.name,
+                    self.config.lift_from_type,
+                )
+                lift_from_schema = None
+            else:
+                lift_fieldnames = list(as_struct().fieldnames)
 
         while self.in_ports["in"] and self.out_ports["out"]:
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                continue
+
             try:
-                in_ip = await self.read_in("in")
-                if in_ip is None:
-                    self.in_ports["in"] = None
+                # Rebuilding below would drop the IP's type, turning a bracket into a standard IP
+                # and destroying the substream, so brackets are forwarded as they are.
+                if brackets.is_bracket(in_ip):
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
                     continue
 
-                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, lift_from_schema)
+                # get_fbp_attr defaults `schema` to None but does not say so in its annotation,
+                # so passing the None we may hold needs spelling out.
+                lift_from_attr = common.get_fbp_attr(in_ip, self.config.lift_from_attr, cast("Any", lift_from_schema))
 
                 out_ip = fbp_capnp.IP.new_message(content=in_ip.content)
                 attrs = []
@@ -123,8 +145,9 @@ class Component(process.Process[Config]):
                     logger.info("%s process finished", self.name)
                     return
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except (capnp.KjException, AttributeError):
+                # A malformed IP, or an attribute whose struct lacks a configured field.
+                logger.exception("%s: could not lift from this IP", self.name)
 
         logger.info("%s process finished", self.name)
 

@@ -57,10 +57,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="The IPs to wrap int substream.",

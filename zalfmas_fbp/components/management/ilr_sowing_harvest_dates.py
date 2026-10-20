@@ -12,241 +12,296 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
-from mas.schema.management import management_capnp as mgmt_capnp
+from mas.schema.model.monica import monica_management_capnp as mgmt_capnp
+from pydantic import Field
 from pyproj import CRS
 from zalfmas_common import common, geo
 from zalfmas_services.management import ilr_sowing_harvest_dates as ilr
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+type TimeMode = Literal["fixed", "auto"]
+
+ILR_DATES_TYPE = f"@0x{mgmt_capnp.ILRDates.schema.node.id:016x} = model/monica/monica_management.capnp:ILRDates"
+
+
+class Config(process.ProcessConfig):
+    path_to_ilr_csv: dict[str, str] = Field(
+        default_factory=dict,
+        description="Crop id -> path to that crop's ILR seed/harvest CSV, e.g. {'WW': '.../WW.csv'}.",
+    )
+    crop_ids: list[str] = Field(
+        default_factory=lambda: ["WW", "SW", "WB"],
+        description="Crop ids to load. Ids without a path in 'path_to_ilr_csv' are skipped.",
+    )
+    crop_id_attr: str = Field(default="cropId", description="Attribute holding the crop id.")
+    latlon_attr: str = Field(default="latlon", description="Attribute holding the lat/lon coordinate.")
+    sowing_time_attr: str = Field(
+        default="sowingTime",
+        description="Attribute holding 'fixed' or 'auto' for sowing.",
+    )
+    harvest_time_attr: str = Field(
+        default="harvestTime",
+        description="Attribute holding 'fixed' or 'auto' for harvest.",
+    )
+    to_attr: str | None = Field(
+        default="ilr",
+        description="Attribute to store the dates in. Null puts them in the content instead.",
+    )
+    forward_without_dates: bool = Field(
+        default=True,
+        description="Forward an IP for which no dates could be found, unchanged, instead of dropping it.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="management",
-        name="Management",
-    ),
+    category=meta.Category(id="management", name="Management"),
     info=meta.Info(
         id="bc9f8bfd-db77-49ed-a347-a26bb37084d1",
         name="ILR seed/harvest dates",
-        description="Get closest ILR seed/harvest dates to lat/lon location.",
+        description=(
+            "Look up the ILR seed and harvest dates nearest a lat/lon location and attach them as "
+            "management.capnp:ILRDates. Substream transparent."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-        ),
-        meta.Port(
             name="in",
+            contentType="AnyPointer",
+            desc="IPs carrying a coordinate, crop id and the sowing/harvest modes as attributes.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
+            contentType="model/monica/monica_management.capnp:ILRDates",
+            desc="The same IPs with the dates attached.",
+            required=True,
         ),
     ],
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr,
-        ins=["conf", "in"],
-        outs=["out"],
+def _doy(entry: dict[str, int]) -> int:
+    return date(2001, entry["month"], entry["day"]).timetuple().tm_yday
+
+
+def ilr_date_fields(
+    seed_harvest_data: dict[str, Any],
+    is_winter_crop: bool,
+    sowing_time: TimeMode,
+    harvest_time: TimeMode,
+) -> dict[str, Any]:
+    """The ILRDates fields for one location, by sowing/harvest mode.
+
+    Pure, so the date arithmetic - which is the substance of this component - can be checked
+    against real ILR data without running a flow.
+    """
+    sowing_date = (
+        seed_harvest_data["sowing-date"] if sowing_time == "fixed" else seed_harvest_data["latest-sowing-date"]
     )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+    harvest_date = (
+        seed_harvest_data["harvest-date"] if harvest_time == "fixed" else seed_harvest_data["latest-harvest-date"]
+    )
+    sdoy, hdoy = _doy(sowing_date), _doy(harvest_date)
+    earliest_sowing = seed_harvest_data["earliest-sowing-date"]
+    esd = date(2001, earliest_sowing["month"], earliest_sowing["day"])
 
-    wgs84_crs = CRS.from_epsg(4326)
-    utm32n_crs = CRS.from_epsg(25832)
+    # A winter crop is harvested in the year after sowing, so its harvest may not run past the day
+    # before sowing.
+    harvest_doy = min(hdoy, sdoy - 1) if is_winter_crop else hdoy
+    calc_harvest = date(2000, 12, 31) + timedelta(days=harvest_doy)
+    harvest_entry = {"year": harvest_date["year"], "month": calc_harvest.month, "day": calc_harvest.day}
 
-    ilr_seed_harvest_data = {}
-    for crop_id in config["crop_ids"]:
-        # read seed/harvest dates for each crop_id
-        path_to_csv = config["path_to_ilr_csv"].get(crop_id, None)
-        if not path_to_csv:
-            continue
-        logger.info("Read data and created ILR seed/harvest interpolator: %s", path_to_csv)
+    if sowing_time == "fixed":
+        return (
+            {"sowing": seed_harvest_data["sowing-date"], "harvest": harvest_entry}
+            if harvest_time == "fixed"
+            else {"sowing": seed_harvest_data["sowing-date"], "latestHarvest": harvest_entry}
+        )
+
+    earliest_entry = (
+        earliest_sowing if esd > date(esd.year, 6, 20) else {"year": sowing_date["year"], "month": 6, "day": 20}
+    )
+    if harvest_time == "fixed":
+        calc_sowing = date(2000, 12, 31) + timedelta(days=max(hdoy + 1, sdoy))
+        return {
+            "earliestSowing": earliest_entry,
+            "latestSowing": {"year": sowing_date["year"], "month": calc_sowing.month, "day": calc_sowing.day},
+            "harvest": seed_harvest_data["harvest-date"],
+        }
+    return {
+        "earliestSowing": earliest_entry,
+        "latestSowing": seed_harvest_data["latest-sowing-date"],
+        "latestHarvest": harvest_entry,
+    }
+
+
+class ILRSowingHarvestDates(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+        self.by_crop: dict[str, Any] = {}
+
+    def load_crops(self) -> None:
+        wgs84, utm32n = CRS.from_epsg(4326), CRS.from_epsg(25832)
+        for crop_id in self.config.crop_ids:
+            path = self.config.path_to_ilr_csv.get(crop_id)
+            if not path:
+                logger.info("%s: no CSV configured for crop %r; skipping it.", self.name, crop_id)
+                continue
+            if not Path(path).is_file():
+                logger.error("%s: no such ILR CSV for crop %r: %s", self.name, crop_id, path)
+                continue
+            try:
+                self.by_crop[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
+                    crop_id,
+                    path,
+                    wgs84,
+                    utm32n,
+                )
+                logger.info("%s: loaded ILR dates for crop %r from %s", self.name, crop_id, path)
+            except (OSError, ValueError, KeyError):
+                logger.exception("%s: could not read %s", self.name, path)
+
+    def _text_attr(self, in_ip: IPReader, name: str) -> str | None:
+        kv = values.attr_reader(in_ip, name)
+        if kv is None:
+            return None
+        value = values.python_from_attr(kv)
+        return None if value is values.MISSING or not isinstance(value, str) else value
+
+    def _coord_of(self, in_ip: IPReader) -> Any | None:
+        kv = values.attr_reader(in_ip, self.config.latlon_attr)
+        if kv is None:
+            return None
         try:
-            ilr_seed_harvest_data[crop_id] = ilr.read_data_and_create_seed_harvest_geo_grid_interpolator(
-                crop_id,
-                path_to_csv,
-                wgs84_crs,
-                utm32n_crs,
+            return kv.value.as_struct(geo_capnp.LatLonCoord)
+        except capnp.KjException:
+            return None
+
+    def dates_for(self, crop_id: str, coord: Any, sowing_time: str, harvest_time: str) -> dict[str, Any] | None:
+        """The ILRDates fields for a coordinate, or None when there are none for it."""
+        loaded = self.by_crop.get(crop_id)
+        if loaded is None:
+            logger.warning("%s: no ILR data loaded for crop %r.", self.name, crop_id)
+            return None
+
+        interpolate = loaded["interpolate"]
+        if interpolate is None:
+            return None
+
+        # transform_from_to_geo_coord returns whichever coordinate struct the target names, so its
+        # type is only known at runtime; utm32n gives a UTMCoord, which has r and h.
+        utm: Any = geo.transform_from_to_geo_coord(coord, "utm32n")
+        if utm is None:
+            return None
+        station = interpolate(utm.r, utm.h)
+        if station is None:
+            return None
+
+        # The interpolator hands back a 0-d numpy array while the data is keyed by Python ints, so
+        # indexing with it raised "unhashable type: numpy.ndarray" for every IP - which a bare
+        # except then swallowed, leaving this component emitting nothing at all.
+        entry = loaded["data"].get(int(station))
+        if not entry:
+            return None
+
+        if sowing_time not in ("fixed", "auto") or harvest_time not in ("fixed", "auto"):
+            logger.warning(
+                "%s: sowing/harvest time must be 'fixed' or 'auto', got %r/%r.",
+                self.name,
+                sowing_time,
+                harvest_time,
             )
-        except OSError:
-            logger.exception("Couldn't read file: %s", path_to_csv)
+            return None
 
-    while pc.in_ports["in"] and pc.out_ports["out"]:
-        try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
+        return ilr_date_fields(entry, loaded["is-winter-crop"], sowing_time, harvest_time)  # pyright: ignore[reportArgumentType]
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+        self.load_crops()
+        if not self.by_crop:
+            logger.error("%s: no ILR data could be loaded; nothing to look up.", self.name)
+            return
+
+        found = 0
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                # The previous version 'continue'd here without clearing the port, so it spun on an
+                # exhausted input forever rather than finishing.
+                self.in_ports["in"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
                 continue
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            latlon = common.get_fbp_attr(in_ip, config["latlon_attr"]).as_struct(geo_capnp.LatLonCoord)
-            sowing_time = common.get_fbp_attr(in_ip, config["sowing_time_attr"]).as_text()
-            harvest_time = common.get_fbp_attr(in_ip, config["harvest_time_attr"]).as_text()
-            crop_id = common.get_fbp_attr(in_ip, config["crop_id_attr"]).as_text()
+            coord = self._coord_of(in_ip)
+            crop_id = self._text_attr(in_ip, self.config.crop_id_attr)
+            sowing_time = self._text_attr(in_ip, self.config.sowing_time_attr)
+            harvest_time = self._text_attr(in_ip, self.config.harvest_time_attr)
 
-            utm = geo.transform_from_to_geo_coord(latlon, "utm32n")
-            ilr_interpolate = ilr_seed_harvest_data[crop_id]["interpolate"]
-            seed_harvest_cs = ilr_interpolate(utm.r, utm.h) if ilr_interpolate else None
+            fields = None
+            if coord is None or not crop_id or not sowing_time or not harvest_time:
+                logger.warning("%s: IP is missing the coordinate, crop id or sowing/harvest mode.", self.name)
+            else:
+                fields = self.dates_for(crop_id, coord, sowing_time, harvest_time)
+
+            if fields is None and not self.config.forward_without_dates:
+                continue
 
             out_ip = fbp_capnp.IP.new_message()
-            if ilr_interpolate is None or seed_harvest_cs is None:
-                common.copy_and_set_fbp_attrs(in_ip, out_ip)
-                await pc.out_ports["out"].write(value=out_ip)
+            extra: dict[str, Any] = {}
+            if fields is not None:
+                dates = mgmt_capnp.ILRDates.new_message(**fields)
+                found += 1
+                if self.config.to_attr:
+                    out_ip.content = in_ip.content
+                    extra[self.config.to_attr] = brackets.Attr(dates, ILR_DATES_TYPE)
+                else:
+                    out_ip.content = dates
+                    out_ip.sysAttributes.contentType = ILR_DATES_TYPE
             else:
-                ilr_dates = mgmt_capnp.ILRDates.new_message()
+                out_ip.content = in_ip.content
+            brackets.copy_attrs(in_ip, out_ip, extra=extra)
 
-                seed_harvest_data = ilr_seed_harvest_data[crop_id]["data"][seed_harvest_cs]
-                if seed_harvest_data:
-                    is_winter_crop = ilr_seed_harvest_data[crop_id]["is-winter-crop"]
+            if not await self.write_out("out", out_ip):
+                break
 
-                    if sowing_time == "fixed":  # fixed indicates that regionally fixed sowing dates will be used
-                        sowing_date = seed_harvest_data["sowing-date"]
-                    elif (
-                        sowing_time == "auto"
-                    ):  # auto indicates that automatic sowing dates will be used that vary between regions
-                        sowing_date = seed_harvest_data["latest-sowing-date"]
-                    else:
-                        sowing_date = None
-
-                    if sowing_date:
-                        sds = sowing_date
-                        sd = date(2001, sds["month"], sds["day"])
-                        sdoy = sd.timetuple().tm_yday
-
-                    if harvest_time == "fixed":  # fixed indicates that regionally fixed harvest dates will be used
-                        harvest_date = seed_harvest_data["harvest-date"]
-                    elif (
-                        harvest_time == "auto"
-                    ):  # auto indicates that automatic harvest dates will be used that vary between regions
-                        harvest_date = seed_harvest_data["latest-harvest-date"]
-                    else:
-                        harvest_date = None
-
-                    # print("sowing_date:", ilr_dates["sowing"], "harvest_date:", ilr_dates["harvest"])
-
-                    if harvest_date:
-                        hds = harvest_date
-                        hd = date(2001, hds["month"], hds["day"])
-                        hdoy = hd.timetuple().tm_yday
-
-                    esds = seed_harvest_data["earliest-sowing-date"]
-                    esd = date(2001, esds["month"], esds["day"])
-
-                    # sowing after harvest should probably never occur in both fixed setups!
-                    if sowing_time == "fixed" and harvest_time == "fixed":
-                        # calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy-1))
-                        if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
-                        else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
-                        ilr_dates.sowing = seed_harvest_data["sowing-date"]
-                        ilr_dates.harvest = {
-                            "year": hds["year"],
-                            "month": calc_harvest_date.month,
-                            "day": calc_harvest_date.day,
-                        }  # "{:04d}-{:02d}-{:02d}".format(hds[0], calc_harvest_date.month, calc_harvest_date.day)
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["sowing"])
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["harvest"])
-
-                    elif sowing_time == "fixed" and harvest_time == "auto":
-                        if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
-                        else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
-                        ilr_dates.sowing = seed_harvest_data["sowing-date"]
-                        ilr_dates.latestHarvest = {
-                            "year": hds["year"],
-                            "month": calc_harvest_date.month,
-                            "day": calc_harvest_date.day,
-                        }  # "{:04d}-{:02d}-{:02d}".format(hds[0], calc_harvest_date.month, calc_harvest_date.day)
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["sowing"])
-                        # print("dates: ", int(seed_harvest_cs), ":", latest_harvest_date)
-
-                    elif sowing_time == "auto" and harvest_time == "fixed":
-                        ilr_dates.earliestSowing = (
-                            seed_harvest_data["earliest-sowing-date"]
-                            if esd > date(esd.year, 6, 20)
-                            else {"year": sds["year"], "month": 6, "day": 20}
-                        )  # "{:04d}-{:02d}-{:02d}".format(sds[0], 6, 20)
-                        calc_sowing_date = date(2000, 12, 31) + timedelta(days=max(hdoy + 1, sdoy))
-                        ilr_dates.latestSowing = {
-                            "year": sds["year"],
-                            "month": calc_sowing_date.month,
-                            "day": calc_sowing_date.day,
-                        }  # "{:04d}-{:02d}-{:02d}".format(sds[0], calc_sowing_date.month, calc_sowing_date.day)
-                        ilr_dates.harvest = seed_harvest_data["harvest-date"]
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["earliestSowing"], "<", ilr_dates["latestSowing"])
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["harvest"])
-
-                    elif sowing_time == "auto" and harvest_time == "auto":
-                        ilr_dates.earliestSowing = (
-                            seed_harvest_data["earliest-sowing-date"]
-                            if esd > date(esd.year, 6, 20)
-                            else {"year": sds["year"], "month": 6, "day": 20}
-                        )  # "{:04d}-{:02d}-{:02d}".format(sds[0], 6, 20)
-                        if is_winter_crop:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=min(hdoy, sdoy - 1))
-                        else:
-                            calc_harvest_date = date(2000, 12, 31) + timedelta(days=hdoy)
-                        ilr_dates.latestSowing = seed_harvest_data["latest-sowing-date"]
-                        ilr_dates.latestHarvest = {
-                            "year": hds["year"],
-                            "month": calc_harvest_date.month,
-                            "day": calc_harvest_date.day,
-                        }  # "{:04d}-{:02d}-{:02d}".format(hds[0], calc_harvest_date.month, calc_harvest_date.day)
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["earliestSowing"], "<", ilr_dates["latestSowing"])
-                        # print("dates: ", int(seed_harvest_cs), ":", ilr_dates["latestHarvest"])
-
-                common.copy_and_set_fbp_attrs(
-                    in_ip,
-                    out_ip,
-                    **({config["to_attr"]: ilr_dates} if config["to_attr"] else {}),
-                )
-                await pc.out_ports["out"].write(value=out_ip)
-
-        except Exception:
-            logger.exception("%s Exception", Path(__file__).name)
-
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
-
-
-default_config = {
-    "crop_ids": [
-        "WW",
-        "SW",
-        "WB",
-    ],  # ALF,CLALF,GM,PO,SB,SBee,SM,SU,SW,SWR,WB,WG_test,WR,WRa,WW
-    "crop_id_attr": "cropId",
-    "latlon_attr": "latlon",
-    "path_to_ilr_csv": {
-        "WW": "./data/management/ilr_seed_harvest_doys_germany/ILR_SEED_HARVEST_doys_WW.csv",
-    },
-    "sowing_time_attr": "sowingTime",  # "fixed", #fixed | auto
-    "harvest_time_attr": "harvestTime",  # "fixed", #fixed | auto
-    "to_attr": "ilr",  # store result on attribute with this name
-    "from_attr": "[string]",  # name of the attribute to get coordinate from (on "in" IP) (e.g. latlon)
-    "port:conf": "[TOML string] -> component configuration",
-    "port:in": "[geo_capnp.LatLonCoord]",  # lat/lon coordinate
-    "port:out": "[grid_capnp.Grid.Value]",  # value at requested location
-}
+        logger.info("%s process finished, found dates for %d IP(s)", self.name, found)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(ILRSowingHarvestDates(METADATA), METADATA)
 
 
 if __name__ == "__main__":

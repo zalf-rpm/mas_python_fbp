@@ -58,12 +58,7 @@ METADATA = meta.Component(
         description="Read a file and send full string or lines downstream.",
     ),
     type="process",
-    inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
-    ],
+    inPorts=[],
     outPorts=[
         meta.Port(
             name="out",
@@ -86,8 +81,6 @@ class ReadFile(process.Process[ReadFileConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         if self.config.file is None or not self.out_ports["out"]:
             logger.info("%s: No filename supplied or out port closed. Process finished.", self.name)

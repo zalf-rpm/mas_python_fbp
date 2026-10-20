@@ -18,11 +18,11 @@ from pathlib import Path
 from typing import override
 
 import capnp
-from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
 
 logger = logging.getLogger(__name__)
@@ -43,14 +43,14 @@ METADATA = meta.Component(
     info=meta.Info(
         id="1d442f41-dee4-4973-ad99-09855af1d7ad",
         name="add attribute",
-        description="Add attribute to incoming IP.",
+        description=(
+            "Add attribute to incoming IP. Substream transparent: bracket IPs are forwarded "
+            "unchanged and do not consume an IP from the 'attr' port, so the pairing of "
+            "attributes to IPs is unaffected by grouping."
+        ),
     ),
     type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
         meta.Port(
             name="in",
             contentType="AnyPointer",
@@ -83,26 +83,42 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         attr = None
+        attr_type: str | None = None
         while self.in_ports["in"] and (self.in_ports["attr"] or attr) and self.out_ports["out"]:
             try:
-                if self.in_ports["attr"]:
-                    attr_ip = await self.read_in("attr")
-                    if attr_ip is None:
-                        self.in_ports["attr"] = None
-                        continue
-                    attr = attr_ip.content
-
                 in_ip = await self.read_in("in")
                 if in_ip is None:
                     self.in_ports["in"] = None
                     continue
 
+                # Brackets are the caller's grouping, not data: forwarding them before touching
+                # 'attr' keeps one attr IP paired with one standard IP, which consuming one per
+                # bracket would slip.
+                if brackets.is_bracket(in_ip):
+                    if not await self.write_out("out", in_ip):
+                        logger.info("%s: Could not send IP. Process finished.", self.name)
+                        return
+                    continue
+
+                if self.in_ports["attr"]:
+                    attr_ip = await self.read_in("attr")
+                    if attr_ip is None:
+                        # The 'attr' port closing must not take this IP with it: the loop is
+                        # allowed to run on with the last attribute, so dropping it here lost
+                        # one input IP every time the attr side finished first.
+                        self.in_ports["attr"] = None
+                        if attr is None:
+                            continue
+                    else:
+                        attr = attr_ip.content
+                        # carried over so the attribute can be read back: an attribute written
+                        # without a type resolves to MISSING downstream (D4)
+                        attr_type = values.content_type_of(attr_ip)
+
                 out_ip = common.copy_ip(in_ip)
-                common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
+                brackets.copy_attrs(in_ip, out_ip, extra={self.config.to_attr: brackets.Attr(attr, attr_type)})
                 if not await self.write_out("out", out_ip):
                     logger.info("%s: Could not send IP. Process finished.", self.name)
                     return

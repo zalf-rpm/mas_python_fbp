@@ -14,9 +14,9 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-from pathlib import Path
 from typing import override
 
+import capnp
 from mas.schema.fbp import fbp_capnp
 from pydantic import Field
 from zalfmas_common import common
@@ -47,10 +47,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="Input message with any content and attributes.",
@@ -78,18 +74,18 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         remove = set(self.config.remove_attrs)
 
         while self.in_ports["in"] and self.out_ports["out"]:
-            try:
-                in_ip = await self.read_in("in")
-                if in_ip is None:
-                    self.in_ports["in"] = None
-                    continue
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                continue
 
+            try:
                 # Forward stream brackets (and anything else without content
                 # attributes) unchanged to keep substream structure intact.
                 if in_ip.type in ("openBracket", "closeBracket"):
@@ -106,8 +102,8 @@ class Component(process.Process[Config]):
                     logger.info("%s process finished", self.name)
                     return
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except capnp.KjException:
+                logger.exception("%s: could not copy this IP's attributes", self.name)
 
         logger.info("%s process finished", self.name)
 

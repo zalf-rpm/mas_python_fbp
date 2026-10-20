@@ -12,115 +12,175 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
 from zalfmas_common import common, geo
 
-from zalfmas_fbp.run import components as c
+from zalfmas_fbp.components.common import brackets, values
+from zalfmas_fbp.components.geo import _coord_types as coord_types
 from zalfmas_fbp.run import metadata as meta
-from zalfmas_fbp.run import ports as p
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+
+class Config(process.ProcessConfig):
+    from_name: str = Field(
+        default="LatLon",
+        description=(
+            "Source CRS: one of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]). Case does "
+            "not matter. Ignored for IPs that declare their own content type."
+        ),
+    )
+    to_name: str = Field(
+        default="LatLon",
+        description="Target CRS, same names as 'from_name'. Case does not matter.",
+    )
+    from_attr: str | None = Field(
+        default=None,
+        description="Read the input coordinate from this attribute instead of the content.",
+    )
+    to_attr: str | None = Field(
+        default=None,
+        description="Write the result to this attribute instead of the content.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        default="skip",
+        description="Whether an IP whose coordinate cannot be read is skipped or stops the process.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="geo",
-        name="Geo",
-    ),
+    category=meta.Category(id="geo", name="Geo"),
     info=meta.Info(
         id="b753df51-40f1-4778-ac47-82858c8ef80c",
         name="Proj transform coords",
-        description="Transform coordinates using the Proj library.",
-    ),
-    type="standard",
-    inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+        description=(
+            "Transform coordinates between CRSs using the Proj library. Reads the source type from "
+            "the IP's own content type when it has one, falling back to 'from_name'. Substream "
+            "transparent."
         ),
+    ),
+    type="process",
+    inPorts=[
         meta.Port(
             name="in",
             contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-            desc="Input geo coordinate.",
+            desc="Coordinates to transform.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
             contentType="geo.capnp:LatLonCoord | geo.capnp:UTMCoord | geo.capnp:GKCoord",
-            desc="Output geo coordinate.",
+            desc="The transformed coordinates, tagged with the type they were built as.",
+            required=True,
         ),
     ],
-    defaultConfig={
-        "from_name": meta.ConfigEntry(
-            value="LatLon",
-            type="string",
-            desc="Source CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
-        ),
-        "to_name": meta.ConfigEntry(
-            value="LatLon",
-            type="string",
-            desc="Target CRS name: One of LatLon, WGS84, GKx (x=2-5), UTMab (a=[1-60], b=[C-X]).",
-        ),
-        "from_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="Attribute name to use as the input coordinate.",
-        ),
-        "to_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="Attribute name to use as the output.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+class ProjTransformCoordinates(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    from_type = geo.name_to_struct_type(config["from_name"])
-    while pc.in_ports["in"] and pc.out_ports["out"]:
+    def source_coord(self, in_ip: IPReader, configured_type: Any) -> Any | None:
+        """The incoming coordinate, read through whichever type actually applies."""
+        if self.config.from_attr:
+            kv = values.attr_reader(in_ip, self.config.from_attr)
+            if kv is None:
+                return None
+            declared = values.resolve_schema(kv.valueType) if kv._has("valueType") else None  # noqa: SLF001
+            pointer = kv.value
+        else:
+            declared = values.resolve_schema(values.content_type_of(in_ip))
+            pointer = in_ip.content
+
+        schema = declared if declared is not None and getattr(declared, "node", None) is not None else configured_type
+        if schema is None:
+            return None
         try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
+            return pointer.as_struct(schema)
+        except capnp.KjException:
+            return None
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            if attr:
-                from_coord = attr.as_struct(from_type)
-            else:
-                from_coord = in_ip.content.as_struct(from_type)
-            to_coord = geo.transform_from_to_geo_coord(from_coord, config["to_name"])
-            out_ip = fbp_capnp.IP.new_message()
-            if not config["to_attr"]:
-                out_ip.content = to_coord
-            common.copy_and_set_fbp_attrs(
-                in_ip,
-                out_ip,
-                **({config["to_attr"]: to_coord} if config["to_attr"] else {}),
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        configured_type = coord_types.struct_type_for(self.config.from_name)
+        if configured_type is None:
+            logger.warning(
+                "%s: 'from_name' %r is not a known CRS; only IPs declaring their own type can be read.",
+                self.name,
+                self.config.from_name,
             )
-            await pc.out_ports["out"].write(value=out_ip)
+        if coord_types.struct_instance_for(self.config.to_name) is None:
+            logger.error("%s: 'to_name' %r is not a known CRS.", self.name, self.config.to_name)
+            return
 
-        except capnp.KjException as e:
-            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
-            if e.type in ["DISCONNECTED"]:
+        transformed = 0
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
                 break
 
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
+                continue
+
+            from_coord = self.source_coord(in_ip, configured_type)
+            if from_coord is None:
+                message = f"{self.name}: could not read a coordinate from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
+
+            to_coord: Any = geo.transform_from_to_geo_coord(from_coord, self.config.to_name.lower())
+            content_type = coord_types.content_type_of(to_coord)
+
+            out_ip = fbp_capnp.IP.new_message()
+            extra: dict[str, Any] = {}
+            if self.config.to_attr:
+                out_ip.content = in_ip.content
+                if (incoming_type := values.content_type_of(in_ip)) is not None:
+                    out_ip.sysAttributes.contentType = incoming_type
+                extra[self.config.to_attr] = brackets.Attr(to_coord, content_type)
+            else:
+                out_ip.content = to_coord
+                if content_type is not None:
+                    out_ip.sysAttributes.contentType = content_type
+            brackets.copy_attrs(in_ip, out_ip, extra=extra)
+
+            transformed += 1
+            if not await self.write_out("out", out_ip):
+                break
+
+        logger.info("%s process finished, transformed %d coordinate(s)", self.name, transformed)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(ProjTransformCoordinates(METADATA), METADATA)
 
 
 if __name__ == "__main__":

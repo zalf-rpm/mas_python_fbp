@@ -93,10 +93,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="obj",
             contentType="Text (JSON)",
             desc=(
@@ -210,8 +206,7 @@ def _key_from_attr_value(value: Any, attr_name: str, process_name: str) -> Any:
         return cv.b
 
     logger.warning(
-        "%s: attribute '%s' common.capnp:Value.%s is not a supported key type (Text/int/float/bool); "
-        "skipping message.",
+        "%s: attribute '%s' common.capnp:Value.%s is not a supported key type (Text/int/float/bool); skipping message.",
         process_name,
         attr_name,
         which,
@@ -342,8 +337,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         await self._read_initial_obj()
 

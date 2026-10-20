@@ -94,3 +94,47 @@ def test_read_attr_value_structured_text_value_segment_returns_raw_string() -> N
 
     assert success is True
     assert result == json.dumps({"a": 1})
+
+
+# --- a list addressed by something that is not an index -----------------------------------------
+
+
+def test_a_non_index_key_against_a_list_is_skipped_not_fatal(caplog) -> None:
+    """It used to fall through to `json_obj["key"]` on a list and raise TypeError, which the
+    caller caught as 'couldn't apply <op>' - abandoning the rest of the spec, with whatever had
+    already been applied left in place."""
+
+    from zalfmas_fbp.components.json.update_json import METADATA, UpdateJson
+
+    component = UpdateJson(METADATA)
+    data = [1, 2, 3]
+    component.change(data, {"not_an_index": 9}, {})
+    assert data == [1, 2, 3]
+    assert "does not address an element of a list" in caplog.text
+
+
+def test_the_rest_of_a_spec_still_applies_after_a_bad_key(caplog) -> None:
+    from zalfmas_fbp.components.json.update_json import METADATA, UpdateJson
+
+    component = UpdateJson(METADATA)
+    data = [1, 2, 3]
+    component.change(data, {"not_an_index": 9, "0": 42}, {}, allowed_operation="replace")
+    assert data == [42, 2, 3]
+
+
+def test_an_index_key_against_a_list_still_works() -> None:
+    from zalfmas_fbp.components.json.update_json import METADATA, UpdateJson
+
+    component = UpdateJson(METADATA)
+    data = [1, 2, 3]
+    component.change(data, {"1": 99}, {}, allowed_operation="replace")
+    assert data == [1, 99, 3]
+
+
+def test_a_dict_key_still_works() -> None:
+    from zalfmas_fbp.components.json.update_json import METADATA, UpdateJson
+
+    component = UpdateJson(METADATA)
+    data = {"a": 1}
+    component.change(data, {"a": 2}, {}, allowed_operation="replace")
+    assert data == {"a": 2}

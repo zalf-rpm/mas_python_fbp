@@ -38,6 +38,18 @@ if TYPE_CHECKING:
 ArrayWriterPorts = list["WriterClient | None"]
 logger = logging.getLogger(__name__)
 
+CONNECT_FAILURES = (KjException, OSError, AttributeError, KeyError, TypeError, ValueError)
+"""What connecting a port can fail with: an unreachable peer, or a malformed port configuration."""
+
+
+class PortConnectionError(RuntimeError):
+    """A component could not connect its ports.
+
+    This is fatal by design. A component that starts with some of its ports silently unconnected
+    does not fail - it reads nothing, writes nothing, and looks exactly like a component with no
+    input, which is the hardest kind of flow problem to track down.
+    """
+
 
 def get_attr_val(
     name: str,
@@ -80,12 +92,19 @@ def get_attr_val(
     else:
         attr_val = attrs[name]
 
-    if as_struct:
-        return attr_val.as_struct(as_struct), True
-    if as_interface:
-        return attr_val.as_interface(as_interface), True
-    if as_text:
-        return attr_val.as_text(), True
+    # A cast that does not fit is an answer ("not of that type"), not a failure: these attributes
+    # are routinely either a capability or a plain value, and the caller picks a branch on the
+    # returned flag. as_interface in particular raises outright when the message carries no
+    # capability table at all, which is the case for any IP not built by the RPC system.
+    try:
+        if as_struct:
+            return attr_val.as_struct(as_struct), True
+        if as_interface:
+            return attr_val.as_interface(as_interface), True
+        if as_text:
+            return attr_val.as_text(), True
+    except (KjException, AttributeError, TypeError, ValueError):
+        return attr_val, False
     return attr_val, True
 
 
@@ -134,7 +153,8 @@ async def read_dict_from_port(port: ReaderClient, text_type: str = "toml"):
                         d = json.loads(text_value)
                 except (KjException, TypeError, ValueError):
                     pass
-        except Exception:
+        except KjException:
+            # the port went away mid-read; the parse failures are handled above
             logger.exception("%s read_dict_from_port.", Path(__file__).name)
     return d
 
@@ -287,12 +307,9 @@ class PortConnector:
                             )
                             writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
-        except Exception:
-            logger.exception(
-                "%s: Exception connecting to ports via CMD config:\n%s",
-                Path(__file__).name,
-                config,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the command-line config: {config}"
+            raise PortConnectionError(msg) from error
 
     async def read_or_connect(self, in_port_id: str) -> _DynamicCapabilityClient | _CapabilityClient | None:
         in_port = self.in_ports[in_port_id]
@@ -386,12 +403,9 @@ class PortConnector:
                                 writers.append(writer.cast_as(fbp_capnp.Channel.Writer) if writer is not None else None)
                         self._set_array_out_ports(port_name, writers)
 
-        except Exception:
-            logger.exception(
-                "%s: Exception connecting to ports via port infos reader SR:\n%s",
-                Path(__file__).name,
-                port_infos_reader_sr,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the port infos reader: {port_infos_reader_sr}"
+            raise PortConnectionError(msg) from error
 
     @staticmethod
     async def create_from_toml_str(
@@ -442,12 +456,9 @@ class PortConnector:
                         else None,
                     )
 
-        except Exception:
-            logger.exception(
-                "%s: Exception connecting to ports via toml:\n%s",
-                Path(__file__).name,
-                toml_config,
-            )
+        except CONNECT_FAILURES as error:
+            msg = f"could not connect the ports from the TOML config: {toml_config}"
+            raise PortConnectionError(msg) from error
 
     @staticmethod
     async def create_from_toml_reader_sr(

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 import capnp
 
+from zalfmas_fbp.run.metadata import CONFIG_PORT_NAME, LOG_PORT_NAME
 from zalfmas_fbp.run.process.context import ProcessPortState
 from zalfmas_fbp.run.process.errors import OutputPortWriteError
 from zalfmas_fbp.run.process.identity import ProcessIdentityContext
@@ -42,6 +43,12 @@ class OutputRuntime:
         self._ports: ProcessPortState = ports
         self._stop_event: asyncio.Event = stop_event
         self._activity: ProcessActivityContext = activity
+        # Set by the runtime's ConfigWatcher; called once an IP has been written, so staged config
+        # lands between IPs. Reads have the same hook - a component with no data in-port, such as a
+        # file reader, would otherwise never reach a boundary at all.
+        self.apply_pending_config: Callable[[], bool] | None = None
+        self.config_port_name: str = CONFIG_PORT_NAME
+        self.log_port_name: str = LOG_PORT_NAME
 
     @property
     def stop_event(self) -> asyncio.Event:
@@ -104,7 +111,40 @@ class OutputRuntime:
                 return False
             raise self._output_port_rpc_error(name, error) from error
         else:
+            self._apply_pending_config_for(name)
             return True
+
+    def _apply_pending_config_for(self, name: str) -> None:
+        """An IP has left the component, so staged config may take effect (plan section 6.1).
+
+        The log port is skipped: the tee writes there from its own task, and config application is
+        the component's boundary, not the tee's.
+        """
+        if self.apply_pending_config is None or name in (self.config_port_name, self.log_port_name):
+            return
+        _ = self.apply_pending_config()
+
+    async def write_out_if_space(self, name: str, message: IPBuilder | IPReader) -> bool:
+        """Write without ever blocking: if the channel buffer is full, drop the message.
+
+        Required for the runtime-owned ``log`` port (plan section 6.2). A blocking ``write`` there
+        would let a slow or stalled log consumer stall the flow it is observing, and a consumer
+        placed downstream in the same flow could deadlock it outright.
+        """
+        if self.stop_event.is_set():
+            return False
+        port = self.out_ports.get(name)
+        if port is None:
+            return False
+
+        try:
+            response = await port.writeIfSpace(value=message)
+        except capnp.KjException as error:
+            # A channel that predates writeIfSpace reports it as unimplemented. Dropping is the
+            # right answer either way: this path exists precisely so it can never block.
+            logger.debug("%s: writeIfSpace on port %r failed: %s", self._identity.name, name, error)
+            return False
+        return bool(getattr(response, "success", False))
 
     async def write_out_chunked(
         self,
@@ -266,6 +306,44 @@ class OutputRuntime:
                 return True
 
         return False
+
+    async def choose_array_out_index(self, name: str, strategy: ArrayOutStrategy | str) -> int | None:
+        """Pick a slot of an array out-port without writing to it yet.
+
+        A component sending a *sequence* of IPs to one slot - a whole substream, say - has to choose
+        once and then keep writing there; the write_array_out strategies choose per message.
+        """
+        ports = self.array_out_ports.get(name)
+        if not ports:
+            return None
+
+        if ArrayOutStrategy(strategy) == ArrayOutStrategy.NEXT_AVAILABLE:
+            chosen = await self.wait_for_next_available_array_out_port(name, ports)
+            return None if chosen is None else chosen[0]
+
+        start_index = self.array_out_next_indices.get(name, 0)
+        for offset in range(len(ports)):
+            port_index = (start_index + offset) % len(ports)
+            if ports[port_index] is not None:
+                self.array_out_next_indices[name] = (port_index + 1) % len(ports)
+                return port_index
+        return None
+
+    async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
+        """Write to one specific slot of an array out-port.
+
+        The ``ArrayOutStrategy`` variants all choose the slot themselves; a component routing by
+        content has already decided which one it wants.
+        """
+        if self.stop_event.is_set():
+            return False
+        ports = self.array_out_ports.get(name)
+        if not ports or not (0 <= index < len(ports)):
+            return False
+        port = ports[index]
+        if port is None:
+            return False
+        return await self.write_array_out_port(name, index, port, message)
 
     async def consume_array_out_write_task(self, name: str, port_index: int) -> bool:
         tasks = self.array_out_write_tasks.get(name)
