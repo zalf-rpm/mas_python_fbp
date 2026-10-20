@@ -39,7 +39,7 @@ from zalfmas_fbp.run import process
 from zalfmas_fbp.run.logging_config import add_log_level_argument, configure_logging
 from zalfmas_fbp.run.metadata import ComponentMetadata
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("zalfmas_fbp.run.local_components_service")
 configure_logging(default_level="INFO")
 
 if TYPE_CHECKING:
@@ -278,7 +278,7 @@ class ProcessFactory(fbp_capnp.Process.Factory.Server, common.Identifiable):
         proc = process.start_local_process_component(
             self.path_to_executable,
             writer_sr_str,
-            name=self.name,
+            name=f"{self.name} {self.count}",
             log_level=self.log_level,
         )
         self.procs.append(proc)

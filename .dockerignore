@@ -11,3 +11,10 @@ dist/
 outputs/
 resources/
 .codex
+CHANGELOG.md
+docker-bake.hcl
+release-please-config.json
+.release-please-manifest.json
+LICENSE
+agents_process.md
+.env

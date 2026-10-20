@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from mas.schema.fbp.fbp_capnp.types.readers import StartupInfoReader
     from mas.schema.service.service_capnp.types.clients import AdminClient
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("zalfmas_fbp.run.channel_starter_service")
 configure_logging(default_level="INFO")
 
 

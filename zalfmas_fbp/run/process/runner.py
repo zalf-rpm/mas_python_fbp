@@ -120,12 +120,12 @@ def run_process_from_metadata_and_cmd_args(
 ):
     parser = create_default_args_parser(component_description=p.description)
     args = parse_args_typed(parser, ProcessArgs)
-    configure_logging(args.log_level)
     metadata = component_meta
     default_config = metadata.default_config_values()
     metadata_json = metadata.model_dump(mode="json", exclude_none=True)
     if args.name is not None:
         p.name = args.name
+    configure_logging(args.log_level)
     if args.output_json_default_config:
         _ = sys.stdout.write(json.dumps(default_config, indent=4) + "\n")
         sys.exit(0)
