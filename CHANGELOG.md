@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.42](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.41...v0.2.42) (2026-10-29)
+
+
+### Bug Fixes
+
+* restore read_excel's out port and fix its nested sending ([#47](https://github.com/zalf-rpm/mas_python_fbp/issues/47)) ([a2c889f](https://github.com/zalf-rpm/mas_python_fbp/commit/a2c889f9144c6d16978ebfe8e54f04ce4b5347c7))
+
 ## [0.2.41](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.40...v0.2.41) (2026-10-29)
 
 
