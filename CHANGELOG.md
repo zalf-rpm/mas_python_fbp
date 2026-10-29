@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.41](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.40...v0.2.41) (2026-10-29)
+
+
+### Features
+
+* base component algebra (selectors, routing, substreams, capnp↔JSON) and legacy component cleanup ([#46](https://github.com/zalf-rpm/mas_python_fbp/issues/46)) ([5e5f2ad](https://github.com/zalf-rpm/mas_python_fbp/commit/5e5f2ad64e9dcb40d7edbcbad61336332285776c))
+
+
+### Bug Fixes
+
+* use proper requires-python field to lock python version below 3.15 ([d5bc440](https://github.com/zalf-rpm/mas_python_fbp/commit/d5bc440186edd4970e21734f9827bd654452e225))
+
 ## [0.2.40](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.39...v0.2.40) (2026-10-12)
 
 
