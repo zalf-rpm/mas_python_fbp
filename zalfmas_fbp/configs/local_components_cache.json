@@ -1447,17 +1447,17 @@
             "send_nesting_level": {
                 "value": [],
                 "type": "list[string]",
-                "desc": "Send messages at this nesting level, e.g. ['EID', 'TREAT_ID']."
+                "desc": "Split the output along these nesting levels, outermost first, and send one message per\n        entry of the innermost one, e.g. ['EID', 'TREAT_ID'] sends one message per treatment.\n        A level is named by its key in nesting_by_key_cols (e.g. 'treatments') or by the key column it adds\n        (e.g. 'TREAT_ID'). Where a level is absent from the data, everything below it is sent as one message.\n        If empty, just one message with all data will be sent."
             },
             "include_branch_level_data": {
                 "value": false,
                 "type": "bool",
-                "desc": "If send nesting is not empty, then if set to true sends the data at the branch level, before\n        traversing down the nesting level as extra message.\n        If there is no nested sending requested, just one message with all data will be send."
+                "desc": "If send nesting is not empty and this is set to true, the data at each branch level\n        (everything except the next nesting level) is sent as an extra message before traversing down."
             },
             "include_brackets_when_sending_nested": {
                 "value": true,
                 "type": "bool",
-                "desc": "Add a bracket IP pair around each nesting level."
+                "desc": "Add a bracket IP pair around the entries of each nesting level."
             }
         }
     },
