@@ -95,6 +95,13 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text (JSON)",
+            desc="The selected Excel tables as (possibly nested) JSON datastructures.",
+        )
+    ],
     config=Config,
 )
 

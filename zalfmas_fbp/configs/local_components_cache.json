@@ -1404,6 +1404,13 @@
         ],
         "outPorts": [
             {
+                "name": "out",
+                "contentType": "Text (JSON)",
+                "desc": "The selected Excel tables as (possibly nested) JSON datastructures.",
+                "role": "data",
+                "required": false
+            },
+            {
                 "name": "log",
                 "contentType": "@0xdf6f09e80adf0ac2 = fbp/fbp.capnp:LogMessage",
                 "desc": "Runtime-owned. Log records, if connected; never blocks the component.",
