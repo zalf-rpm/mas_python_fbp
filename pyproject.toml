@@ -1,6 +1,6 @@
 [project]
 name = "zalfmas-fbp"
-version = "0.2.41"
+version = "0.2.42"
 description = "lib and tooling for Cap'n Proto-based FBP flows"
 readme = "README.md"
 # Cap below 3.15: duckdb ships no cp315 wheels yet, so pixi would build the sdist (needs a C++ toolchain).
