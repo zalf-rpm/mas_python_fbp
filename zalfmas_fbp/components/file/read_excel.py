@@ -70,16 +70,20 @@ class Config(process.ProcessConfig):
         This will create nested dictionaries if columns with these keys exist.""",
     )
     send_nesting_level: list[str] = Field(
-        [], description="Send messages at this nesting level, e.g. ['EID', 'TREAT_ID']."
+        [],
+        description="""Split the output along these nesting levels, outermost first, and send one message per
+        entry of the innermost one, e.g. ['EID', 'TREAT_ID'] sends one message per treatment.
+        A level is named by its key in nesting_by_key_cols (e.g. 'treatments') or by the key column it adds
+        (e.g. 'TREAT_ID'). Where a level is absent from the data, everything below it is sent as one message.
+        If empty, just one message with all data will be sent.""",
     )
     include_branch_level_data: bool = Field(
         False,
-        description="""If send nesting is not empty, then if set to true sends the data at the branch level, before
-        traversing down the nesting level as extra message.
-        If there is no nested sending requested, just one message with all data will be send.""",
+        description="""If send nesting is not empty and this is set to true, the data at each branch level
+        (everything except the next nesting level) is sent as an extra message before traversing down.""",
     )
     include_brackets_when_sending_nested: bool = Field(
-        True, description="""Add a bracket IP pair around each nesting level."""
+        True, description="""Add a bracket IP pair around the entries of each nesting level."""
     )
 
 
@@ -95,6 +99,13 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[],
+    outPorts=[
+        meta.Port(
+            name="out",
+            contentType="Text (JSON)",
+            desc="The selected Excel tables as (possibly nested) JSON datastructures.",
+        )
+    ],
     config=Config,
 )
 
@@ -243,29 +254,35 @@ class Component(process.Process[Config]):
                 add_dynamic_sheet(s, dynamic_dfs[s])
 
         if self.out_ports["out"]:
+            # a level can be named by its own name or by the key column it adds to its parent's
+            level_names: dict[str, str] = {}
+            for level_name, k_cols in self.config.nesting_by_key_cols.items():
+                level_names[level_name] = level_name
+                if k_cols:
+                    level_names.setdefault(k_cols[-1], level_name)
+            nesting_levels = [level_names.get(level, level) for level in self.config.send_nesting_level]
+
             try:
 
-                async def send_it(d: dict[str, Any], nesting_levels=[]):
-                    if len(nesting_levels) > 0:
-                        if self.config.include_branch_level_data:
-                            await send_it({k: v for k, v in d.items() if k != nesting_levels[0]})
-                            if nesting_levels[0] in d:
-                                if self.config.include_brackets_when_sending_nested:
-                                    if not await self.write_out("out", fbp_capnp.IP.new_message(type="openBracket")):
-                                        logger.info("%s: process finished", self.name)
-                                        return
-                                await send_it(d[nesting_levels[0]], nesting_levels[1:])
-                                if self.config.include_brackets_when_sending_nested:
-                                    if not await self.write_out("out", fbp_capnp.IP.new_message(type="closeBracket")):
-                                        logger.info("%s: process finished", self.name)
-                                        return
-                    else:
-                        out_ip = fbp_capnp.IP.new_message(content=json.dumps(d))
-                        if not await self.write_out("out", out_ip):
-                            logger.info("%s: process finished", self.name)
-                            return
+                async def send_it(d: dict[str, Any], nesting_levels: list[str]) -> bool:
+                    """Send d split along nesting_levels. False once the out port is closed."""
+                    if len(nesting_levels) == 0 or nesting_levels[0] not in d:
+                        return await self.write_out("out", fbp_capnp.IP.new_message(content=json.dumps(d)))
 
-                await send_it(data, self.config.send_nesting_level)
+                    level = nesting_levels[0]
+                    if self.config.include_branch_level_data:
+                        branch = {k: v for k, v in d.items() if k != level}
+                        if branch and not await send_it(branch, []):
+                            return False
+                    brackets = self.config.include_brackets_when_sending_nested
+                    if brackets and not await self.write_out("out", fbp_capnp.IP.new_message(type="openBracket")):
+                        return False
+                    for entry in d[level].values():
+                        if not await send_it(entry, nesting_levels[1:]):
+                            return False
+                    return not brackets or await self.write_out("out", fbp_capnp.IP.new_message(type="closeBracket"))
+
+                await send_it(data, nesting_levels)
 
             except capnp.KjException as e:
                 logger.exception("%s: RPC Exception: %s", self.name, e.description())

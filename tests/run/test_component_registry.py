@@ -118,3 +118,40 @@ def test_component_ids_look_like_uuids() -> None:
         except ValueError:
             bad.append((component["module"], component["id"]))
     assert not bad, f"info.id must be a UUID: {bad}"
+
+
+def _out_ports_written_and_declared(path: pathlib.Path) -> tuple[set[str], set[str]]:
+    """Out-port names the code writes to or looks up, and the ones METADATA declares."""
+    written: set[str] = set()
+    declared: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if (
+            isinstance(node, ast.Call)
+            and getattr(node.func, "attr", None) == "write_out"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            written.add(str(node.args[0].value))
+        elif (
+            isinstance(node, ast.Subscript)
+            and getattr(node.value, "attr", None) == "out_ports"
+            and isinstance(node.slice, ast.Constant)
+        ):
+            written.add(str(node.slice.value))
+        elif isinstance(node, ast.keyword) and node.arg == "outPorts" and isinstance(node.value, ast.List):
+            for port in node.value.elts:
+                for k in getattr(port, "keywords", []):
+                    if k.arg == "name" and isinstance(k.value, ast.Constant):
+                        declared.add(str(k.value.value))
+    return written, declared
+
+
+def test_every_out_port_a_component_writes_is_declared() -> None:
+    """Removing the conf port once took read_excel's whole outPorts block with it. The component
+    still wrote to "out", but the port no longer existed, so it could not be wired in a flow."""
+    undeclared = {}
+    for c in all_components():
+        written, declared = _out_ports_written_and_declared(pathlib.Path(c["module"].replace(".", "/") + ".py"))
+        if missing := written - declared:
+            undeclared[c["module"]] = sorted(missing)
+    assert not undeclared, f"out ports written but not declared in METADATA: {undeclared}"
