@@ -49,7 +49,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, override
+from typing import TYPE_CHECKING, Any, Literal, cast, overload, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -540,13 +540,36 @@ def as_localhost_sturdy_ref(
         return None
     # readers expose as_builder() directly; builders don't (they already are one), so round-trip
     # through as_reader() first to get an independent copy and leave the original untouched.
-    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    local_ref = as_owned_builder(sturdy_ref)
     local_ref.vat.address.host = "127.0.0.1"
     return local_ref
 
 
+def as_owned_builder(sturdy_ref: SturdyRefBuilder | SturdyRefReader) -> SturdyRefBuilder:
+    """An independent builder copy, whichever of the two was passed.
+
+    Readers expose `as_builder()` directly; builders do not - they already are one - so those
+    round-trip through `as_reader()` first. Either way the caller gets a copy it owns, since the
+    input is typically a reader into a short-lived message.
+    """
+
+    # only a builder has as_reader(), so its presence is what tells the two apart
+    as_reader = getattr(sturdy_ref, "as_reader", None)
+    if as_reader is not None:
+        return as_reader().as_builder()
+    return cast("SturdyRefReader", sturdy_ref).as_builder()
+
+
+@overload
+def local_sr(sturdy_ref: str) -> str: ...
+@overload
+def local_sr(sturdy_ref: SturdyRefBuilder | SturdyRefReader) -> SturdyRefBuilder: ...
 def local_sr(sturdy_ref: str | SturdyRefBuilder | SturdyRefReader) -> str | SturdyRefBuilder:
     """Owned copy of sturdy_ref with its host forced to 127.0.0.1.
+
+    The overloads say what the body already does: this is an in-kind transform, so a sturdy ref
+    that went in as text comes back as text. Without them the union leaked into every caller and
+    on into the functions they hand the result to.
 
     Unlike as_localhost_sturdy_ref, this is meant to be applied proactively to every sturdy ref
     produced by a locally started channel - not just as a reconnect fallback - because most of
@@ -558,7 +581,7 @@ def local_sr(sturdy_ref: str | SturdyRefBuilder | SturdyRefReader) -> str | Stur
     """
     if isinstance(sturdy_ref, str):
         return as_localhost_sturdy_ref(sturdy_ref) or sturdy_ref
-    local_ref = sturdy_ref.as_reader().as_builder() if hasattr(sturdy_ref, "as_reader") else sturdy_ref.as_builder()
+    local_ref = as_owned_builder(sturdy_ref)
     if str(local_ref.vat.address.host) not in LOOPBACK_HOSTS:
         local_ref.vat.address.host = "127.0.0.1"
     return local_ref
@@ -651,6 +674,10 @@ class FlowRunner:
         self.channels: list[PopenT] = []
         self.standard_procs: dict[str, list[PopenT]] = {}
         self.started_processes: list[StartedProcess] = []
+
+        # whether anything went wrong: a component that failed, or the run ending early.
+        # Reported through the process exit code, so a script or scheduler can see it.
+        self.failed: bool = False
         self.port_infos_writers: list[WriterClient] = []
         self.sink_node_ids: list[str] = []
 
@@ -746,9 +773,7 @@ class FlowRunner:
 
     @staticmethod
     def _is_array_out_port(node: FlowNode, port: str) -> bool:
-        return node.metadata is not None and any(
-            p.name == port and p.type == "array" for p in node.metadata.outPorts
-        )
+        return node.metadata is not None and any(p.name == port and p.type == "array" for p in node.metadata.outPorts)
 
     def _start_data_channels_for_link(self, link: FlowLink, first_writer_sr: str) -> None:
         """Start the channel(s) backing one flow-JSON link.
@@ -880,9 +905,7 @@ class FlowRunner:
                 config_chans.append(
                     ConfigChannel(
                         # the reader srs go on the components' command lines, so they have to be strings
-                        reader_srs=[
-                            local_sr(common.sturdy_ref_str_from_sr(reader_sr)) for reader_sr in info.readerSRs
-                        ],
+                        reader_srs=[local_sr(common.sturdy_ref_str_from_sr(reader_sr)) for reader_sr in info.readerSRs],
                         writer_sr=local_sr(info.writerSRs[0]),
                     ),
                 )
@@ -1080,16 +1103,16 @@ class FlowRunner:
     @staticmethod
     async def apply_config(process_cap: ProcessClient, node: FlowNode, name: str) -> None:
         for key, value in (node.config or {}).items():
-            # a None value means 'use the component's default', which is what happens anyway
-            # if the entry is not set at all
-            if value is None:
-                continue
             try:
                 # setConfigEntry has a named param struct, so it can neither be called with
                 # positional args nor with a 'name' keyword (that one belongs to _send)
                 request = process_cap.setConfigEntry_request()
                 request.name = key
-                request.val = config_value_from_python(value)
+                # A null is sent by leaving 'val' unset, since Value has no null variant. Skipping
+                # the entry instead would mean the component keeps its default, which is a
+                # different value from the null the flow asked for.
+                if value is not None:
+                    request.val = config_value_from_python(value)
                 _ = await request.send()
             except (capnp.KjException, TypeError):
                 logger.exception("%s: couldn't set config entry '%s'", name, key)
@@ -1111,6 +1134,7 @@ class FlowRunner:
 
         failed = [sp_.name for sp_ in self.started_processes if sp_.watcher.failed]
         if failed:
+            self.failed = True
             logger.error("these process components failed: %s", ", ".join(failed))
         else:
             logger.info("all components finished")
@@ -1185,7 +1209,9 @@ class FlowRunner:
 
     # -- entry point ---------------------------------------------------------------------
 
-    async def run(self) -> None:
+    async def run(self) -> bool:
+        """Run the flow to completion. False means it ended early because something failed."""
+
         self.load_flow()
         logger.info(
             "flow '%s': %d standard component(s), %d process component(s), %d link(s)",
@@ -1215,9 +1241,14 @@ class FlowRunner:
                 await self.start_process_components()
                 await self.wait_for_flow()
             except Exception:
+                # Broad on purpose: whatever went wrong, every component and channel still has to
+                # be brought down. The failure is reported through the exit code rather than
+                # re-raised, so `finally` cannot be skipped.
+                self.failed = True
                 logger.exception("exception terminated %s early", Path(__file__).name)
             finally:
                 await self.shutdown()
+        return not self.failed
 
 
 def _find_config_file(argv: list[str] | None) -> str | None:
@@ -1228,7 +1259,8 @@ def _find_config_file(argv: list[str] | None) -> str | None:
     return pre_args.config_file
 
 
-async def start_flow(argv: list[str] | None = None) -> None:
+async def start_flow(argv: list[str] | None = None) -> bool:
+    """Start a flow from the command line. False means it ended early because something failed."""
     defaults = load_toml_defaults(config_file) if (config_file := _find_config_file(argv)) else {}
     namespace = FlowArgs()
     apply_toml_defaults(namespace, defaults)
@@ -1237,11 +1269,14 @@ async def start_flow(argv: list[str] | None = None) -> None:
     parser.parse_args(argv, namespace=namespace)
     args = namespace
     configure_logging(args.log_level)
-    await FlowRunner(args).run()
+    return await FlowRunner(args).run()
 
 
 def main() -> None:
-    asyncio.run(capnp.run(start_flow()))
+    # A flow that died early used to log the traceback and still exit 0, so whatever ran it -
+    # a script, a scheduler, CI - saw a success.
+    if not asyncio.run(capnp.run(start_flow())):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

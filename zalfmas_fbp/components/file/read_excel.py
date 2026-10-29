@@ -94,16 +94,7 @@ METADATA = meta.Component(
         description="Turn selected excel tables into JSON datastructures",
     ),
     type="process",
-    inPorts=[
-        meta.Port(name="conf", contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]")
-    ],
-    outPorts=[
-        meta.Port(
-            name="out",
-            contentType="Text (JSON)",
-            desc="The selected Excel tables as (possibly nested) JSON datastructures.",
-        )
-    ],
+    inPorts=[],
     config=Config,
 )
 
@@ -119,8 +110,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         def default_if_nan(value, default: float | None = 0.0, apply_func=None):
             if value is not None:
@@ -133,8 +122,8 @@ class Component(process.Process[Config]):
                         return apply_func(value)
                     else:
                         return value
-                except Exception:
-                    logger.exception("%s returning default for value %s", self.name, value)
+                except (TypeError, ValueError, ArithmeticError):
+                    logger.warning("%s: returning the default for value %r", self.name, value)
                     return default
             return value
 
@@ -144,12 +133,27 @@ class Component(process.Process[Config]):
         data: dict[str, Any] = {}
 
         # read additional (custom/optional) sheets dynamically and attach them based on their key columns
-        def convert_cell(raw, kind: Literal["date", "int", "float", "str"]):
+        def is_blank(raw: Any) -> bool:
+            """Whether a cell holds nothing: None, or a scalar NaN/NaT.
+
+            Kept separate so the narrowing `np.isscalar` performs stays in here. Inlined, it
+            leaked into the conversions below and made every one of them a type error.
+            """
+
             try:
-                if raw is None or (np.isscalar(raw) and pandas.isna(raw)):
-                    return None
+                return raw is None or bool(np.isscalar(raw) and pandas.isna(raw))
             except (TypeError, ValueError):
-                pass
+                return False
+
+        def convert_cell(raw: Any, kind: Literal["date", "int", "float", "str"]):
+            """One spreadsheet cell as the wanted type, or None if it is blank or unconvertible.
+
+            `raw` is whatever pandas produced for that cell - a numpy scalar, a Timestamp, a str,
+            NaN - so it is typed as Any rather than pretending to a union.
+            """
+
+            if is_blank(raw):
+                return None
             try:
                 if kind == "date":
                     return str(raw)[:10]
@@ -158,8 +162,8 @@ class Component(process.Process[Config]):
                 if kind == "float":
                     return float(raw)
                 return str(raw)
-            except Exception:
-                logger.exception("%s: could not convert value %s as %s", self.name, raw, kind)
+            except (TypeError, ValueError, ArithmeticError):
+                logger.warning("%s: could not convert value %r as %s", self.name, raw, kind)
                 return None
 
         def add_dynamic_sheet(sheet_name: str, sheet_df: pandas.DataFrame):
@@ -257,7 +261,6 @@ class Component(process.Process[Config]):
                                         return
                     else:
                         out_ip = fbp_capnp.IP.new_message(content=json.dumps(d))
-                        # common.copy_and_set_fbp_attrs(in_ip, out_ip, **{self.config.to_attr: attr})
                         if not await self.write_out("out", out_ip):
                             logger.info("%s: process finished", self.name)
                             return

@@ -15,16 +15,16 @@
 from __future__ import annotations
 
 import logging
-import string
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
 import capnp
-from mas.schema.common import common_capnp
 from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common import brackets, templating, values
+from zalfmas_fbp.components.common.templating import TemplateError
 from zalfmas_fbp.run import metadata as meta
 
 if TYPE_CHECKING:
@@ -43,8 +43,9 @@ class WriteFileConfig(process.ProcessConfig):
     filename_pattern: str = Field(
         "csv_{count}.csv",
         description="""The pattern to use for the filename. Can contain multiple placeholders. Use
-        '{@attr_name}' to insert the value of the IP attribute 'attr_name' (the '@' is only a marker and is
-        stripped before the attribute lookup). Use '{count}' to insert the running count of received messages
+        '{@attr_name}' to insert the value of the IP attribute 'attr_name', '{@attr/sub}' to reach into it,
+        '{./a/b}' for a path into the content, and '{now:%Y-%m-%d}' for the time. A format spec after ':'
+        works as in str.format, e.g. '{count:03d}'. Use '{count}' to insert the running count of received messages
         (starting at 0).""",
     )
     path_to_out_dir: str = Field(
@@ -58,6 +59,15 @@ class WriteFileConfig(process.ProcessConfig):
     create_missing_dirs: bool = Field(
         False,
         description="If True, create missing directories in the output path.",
+    )
+    attr_types: dict[str, str] = Field(
+        default_factory=lambda: {values.ATTR_TYPE_WILDCARD: values.VALUE_TYPE},
+        description=(
+            "Cap'n Proto types for attributes written without a valueType, by attribute name, with "
+            "'*' covering all of them. Defaults to treating them as common.capnp:Value, which is "
+            "this library's convention - declaring the type is needed because reading a struct "
+            "without one would mean guessing, and a wrong guess misreads silently rather than failing."
+        ),
     )
     debug: bool = Field(
         False,
@@ -73,7 +83,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="b3867019-5f42-4c59-9438-a49fe9452e6f",
         name="write file",
-        description="Write input into a file.",
+        description=(
+            "Write input into a file. Substream transparent: bracket IPs are ignored, so they "
+            "neither produce a file nor advance the '{count}' placeholder."
+        ),
     ),
     type="process",
     inPorts=[
@@ -81,10 +94,6 @@ METADATA = meta.Component(
             name="in",
             contentType="Text",
             desc="The input data to be written to a file.",
-        ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
         ),
     ],
     config=WriteFileConfig,
@@ -102,8 +111,6 @@ class WriteFile(process.Process[WriteFileConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         count = 0
         while True:
@@ -111,11 +118,17 @@ class WriteFile(process.Process[WriteFileConfig]):
             if in_ip is None:
                 break
 
+            # Brackets are grouping, not data: writing one would produce a spurious file, and
+            # counting it would shift the '{count}' of every file after it.
+            if brackets.is_bracket(in_ip):
+                continue
+
             try:
                 content_attr = common.get_fbp_attr(in_ip, self.config.from_attr)
                 try:
                     content = content_attr.as_text() if content_attr else in_ip.content.as_text()
-                except Exception:
+                except capnp.KjException:
+                    # Not text: fall back to a representation rather than failing to write at all.
                     content = str(content_attr) if content_attr else str(in_ip.content)
 
                 filename = self._render_filename(in_ip, count)
@@ -129,56 +142,25 @@ class WriteFile(process.Process[WriteFileConfig]):
                 if self.config.debug:
                     logger.info("%s: wrote %s", self.name, filepath)
 
-            except Exception:
-                logger.exception("%s Exception", self.name)
+            except (capnp.KjException, OSError, TemplateError, ValueError) as error:
+                # A bad filename pattern, an unwritable path, or an IP whose content cannot be
+                # read. All are properties of the input or the environment rather than of this
+                # component, so the next IP still gets a chance.
+                logger.warning("%s: could not write this IP: %s", self.name, error)
             finally:
                 count += 1
 
         logger.info("%s: process finished", self.name)
 
     def _render_filename(self, ip: IPReader, count: int) -> str:
-        pattern = self.config.filename_pattern
-        values: dict[str, object] = {}
-        for _literal_text, field_name, _format_spec, _conversion in string.Formatter().parse(pattern):
-            if field_name is None:
-                continue
-            base_name = field_name.split(".")[0].split("[")[0]
-            if base_name in values:
-                continue
-
-            if base_name == "count":
-                values[base_name] = count
-            elif base_name.startswith("@"):
-                values[base_name] = self._attr_as_str(ip, base_name.removeprefix("@"))
-            else:
-                msg = (
-                    f"{self.name}: filename_pattern references unknown placeholder "
-                    f"'{{{base_name}}}'; use '{{@attr_name}}' or '{{count}}'"
-                )
-                raise ValueError(msg)
-
-        return pattern.format(**values)
-
-    def _attr_as_str(self, ip: IPReader, attr_name: str) -> str:
-        value = common.get_fbp_attr(ip, attr_name)
-        if value is None:
-            msg = f"{self.name}: IP is missing attribute '{attr_name}' referenced in filename_pattern"
-            raise ValueError(msg)
-
-        try:
-            return value.as_text()
-        except (capnp.KjException, TypeError, AttributeError):
-            pass
-
-        try:
-            common_value = value.as_struct(common_capnp.Value)
-            which = common_value.which()
-            if which in _NUMERIC_VALUE_VARIANTS or which == "t":
-                return str(getattr(common_value, which))
-        except (capnp.KjException, TypeError, AttributeError):
-            pass
-
-        return str(value)
+        """Render the configured pattern. Raises TemplateError, which run() turns into a skip."""
+        return templating.render(
+            self.config.filename_pattern,
+            ip,
+            count=count,
+            attr_types=self.config.attr_types,
+            missing="error",
+        )
 
 
 def main():

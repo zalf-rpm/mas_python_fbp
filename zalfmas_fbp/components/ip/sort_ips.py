@@ -65,10 +65,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="The IPs to sort. Substream sensitive, see 'sort_substreams'.",
@@ -109,8 +105,6 @@ class SortIPs(process.Process[SortIPsConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         if self.config.sort_substreams:
             await self._run_substream_sensitive()

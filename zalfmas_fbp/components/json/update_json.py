@@ -16,7 +16,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, override
+from typing import Any, cast, override
 
 import capnp
 from mas.schema.common import common_capnp
@@ -86,10 +86,6 @@ METADATA = meta.Component(
     ),
     type="process",
     inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
         meta.Port(
             name="in",
             contentType="Text (JSON)",
@@ -175,6 +171,12 @@ def read_attr_value(
             attr_val, _ = as_type(attr_val, types[v[0]])
             try:
                 for field_name_and_opt_type_ref in v[1:]:
+                    # Walking a path changes what this name holds: a capnp reader to begin with,
+                    # a plain dict once a StructuredText[JSON] attribute is decoded, then a list
+                    # element or a scalar. The runtime checks below pick the branch; no static
+                    # type spans them, so the narrowing carried over from the previous iteration
+                    # is dropped here rather than making every branch an error.
+                    attr_val = cast("Any", attr_val)
                     # field name might contain an attached type (ref to types dict)
                     fnaotr = (
                         field_name_and_opt_type_ref.split(":")
@@ -210,13 +212,16 @@ def read_attr_value(
                     elif isinstance(attr_val, dict) and field_name in attr_val:
                         attr_val = attr_val[field_name]
                     # is struct access
-                    elif "schema" in attr_dir and field_name in attr_val.schema.fieldnames:
-                        attr_val = attr_val.__getattribute__(field_name)
+                    elif (schema := getattr(attr_val, "schema", None)) is not None and field_name in schema.fieldnames:
+                        attr_val = getattr(attr_val, field_name)
 
                     # cast to specified type if it was an AnyPointer and the user specified the type
                     if len(fnaotr) > 1 and (val_type := types.get(fnaotr[1], None)) is not None:
                         attr_val, _ = as_type(attr_val, val_type)
-            except Exception:
+            except (capnp.KjException, AttributeError, KeyError, IndexError, TypeError, ValueError):
+                # This is a probe: the path may simply not exist on this value, which the caller
+                # handles via the False. Narrowed so a genuine error here is not reported as a
+                # missing attribute.
                 return attr_val, False
         return attr_val, True
 
@@ -236,8 +241,14 @@ def read_dict_value(py_dict: dict[str, Any], v: list) -> tuple[Any, bool]:
     return None, False
 
 
-def split_into_parts(str_value: str, split_token: str = "/", create_int_indizes=False):
-    parts = str_value.split(split_token)
+def split_into_parts(str_value: str, split_token: str = "/", create_int_indizes=False) -> list[Any]:
+    """Split a path into segments, optionally turning digit segments into list indices.
+
+    The result is deliberately mixed: a segment is a dict key or a list index depending on what it
+    looks like, which is why it is not a `list[str]`.
+    """
+
+    parts: list[Any] = str_value.split(split_token)
     if create_int_indizes:
         for k in range(len(parts)):
             if parts[k].isdigit():
@@ -292,23 +303,32 @@ class UpdateJson(process.Process[Config]):
                         json_obj[spec_key] = spec_value
                     else:
                         continue
+            elif spec_index is None:
+                # A list addressed by something that is not an index or a matching query. This
+                # used to fall through to `json_obj[spec_key]` and raise TypeError, which the
+                # caller caught as "couldn't apply <op>" - abandoning the rest of the spec, and
+                # any part of it already applied stayed applied.
+                logger.warning(
+                    "%s: %r does not address an element of a list; skipping it.",
+                    self.name,
+                    spec_key,
+                )
+                continue
+
+            # From here the target is settled: an index into a list, or a key in a dict. A JSON
+            # document is not statically typed, so the pair is carried as Any rather than
+            # repeating `spec_index is not None and isinstance(json_obj, list)` at every use.
+            container: Any = json_obj
+            key: Any = spec_index if isinstance(json_obj, list) else spec_key
 
             # change according to the type of v
             # v is a sub-spec (dict), which means recurse into substructure
             if isinstance(spec_value, dict):
-                # access a list
-                if spec_index is not None and isinstance(json_obj, list):
-                    # j[i] is a pointer, so we recurse
-                    if isinstance(json_obj[spec_index], (list, dict)):
-                        self.change(json_obj[spec_index], spec_value, attrs, allowed_operation)
-                    elif allowed_operation == "replace":
-                        json_obj[spec_index] = spec_value
-                # access a dict
-                # j[k] is a pointer, so we can recurse
-                elif isinstance(json_obj[spec_key], (list, dict)):
-                    self.change(json_obj[spec_key], spec_value, attrs, allowed_operation)
+                # the target is a container, so recurse into it
+                if isinstance(container[key], (list, dict)):
+                    self.change(container[key], spec_value, attrs, allowed_operation)
                 elif allowed_operation == "replace":
-                    json_obj[spec_key] = spec_value
+                    container[key] = spec_value
             # a list as value is treated as sub object access if the first element is an attribute (@) access
             elif isinstance(spec_value, list):
                 math_op = None
@@ -318,12 +338,7 @@ class UpdateJson(process.Process[Config]):
                 attr_val, read_successful = read_attr_value(self.config.types, attrs, spec_value)
                 if read_successful:
                     spec_value = attr_val
-                # access a list
-                if spec_index is not None and isinstance(json_obj, list):
-                    json_obj[spec_index] = apply_math_op(json_obj[spec_index], math_op, spec_value)
-                # access a dict
-                else:
-                    json_obj[spec_key] = apply_math_op(json_obj[spec_key], math_op, spec_value)
+                container[key] = apply_math_op(container[key], math_op, spec_value)
             elif isinstance(spec_value, str):
                 # use existing function to resolve values from attributes
                 attr_val, is_attr_val = p.get_attr_val(
@@ -333,14 +348,9 @@ class UpdateJson(process.Process[Config]):
                 )
                 if is_attr_val and spec_value in self.config.types:
                     attr_val, _ = as_type(attr_val, self.config.types[spec_value])
-                if spec_index is not None and isinstance(json_obj, list):
-                    json_obj[spec_index] = attr_val
-                else:
-                    json_obj[spec_key] = attr_val
-            elif spec_index is not None and isinstance(json_obj, list):
-                json_obj[spec_index] = spec_value
+                container[key] = attr_val
             else:
-                json_obj[spec_key] = spec_value
+                container[key] = spec_value
 
     def create_nested_dict(self, kvs: dict[str, str]) -> dict:
         res_dict = {}
@@ -373,18 +383,19 @@ class UpdateJson(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         read_new_attrs = True
         in_substream = False
         attrs_attrs = {}
         while self.in_ports["in"] and self.out_ports["out"]:
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            if not (in_ip := await self.read_in("in")):
+                self.in_ports["in"] = None
+                continue
+
             try:
-                if not (in_ip := await self.read_in("in")):
-                    self.in_ports["in"] = None
-                    continue
-                elif in_ip.type == "openBracket":
+                if in_ip.type == "openBracket":
                     if not await self.write_out("out", in_ip):
                         logger.info("%s: error on sending on 'out' port. Process finished.", self.name)
                         break
@@ -443,10 +454,14 @@ class UpdateJson(process.Process[Config]):
                     content=json.dumps(j_content),
                     attributes=in_ip.attributes,  # list([{"key": k, "value": v} for k, v in attrs.items()]),  # pyright: ignore
                 )
-                await self.write_out("out", out_ip)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s: process finished", self.name)
+                    return
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except (capnp.KjException, json.JSONDecodeError, KeyError, TypeError, ValueError):
+                # The IP's JSON, or an update path into it, did not hold up. That is a property of
+                # the message rather than of this component, so log it and take the next one.
+                logger.exception("%s: could not update this IP's JSON", self.name)
 
         logger.info("%s: process finished", Path(__file__).name)
 

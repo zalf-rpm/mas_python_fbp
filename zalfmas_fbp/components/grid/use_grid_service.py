@@ -12,166 +12,283 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, override
 
+import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from mas.schema.geo import geo_capnp
 from mas.schema.grid import grid_capnp
+from pydantic import Field, field_validator
 from pymep.realParser import eval as mep_eval
 from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets, values
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
+
+if TYPE_CHECKING:
+    from mas.schema.fbp.fbp_capnp.types.readers import IPReader
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+GRID_VALUE_TYPE = "grid.capnp:Grid.Value"
+COMMON_VALUE_TYPE = values.VALUE_TYPE
+
+
+class Config(process.ProcessConfig):
+    from_attr: str | None = Field(
+        default=None,
+        description="Read the coordinate from this attribute instead of the content.",
+    )
+    to_attr: str | None = Field(
+        default=None,
+        description="Write the value to this attribute instead of the IP's content.",
+    )
+    as_common_value: bool = Field(
+        default=False,
+        description="Send a common.capnp:Value rather than a grid.capnp:Grid.Value.",
+    )
+    calc: str = Field(
+        default="",
+        description=(
+            "Arithmetic expression applied to each value, e.g. 'v*0.1'. Empty passes the value "
+            "through. Variable names must be a single letter - the expression parser silently "
+            "evaluates longer names to 0."
+        ),
+    )
+    calc_variable: str = Field(
+        default="v",
+        description="Single letter the grid value is bound to in 'calc'.",
+    )
+    calc_constants: dict[str, float] = Field(
+        default_factory=dict,
+        description="Further single-letter variables usable in 'calc'.",
+    )
+    ignore_no_data: bool = Field(
+        default=True,
+        description="Ask the grid to skip no-data cells and return the closest cell that has data.",
+    )
+    on_no_data: Literal["emit", "skip", "fail"] = Field(
+        default="emit",
+        description="What to do when the grid answers with a no-data value.",
+    )
+    on_error: Literal["skip", "fail"] = Field(
+        default="skip",
+        description="Whether an IP holding no readable coordinate is skipped or stops the process.",
+    )
+
+    @field_validator("calc_variable")
+    @classmethod
+    def _single_letter(cls, value: str) -> str:
+        if len(value) != 1 or not value.isalpha():
+            msg = f"'calc_variable' must be a single letter, not {value!r}; the parser cannot resolve longer names"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("calc_constants")
+    @classmethod
+    def _single_letter_keys(cls, value: dict[str, float]) -> dict[str, float]:
+        bad = sorted(name for name in value if len(name) != 1 or not name.isalpha())
+        if bad:
+            msg = f"'calc_constants' names must be single letters; these are not: {bad}"
+            raise ValueError(msg)
+        return value
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="grid",
-        name="Grid",
-    ),
+    category=meta.Category(id="grid", name="Grid"),
     info=meta.Info(
         id="cb6720d6-bc33-445d-b2c1-aa3842219c81",
         name="Use grid service",
-        description="Use the grid service to get the grid value at a given Lat/Lon coord.",
-    ),
-    type="standard",
-    inPorts=[
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
+        description=(
+            "Ask a grid service for the value closest to each incoming coordinate. The value can "
+            "be passed through an arithmetic expression and sent either as a grid value or as a "
+            "common value. Substream transparent."
         ),
+    ),
+    type="process",
+    inPorts=[
         meta.Port(
             name="in",
             contentType="geo.capnp:LatLonCoord",
             desc="The coordinate to get the value at.",
+            required=True,
         ),
         meta.Port(
             name="service",
-            contentType="grid.capnp:Service | SturdyRef",
-            desc="Capability or sturdy ref to service.",
+            contentType="grid.capnp:Grid | SturdyRef",
+            desc="Capability or sturdy ref to the grid. Read once, before the first coordinate.",
+            required=True,
         ),
     ],
     outPorts=[
         meta.Port(
             name="out",
-            contentType="grid.capnp:Grid.Value | common.capnp:Value",
-            desc="Output grid value at given coordinate.",
+            contentType=f"{GRID_VALUE_TYPE} | common.capnp:Value",
+            desc="The grid value at the given coordinate.",
+            required=True,
         ),
     ],
-    defaultConfig={
-        "as_common_value": meta.ConfigEntry(
-            value=False,
-            type="bool",
-            desc="Send the output as a common.capnp:Value structure instead of grid.capnp:Grid.Value.",
-        ),
-        "from_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="Attribute name to use as the input coordinate (a geo.capnp:LatLonCoord).",
-        ),
-        "to_attr": meta.ConfigEntry(
-            value=None,
-            type="string",
-            desc="Attribute name to use as the output (a grid.capnp:Grid.Value or a common.capnp:Value).",
-        ),
-        "calc": meta.ConfigEntry(
-            value={"f(gv)": None},
-            type="object",
-            desc="If 'f(gv)' has a value, define an simple arithmetic expression named 'f(gv)', which can use 'gv' (grid value) and possible other variables defined in the 'calc' object.",
-        ),
-    },
+    config=Config,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(
-        port_infos_reader_sr,
-        ins=["conf", "in", "service"],
-        outs=["out"],
-    )
-    await p.update_config_from_port(config, pc.in_ports["conf"])
+def number_of(grid_value: Any) -> float | int | None:
+    """The value as a plain number, or None for a no-data cell."""
 
-    service = None
-    if pc.in_ports["service"]:
-        service = (
-            service_cap.cast_as(grid_capnp.Service)
-            if (service_cap := await pc.read_or_connect("service")) is not None
-            else None
-        )
-        if not service:
-            logger.error("%s No grid service could be received or connected to.", Path(__file__).name)
+    match grid_value.which():
+        case "f":
+            return grid_value.f
+        case "i":
+            return grid_value.i
+        case "ui":
+            return grid_value.ui
+        case _:
+            return None
+
+
+class UseGridService(process.Process[Config]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
+        self.sent: int = 0
+
+    def coord_of(self, in_ip: IPReader) -> Any | None:
+        """The incoming coordinate, from an attribute or the content."""
+
+        if self.config.from_attr:
+            kv = values.attr_reader(in_ip, self.config.from_attr)
+            if kv is None:
+                return None
+            pointer = kv.value
+        else:
+            pointer = in_ip.content
+        try:
+            return pointer.as_struct(geo_capnp.LatLonCoord)
+        except capnp.KjException:
+            return None
+
+    def calculated(self, grid_value: Any) -> Any:
+        """A new Grid.Value with the expression applied, keeping the original's union field.
+
+        The old code assigned to the *reader* returned by the service, which cannot be written to,
+        and passed `{name, value}` - a set literal, not a dict - as the variable table.
+        """
+
+        number = number_of(grid_value)
+        if not self.config.calc or number is None:
+            return grid_value
+
+        variables = dict(self.config.calc_constants)
+        variables[self.config.calc_variable] = float(number)
+        result = mep_eval(self.config.calc, variables)
+
+        out = grid_capnp.Grid.Value.new_message()
+        match grid_value.which():
+            case "f":
+                out.f = float(result)
+            case "i":
+                out.i = int(result)
+            case "ui":
+                out.ui = max(0, int(result))
+        return out
+
+    def payload(self, grid_value: Any) -> tuple[Any, str]:
+        """The outgoing value and the content type naming it."""
+
+        value = self.calculated(grid_value)
+        if not self.config.as_common_value:
+            return value, GRID_VALUE_TYPE
+
+        number = number_of(value)
+        if number is None:
+            return common_capnp.Value.new_message(), COMMON_VALUE_TYPE
+        match value.which():
+            case "f":
+                return common_capnp.Value.new_message(f64=float(number)), COMMON_VALUE_TYPE
+            case "i":
+                return common_capnp.Value.new_message(i64=int(number)), COMMON_VALUE_TYPE
+            case _:
+                return common_capnp.Value.new_message(ui64=int(number)), COMMON_VALUE_TYPE
+
+    async def grid_from_port(self) -> Any | None:
+        """The one grid capability this component works against, read before the first coordinate."""
+
+        service_ip = await self.read_in("service")
+        if service_ip is None:
+            self.in_ports["service"] = None
+            logger.error("%s: the 'service' port closed before sending a grid.", self.name)
+            return None
+        grid, _ = await self.cast_cap_or_connect(service_ip.content, grid_capnp.Grid)
+        if grid is None:
+            logger.error("%s: no grid service could be received or connected to.", self.name)
+        return grid
+
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
+
+        grid = await self.grid_from_port()
+        if grid is None:
             return
 
-    try:
-        while pc.in_ports["in"] and pc.out_ports["out"] and service:
-            in_msg = pc.in_ports["in"].read().wait()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                break
+
+            if brackets.is_bracket(in_ip):
+                if not await self.write_out("out", in_ip):
+                    break
                 continue
 
-            in_ip = in_msg.value.as_struct(fbp_capnp.IP)
-            attr = common.get_fbp_attr(in_ip, config["from_attr"])
-            if attr:
-                coord = attr.as_struct(geo_capnp.LatLonCoord)
-            else:
-                coord = in_ip.content.as_struct(geo_capnp.LatLonCoord)
+            coord = self.coord_of(in_ip)
+            if coord is None:
+                message = f"{self.name}: no coordinate could be read from this IP"
+                if self.config.on_error == "fail":
+                    raise ValueError(message)
+                logger.warning(message)
+                continue
 
-            grid_val = (await service.closestValueAt(coord)).val
+            grid_value = (await grid.closestValueAt(coord, ignoreNoData=self.config.ignore_no_data)).val
 
-            def maybe_as_common_value(grid_value):
-                if config.get("as_common_value", False):
-                    if grid_value.which() == "f":
-                        return common_capnp.Value.new_message(f64=grid_value.f)
-                    if grid_value.which() == "i":
-                        return common_capnp.Value.new_message(i64=grid_value.i)
-                    if grid_value.which() == "ui":
-                        return common_capnp.Value.new_message(ui64=grid_value.ui)
-                return grid_value
+            if number_of(grid_value) is None and self.config.on_no_data != "emit":
+                message = f"{self.name}: the grid has no data at ({coord.lat}, {coord.lon})"
+                if self.config.on_no_data == "fail":
+                    raise ValueError(message)
+                logger.info(message)
+                continue
 
-            def update_val(expr, var_name, grid_value):
-                if grid_value.which() == "f":
-                    grid_value.f = mep_eval(expr, {var_name, float(grid_value.f)})
-                elif grid_value.which() == "i":
-                    grid_value.i = int(mep_eval(expr, {var_name, int(grid_value.i)}))
-                elif grid_value.which() == "ui":
-                    grid_value.ui = int(mep_eval(expr, {var_name, int(grid_value.ui)}))
-                return grid_value
+            payload, content_type = self.payload(grid_value)
 
             out_ip = fbp_capnp.IP.new_message()
+            extra: dict[str, Any] = {}
+            if self.config.to_attr:
+                extra[self.config.to_attr] = brackets.Attr(payload, content_type)
+            else:
+                out_ip.content = payload
+                out_ip.sysAttributes.contentType = content_type
+            brackets.copy_attrs(in_ip, out_ip, extra=extra)
 
-            new_attrs = {}
-            is_valid_to_attr = "to_attr" in config and len(config["to_attr"]) > 0
-            calc = config.get("calc", {})
+            self.sent += 1
+            if not await self.write_out("out", out_ip):
+                break
 
-            # update attr
-            if is_valid_to_attr:
-                calc_val = update_val(calc.get("f(gv)", {}), calc.copy().pop("f(gv)"), grid_val)
-                new_attrs[config["to_attr"]] = maybe_as_common_value(calc_val)
-
-            # send via content
-            if not is_valid_to_attr:
-                calc_val = update_val(calc.get("f(gv)", {}), calc.copy().pop("f(gv)"), grid_val)
-                out_ip.content = maybe_as_common_value(calc_val)
-
-            # copy old attributes and potentially add new one
-            common.copy_and_set_fbp_attrs(in_ip, out_ip, **new_attrs)
-            await pc.out_ports["out"].write(value=out_ip)
-
-    except Exception:
-        logger.exception("%s Exception", Path(__file__).name)
-
-    await pc.close_out_ports()
-    logger.info("%s: process finished", Path(__file__).name)
+        logger.info("%s process finished, sent %d value(s)", self.name, self.sent)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(UseGridService(METADATA), METADATA)
 
 
 if __name__ == "__main__":

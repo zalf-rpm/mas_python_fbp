@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, Any, cast, override
 
 import capnp
 from mas.schema.fbp import fbp_capnp
@@ -11,7 +11,7 @@ from mas.schema.fbp.fbp_capnp.types.results.tuples import (
 )
 from zalfmas_common import common
 
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.metadata import RESERVED_PORT_ROLES, ComponentMetadata
 from zalfmas_fbp.run.process.context import ProcessPortState
 from zalfmas_fbp.run.process.types import ArrayReaderPorts, ArrayWriterPorts
 
@@ -113,14 +113,19 @@ class ProcessPortRuntime:
         self._output_runtime: OutputRuntime = output_runtime
 
     @staticmethod
-    def _port_message(name: str, port_info: ComponentPortMetadata | None, port_type: str) -> dict[str, str]:
-        return {
+    def _port_message(name: str, port_info: ComponentPortMetadata | None, port_type: str) -> dict[str, Any]:
+        message: dict[str, Any] = {
             "name": name,
             "type": port_type,
             "contentType": port_info.contentType if port_info is not None else "Text",
+            "role": port_info.role if port_info is not None else RESERVED_PORT_ROLES.get(name, "data"),
+            "required": port_info.required if port_info is not None else False,
         }
+        if port_info is not None and port_info.desc:
+            message["desc"] = port_info.desc
+        return message
 
-    def in_port_messages(self) -> list[dict[str, str]]:
+    def in_port_messages(self) -> list[dict[str, Any]]:
         component_meta = self._metadata
         in_port_infos = {p.name: p for p in component_meta.inPorts} if component_meta is not None else {}
         ports = [self._port_message(k, in_port_infos.get(k), "standard") for k in self._ports.in_ports]
@@ -157,7 +162,7 @@ class ProcessPortRuntime:
             PortDisconnect(ports.in_ports, name, reader),
         )
 
-    def out_port_messages(self) -> list[dict[str, str]]:
+    def out_port_messages(self) -> list[dict[str, Any]]:
         component_meta = self._metadata
         out_port_infos = {p.name: p for p in component_meta.outPorts} if component_meta is not None else {}
         ports = [self._port_message(k, out_port_infos.get(k), "standard") for k in self._ports.out_ports]

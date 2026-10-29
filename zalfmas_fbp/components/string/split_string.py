@@ -12,92 +12,119 @@
 # Currently maintained by the authors.
 #
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
+from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Any
+from typing import override
 
-import capnp
 from mas.schema.fbp import fbp_capnp
+from pydantic import Field
+from zalfmas_common import common
 
-import zalfmas_fbp.run.components as c
-import zalfmas_fbp.run.ports as p
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.run import metadata as meta
+from zalfmas_fbp.run import process
+from zalfmas_fbp.run.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
+configure_logging()
+
+
+class SplitStringConfig(process.ProcessConfig):
+    split_at: str = Field(default=",", description="split string at this character")
+    wrap_in_substream: bool = Field(
+        default=False,
+        description=(
+            "Wrap each input string's parts in an open-/close-bracket pair, so one input becomes "
+            "one substream. Off by default, which means the parts of successive inputs arrive as "
+            "one flat stream - the same shape as if the strings had arrived separately."
+        ),
+    )
+    keep_empty: bool = Field(
+        default=True,
+        description="Emit empty parts as well, e.g. the two produced by splitting 'a,,b' at ','.",
+    )
+
 
 METADATA = meta.Component(
-    category=meta.Category(
-        id="string",
-        name="String",
-    ),
+    category=meta.Category(id="string", name="String"),
     info=meta.Info(
-        id="d5c2fc62-2be0-4a25-aafe-e710ac3fb39c",
+        id="d44040ab-7d5a-44d1-94e8-3f79969edbd4",
         name="split string",
-        description="Splits a string along delimiter.",
+        description=(
+            "Splits a string along a delimiter, emitting one IP per part. Substream transparent: "
+            "brackets around the incoming strings are forwarded unchanged, so an input substream "
+            "stays one substream. Turn on 'wrap_in_substream' to additionally make each input's "
+            "parts their own substream - nested inside any incoming one."
+        ),
     ),
-    type="standard",
+    type="process",
     inPorts=[
-        meta.Port(
-            name="in",
-            contentType="Text",
-        ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
-        ),
+        meta.Port(name="in", contentType="Text", desc="Strings to split.", required=True),
     ],
     outPorts=[
-        meta.Port(
-            name="out",
-            contentType="Text",
-        ),
+        meta.Port(name="out", contentType="Text", desc="One IP per part.", required=True),
     ],
-    defaultConfig={
-        "split_at": meta.ConfigEntry(
-            value=",",
-            type="string",
-            desc="Split string at this character.",
-        ),
-    },
+    config=SplitStringConfig,
 )
 
 
-async def run_component(port_infos_reader_sr: str, config: dict[str, Any]):
-    pc = await p.PortConnector.create_from_port_infos_reader(port_infos_reader_sr, ins=["conf", "in"], outs=["out"])
-    logger.info("%s: %s connected port(s)", Path(__file__).name, config["name"])
-    _ = await p.update_config_from_port(config, pc.in_ports["conf"])
-    if pc.in_ports["conf"]:
-        logger.info("%s: %s updated config from config port", Path(__file__).name, config["name"])
+class SplitString(process.Process[SplitStringConfig]):
+    def __init__(
+        self,
+        metadata: meta.Component = METADATA,
+        con_man: common.ConnectionManager | None = None,
+    ):
+        super().__init__(metadata=metadata, con_man=con_man)
 
-    while pc.in_ports["in"] and pc.out_ports["out"]:
-        try:
-            in_msg = await pc.in_ports["in"].read()
-            if in_msg.which() == "done":
-                pc.in_ports["in"] = None
-                continue
+    @override
+    async def run(self):
+        logger.info("%s process running", self.name)
 
-            s: str = in_msg.value.as_struct(fbp_capnp.IP).content.as_text()
-            logger.info("%s: %s received: %s", Path(__file__).name, config["name"], s)
-            s = s.rstrip()
-            vals = s.split(config["split_at"])
-
-            for val in vals:
-                out_ip = fbp_capnp.IP.new_message(content=val)
-                await pc.out_ports["out"].write(value=out_ip)
-                logger.info("%s: %s sent: %s", Path(__file__).name, config["name"], val)
-
-        except capnp.KjException as e:
-            logger.exception("%s: %s RPC Exception: %s", Path(__file__).name, config["name"], e.description)
-            if e.type in ["DISCONNECTED"]:
+        while self.in_ports["in"] and self.out_ports["out"]:
+            in_msg = await self.read_in("in")
+            if in_msg is None:
+                self.in_ports["in"] = None
                 break
 
-    await pc.close_out_ports()
-    logger.info("%s: %s process finished", Path(__file__).name, config["name"])
+            # Incoming grouping is the caller's; it is forwarded so an input substream stays one
+            # substream, whatever this component does inside it.
+            if brackets.is_bracket(in_msg):
+                if not await self.write_out("out", in_msg):
+                    logger.info("%s process finished", self.name)
+                    return
+                continue
+
+            text = in_msg.content.as_text()
+            parts = text.rstrip().split(self.config.split_at)
+            if not self.config.keep_empty:
+                parts = [part for part in parts if part != ""]
+            logger.info("%s received %r, split into %d part(s)", self.name, text, len(parts))
+
+            if self.config.wrap_in_substream and not await self.write_out(
+                "out",
+                brackets.make_bracket("openBracket"),
+            ):
+                return
+
+            for part in parts:
+                out_ip = fbp_capnp.IP.new_message(content=part)
+                brackets.copy_attrs(in_msg, out_ip)
+                if not await self.write_out("out", out_ip):
+                    logger.info("%s process finished", self.name)
+                    return
+
+            if self.config.wrap_in_substream and not await self.write_out(
+                "out",
+                brackets.make_bracket("closeBracket"),
+            ):
+                return
+
+        logger.info("%s process finished", self.name)
 
 
 def main():
-    c.run_component_from_metadata(run_component, METADATA)
+    process.run_process_from_metadata_and_cmd_args(SplitString(METADATA), METADATA)
 
 
 if __name__ == "__main__":

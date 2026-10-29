@@ -50,5 +50,5 @@ class ProcessBootstrap[ConfigT: ProcessConfig | RawConfig]:
                 else:
                     _ = self._ports.out_ports.setdefault(name, None)
 
-        filtered_defaults = {key: value for key, value in default_config.items() if value is not None}
-        self._config_runtime.apply_config_values(filtered_defaults)
+        # None defaults are applied like any other: the model declares whether a field accepts one.
+        self._config_runtime.apply_config_values(default_config)

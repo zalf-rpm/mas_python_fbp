@@ -9,6 +9,7 @@ from typing import Literal, override
 from pydantic import Field
 from zalfmas_common import common
 
+from zalfmas_fbp.components.common import brackets
 from zalfmas_fbp.components.dakis.common.file_payload import GEOTIFF_CONTENT_TYPE, blob_content_type
 from zalfmas_fbp.components.dakis.common.raster import create_empty_raster_bytes, parse_geojson_bbox
 from zalfmas_fbp.run import metadata as meta
@@ -35,7 +36,10 @@ METADATA = meta.Component(
     info=meta.Info(
         id="2a1a5561-fee4-4c21-9b0d-e7626db1585e",
         name="create empty raster",
-        description="Create an empty compressed in-memory raster from a GeoJSON bbox.",
+        description=(
+            "Create an empty compressed in-memory raster from a GeoJSON bbox. Substream "
+            "transparent: bracket IPs are forwarded unchanged."
+        ),
     ),
     type="process",
     inPorts=[
@@ -43,10 +47,6 @@ METADATA = meta.Component(
             name="in",
             contentType="Text",
             desc="GeoJSON bbox as text.",
-        ),
-        meta.Port(
-            name="conf",
-            contentType="common.capnp:StructuredText[JSON | TOML]",
         ),
     ],
     outPorts=[
@@ -71,13 +71,19 @@ class CreateEmptyRaster(process.Process[CreateEmptyRasterConfig]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while True:
             in_msg = await self.read_in("in")
             if in_msg is None:
                 break
+
+            # A bracket carries no bbox; forwarding it keeps the caller's grouping around the
+            # rasters produced from the IPs inside it. Plain write_out, not the chunked path.
+            if brackets.is_bracket(in_msg):
+                if not await self.write_out("out", in_msg):
+                    logger.info("%s process finished", self.name)
+                    return
+                continue
 
             try:
                 bbox_text = in_msg.content.as_text()

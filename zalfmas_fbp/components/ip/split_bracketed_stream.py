@@ -14,9 +14,9 @@
 # Copyright (C: Leibniz Centre for Agricultural Landscape Research (ZALF)
 
 import logging
-from pathlib import Path
 from typing import override
 
+import capnp
 from mas.schema.common import common_capnp
 from mas.schema.fbp import fbp_capnp
 from zalfmas_common import common
@@ -87,12 +87,14 @@ class Component(process.Process[Config]):
 
         count = 0
         while self.in_ports["in"] and self.out_ports["out"] and self.out_ports["brackets"]:
-            try:
-                in_ip = await self.read_in("in")
-                if in_ip is None:
-                    self.in_ports["in"] = None
-                    continue
+            # The read is outside the try: a failing read is the runtime's to report, and
+            # retrying it here would spin the loop rather than surface the problem.
+            in_ip = await self.read_in("in")
+            if in_ip is None:
+                self.in_ports["in"] = None
+                continue
 
+            try:
                 if in_ip.type == "openBracket":
                     count = 0
                     if not await self.write_out("brackets", in_ip):
@@ -130,8 +132,10 @@ class Component(process.Process[Config]):
                         return
                     count += 1
 
-            except Exception:
-                logger.exception("%s Exception", Path(__file__).name)
+            except capnp.KjException:
+                # Reading or writing an attribute failed; the IP is malformed rather than
+                # this component being wrong, so log it and take the next one.
+                logger.exception("%s: could not split this IP", self.name)
 
         logger.info("%s process finished", self.name)
 

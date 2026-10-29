@@ -82,10 +82,6 @@ METADATA = meta.Component(
     type="process",
     inPorts=[
         meta.Port(
-            name="conf",
-            contentType="@0xed6c098b67cad454 = common/common.capnp:StructuredText[JSON | TOML]",
-        ),
-        meta.Port(
             name="in",
             contentType="AnyPointer",
             desc="Input IP whose 'attr_name' attribute (and optionally a sub-object of it) is extracted.",
@@ -172,7 +168,7 @@ def _sub_access(value: Any, parts: list[str | int], types: dict[str, str], path:
                 return _MISSING
         elif isinstance(current, dict) and field_name in current:
             current = current[field_name]
-        elif hasattr(current, "schema") and field_name in current.schema.fieldnames:
+        elif (schema := getattr(current, "schema", None)) is not None and field_name in schema.fieldnames:
             current = getattr(current, field_name)
         else:
             logger.error(
@@ -220,8 +216,6 @@ class Component(process.Process[Config]):
     @override
     async def run(self):
         logger.info("%s process running", self.name)
-        if await self.update_config_from_port("conf"):
-            logger.info("%s updated config from conf port", self.name)
 
         while self.in_ports["in"] and self.out_ports["out"]:
             in_ip = await self.read_in("in")

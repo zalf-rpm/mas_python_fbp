@@ -15,6 +15,7 @@ import logging
 from collections.abc import AsyncIterable, Mapping
 from typing import (
     TYPE_CHECKING,
+    Any,
     ClassVar,
     Literal,
     cast,
@@ -30,10 +31,7 @@ from mas.schema.fbp import fbp_capnp
 
 if TYPE_CHECKING:
     from capnp.lib.capnp import (
-        _CapabilityClient,
-        _DynamicCapabilityClient,
         _DynamicObjectReader,
-        _InterfaceSchema,
     )
     from mas.schema.common.common_capnp.types.readers import StructuredTextReader
     from mas.schema.fbp.fbp_capnp.types.builders import IPBuilder
@@ -54,12 +52,9 @@ from zalfmas_common import common
 from zalfmas_fbp.run.logging_config import (
     configure_logging,
 )
-from zalfmas_fbp.run.metadata import ComponentMetadata
+from zalfmas_fbp.run.metadata import CONFIG_PORT_NAME, ComponentMetadata
 
 from .bootstrap import ProcessBootstrap
-from .config.config_codec import (
-    config_from_ip as _config_from_ip,
-)
 from .config.config_codec import (
     config_value_from_python,
     python_value_from_capnp_value,
@@ -68,12 +63,11 @@ from .config.config_runtime import ProcessConfigRuntime
 from .context import (
     ProcessContext,
 )
-from .errors import (
-    ProcessConfigError,
-)
 from .io.chunked_io import DEFAULT_BRACKETED_CHUNK_SIZE, ChunkedInputStream
+from .runtime.config_watcher import ConfigWatcher
 from .runtime.input_runtime import InputRuntime
 from .runtime.lifecycle_runtime import ProcessLifecycleRuntime
+from .runtime.log_runtime import LogPortTee
 from .runtime.output_runtime import OutputRuntime
 from .runtime.port_runtime import ProcessPortRuntime
 from .runtime.state_runtime import ProcessStateRuntime
@@ -88,6 +82,7 @@ from .types import (
 )
 
 DEFAULT_SOFT_STOP_TIMEOUT_SECONDS = 30.0
+DEFAULT_LOG_PORT_LEVEL = "INFO"
 DEFAULT_PROCESSING_ACTIVITY_DELAY_MILLISECONDS = 25
 logger = logging.getLogger(__name__)
 configure_logging()
@@ -99,6 +94,7 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     common.GatewayRegistrable,
 ):
     config_model: ClassVar[type[ProcessConfig] | None] = None
+    _warned_about_update_config_from_port: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
@@ -168,6 +164,20 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             con_man=self.con_man,
             output_runtime=self._output_runtime,
         )
+        self._config_watcher: ConfigWatcher = ConfigWatcher(
+            identity=self,
+            input_runtime=self._input_runtime,
+            config_runtime=self._config_runtime,
+            stop_event=self._context.lifecycle.stop_requested,
+        )
+        self._input_runtime.apply_pending_config = self._config_watcher.apply_pending
+        self._output_runtime.apply_pending_config = self._config_watcher.apply_pending
+        self._log_tee: LogPortTee = LogPortTee(
+            identity=self,
+            output_runtime=self._output_runtime,
+            stop_event=self._context.lifecycle.stop_requested,
+            level=DEFAULT_LOG_PORT_LEVEL,
+        )
         self._lifecycle_runtime: ProcessLifecycleRuntime = ProcessLifecycleRuntime(
             identity=self,
             lifecycle=self._context.lifecycle,
@@ -175,6 +185,8 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
             state_runtime=self._state_runtime,
             input_runtime=self._input_runtime,
             output_runtime=self._output_runtime,
+            config_watcher=self._config_watcher,
+            log_tee=self._log_tee,
             run_fn=self.run,
         )
         self._context.lifecycle.soft_stop_timeout_seconds = DEFAULT_SOFT_STOP_TIMEOUT_SECONDS
@@ -295,17 +307,30 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     # configEntries @4 () -> (config :List(ConfigEntry));
     @override
     async def configEntries(self, _context, **kwargs):
-        return [
-            fbp_capnp.Process.ConfigEntry.new_message(
-                name=item[0],
-                val=config_value_from_python(item[1]),
-            )
-            for item in self.raw_config.items()
-        ]
+        return [self._config_entry_message(name, value) for name, value in self.raw_config.items()]
+
+    @staticmethod
+    def _config_entry_message(name: str, value: ConfigValue):
+        """One config entry. A null value leaves 'val' unset, since Value has no null variant.
+
+        The same convention Pair.snd already uses for nulls nested inside a config dict, so a
+        reader tells them apart with _has("val").
+        """
+        entry = fbp_capnp.Process.ConfigEntry.new_message(name=name)
+        if value is not None:
+            entry.val = config_value_from_python(value)
+        return entry
 
     @override
     async def setConfigEntry(self, name, val, _context, **kwargs):
-        self.apply_config_values({name: python_value_from_capnp_value(val)})
+        # An unset 'val' is the null value, not a missing argument: Value cannot encode null, so
+        # leaving the field out is how a caller sends one. See _config_entry_message.
+        has_val = True
+        try:
+            has_val = _context.params._has("val")  # noqa: SLF001 - capnp exposes presence only via _has
+        except (AttributeError, capnp.KjException):
+            logger.debug("%s: could not check whether 'val' was set; treating it as present.", self.name)
+        self.apply_config_values({name: python_value_from_capnp_value(val) if has_val else None})
 
     async def transition_to_state(self, new_state: ProcessStateEnum):
         await self._state_runtime.transition_to_state(new_state)
@@ -363,19 +388,47 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     async def read_in_chunked_stream(self, name: str) -> ChunkedInputStream | None:
         return await self._input_runtime.read_in_chunked_stream(name)
 
-    async def update_config_from_port(self, name: str = "conf") -> bool:
-        in_msg = await self._input_runtime.read_in_raw(name)
-        if in_msg is None:
+    async def next_config(self) -> bool:
+        """Wait until a config update from the ``conf`` port has been applied.
+
+        Returns False when no further update can arrive - ``conf`` unconnected, or closed - so a
+        component can drive itself from its config::
+
+            while True:
+                do_work_with(self.config)
+                if not await self.next_config():
+                    break
+
+        Components that read a data port do not need this: config is applied at every read and
+        write boundary anyway. It exists for sources, which reach no other boundary.
+        """
+        return await self._config_watcher.next_config()
+
+    async def update_config_from_port(self, name: str = CONFIG_PORT_NAME) -> bool:
+        """Deprecated no-op kept so existing components keep working.
+
+        The runtime owns the ``conf`` port now (plan section 6.1): the initial config is applied
+        before ``run()`` is called and later updates land at IP boundaries, so a component never has
+        to ask. Read ``self.config`` whenever it is needed instead. Returns whether any config has
+        been applied from the port, which is what callers logged this for.
+        """
+        if name != CONFIG_PORT_NAME:
+            logger.warning(
+                "%s called update_config_from_port(%r); only the runtime-owned %r port is supported.",
+                self.name,
+                name,
+                CONFIG_PORT_NAME,
+            )
             return False
 
-        try:
-            config_values = _config_from_ip(in_msg)
-        except ProcessConfigError as e:
-            msg = f"{self.name} received invalid config on port '{name}': {e}"
-            raise ProcessConfigError(msg, port=name) from e
-
-        self.apply_config_values(config_values)
-        return True
+        if not type(self)._warned_about_update_config_from_port:  # noqa: SLF001 - our own class attribute
+            type(self)._warned_about_update_config_from_port = True
+            logger.info(
+                "%s calls update_config_from_port, which is now a no-op: the runtime applies config "
+                "before run() and between IPs. The call can be removed.",
+                self.name,
+            )
+        return self._config_watcher.applied_updates > 0
 
     @overload
     async def read_array_in(
@@ -422,6 +475,10 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
     async def write_out(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out(name, message)
 
+    async def write_out_if_space(self, name: str, message: IPBuilder | IPReader) -> bool:
+        """Write only if the channel has room, dropping the message otherwise. Never blocks."""
+        return await self._output_runtime.write_out_if_space(name, message)
+
     async def write_out_chunked(self, name: str, message: IPBuilder | IPReader) -> bool:
         return await self._output_runtime.write_out_chunked(
             name,
@@ -445,6 +502,18 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         message: IPBuilder | IPReader,
     ) -> bool:
         return await self._output_runtime.write_array_out(name, strategy, message)
+
+    async def read_array_in_with_index(self, name: str) -> tuple[int, IPReader] | None:
+        """Read the next IP available on any slot of an array in-port, with the slot it came from."""
+        return await self._input_runtime.read_array_in_with_index(name)
+
+    async def choose_array_out_index(self, name: str, strategy: ArrayOutStrategy | str) -> int | None:
+        """Pick a slot of an array out-port, for a component writing a sequence to one of them."""
+        return await self._output_runtime.choose_array_out_index(name, strategy)
+
+    async def write_array_out_at(self, name: str, index: int, message: IPBuilder | IPReader) -> bool:
+        """Write to one chosen slot of an array out-port, rather than letting a strategy pick."""
+        return await self._output_runtime.write_array_out_at(name, index, message)
 
     async def close_in_ports(self):
         await self._lifecycle_runtime.close_in_ports()
@@ -486,11 +555,23 @@ class Process[ConfigT: ProcessConfig | RawConfig](  # pyright: ignore[reportUnsa
         finally:
             await self._lifecycle_runtime.force_close_ports()
 
-    # try to read capability from port or a sturdy ref out of a structured text
-    # return structured text if not a sturdy ref or else the IPReader as second element in the tuple
     async def cast_cap_or_connect(
-        self, anyPointerReader: _DynamicObjectReader, interface_type: _InterfaceSchema
-    ) -> tuple[_DynamicCapabilityClient | _CapabilityClient | None, StructuredTextReader | None]:
+        self, anyPointerReader: _DynamicObjectReader, interface_type: Any
+    ) -> tuple[Any, StructuredTextReader | None]:
+        """A capability from this pointer, whether it holds one directly or a sturdy ref to one.
+
+        Returns ``(capability, None)`` when one was obtained, ``(None, structured_text)`` when the
+        pointer held structured text that was not a sturdy ref, and ``(None, None)`` when neither
+        worked.
+
+        Both ends are typed ``Any`` on purpose. Callers pass a generated interface *module*
+        (``climate_capnp.Service``), not an ``_InterfaceSchema``, and pycapnp types the result of
+        ``as_interface`` through ~80 overloads - one per interface - which a wrapper cannot
+        forward. Annotating them precisely is therefore impossible, and annotating them narrowly
+        made every call on the returned capability a type error, which is worse than no checking
+        because it buries the real ones.
+        """
+
         try:
             return (anyPointerReader.as_interface(interface_type), None)
         except capnp.KjException:
