@@ -32,6 +32,17 @@ logger = logging.getLogger(__name__)
 NUMERIC_COLUMNS = (("low", 2), ("high", 3), ("step", 4), ("optguess", 5), ("minbound", 6), ("maxbound", 7))
 
 
+def array_index_from(text: str) -> int | str:
+    """`3` -> 3. A nested position like `2_0` (row 2, column 0 of a matrix parameter) stays text,
+    since it only ever becomes part of the parameter name (`AssimilatePartitioningCoeff_2_0`)."""
+
+    parts = text.strip().split("_")
+    if not all(p.isdigit() for p in parts):
+        msg = f"'{text}' is not an array index like 3 or 2_0"
+        raise ValueError(msg)
+    return int(parts[0]) if len(parts) == 1 else "_".join(parts)
+
+
 class Config(process.ProcessConfig):
     path_to_calibrate_csv: str = Field(
         "calibratethese.csv",
@@ -135,7 +146,7 @@ class Component(process.Process[Config]):
         try:
             param: dict[str, Any] = {"name": row[0]}
             if len(row[1]) > 0:
-                param["array_index"] = int(row[1])
+                param["array_index"] = array_index_from(row[1])
             for name, index in NUMERIC_COLUMNS:
                 if len(row[index]) > 0:
                     param[name] = float(row[index])
@@ -144,6 +155,8 @@ class Component(process.Process[Config]):
                 # It used to be built here as `lambda _, _2: eval(row[8])`, which both closed over
                 # the loop variable - so every row ended up with the *last* row's expression - and
                 # made the whole list unserialisable, so the component silently sent nothing at all.
+                # The SpotPy component checks and evaluates it (see components/common/expressions.py);
+                # such a row is derived, not sampled, so it needs no bounds.
                 param["derive_expression"] = row[8]
         except (IndexError, ValueError):
             message = f"{self.name}: {path}:{line_no} is not a readable parameter row"

@@ -45,6 +45,23 @@ def test_an_array_index_is_read_as_an_integer(tmp_path) -> None:
     assert params_of(run(path))[0]["array_index"] == 3
 
 
+def test_a_nested_array_index_is_kept_as_text(tmp_path) -> None:
+    """`2_0` is row 2, column 0 of a matrix parameter like AssimilatePartitioningCoeff."""
+
+    path = csv_file(tmp_path, ["pA,2_0,0.1,0.9,,,,\n"])
+    assert params_of(run(path))[0]["array_index"] == "2_0"
+
+
+def test_a_malformed_array_index_is_skipped(tmp_path) -> None:
+    path = csv_file(tmp_path, ["pA,2-0,0.1,0.9,,,,\n", "pB,,0,1,,,,\n"])
+    assert [p["name"] for p in params_of(run(path))] == ["pB"]
+
+
+def test_a_derived_row_needs_no_bounds(tmp_path) -> None:
+    path = csv_file(tmp_path, ["pA,,0,1,,,,\n", "pB,1,,,,,,,1 - pA\n"])
+    assert params_of(run(path))[1] == {"name": "pB", "array_index": 1, "derive_expression": "1 - pA"}
+
+
 def test_all_numeric_columns_are_read(tmp_path) -> None:
     path = csv_file(tmp_path, ["pA,,1,2,0.5,1.5,0.9,2.1,\n"])
     assert params_of(run(path))[0] == {

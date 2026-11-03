@@ -155,11 +155,17 @@ def _resolve_path(value: Any, parts: list[Any]) -> Any:
     # dict membership is checked first and for every part type - not just str - since
     # obj_value_key_attr mode can populate the object with int/float/bool keys too; only when
     # current isn't a dict (or doesn't have that key) does an int part fall back to list indexing.
+    # A non-str part (e.g. 902, from a digit-only path segment or a numeric JSON key) also matches
+    # its string form, since JSON object keys are always strings ({"902": ...}).
     current = value
     for part in parts:
-        if isinstance(current, dict) and part in current:
-            current = current[part]
-            continue
+        if isinstance(current, dict):
+            if part in current:
+                current = current[part]
+                continue
+            if not isinstance(part, str) and str(part) in current:
+                current = current[str(part)]
+                continue
         if (
             isinstance(part, int)
             and not isinstance(part, bool)

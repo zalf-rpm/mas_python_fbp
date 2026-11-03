@@ -3853,7 +3853,14 @@
             {
                 "name": "init_params",
                 "contentType": "Text (JSON list)",
-                "desc": "list of JSON objects describing the parameters to calibrate",
+                "desc": "list of JSON objects describing the parameters to calibrate. One with a 'derive_expression'\n            is not sampled but computed from the others, see 'context'.",
+                "role": "data",
+                "required": false
+            },
+            {
+                "name": "context",
+                "contentType": "Text (JSON object)",
+                "desc": "Optional, read once: a JSON object whose top-level keys can be used by name in the expressions\n            of derived parameters, e.g. {\"species\": {...}, \"cultivar\": {...}} to compute a value relative to an\n            existing crop parameter: cultivar[\"StageTemperatureSum\"][0][2] * factor. Besides these, an expression\n            can use the sampled parameters by name, derived parameters from rows above it by name, and 'v', the list\n            of sampled values. Only arithmetic, comparisons, 'x if c else y', indexing, list literals and the\n            functions min, max, abs, round, sum, len, sqrt, exp, log, log10 and clip are allowed.",
                 "role": "data",
                 "required": false
             },

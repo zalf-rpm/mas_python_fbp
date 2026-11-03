@@ -40,10 +40,19 @@ def test_an_array_index_becomes_a_name_suffix() -> None:
 
 def test_a_key_spotpy_does_not_take_is_ignored_rather_than_fatal() -> None:
     """`Uniform(**par)` raises TypeError on an unknown key. That used to be swallowed, leaving
-    the calibration with no parameters at all and no explanation - and the loader sends
-    `derive_expression` for any row with a ninth column."""
+    the calibration with no parameters at all and no explanation."""
 
-    params = spotpy_parameters([{"name": "pA", "low": 0.0, "high": 1.0, "derive_expression": "x*2"}])
+    params = spotpy_parameters([{"name": "pA", "low": 0.0, "high": 1.0, "unit": "kg"}])
+    assert [p.name for p in params] == ["pA"]
+
+
+def test_derived_parameters_are_not_handed_to_spotpy() -> None:
+    params = spotpy_parameters(
+        [
+            {"name": "pA", "low": 0.0, "high": 1.0},
+            {"name": "pB", "derive_expression": "1 - pA"},
+        ]
+    )
     assert [p.name for p in params] == ["pA"]
 
 

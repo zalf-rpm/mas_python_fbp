@@ -19,8 +19,10 @@ import asyncio
 import io
 import json
 import logging
+import math
 import tempfile
 import time
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol, override
@@ -36,6 +38,7 @@ from pydantic import Field
 from zalfmas_common import common
 
 import zalfmas_fbp.run.process as process
+from zalfmas_fbp.components.common.expressions import Expression, ExpressionError
 from zalfmas_fbp.run import metadata as meta
 from zalfmas_fbp.run.ports import get_attr_val
 
@@ -246,7 +249,18 @@ METADATA = meta.Component(
         meta.Port(
             name="init_params",
             contentType="Text (JSON list)",
-            desc="list of JSON objects describing the parameters to calibrate",
+            desc="""list of JSON objects describing the parameters to calibrate. One with a 'derive_expression'
+            is not sampled but computed from the others, see 'context'.""",
+        ),
+        meta.Port(
+            name="context",
+            contentType="Text (JSON object)",
+            desc="""Optional, read once: a JSON object whose top-level keys can be used by name in the expressions
+            of derived parameters, e.g. {"species": {...}, "cultivar": {...}} to compute a value relative to an
+            existing crop parameter: cultivar["StageTemperatureSum"][0][2] * factor. Besides these, an expression
+            can use the sampled parameters by name, derived parameters from rows above it by name, and 'v', the list
+            of sampled values. Only arithmetic, comparisons, 'x if c else y', indexing, list literals and the
+            functions min, max, abs, round, sum, len, sqrt, exp, log, log10 and clip are allowed.""",
         ),
         meta.Port(
             name="obs_values",
@@ -287,8 +301,10 @@ class SpotPySetup:
         loop: asyncio.AbstractEventLoop,
         component: Component,
         log_out_p=None,
+        plan: ParamPlan | None = None,
     ):
         self.params = params
+        self.plan = plan
         self.observations = observations
         self.sampled_params_out_p = sampled_params_out_p
         self.sim_values_in_p = sim_values_in_p
@@ -317,23 +333,29 @@ class SpotPySetup:
         # vector = MaxAssimilationRate, AssimilateReallocation, RootPenetrationRate
         sim_values = None
         self.iteration_count += 1
+        # sampled and derived parameters in CSV order - derived ones computed before anything is sent
         try:
-            name_to_param = dict(zip(vector.name, vector))
+            name_to_value = self.plan.values(vector) if self.plan else list(zip(vector.name, map(float, vector)))
+        except ExpressionError:
+            logger.exception("%s: could not compute the derived parameters; skipping this run", self.component.name)
+            return None
+        try:
             out_value = common_capnp.Value.new_message()
-            n2p_list = out_value.init("lpair", len(name_to_param))
-            for i, (k, v) in enumerate(name_to_param.items()):
+            n2p_list = out_value.init("lpair", len(name_to_value))
+            for i, (k, v) in enumerate(name_to_value):
                 n2p_list[i].fst = k
-                n2p_list[i].snd = common_capnp.Value.new_message(f64=float(v))
+                n2p_list[i].snd = common_capnp.Value.new_message(f64=v)
             out_ip = fbp_capnp.IP.new_message(content=out_value)
             self._run_on_loop(self._write_sampled_params(out_ip))
+            params_text = ", ".join(f"{k}={v:g}" for k, v in name_to_value)
             logger.info(
                 "%s - iteration %s - sent params to monica setup: %s",
                 self.component.name,
                 str(self.iteration_count),
-                vector,
+                params_text,
             )
             if self.log_out_p:
-                self._run_on_loop(self._write_log(f"{datetime.now()} sent params to monica setup: {vector}"))
+                self._run_on_loop(self._write_log(f"{datetime.now()} sent params to monica setup: {params_text}"))
 
             in_msg = self._run_on_loop(self._read_sim_values())
             # check for end of data from in port
@@ -410,6 +432,24 @@ def print_status_final(sampler_status, stream):
             stream.write(f"{text}\n")
 
     stream.write("******************************\n\n")
+
+
+def write_derived_of_best(plan: ParamPlan, sampler_status, stream):
+    """The derived parameters belonging to the best sampled setting - spotpy only knows the sampled ones."""
+
+    best = {"minimize": "params_min", "maximize": "params_max"}.get(sampler_status.optimization_direction)
+    if best is None:
+        return
+    try:
+        values = plan.values(getattr(sampler_status, best))
+    except ExpressionError:
+        logger.exception("%s: could not compute the derived parameters of the best setting", Path(__file__).name)
+        return
+    stream.write("Derived parameters of that setting:\n")
+    for name, value in values:
+        if name in plan.derived:
+            stream.write(f"{name}: {value:g}\n")
+    stream.write("\n")
 
 
 class SpotpyAlgo(Protocol):
@@ -553,24 +593,86 @@ def capnp_value_lf64_to_numpy_array_with_nan(
 SPOTPY_PARAM_KEYS = ("name", "low", "high", "step", "optguess", "minbound", "maxbound")
 
 
-def spotpy_parameters(init_params: list[dict]) -> list[Any]:
-    """Build spotpy parameters, passing only the keys spotpy accepts.
+def param_name(par: dict) -> str:
+    # spotpy does not allow two parameters to have the same name
+    return f"{par.get('name', '')}_{par['array_index']}" if "array_index" in par else par.get("name", "")
 
-    `spotpy.parameter.Uniform(**par)` raises TypeError on any key it does not know - including
-    `derive_expression`, which the loader sends along - and that used to be swallowed, leaving
-    the calibration with no parameters and no explanation.
+
+def is_derived(par: dict) -> bool:
+    return bool(par.get("derive_expression"))
+
+
+def spotpy_parameters(init_params: list[dict]) -> list[Any]:
+    """Build spotpy parameters for the sampled (not derived) rows, passing only the keys spotpy accepts.
+
+    `spotpy.parameter.Uniform(**par)` raises TypeError on any key it does not know, and that used
+    to be swallowed, leaving the calibration with no parameters and no explanation.
     """
 
     params = []
     for par in init_params:
+        if is_derived(par):
+            continue
         kwargs = {k: v for k, v in par.items() if k in SPOTPY_PARAM_KEYS}
-        if "array_index" in par:
-            # spotpy does not allow two parameters to have the same name
-            kwargs["name"] = f"{kwargs.get('name', '')}_{par['array_index']}"
+        kwargs["name"] = param_name(par)
         if ignored := sorted(set(par) - set(SPOTPY_PARAM_KEYS) - {"array_index"}):
             logger.info("%s: ignoring parameter keys spotpy does not take: %s", Path(__file__).name, ignored)
         params.append(spotpy.parameter.Uniform(**kwargs))
     return params
+
+
+class ParamPlan:
+    """All parameters of a calibration in CSV order: the ones spotpy samples, and the derived ones
+    computed from them.
+
+    A derived row's expression (see `components.common.expressions`) may use
+    - every sampled parameter by name (`StageKcFactor_0`), wherever it is in the CSV,
+    - derived parameters from rows above it, by name,
+    - `v`, the list of sampled values in order (as in the old rulebased calibrator),
+    - the top-level keys of the JSON object received on the 'context' port (e.g. `cultivar`).
+
+    All expressions are checked here, so a bad one stops the calibration before the first run.
+    """
+
+    def __init__(self, init_params: list[dict], context: dict[str, Any] | None = None):
+        self.context = dict(context or {})
+        self.names: list[str] = [param_name(par) for par in init_params]
+        self.sampled_names = [n for n, par in zip(self.names, init_params) if not is_derived(par)]
+        if dups := sorted({n for n in self.names if self.names.count(n) > 1}):
+            msg = f"parameter names must be unique, but these are not: {dups}"
+            raise ExpressionError(msg)
+        if clashes := sorted(set(self.names) & (set(self.context) | {"v"})):
+            msg = f"parameter names clash with 'v' or a context key: {clashes}"
+            raise ExpressionError(msg)
+
+        known = set(self.sampled_names) | set(self.context) | {"v"}
+        self.derived: dict[str, Expression] = {}
+        for name, par in zip(self.names, init_params):
+            if is_derived(par):
+                try:
+                    self.derived[name] = Expression(par["derive_expression"], known)
+                except ExpressionError as e:
+                    msg = f"derived parameter '{name}': {e}"
+                    raise ExpressionError(msg) from None
+                if ignored := sorted(k for k in ("low", "high", "step", "optguess") if k in par):
+                    logger.info("%s: derived parameter '%s' ignores %s", Path(__file__).name, name, ignored)
+                known.add(name)
+
+    def values(self, sampled: Iterable[float]) -> list[tuple[str, float]]:
+        """(name, value) of every parameter in CSV order, for the sampled values in spotpy's order."""
+
+        sampled = [float(x) for x in sampled]
+        env: dict[str, Any] = {**self.context, "v": sampled, **dict(zip(self.sampled_names, sampled))}
+        out: list[tuple[str, float]] = []
+        for name in self.names:
+            if name in self.derived:
+                value = self.derived[name](env)
+                if not isinstance(value, (int, float)) or not math.isfinite(value):
+                    msg = f"derived parameter '{name}' is {value!r}, not a finite number"
+                    raise ExpressionError(msg)
+                env[name] = float(value)
+            out.append((name, env[name]))
+        return out
 
 
 def check_and_possibly_add_sentinel_value(sentinel_values: dict, attr, sentinel_attr_name):
@@ -595,6 +697,27 @@ class Component(process.Process[Config]):
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
+        self._context: dict[str, Any] | None = None
+
+    async def context(self) -> dict[str, Any]:
+        """The JSON object from the optional 'context' port, read the first time it is needed."""
+
+        if self._context is None:
+            self._context = {}
+            if self.in_ports["context"]:
+                ip = await self.read_in("context")
+                self.in_ports["context"] = None
+                if ip is not None:
+                    try:
+                        ctx = json.loads(ip.content.as_text())
+                    except (capnp.KjException, ValueError):
+                        logger.exception("%s: the 'context' message is not JSON; ignoring it", self.name)
+                    else:
+                        if isinstance(ctx, dict):
+                            self._context = ctx
+                        else:
+                            logger.error("%s: the 'context' message is not a JSON object; ignoring it", self.name)
+        return self._context
 
     @override
     async def run(self):
@@ -611,6 +734,7 @@ class Component(process.Process[Config]):
             temp_dir = None
             try:
                 spotpy_params: list[spotpy.parameter.Uniform] = []
+                plan: ParamPlan | None = None
                 if self.in_ports["init_params"]:
                     try:
                         init_params_ip = await self.read_in("init_params")
@@ -633,6 +757,12 @@ class Component(process.Process[Config]):
                         spotpy_params.extend(spotpy_parameters(init_params))
                         if len(spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
+                            continue
+
+                        try:
+                            plan = ParamPlan(init_params, await self.context())
+                        except ExpressionError:
+                            logger.exception("%s: not calibrating", self.name)
                             continue
 
                     except (capnp.KjException, TypeError, ValueError):
@@ -672,6 +802,7 @@ class Component(process.Process[Config]):
                     self.in_ports["sim_values"],
                     loop,
                     self,
+                    plan=plan,
                 )
 
                 rep = self.config.repetitions
@@ -698,6 +829,8 @@ class Component(process.Process[Config]):
                 if self.out_ports["best"]:
                     best_out_stream = io.StringIO()
                     print_status_final(sampler.status, best_out_stream)
+                    if plan and plan.derived:
+                        write_derived_of_best(plan, sampler.status, best_out_stream)
                     best_ip = fbp_capnp.IP.new_message(content=best_out_stream.getvalue())
                     await self.write_out("best", best_ip)
 

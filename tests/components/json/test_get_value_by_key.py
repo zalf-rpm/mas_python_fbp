@@ -219,6 +219,31 @@ def test_path_separator_resolves_nested_objects_and_list_indices() -> None:
     assert values == ["42", "20"]
 
 
+def test_numeric_keys_match_string_keys_of_a_json_object() -> None:
+    # JSON object keys are always strings, but a digit-only key - whether sent as a JSON number,
+    # a JSON string, or as a path segment - is turned into an int for list indexing.
+    component = Component(METADATA)
+    obj = {"902": "treat", "a": {"7": "nested"}, "items": [10, 20]}
+
+    result = run_process_component(
+        component,
+        inputs={
+            "obj": _obj_reader(json.dumps(obj), if_msg_messages=[NO_MSG] * 4),
+            "key": [
+                ip_message(json.dumps(902)),
+                ip_message(json.dumps("902")),
+                ip_message(json.dumps("a/7")),
+                ip_message(json.dumps("items/1")),
+                done_message(),
+            ],
+        },
+        outputs=("value",),
+    )
+
+    values = [ip.content.as_text() for ip in result.output("value").values]
+    assert values == ['"treat"', '"treat"', '"nested"', "20"]
+
+
 def test_missing_path_segment_takes_the_missing_key_path() -> None:
     component = Component(METADATA)
 
