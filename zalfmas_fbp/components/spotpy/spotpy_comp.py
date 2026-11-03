@@ -697,13 +697,13 @@ class Component(process.Process[Config]):
         con_man: common.ConnectionManager | None = None,
     ):
         super().__init__(metadata=metadata, con_man=con_man)
-        self._context: dict[str, Any] | None = None
+        self._derive_context: dict[str, Any] | None = None
 
-    async def context(self) -> dict[str, Any]:
+    async def derive_context(self) -> dict[str, Any]:
         """The JSON object from the optional 'context' port, read the first time it is needed."""
 
-        if self._context is None:
-            self._context = {}
+        if self._derive_context is None:
+            self._derive_context = {}
             if self.in_ports["context"]:
                 ip = await self.read_in("context")
                 self.in_ports["context"] = None
@@ -714,16 +714,24 @@ class Component(process.Process[Config]):
                         logger.exception("%s: the 'context' message is not JSON; ignoring it", self.name)
                     else:
                         if isinstance(ctx, dict):
-                            self._context = ctx
+                            self._derive_context = ctx
                         else:
                             logger.error("%s: the 'context' message is not a JSON object; ignoring it", self.name)
-        return self._context
+        return self._derive_context
 
     @override
     async def run(self):
         logger.info("%s process running", self.name)
 
         loop = asyncio.get_running_loop()
+
+        # Kept across calibrations: a new message on 'init_params' or 'obs_values' replaces them,
+        # otherwise the last valid ones are reused. Reset to "none" whenever a new one turns out to
+        # be unusable, so a calibration never runs with stale - or no - parameters or observations.
+        spotpy_params: list[spotpy.parameter.Uniform] = []
+        plan: ParamPlan | None = None
+        obs_values = None
+        param_set_id = self.config.param_set_id
 
         while (
             self.out_ports["sampled_params"]
@@ -733,8 +741,6 @@ class Component(process.Process[Config]):
             path_to_db_dir = self.config.path_to_db_dir
             temp_dir = None
             try:
-                spotpy_params: list[spotpy.parameter.Uniform] = []
-                plan: ParamPlan | None = None
                 if self.in_ports["init_params"]:
                     try:
                         init_params_ip = await self.read_in("init_params")
@@ -742,6 +748,7 @@ class Component(process.Process[Config]):
                             self.in_ports["init_params"] = None
                             continue
 
+                        spotpy_params, plan = [], None
                         init_params: list[dict] = []
                         if init_params_ip._has("content"):
                             try:
@@ -754,23 +761,22 @@ class Component(process.Process[Config]):
                         if not init_params:
                             continue
 
-                        spotpy_params.extend(spotpy_parameters(init_params))
-                        if len(spotpy_params) == 0:
+                        new_spotpy_params = spotpy_parameters(init_params)
+                        if len(new_spotpy_params) == 0:
                             logger.warning("%s: no parameters to calibrate!", Path(__file__).name)
                             continue
 
                         try:
-                            plan = ParamPlan(init_params, await self.context())
+                            plan = ParamPlan(init_params, await self.derive_context())
                         except ExpressionError:
-                            logger.exception("%s: not calibrating", self.name)
+                            logger.exception("%s: not calibrating with these parameters", self.name)
                             continue
+                        spotpy_params = new_spotpy_params
 
                     except (capnp.KjException, TypeError, ValueError):
                         logger.exception("%s: could not set up the parameters", Path(__file__).name)
                         continue
 
-                obs_values = None
-                param_set_id = self.config.param_set_id
                 if self.in_ports["obs_values"]:
                     try:
                         obs_values_ip = await self.read_in("obs_values")
@@ -778,6 +784,7 @@ class Component(process.Process[Config]):
                             self.in_ports["obs_values"] = None
                             continue
 
+                        obs_values, param_set_id = None, self.config.param_set_id
                         sentinel_values = {}
                         for attr in obs_values_ip.attributes:
                             if attr.key == "param_set_id":
@@ -785,15 +792,25 @@ class Component(process.Process[Config]):
                             check_and_possibly_add_sentinel_value(sentinel_values, attr, "null_sentinel")
                             check_and_possibly_add_sentinel_value(sentinel_values, attr, "nan_sentinel")
 
-                        obs_values = capnp_value_lf64_to_numpy_array_with_nan(
+                        new_obs_values = capnp_value_lf64_to_numpy_array_with_nan(
                             obs_values_ip.content.as_struct(common_capnp.Value).lf64, sentinel_values=sentinel_values
                         )
-                        if len(obs_values) == 0:
+                        if len(new_obs_values) == 0:
                             logger.warning("%s: no observed values to calibrate!", Path(__file__).name)
                             continue
+                        obs_values = new_obs_values
                     except (capnp.KjException, TypeError, ValueError):
                         logger.exception("%s: could not read the observed values", Path(__file__).name)
                         continue
+
+                if not spotpy_params or plan is None or obs_values is None:
+                    # starting spotpy without them only fails deep inside the sampler (SCE-UA: IndexError)
+                    logger.error(
+                        "%s: no valid %s to calibrate with; stopping.",
+                        self.name,
+                        "parameters" if obs_values is not None else "observed values",
+                    )
+                    break
 
                 spot_setup = SpotPySetup(
                     spotpy_params,
