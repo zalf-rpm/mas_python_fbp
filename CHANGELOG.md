@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.43](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.42...v0.2.43) (2026-11-03)
+
+
+### Features
+
+* derived calibration parameters via safe expressions ([aab3cf0](https://github.com/zalf-rpm/mas_python_fbp/commit/aab3cf01067471bbef792d5e49ec0ecb4667ef1a))
+
+
+### Bug Fixes
+
+* SpotPy component crashing on start and sampling without parameters ([176b45f](https://github.com/zalf-rpm/mas_python_fbp/commit/176b45f44c2430c73a36bba6fb7727e0b8f28ade))
+
 ## [0.2.42](https://github.com/zalf-rpm/mas_python_fbp/compare/v0.2.41...v0.2.42) (2026-10-29)
 
 
